@@ -100,7 +100,7 @@ export const BudgetTransferModal: React.FC<BudgetTransferModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Transferência de saldo entre Centros de Custo com controle de saldo e aprovação do Controller.
+                Transferência de saldo entre Centros de Custo com controle de saldo e aprovação da Gerência Executiva de Telefonia.
               </p>
             </div>
           </div>
@@ -146,7 +146,7 @@ export const BudgetTransferModal: React.FC<BudgetTransferModalProps> = ({
               <div className="bg-purple-50/50 border border-purple-200/60 rounded-xl p-3.5 flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-purple-600 shrink-0 mt-0.5" />
                 <div className="text-xs text-purple-900 leading-relaxed">
-                  <strong>Regra de Governança:</strong> Remanejamentos entre centros de custo mantêm o orçamento global inalterado (soma-zero). Valores acima de R$ 50.000,00 exigem parecer formal do Controller FP&A.
+                  <strong>Regra de Governança:</strong> Remanejamentos entre centros de custo mantêm o orçamento global inalterado (soma-zero). Valores acima de R$ 50.000,00 exigem parecer formal da Gerência Executiva de Telefonia.
                 </div>
               </div>
 
@@ -376,7 +376,7 @@ export const BudgetTransferModal: React.FC<BudgetTransferModalProps> = ({
         <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex items-center justify-between text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-purple-600" />
-            <span>Alçadas ativas: Gerência até R$ 50k | Diretoria/FP&A acima de R$ 50k.</span>
+            <span>Alçadas ativas: Coordenação até R$ 50k | Gerência Executiva de Telefonia acima de R$ 50k.</span>
           </div>
           <button
             onClick={onClose}

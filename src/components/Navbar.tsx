@@ -57,7 +57,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-slate-400 hidden md:inline">Diretoria de Operações & Controladoria</span>
+            <span className="text-slate-400 hidden md:inline">Gerência Executiva de Telefonia</span>
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-slate-400 font-semibold">Cenário:</span>
               <select

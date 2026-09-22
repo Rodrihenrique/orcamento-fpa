@@ -195,20 +195,20 @@ export function App() {
     setBudgetTransfers(prev => prev.map(t => t.id === transferId ? {
       ...t,
       status: 'APROVADO',
-      approver: 'carlos.controller@grupobrisanet.com.br',
+      approver: 'carlos.telefonia@grupobrisanet.com.br',
       approvalDate: new Date().toISOString().replace('T', ' ').slice(0, 19)
     } : t));
 
     const newLog: AuditLogEntry = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      user: 'carlos.controller@grupobrisanet.com.br',
+      user: 'carlos.telefonia@grupobrisanet.com.br',
       action: 'REMANEJAMENTO',
       entity: 'OPEX',
       entityId: transfer.protocol,
       description: `Aprovação de remanejamento orçamentário: ${transfer.sourceCostCenter} ➔ ${transfer.targetCostCenter}`,
       newValue: new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(transfer.amount),
-      justification: `Aprovado na alçada de controladoria. ${transfer.justification}`,
+      justification: `Aprovado na alçada da Gerência Executiva de Telefonia. ${transfer.justification}`,
       ipAddress: '187.19.142.12'
     };
     setAuditLogs(prev => [newLog, ...prev]);
@@ -221,14 +221,14 @@ export function App() {
     setBudgetTransfers(prev => prev.map(t => t.id === transferId ? {
       ...t,
       status: 'REJEITADO',
-      approver: 'carlos.controller@grupobrisanet.com.br',
+      approver: 'carlos.telefonia@grupobrisanet.com.br',
       approvalDate: new Date().toISOString().replace('T', ' ').slice(0, 19)
     } : t));
 
     const newLog: AuditLogEntry = {
       id: `AUD-${Date.now()}`,
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 19),
-      user: 'carlos.controller@grupobrisanet.com.br',
+      user: 'carlos.telefonia@grupobrisanet.com.br',
       action: 'REMANEJAMENTO',
       entity: 'OPEX',
       entityId: transfer.protocol,

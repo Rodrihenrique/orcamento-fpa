@@ -576,7 +576,7 @@ export const mockContestations: ContestationRecord[] = [
     deadline90Days: '2026-08-08',
     daysRemaining: 0,
     status: 'ACEITA_GLOSA',
-    technicalAnalysis: 'Divergência técnica confirmada pela Controladoria. Emitida Nota de Crédito de R$ 12.400,00 abatida na compensação de Maio.',
+    technicalAnalysis: 'Divergência técnica confirmada pela Gerência Executiva de Telefonia. Emitida Nota de Crédito de R$ 12.400,00 abatida na compensação de Maio.',
     resolutionDate: '2026-05-28',
     agreedAdjustment: 12400.00
   }

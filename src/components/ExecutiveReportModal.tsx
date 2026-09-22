@@ -66,7 +66,7 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
             <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase bg-blue-100 text-blue-800">
               One-Pager Executivo
             </span>
-            <span className="text-xs text-slate-500 font-medium">Visualização prévia para diretoria e conselho</span>
+            <span className="text-xs text-slate-500 font-medium">Visualização oficial da Gerência Executiva de Telefonia</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -89,62 +89,73 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
 
         {/* ÁREA IMPRIMÍVEL DO RELATÓRIO EXECUTIVO */}
         <div className="space-y-6 pt-4 print:pt-0">
-          {/* Cabeçalho Oficial */}
+          {/* Cabeçalho do Relatório */}
           <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
             <div>
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-sm">
-                  BH
-                </div>
-                <h1 className="text-xl font-black text-slate-900 m-0 tracking-tight">
-                  ORÇAHUB FP&A — BRISANET TELECOM
-                </h1>
-              </div>
-              <p className="text-xs text-slate-500 mt-1 m-0">
-                Relatório Mensal de Fechamento Orçamentário, CAPEX e Interconexão DETRAF
+              <span className="text-xs font-black tracking-widest text-blue-600 uppercase">
+                Grupo Brisanet • Gerência Executiva de Telefonia
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-0.5">
+                Relatório de Acompanhamento Orçamentário
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Ciclo Fiscal 2026 • Fechamento de Despesas Operacionais, Projetos e Interconexão DETRAF
               </p>
             </div>
 
-            <div className="text-right text-xs">
-              <span className="font-bold text-slate-800 block">Competência: 2026</span>
-              <span className="text-slate-400 block">Emissão: {new Date().toLocaleDateString('pt-BR')}</span>
-              <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded font-bold text-[10px] uppercase">
-                Consolidado Oficial
+            <div className="text-right">
+              <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-800 border border-slate-300">
+                Posição: Junho/2026
+              </span>
+              <span className="text-[10px] text-slate-400 block mt-1">
+                Gerado em: {new Date().toLocaleDateString('pt-BR')} às {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
           </div>
 
-          {/* Destaques Numéricos Principais (KPI Cards) */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+          {/* Cards de Métricas Principais (DRE & Sintético) */}
+          <div className="grid grid-cols-4 gap-4">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                OPEX Anual Aprovado
+                OPEX Total Anual
               </span>
-              <span className="text-xl font-black text-slate-900 font-mono mt-1 block">
+              <span className="text-lg font-black text-slate-900 font-mono block mt-1">
                 {formatBRL(totalOpexBudget)}
               </span>
               <span className="text-[10px] text-slate-500 mt-1 block">
-                {opexItems.length} rubricas orçamentárias ativas
+                6 Centros de Custo Operacionais
               </span>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
               <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                CAPEX Planejado vs Realizado
+                CAPEX em Andamento
               </span>
-              <span className="text-xl font-black text-blue-700 font-mono mt-1 block">
-                {formatBRL(totalCapexRealized)}
+              <span className="text-lg font-black text-blue-700 font-mono block mt-1">
+                {formatBRL(totalCapexPlanned)}
               </span>
               <span className="text-[10px] text-slate-500 mt-1 block">
-                Orçado: {formatBRL(totalCapexPlanned)} ({((totalCapexRealized / totalCapexPlanned) * 100).toFixed(1)}% realizado)
+                {capexProjects.length} Projetos de Expansão
               </span>
             </div>
 
-            <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40">
-              <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                DETRAF Saldo Líquido (Netting)
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Realizado CAPEX (YTD)
               </span>
-              <span className="text-xl font-black text-emerald-700 font-mono mt-1 block">
+              <span className="text-lg font-black text-emerald-700 font-mono block mt-1">
+                {formatBRL(totalCapexRealized)}
+              </span>
+              <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">
+                {totalCapexPlanned > 0 ? ((totalCapexRealized / totalCapexPlanned) * 100).toFixed(1) : 0}% executado
+              </span>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                Saldo DETRAF (Netting)
+              </span>
+              <span className={`text-lg font-black font-mono block mt-1 ${netDetraf >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {formatBRL(netDetraf)}
               </span>
               <span className="text-[10px] text-emerald-700 font-semibold mt-1 block">
@@ -157,13 +168,13 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
           <div>
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <Building2 className="w-3.5 h-3.5 text-blue-600" />
-              1. Despesas Operacionais por Diretoria & Centro de Custo
+              1. Despesas Operacionais por Centro de Custo (Gerência Executiva de Telefonia)
             </h3>
             <table className="w-full text-left border-collapse text-xs border border-slate-200">
               <thead className="bg-slate-100 font-bold text-slate-700">
                 <tr>
                   <th className="py-2 px-3 border-b border-slate-200">Centro de Custo</th>
-                  <th className="py-2 px-3 border-b border-slate-200">Diretoria</th>
+                  <th className="py-2 px-3 border-b border-slate-200">Gerência</th>
                   <th className="py-2 px-3 border-b border-slate-200">Gestor</th>
                   <th className="py-2 px-3 border-b border-slate-200 text-right">Orçado Anual</th>
                   <th className="py-2 px-3 border-b border-slate-200 text-right">% do Total</th>
@@ -225,32 +236,32 @@ export const ExecutiveReportModal: React.FC<ExecutiveReportModalProps> = ({
             </div>
           </div>
 
-          {/* Parecer de Controladoria & Assinaturas */}
+          {/* Parecer Técnico & Assinaturas */}
           <div className="border-t border-slate-200 pt-4 space-y-3">
             <div className="p-3 bg-blue-50/60 rounded-xl border border-blue-200 text-xs text-blue-900">
-              <strong>Parecer da Controladoria:</strong> As despesas operacionais e investimentos estão aderentes às premissas corporativas aprovadas para 2026. A compensação de interconexão DETRAF mantém posição superavitária e os pagamentos de contratos de infraestrutura seguem os prazos contratuais.
+              <strong>Parecer da Gerência Executiva de Telefonia:</strong> As despesas operacionais e investimentos estão aderentes às premissas de telecomunicações e interconexão aprovadas para 2026. A compensação de tráfego DETRAF mantém posição superavitária e os contratos de infraestrutura seguem os prazos regulatórios.
             </div>
 
             <div className="grid grid-cols-3 gap-8 pt-8 text-center text-xs">
               <div>
                 <div className="border-t border-slate-400 pt-1.5 font-bold text-slate-800">
-                  Gerência de FP&A
+                  Coordenação de Telefonia
                 </div>
-                <span className="text-[10px] text-slate-400">Elaboração Orçamentária</span>
+                <span className="text-[10px] text-slate-400">Elaboração & Apuração</span>
               </div>
 
               <div>
                 <div className="border-t border-slate-400 pt-1.5 font-bold text-slate-800">
-                  Diretoria de Operações
+                  Gerência Executiva de Telefonia
                 </div>
-                <span className="text-[10px] text-slate-400">Validação Técnica</span>
+                <span className="text-[10px] text-slate-400">Gestão & Validação Técnica</span>
               </div>
 
               <div>
                 <div className="border-t border-slate-400 pt-1.5 font-bold text-slate-800">
-                  Diretoria Financeira (CFO)
+                  Planejamento & Controle Orçamentário
                 </div>
-                <span className="text-[10px] text-slate-400">Aprovação Executiva</span>
+                <span className="text-[10px] text-slate-400">Homologação Orçamentária</span>
               </div>
             </div>
           </div>

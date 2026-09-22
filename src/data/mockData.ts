@@ -15,47 +15,47 @@ export const mockCostCenters: CostCenter[] = [
     id: 'cc-101',
     code: '101.01',
     name: 'Operações de Rede & Torres',
-    directorate: 'Diretoria de Operações',
+    directorate: 'Gerência Executiva de Telefonia',
     manager: 'Carlos Mendes',
     coordinator: 'Rafael Silva'
   },
   {
     id: 'cc-102',
     code: '101.02',
-    name: 'Infraestrutura de TI & Sistemas',
-    directorate: 'Diretoria de Tecnologia',
+    name: 'Core de Telefonia & TI Telecom',
+    directorate: 'Gerência Executiva de Telefonia',
     manager: 'Juliana Prado',
     coordinator: 'Marcos Rocha'
   },
   {
     id: 'cc-201',
     code: '201.01',
-    name: 'Expansão Comercial & Vendas',
-    directorate: 'Diretoria Comercial',
+    name: 'Interconexão & DETRAF',
+    directorate: 'Gerência Executiva de Telefonia',
     manager: 'Camila Duarte',
     coordinator: 'Lucas Moura'
   },
   {
     id: 'cc-301',
     code: '301.01',
-    name: 'Frotas & Logística de Campo',
-    directorate: 'Diretoria de Operações',
+    name: 'Manutenção de Campo & Sites Móveis',
+    directorate: 'Gerência Executiva de Telefonia',
     manager: 'Fernando Pires',
     coordinator: 'Rodrigo Henrique'
   },
   {
     id: 'cc-401',
     code: '401.01',
-    name: 'Gente & Gestão (RH)',
-    directorate: 'Diretoria Administrativa',
+    name: 'Qualidade & Regulatório Anatel',
+    directorate: 'Gerência Executiva de Telefonia',
     manager: 'Patrícia Pessoa',
     coordinator: 'Mariana Costa'
   },
   {
     id: 'cc-501',
     code: '501.01',
-    name: 'Controladoria & Finanças',
-    directorate: 'Diretoria Financeira',
+    name: 'Planejamento Orçamentário de Telefonia',
+    directorate: 'Gerência Executiva de Telefonia',
     manager: 'Roberto Santos',
     coordinator: 'Aline Nogueira'
   }
@@ -295,7 +295,7 @@ export const mockCapexProjects: CapexProject[] = [
       currency: 'BRL',
       periodicity: 'PONTUAL',
       formula: '12 sites completos × R$ 154.166,67 médio (Obras Civis + Torres + Energia)',
-      justification: 'Meta estratégica de expansão de cobertura comercial aprovada pela Diretoria.',
+      justification: 'Meta estratégica de expansão de cobertura aprovada pela Gerência Executiva de Telefonia.',
       contractRef: 'CTR-OBRAS-NE-001',
       supplier: 'Construtora Telco Brasil Ltda.',
       risks: [

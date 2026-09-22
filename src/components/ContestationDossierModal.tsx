@@ -190,7 +190,7 @@ export const ContestationDossierModal: React.FC<ContestationDossierModalProps> =
 
               <div>
                 <div className="border-t border-slate-400 pt-1.5 font-bold text-slate-900">
-                  Controladoria & Jurídico Regulatório
+                  Gerência Executiva de Telefonia & Regulatório
                 </div>
                 <span className="text-[10px] text-slate-500">Representação Legal Brisanet</span>
               </div>
