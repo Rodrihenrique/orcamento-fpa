@@ -81,6 +81,10 @@ export function App() {
     setActiveTab('opex');
   };
 
+  const handleDeleteOpexItem = (id: string) => {
+    setOpexItems(prev => prev.filter(item => item.id !== id));
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col selection:bg-blue-500 selection:text-white">
       {/* Top Navigation com Botão Global de Ação */}
@@ -109,6 +113,7 @@ export function App() {
             costCenters={mockCostCenters}
             accounts={mockAccounts}
             onOpenMemoryModal={handleOpenMemoryModal}
+            onDeleteOpexItem={handleDeleteOpexItem}
           />
         )}
 

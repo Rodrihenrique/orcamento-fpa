@@ -4,7 +4,8 @@ import {
   Calculator, 
   Filter, 
   UserPlus, 
-  Search
+  Search,
+  Trash2
 } from 'lucide-react';
 import type { OpexItem, CostCenter, Account, CalculationMemory } from '../types/budget';
 import { MONTHS_SHORT } from '../data/mockData';
@@ -14,13 +15,15 @@ interface OpexGridProps {
   costCenters: CostCenter[];
   accounts: Account[];
   onOpenMemoryModal: (title: string, costCenterName: string, accountName: string, memory: CalculationMemory, total: number) => void;
+  onDeleteOpexItem?: (id: string) => void;
 }
 
 export const OpexGrid: React.FC<OpexGridProps> = ({
   opexItems,
   costCenters,
   accounts,
-  onOpenMemoryModal
+  onOpenMemoryModal,
+  onDeleteOpexItem
 }) => {
   const [selectedCostCenter, setSelectedCostCenter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -111,6 +114,7 @@ export const OpexGrid: React.FC<OpexGridProps> = ({
                 </th>
                 <th className="px-3 py-3.5 min-w-[140px]">Centro de Custo</th>
                 <th className="px-3 py-3.5 text-center min-w-[90px]">Memória</th>
+                <th className="px-2.5 py-3.5 text-center min-w-[65px]">Ações</th>
                 {MONTHS_SHORT.map((m) => (
                   <th key={m} className="px-3 py-3.5 text-right min-w-[90px] font-mono">
                     {m}
@@ -163,6 +167,23 @@ export const OpexGrid: React.FC<OpexGridProps> = ({
                       </button>
                     </td>
 
+                    {/* Delete Action */}
+                    <td className="px-2.5 py-3 text-center">
+                      {onDeleteOpexItem && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`Deseja realmente excluir a despesa "${item.description}"?`)) {
+                              onDeleteOpexItem(item.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer inline-flex items-center justify-center"
+                          title="Excluir lançamento de OPEX"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </td>
+
                     {/* 12 Months Budget */}
                     {item.monthlyBudget.map((val, idx) => (
                       <td key={idx} className="px-3 py-3 text-right font-mono text-slate-700 text-[11px]">
@@ -191,6 +212,7 @@ export const OpexGrid: React.FC<OpexGridProps> = ({
                   {filteredItems.length} linhas
                 </td>
                 <td className="px-3 py-3.5 text-center text-slate-400">-</td>
+                <td className="px-2.5 py-3.5 text-center text-slate-400">-</td>
                 {monthlyTotals.map((tot, idx) => (
                   <td key={idx} className="px-3 py-3.5 text-right font-mono text-[11px] text-blue-300">
                     {tot.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}

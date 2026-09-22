@@ -8,6 +8,7 @@ import {
   FileUp
 } from 'lucide-react';
 import { mockCarriers } from '../data/mockDetrafData';
+import { mockCostCenters, mockAccounts, MONTHS_SHORT } from '../data/mockData';
 import type { DetrafInvoice, TrafficDirection, TariffType, InvoiceStatus } from '../types/detraf';
 import type { OpexItem } from '../types/budget';
 
@@ -59,6 +60,8 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
   const [notes, setNotes] = useState<string>('');
 
   // Estados específicos para OPEX
+  const [costCenterId, setCostCenterId] = useState<string>('cc-101');
+  const [accountCode, setAccountCode] = useState<string>('3.2.02');
   const [opexSupplier, setOpexSupplier] = useState<string>('');
   const [opexValue, setOpexValue] = useState<number>(15000);
   const [opexBarcode, setOpexBarcode] = useState<string>('');
@@ -181,23 +184,26 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
 
     if (entryType === 'BOLETO_OPEX') {
       const monthIndex = referenceMonth ? parseInt(referenceMonth.split('-')[1], 10) - 1 : 5;
-      const actuals = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const monthlyValues = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
       const validMonth = monthIndex >= 0 && monthIndex < 12 ? monthIndex : 5;
-      actuals[validMonth] = Number(opexValue) || 15000;
+      monthlyValues[validMonth] = Number(opexValue) || 15000;
+
+      const selectedCC = mockCostCenters.find(c => c.id === costCenterId);
+      const selectedAcc = mockAccounts.find(a => a.code === accountCode);
 
       const newOpex: OpexItem = {
         id: `opex-man-${Date.now()}`,
-        costCenterId: 'cc-om5g',
-        accountCode: '3.1.02.01',
-        description: `${opexSupplier || 'Fornecedor de Rede'} (Boleto Manual)`,
-        monthlyBudget: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        monthlyActual: actuals,
+        costCenterId: costCenterId || 'cc-101',
+        accountCode: accountCode || '3.2.02',
+        description: `${opexSupplier || 'Fornecedor de Rede'} (Lançamento)`,
+        monthlyBudget: monthlyValues,
+        monthlyActual: monthlyValues,
         monthlyProvision: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         memory: {
           periodicity: 'MENSAL',
           currency: 'BRL',
-          formula: `Fatura Lançada Manualmente = ${formatBRL(Number(opexValue) || 15000)}`,
-          justification: `Lançamento manual de ${opexSupplier || 'Fornecedor'}. Vencimento: ${dueDate}. ${opexBarcode ? 'Linha Digitável: ' + opexBarcode : ''}`,
+          formula: `Fatura Lançada = ${formatBRL(Number(opexValue) || 15000)} (${MONTHS_SHORT[validMonth]}/2026)`,
+          justification: `Lançamento manual de ${opexSupplier || 'Fornecedor'}. Vencimento: ${dueDate}. ${opexBarcode ? 'Linha Digitável: ' + opexBarcode : ''}. CC: ${selectedCC?.name || ''} | Conta: ${selectedAcc?.name || ''}`,
           supplier: opexSupplier || 'Fornecedor Avulso'
         }
       };
@@ -622,6 +628,45 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
               ) : (
                 /* Formulário para Boleto / NF OPEX */
                 <div className="space-y-3">
+                  {/* Centro de Custo e Conta Contábil */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Centro de Custo
+                      </label>
+                      <select
+                        value={costCenterId}
+                        onChange={(e) => setCostCenterId(e.target.value)}
+                        className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        {mockCostCenters.map(cc => (
+                          <option key={cc.id} value={cc.id}>
+                            {cc.code} - {cc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1">
+                        Conta Contábil / Categoria
+                      </label>
+                      <select
+                        value={accountCode}
+                        onChange={(e) => setAccountCode(e.target.value)}
+                        className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        required
+                      >
+                        {mockAccounts.filter(a => a.category === 'OPEX').map(acc => (
+                          <option key={acc.code} value={acc.code}>
+                            {acc.code} - {acc.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
