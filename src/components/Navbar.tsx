@@ -1,4 +1,3 @@
-import React from 'react';
 import { 
   LayoutDashboard, 
   Receipt, 
@@ -6,10 +5,11 @@ import {
   GitCompare, 
   Settings2,
   Calendar,
-  Layers
+  Layers,
+  Radio
 } from 'lucide-react';
 
-export type TabType = 'dashboard' | 'opex' | 'capex' | 'variance' | 'premises';
+export type TabType = 'dashboard' | 'opex' | 'capex' | 'variance' | 'premises' | 'detraf';
 
 interface NavbarProps {
   activeTab: TabType;
@@ -119,6 +119,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
           >
             <Settings2 className="w-4 h-4" />
             <span>Premissas & Drivers</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('detraf')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'detraf'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Radio className="w-4 h-4 text-emerald-400" />
+            <span>DETRAF (Interconexão)</span>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+              Telecom
+            </span>
           </button>
         </nav>
       </div>

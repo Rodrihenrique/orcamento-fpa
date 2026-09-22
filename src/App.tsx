@@ -5,6 +5,7 @@ import { OpexGrid } from './components/OpexGrid';
 import { CapexProjectsView } from './components/CapexProjectsView';
 import { VarianceAnalysisView } from './components/VarianceAnalysisView';
 import { PremisesView } from './components/PremisesView';
+import { DetrafView } from './components/DetrafView';
 import { CalculationMemoryModal } from './components/CalculationMemoryModal';
 import { 
   mockCostCenters, 
@@ -109,6 +110,10 @@ export function App() {
 
         {activeTab === 'premises' && (
           <PremisesView premises={premises} />
+        )}
+
+        {activeTab === 'detraf' && (
+          <DetrafView />
         )}
       </main>
 
