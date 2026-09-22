@@ -7,18 +7,36 @@ import {
   Calendar,
   Layers,
   Radio,
-  PlusCircle
+  PlusCircle,
+  Banknote,
+  Building2,
+  ShieldCheck,
+  ArrowRightLeft
 } from 'lucide-react';
+import type { ScenarioId } from '../types/scenarios';
+import { mockScenarios } from '../data/mockScenariosData';
 
-export type TabType = 'dashboard' | 'opex' | 'capex' | 'variance' | 'premises' | 'detraf';
+export type TabType = 'dashboard' | 'opex' | 'capex' | 'variance' | 'premises' | 'detraf' | 'cashflow' | 'contracts';
 
 interface NavbarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
   onOpenNewEntryModal: () => void;
+  onOpenAuditLogModal?: () => void;
+  onOpenBudgetTransferModal?: () => void;
+  currentScenarioId?: ScenarioId;
+  onScenarioChange?: (scenarioId: ScenarioId) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenNewEntryModal }) => {
+export const Navbar: React.FC<NavbarProps> = ({ 
+  activeTab, 
+  setActiveTab, 
+  onOpenNewEntryModal,
+  onOpenAuditLogModal,
+  onOpenBudgetTransferModal,
+  currentScenarioId = 'BUDGET_ORIGINAL',
+  onScenarioChange
+}) => {
   return (
     <header className="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
       {/* Top Banner */}
@@ -36,10 +54,21 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-slate-400">Diretoria de Operações & Controladoria</span>
-          <span className="bg-slate-800 px-2.5 py-1 rounded text-slate-300 font-mono">
-            Versão: Baseline v1.3
-          </span>
+          <span className="text-slate-400 hidden md:inline">Diretoria de Operações & Controladoria</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400 font-semibold">Cenário:</span>
+            <select
+              value={currentScenarioId}
+              onChange={(e) => onScenarioChange && onScenarioChange(e.target.value as ScenarioId)}
+              className="bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-blue-300 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            >
+              {mockScenarios.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -137,17 +166,66 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenN
               Telecom
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('cashflow')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'cashflow'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Banknote className="w-4 h-4 text-indigo-400" />
+            <span>Fluxo de Caixa (D+N)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('contracts')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'contracts'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <Building2 className="w-4 h-4 text-amber-400" />
+            <span>Contratos de Sites (Torres)</span>
+          </button>
         </nav>
 
-        {/* Botão Global de Ação (Acessível em qualquer tela) */}
-        <button
-          onClick={onOpenNewEntryModal}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95 whitespace-nowrap"
-          title="Importar arquivo ou fazer lançamento manual para qualquer módulo"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span>+ Novo Lançamento / Importar</span>
-        </button>
+        {/* Ações Globais & Governança */}
+        <div className="flex items-center gap-2">
+          {onOpenBudgetTransferModal && (
+            <button
+              onClick={onOpenBudgetTransferModal}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-purple-950/60 hover:bg-purple-900/80 text-purple-200 border border-purple-800/60 shadow-sm transition-all cursor-pointer whitespace-nowrap"
+              title="Solicitar ou aprovar remanejamento orçamentário entre centros de custo"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 text-purple-400" />
+              <span>Remanejamento</span>
+            </button>
+          )}
+
+          {onOpenAuditLogModal && (
+            <button
+              onClick={onOpenAuditLogModal}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 shadow-sm transition-all cursor-pointer whitespace-nowrap"
+              title="Visualizar trilha de auditoria e conformidade (Audit Log)"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Auditoria</span>
+            </button>
+          )}
+
+          {/* Botão Global de Ação (Acessível em qualquer tela) */}
+          <button
+            onClick={onOpenNewEntryModal}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95 whitespace-nowrap"
+            title="Importar arquivo ou fazer lançamento manual para qualquer módulo"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>+ Novo Lançamento</span>
+          </button>
+        </div>
       </div>
     </header>
   );

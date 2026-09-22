@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Info,
-  Building2
+  Building2,
+  FileSpreadsheet
 } from 'lucide-react';
 import {
   mockCarriers,
@@ -22,6 +23,8 @@ import type {
   DetrafInvoice,
   ContestationRecord
 } from '../types/detraf';
+import { exportDetrafToExcel } from '../services/exportService';
+import { ContestationDossierModal } from './ContestationDossierModal';
 
 interface DetrafViewProps {
   invoices: DetrafInvoice[];
@@ -48,6 +51,7 @@ export const DetrafView: React.FC<DetrafViewProps> = ({ invoices }) => {
 
   // Modal de Detalhes da Glosa / Contestação
   const [selectedContestation, setSelectedContestation] = useState<ContestationRecord | null>(null);
+  const [dossierContestation, setDossierContestation] = useState<ContestationRecord | null>(null);
 
   // Formatação de Moeda
   const formatBRL = (val: number) => {
@@ -262,6 +266,15 @@ export const DetrafView: React.FC<DetrafViewProps> = ({ invoices }) => {
           >
             <Calculator className="w-4 h-4 text-indigo-300" />
             <span>Simulador & Calculadora</span>
+          </button>
+
+          <button
+            onClick={() => exportDetrafToExcel(invoices, mockNettingSettlements)}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all bg-emerald-600/90 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20 cursor-pointer"
+            title="Exportar faturas DETRAF e Matriz de Netting para Excel (.xlsx)"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+            <span>Exportar DETRAF (.xlsx)</span>
           </button>
         </div>
       </div>
@@ -938,12 +951,23 @@ export const DetrafView: React.FC<DetrafViewProps> = ({ invoices }) => {
                       </td>
 
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => setSelectedContestation(c)}
-                          className="px-2.5 py-1 bg-slate-100 hover:bg-amber-600 hover:text-white rounded-lg text-slate-700 font-bold text-[11px] transition-all cursor-pointer"
-                        >
-                          Parecer Técnico
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedContestation(c)}
+                            className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-bold text-[11px] transition-all cursor-pointer"
+                          >
+                            Parecer
+                          </button>
+
+                          <button
+                            onClick={() => setDossierContestation(c)}
+                            className="px-2.5 py-1 bg-amber-100 hover:bg-amber-600 text-amber-900 hover:text-white border border-amber-300/80 rounded-lg font-bold text-[11px] transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                            title="Gerar Dossiê Formal Anatel (PDF)"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Dossiê Anatel</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1339,6 +1363,13 @@ export const DetrafView: React.FC<DetrafViewProps> = ({ invoices }) => {
           </div>
         </div>
       )}
+
+      {/* Modal de Dossiê Formal Anatel (PDF) */}
+      <ContestationDossierModal
+        isOpen={!!dossierContestation}
+        onClose={() => setDossierContestation(null)}
+        contestation={dossierContestation}
+      />
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { mockCarriers } from '../data/mockDetrafData';
 import { mockCostCenters, mockAccounts, MONTHS_SHORT } from '../data/mockData';
 import type { DetrafInvoice, TrafficDirection, TariffType, InvoiceStatus } from '../types/detraf';
 import type { OpexItem } from '../types/budget';
+import { parseSpreadsheetFile, parsePdfInvoiceFile } from '../services/fileParserService';
 
 interface NewEntryModalProps {
   isOpen: boolean;
@@ -32,17 +33,22 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [isProcessingFile, setIsProcessingFile] = useState<boolean>(false);
   const [parsedPreview, setParsedPreview] = useState<{
-    carrierId: string;
-    carrierName: string;
-    direction: TrafficDirection;
+    type: 'DETRAF' | 'BOLETO_OPEX';
+    carrierId?: string;
+    carrierName?: string;
+    direction?: TrafficDirection;
     referenceMonth: string;
     dueDate: string;
-    totalMinutes: number;
-    tariffType: TariffType;
-    tariffRate: number;
-    grossValue: number;
-    taxValue: number;
+    totalMinutes?: number;
+    tariffType?: TariffType;
+    tariffRate?: number;
+    grossValue?: number;
+    taxValue?: number;
     netValue: number;
+    supplier?: string;
+    barcode?: string;
+    costCenterId?: string;
+    accountCode?: string;
   } | null>(null);
 
   // === ESTADO DA ABA 2: FORMULÁRIO MANUAL ===
@@ -82,61 +88,47 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
   const calculatedTax = calculatedGross * (taxPercent / 100);
   const calculatedNet = calculatedGross - calculatedTax;
 
-  // === SIMULAÇÃO DE PARSING DO ARQUIVO CARREGADO ===
-  const handleFileSelect = (file: File) => {
+  // === PARSING REAL DO ARQUIVO CARREGADO ===
+  const handleFileSelect = async (file: File) => {
     setSelectedFile(file);
     setIsProcessingFile(true);
 
-    // Simula a leitura e extração inteligente do arquivo (.pdf, .xlsx, .zip)
-    setTimeout(() => {
+    try {
       const fileNameLower = file.name.toLowerCase();
-      let inferredCarrier = 'claro';
-      let inferredCarrierName = 'Claro Brasil';
-      let inferredDirection: TrafficDirection = 'INBOUND';
-      let inferredMinutes = 8500000;
-      let inferredRate = 0.0195;
-
-      if (fileNameLower.includes('vivo') || fileNameLower.includes('telefonica')) {
-        inferredCarrier = 'vivo';
-        inferredCarrierName = 'Telefônica / Vivo';
-        inferredMinutes = 11200000;
-        inferredRate = 0.0192;
-      } else if (fileNameLower.includes('tim')) {
-        inferredCarrier = 'tim';
-        inferredCarrierName = 'TIM Brasil';
-        inferredMinutes = 7400000;
-        inferredRate = 0.0198;
-      } else if (fileNameLower.includes('algar')) {
-        inferredCarrier = 'algar';
-        inferredCarrierName = 'Algar Telecom';
-        inferredMinutes = 1950000;
-        inferredRate = 0.0098;
+      if (fileNameLower.endsWith('.pdf')) {
+        const boletoData = await parsePdfInvoiceFile(file);
+        setParsedPreview({
+          type: 'BOLETO_OPEX',
+          supplier: boletoData.supplier,
+          barcode: boletoData.barcode,
+          dueDate: boletoData.dueDate,
+          referenceMonth: boletoData.referenceMonth,
+          netValue: boletoData.value,
+          costCenterId: boletoData.costCenterId,
+          accountCode: boletoData.accountCode
+        });
+      } else {
+        const detrafData = await parseSpreadsheetFile(file);
+        setParsedPreview({
+          type: 'DETRAF',
+          carrierId: detrafData.carrierId,
+          carrierName: detrafData.carrierName,
+          direction: detrafData.direction,
+          referenceMonth: detrafData.referenceMonth,
+          dueDate: detrafData.dueDate,
+          totalMinutes: detrafData.totalMinutes,
+          tariffType: detrafData.tariffType,
+          tariffRate: detrafData.tariffRate,
+          grossValue: detrafData.grossValue,
+          taxValue: detrafData.taxValue,
+          netValue: detrafData.netValue
+        });
       }
-
-      if (fileNameLower.includes('out') || fileNameLower.includes('saida') || fileNameLower.includes('pagar')) {
-        inferredDirection = 'OUTBOUND';
-      }
-
-      const gross = inferredMinutes * inferredRate;
-      const tax = gross * 0.0925;
-      const net = gross - tax;
-
-      setParsedPreview({
-        carrierId: inferredCarrier,
-        carrierName: inferredCarrierName,
-        direction: inferredDirection,
-        referenceMonth: '2026-07',
-        dueDate: '2026-08-15',
-        totalMinutes: inferredMinutes,
-        tariffType: 'VU-M',
-        tariffRate: inferredRate,
-        grossValue: gross,
-        taxValue: tax,
-        netValue: net
-      });
-
+    } catch (err) {
+      console.error('Erro ao processar arquivo:', err);
+    } finally {
       setIsProcessingFile(false);
-    }, 600);
+    }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -150,23 +142,53 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
   const handleSaveUpload = () => {
     if (!parsedPreview) return;
 
+    if (parsedPreview.type === 'BOLETO_OPEX') {
+      const monthIndex = parsedPreview.referenceMonth ? parseInt(parsedPreview.referenceMonth.split('-')[1], 10) - 1 : 5;
+      const monthlyValues = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const validMonth = monthIndex >= 0 && monthIndex < 12 ? monthIndex : 5;
+      monthlyValues[validMonth] = parsedPreview.netValue;
+
+      const newOpex: OpexItem = {
+        id: `opex-upl-${Date.now()}`,
+        costCenterId: parsedPreview.costCenterId || 'cc-101',
+        accountCode: parsedPreview.accountCode || '3.2.02',
+        description: `${parsedPreview.supplier || 'Fornecedor'} (Upload Fatura)`,
+        monthlyBudget: monthlyValues,
+        monthlyActual: monthlyValues,
+        monthlyProvision: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        memory: {
+          periodicity: 'MENSAL',
+          currency: 'BRL',
+          formula: `Fatura Processada = ${formatBRL(parsedPreview.netValue)} (${MONTHS_SHORT[validMonth]}/2026)`,
+          justification: `Upload automático de fatura/boleto em PDF. Fornecedor: ${parsedPreview.supplier}. Vencimento: ${parsedPreview.dueDate}. ${parsedPreview.barcode ? 'Linha Digitável: ' + parsedPreview.barcode : ''}`,
+          supplier: parsedPreview.supplier || 'Fornecedor'
+        }
+      };
+
+      if (onSaveOpexItem) {
+        onSaveOpexItem(newOpex);
+      }
+      onClose();
+      return;
+    }
+
     const newInvoice: DetrafInvoice = {
       id: `inv-${Date.now()}`,
-      invoiceNumber: `DETRAF-${parsedPreview.referenceMonth.replace('-', '')}-${parsedPreview.carrierId.toUpperCase()}-${parsedPreview.direction === 'INBOUND' ? 'IN' : 'OUT'}`,
-      carrierId: parsedPreview.carrierId,
-      carrierName: parsedPreview.carrierName,
-      direction: parsedPreview.direction,
+      invoiceNumber: `DETRAF-${parsedPreview.referenceMonth.replace('-', '')}-${(parsedPreview.carrierId || 'OPERADORA').toUpperCase()}-${parsedPreview.direction === 'INBOUND' ? 'IN' : 'OUT'}`,
+      carrierId: parsedPreview.carrierId || 'claro',
+      carrierName: parsedPreview.carrierName || 'Operadora',
+      direction: parsedPreview.direction || 'INBOUND',
       referenceMonth: parsedPreview.referenceMonth,
       issueDate: new Date().toISOString().split('T')[0],
       dueDate: parsedPreview.dueDate,
-      totalMinutes: parsedPreview.totalMinutes,
-      completedCalls: Math.round(parsedPreview.totalMinutes / 2),
+      totalMinutes: parsedPreview.totalMinutes || 0,
+      completedCalls: Math.round((parsedPreview.totalMinutes || 0) / 2),
       cadence: '30s/6s',
-      tariffType: parsedPreview.tariffType,
-      tariffRate: parsedPreview.tariffRate,
-      grossValue: parsedPreview.grossValue,
+      tariffType: parsedPreview.tariffType || 'VU-M',
+      tariffRate: parsedPreview.tariffRate || 0.0195,
+      grossValue: parsedPreview.grossValue || 0,
       taxRate: 0.0925,
-      taxValue: parsedPreview.taxValue,
+      taxValue: parsedPreview.taxValue || 0,
       netValue: parsedPreview.netValue,
       status: 'A_VENCER',
       agingBucket: 'A_VENCER',
@@ -358,46 +380,86 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Dados Extraídos com Sucesso
+                      Dados Extraídos com Sucesso ({parsedPreview.type === 'BOLETO_OPEX' ? 'Fatura / Boleto OPEX' : 'DETRAF Interconexão'})
                     </span>
                     <span className="text-[11px] text-slate-400">
                       Revise os campos antes de confirmar
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Operadora</span>
-                      <span className="font-bold text-slate-800">{parsedPreview.carrierName}</span>
-                    </div>
+                  {parsedPreview.type === 'BOLETO_OPEX' ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Fornecedor / Emissor</span>
+                        <span className="font-bold text-slate-800">{parsedPreview.supplier}</span>
+                      </div>
 
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Sentido de Tráfego</span>
-                      <span className="font-bold text-slate-800">
-                        {parsedPreview.direction === 'INBOUND' ? 'Inbound (A Receber)' : 'Outbound (A Pagar)'}
-                      </span>
-                    </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Centro de Custo</span>
+                        <span className="font-bold text-slate-800">
+                          {mockCostCenters.find(c => c.id === parsedPreview.costCenterId)?.name || 'Rede & Infra'}
+                        </span>
+                      </div>
 
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Competência / Vencimento</span>
-                      <span className="font-bold text-slate-800">{parsedPreview.referenceMonth} | {parsedPreview.dueDate}</span>
-                    </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Conta Contábil</span>
+                        <span className="font-bold text-slate-800">
+                          {mockAccounts.find(a => a.code === parsedPreview.accountCode)?.name || 'Operacional'}
+                        </span>
+                      </div>
 
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Minutos Cursados</span>
-                      <span className="font-mono font-bold text-slate-800">{formatNumber(parsedPreview.totalMinutes)} min</span>
-                    </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Competência / Vencimento</span>
+                        <span className="font-bold text-slate-800">{parsedPreview.referenceMonth} | {parsedPreview.dueDate}</span>
+                      </div>
 
-                    <div className="bg-white p-2.5 rounded-xl border border-slate-200">
-                      <span className="text-slate-400 block text-[10px]">Tarifa Aplicada</span>
-                      <span className="font-mono font-bold text-slate-800">R$ {parsedPreview.tariffRate.toFixed(4)} ({parsedPreview.tariffType})</span>
-                    </div>
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200 col-span-2">
+                        <span className="text-slate-400 block text-[10px]">Linha Digitável / Código de Barras</span>
+                        <span className="font-mono text-[11px] font-semibold text-slate-700 truncate block">
+                          {parsedPreview.barcode || 'Identificado no documento'}
+                        </span>
+                      </div>
 
-                    <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
-                      <span className="text-emerald-700 block text-[10px] font-bold">Valor Líquido</span>
-                      <span className="font-mono font-black text-emerald-700 text-sm">{formatBRL(parsedPreview.netValue)}</span>
+                      <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 col-span-2 sm:col-span-3">
+                        <span className="text-emerald-700 block text-[10px] font-bold">Valor Líquido da Fatura</span>
+                        <span className="font-mono font-black text-emerald-700 text-base">{formatBRL(parsedPreview.netValue)}</span>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Operadora</span>
+                        <span className="font-bold text-slate-800">{parsedPreview.carrierName}</span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Sentido de Tráfego</span>
+                        <span className="font-bold text-slate-800">
+                          {parsedPreview.direction === 'INBOUND' ? 'Inbound (A Receber)' : 'Outbound (A Pagar)'}
+                        </span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Competência / Vencimento</span>
+                        <span className="font-bold text-slate-800">{parsedPreview.referenceMonth} | {parsedPreview.dueDate}</span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Minutos Cursados</span>
+                        <span className="font-mono font-bold text-slate-800">{formatNumber(parsedPreview.totalMinutes || 0)} min</span>
+                      </div>
+
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200">
+                        <span className="text-slate-400 block text-[10px]">Tarifa Aplicada</span>
+                        <span className="font-mono font-bold text-slate-800">R$ {(parsedPreview.tariffRate || 0).toFixed(4)} ({parsedPreview.tariffType})</span>
+                      </div>
+
+                      <div className="bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">
+                        <span className="text-emerald-700 block text-[10px] font-bold">Valor Líquido</span>
+                        <span className="font-mono font-black text-emerald-700 text-sm">{formatBRL(parsedPreview.netValue)}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="pt-2">
                     <button

@@ -7,7 +7,8 @@ import {
   CheckCircle2, 
   HardHat, 
   Receipt,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -31,6 +32,7 @@ interface DashboardViewProps {
   costCenters: CostCenter[];
   onNavigateToVariance: () => void;
   onNavigateToCapex: () => void;
+  onOpenExecutiveReport?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -39,7 +41,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   varianceItems,
   costCenters,
   onNavigateToVariance,
-  onNavigateToCapex
+  onNavigateToCapex,
+  onOpenExecutiveReport
 }) => {
   // Totals calculations
   const totalOpexBudget = opexItems.reduce(
@@ -145,6 +148,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <HardHat className="w-4 h-4" />
               <span>Cronograma CAPEX & TAPs</span>
             </button>
+
+            {onOpenExecutiveReport && (
+              <button
+                onClick={onOpenExecutiveReport}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
+                title="Abrir relatório executivo formal para impressão e PDF"
+              >
+                <FileText className="w-4 h-4 text-slate-950" />
+                <span>One-Pager Executivo (PDF)</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

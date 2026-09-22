@@ -5,10 +5,12 @@ import {
   Filter, 
   UserPlus, 
   Search,
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
 import type { OpexItem, CostCenter, Account, CalculationMemory } from '../types/budget';
 import { MONTHS_SHORT } from '../data/mockData';
+import { exportOpexToExcel } from '../services/exportService';
 
 interface OpexGridProps {
   opexItems: OpexItem[];
@@ -60,6 +62,15 @@ export const OpexGrid: React.FC<OpexGridProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => exportOpexToExcel(filteredItems, costCenters, accounts)}
+            className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
+            title="Exportar planilha Excel completa com fórmulas"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <span>Exportar Excel (.xlsx)</span>
+          </button>
+
           <button
             onClick={() => setShowOnboardingModal(true)}
             className="px-3.5 py-2 rounded-xl text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-2 transition-colors shadow-sm cursor-pointer"
