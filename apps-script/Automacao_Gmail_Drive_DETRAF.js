@@ -176,7 +176,7 @@ function processarEmailsRecebidos() {
 
 /**
  * 3. CONFIGURAR GATILHO AUTOMÁTICO (TRIGGER)
- * Agenda a execução automática a cada 30 minutos.
+ * Agenda a execução automática 1x por dia (diariamente pela manhã, entre 06:00 e 07:00).
  */
 function configurarGatilhoAutomatico() {
   // Remove gatilhos anteriores da mesma função para não duplicar
@@ -187,13 +187,14 @@ function configurarGatilhoAutomatico() {
     }
   }
   
-  // Cria novo gatilho a cada 30 minutos
+  // Cria novo gatilho para rodar 1x por dia (entre 06:00 e 07:00 da manhã)
   ScriptApp.newTrigger('processarEmailsRecebidos')
     .timeBased()
-    .everyMinutes(30)
+    .everyDays(1)
+    .atHour(6)
     .create();
     
-  Logger.log('✅ Gatilho automático configurado para executar a cada 30 minutos!');
+  Logger.log('✅ Gatilho automático configurado com sucesso para executar 1x por dia (entre 06:00 e 07:00)!');
 }
 
 // ============================================================================

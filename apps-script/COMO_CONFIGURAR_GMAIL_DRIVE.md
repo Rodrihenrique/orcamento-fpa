@@ -43,11 +43,11 @@ Este guia orienta como ativar a automação **diretamente no seu e-mail corporat
 
 ---
 
-### Passo 5: Ativar a Execução Automática Contínua
-Para que o script rode sozinho sem que você precise abrir o computador:
+### Passo 5: Ativar a Execução Automática Contínua (1x por dia)
+Para que o script rode sozinho todos os dias:
 1. No menu suspenso, selecione a função **`configurarGatilhoAutomatico`**.
 2. Clique em **Executar** (▶️).
-3. Pronto! A partir de agora, a cada **30 minutos**, o script varre os novos e-mails recebidos e envia para o Google Drive automaticamente.
+3. Pronto! A partir de agora, o script será executado automaticamente **1 vez ao dia (pela manhã, entre 06:00 e 07:00)**, processando todos os e-mails com boletos e DETRAF do dia anterior e salvando no Google Drive.
 
 ---
 
