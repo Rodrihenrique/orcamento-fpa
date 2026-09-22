@@ -9,17 +9,20 @@ import {
 } from 'lucide-react';
 import { mockCarriers } from '../data/mockDetrafData';
 import type { DetrafInvoice, TrafficDirection, TariffType, InvoiceStatus } from '../types/detraf';
+import type { OpexItem } from '../types/budget';
 
 interface NewEntryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveDetrafInvoice: (newInvoice: DetrafInvoice) => void;
+  onSaveOpexItem?: (newOpex: OpexItem) => void;
 }
 
 export const NewEntryModal: React.FC<NewEntryModalProps> = ({
   isOpen,
   onClose,
-  onSaveDetrafInvoice
+  onSaveDetrafInvoice,
+  onSaveOpexItem
 }) => {
   const [activeTab, setActiveTab] = useState<'upload' | 'manual'>('upload');
 
@@ -54,6 +57,11 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
   const [manualInvoiceNumber, setManualInvoiceNumber] = useState<string>('');
   const [status, setStatus] = useState<InvoiceStatus>('A_VENCER');
   const [notes, setNotes] = useState<string>('');
+
+  // Estados específicos para OPEX
+  const [opexSupplier, setOpexSupplier] = useState<string>('');
+  const [opexValue, setOpexValue] = useState<number>(15000);
+  const [opexBarcode, setOpexBarcode] = useState<string>('');
 
   if (!isOpen) return null;
 
@@ -170,6 +178,36 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
 
   const handleSaveManual = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (entryType === 'BOLETO_OPEX') {
+      const monthIndex = referenceMonth ? parseInt(referenceMonth.split('-')[1], 10) - 1 : 5;
+      const actuals = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const validMonth = monthIndex >= 0 && monthIndex < 12 ? monthIndex : 5;
+      actuals[validMonth] = Number(opexValue) || 15000;
+
+      const newOpex: OpexItem = {
+        id: `opex-man-${Date.now()}`,
+        costCenterId: 'cc-om5g',
+        accountCode: '3.1.02.01',
+        description: `${opexSupplier || 'Fornecedor de Rede'} (Boleto Manual)`,
+        monthlyBudget: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        monthlyActual: actuals,
+        monthlyProvision: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        memory: {
+          periodicity: 'MENSAL',
+          currency: 'BRL',
+          formula: `Fatura Lançada Manualmente = ${formatBRL(Number(opexValue) || 15000)}`,
+          justification: `Lançamento manual de ${opexSupplier || 'Fornecedor'}. Vencimento: ${dueDate}. ${opexBarcode ? 'Linha Digitável: ' + opexBarcode : ''}`,
+          supplier: opexSupplier || 'Fornecedor Avulso'
+        }
+      };
+
+      if (onSaveOpexItem) {
+        onSaveOpexItem(newOpex);
+      }
+      onClose();
+      return;
+    }
 
     const selectedCarrierObj = mockCarriers.find(c => c.id === carrierId);
     const invoiceNum = manualInvoiceNumber.trim() || 
@@ -592,6 +630,8 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
                       <input
                         type="text"
                         placeholder="Ex: Enel / TowerCo / Licenças"
+                        value={opexSupplier}
+                        onChange={(e) => setOpexSupplier(e.target.value)}
                         className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -605,6 +645,8 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
                         type="number"
                         step="0.01"
                         placeholder="0,00"
+                        value={opexValue}
+                        onChange={(e) => setOpexValue(Number(e.target.value))}
                         className="w-full text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         required
                       />
@@ -644,6 +686,8 @@ export const NewEntryModal: React.FC<NewEntryModalProps> = ({
                     <input
                       type="text"
                       placeholder="00000.00000 00000.000000 00000.000000 0 0000000000"
+                      value={opexBarcode}
+                      onChange={(e) => setOpexBarcode(e.target.value)}
                       className="w-full text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>

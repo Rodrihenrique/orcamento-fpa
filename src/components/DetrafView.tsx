@@ -11,32 +11,25 @@ import {
   CheckCircle2,
   XCircle,
   Info,
-  Building2,
-  PlusCircle
+  Building2
 } from 'lucide-react';
 import {
   mockCarriers,
-  mockDetrafInvoices,
   mockNettingSettlements,
   mockContestations
 } from '../data/mockDetrafData';
-import { NewEntryModal } from './NewEntryModal';
 import type {
   DetrafInvoice,
   ContestationRecord
 } from '../types/detraf';
 
-export const DetrafView: React.FC = () => {
+interface DetrafViewProps {
+  invoices: DetrafInvoice[];
+}
+
+export const DetrafView: React.FC<DetrafViewProps> = ({ invoices }) => {
   // Sub-aba ativa
   const [activeSubTab, setActiveSubTab] = useState<'painel' | 'receber' | 'pagar' | 'glosas' | 'calculadora'>('painel');
-
-  // Estado dos Lançamentos de DETRAF
-  const [invoices, setInvoices] = useState<DetrafInvoice[]>(mockDetrafInvoices);
-  const [isEntryModalOpen, setIsEntryModalOpen] = useState<boolean>(false);
-
-  const handleSaveDetrafInvoice = (newInvoice: DetrafInvoice) => {
-    setInvoices(prev => [newInvoice, ...prev]);
-  };
 
   // Filtros
   const [selectedCarrier, setSelectedCarrier] = useState<string>('TODAS');
@@ -269,14 +262,6 @@ export const DetrafView: React.FC = () => {
           >
             <Calculator className="w-4 h-4 text-indigo-300" />
             <span>Simulador & Calculadora</span>
-          </button>
-
-          <button
-            onClick={() => setIsEntryModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>+ Novo Lançamento / Importar</span>
           </button>
         </div>
       </div>
@@ -1354,13 +1339,6 @@ export const DetrafView: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Modal de Novo Lançamento / Importar Arquivo */}
-      <NewEntryModal
-        isOpen={isEntryModalOpen}
-        onClose={() => setIsEntryModalOpen(false)}
-        onSaveDetrafInvoice={handleSaveDetrafInvoice}
-      />
     </div>
   );
 };

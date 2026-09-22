@@ -6,7 +6,8 @@ import {
   Settings2,
   Calendar,
   Layers,
-  Radio
+  Radio,
+  PlusCircle
 } from 'lucide-react';
 
 export type TabType = 'dashboard' | 'opex' | 'capex' | 'variance' | 'premises' | 'detraf';
@@ -14,9 +15,10 @@ export type TabType = 'dashboard' | 'opex' | 'capex' | 'variance' | 'premises' |
 interface NavbarProps {
   activeTab: TabType;
   setActiveTab: (tab: TabType) => void;
+  onOpenNewEntryModal: () => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
+export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab, onOpenNewEntryModal }) => {
   return (
     <header className="bg-slate-900 text-white sticky top-0 z-50 shadow-md">
       {/* Top Banner */}
@@ -136,6 +138,16 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
             </span>
           </button>
         </nav>
+
+        {/* Botão Global de Ação (Acessível em qualquer tela) */}
+        <button
+          onClick={onOpenNewEntryModal}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95 whitespace-nowrap"
+          title="Importar arquivo ou fazer lançamento manual para qualquer módulo"
+        >
+          <PlusCircle className="w-4 h-4" />
+          <span>+ Novo Lançamento / Importar</span>
+        </button>
       </div>
     </header>
   );
