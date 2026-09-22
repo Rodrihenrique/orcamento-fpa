@@ -1,6 +1,6 @@
 # 🚀 Guia de Instalação: Automação Gmail ➔ Google Drive (DETRAF & Boletos)
 
-Este guia orienta como ativar a automação no Google Workspace (`telefonia.administrativo@grupobrisanet.com.br`) apontando para a sua pasta do Google Drive:
+Este guia orienta como ativar a automação **diretamente no seu e-mail corporativo pessoal da Brisanet**. O script monitorará automaticamente todas as mensagens que chegam direcionadas para `telefonia.administrativo@grupobrisanet.com.br` e salvará os anexos na sua pasta do Google Drive:
 * **ID da Pasta Raiz:** `16qP-IlIk0MpMeVCpfzuMb9fa4cI4MoTS`
 
 ---
@@ -8,7 +8,7 @@ Este guia orienta como ativar a automação no Google Workspace (`telefonia.admi
 ## ⏱️ Passo a Passo (Tempo estimado: 3 minutos)
 
 ### Passo 1: Abrir o Google Apps Script
-1. No seu navegador, com a conta `telefonia.administrativo@grupobrisanet.com.br` conectada, acesse:
+1. No seu navegador, conectado com o **seu e-mail corporativo pessoal da Brisanet**, acesse:
    👉 **[script.google.com/home/start](https://script.google.com/home/start)**
 2. Clique no botão **"Novo projeto"** (ou *New project*).
 3. No topo esquerdo, renomeie o projeto de *"Projeto sem título"* para:

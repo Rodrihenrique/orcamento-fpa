@@ -19,7 +19,8 @@
 const CONFIG = {
   ROOT_FOLDER_ID: '16qP-IlIk0MpMeVCpfzuMb9fa4cI4MoTS',
   LABEL_NAME: 'OrçaHub/Processado',
-  SEARCH_QUERY: 'has:attachment (boleto OR fatura OR detraf OR interconexão OR interconexao OR "nota fiscal" OR nf OR danfe OR vum OR "abr telecom" OR claro OR vivo OR tim OR algar) -label:"OrçaHub/Processado"',
+  // Busca especificamente mensagens direcionadas para telefonia.administrativo na sua caixa de entrada
+  SEARCH_QUERY: 'to:telefonia.administrativo@grupobrisanet.com.br has:attachment (boleto OR fatura OR detraf OR interconexão OR interconexao OR "nota fiscal" OR nf OR danfe OR vum OR "abr telecom" OR claro OR vivo OR tim OR algar) -label:"OrçaHub/Processado"',
   MAX_THREADS_PER_RUN: 20 // Processa até 20 conversas por execução para não estourar tempo
 };
 
