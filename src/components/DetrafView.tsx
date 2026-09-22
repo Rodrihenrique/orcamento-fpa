@@ -11,7 +11,8 @@ import {
   CheckCircle2,
   XCircle,
   Info,
-  Building2
+  Building2,
+  PlusCircle
 } from 'lucide-react';
 import {
   mockCarriers,
@@ -19,6 +20,7 @@ import {
   mockNettingSettlements,
   mockContestations
 } from '../data/mockDetrafData';
+import { NewEntryModal } from './NewEntryModal';
 import type {
   DetrafInvoice,
   ContestationRecord
@@ -27,6 +29,14 @@ import type {
 export const DetrafView: React.FC = () => {
   // Sub-aba ativa
   const [activeSubTab, setActiveSubTab] = useState<'painel' | 'receber' | 'pagar' | 'glosas' | 'calculadora'>('painel');
+
+  // Estado dos Lançamentos de DETRAF
+  const [invoices, setInvoices] = useState<DetrafInvoice[]>(mockDetrafInvoices);
+  const [isEntryModalOpen, setIsEntryModalOpen] = useState<boolean>(false);
+
+  const handleSaveDetrafInvoice = (newInvoice: DetrafInvoice) => {
+    setInvoices(prev => [newInvoice, ...prev]);
+  };
 
   // Filtros
   const [selectedCarrier, setSelectedCarrier] = useState<string>('TODAS');
@@ -57,19 +67,19 @@ export const DetrafView: React.FC = () => {
 
   // Métricas Consolidadas
   const summaryMetrics = useMemo(() => {
-    const totalReceivableGross = mockDetrafInvoices
+    const totalReceivableGross = invoices
       .filter(i => i.direction === 'INBOUND')
       .reduce((acc, i) => acc + i.grossValue, 0);
 
-    const totalReceivableNet = mockDetrafInvoices
+    const totalReceivableNet = invoices
       .filter(i => i.direction === 'INBOUND')
       .reduce((acc, i) => acc + i.netValue, 0);
 
-    const totalPayableGross = mockDetrafInvoices
+    const totalPayableGross = invoices
       .filter(i => i.direction === 'OUTBOUND')
       .reduce((acc, i) => acc + i.grossValue, 0);
 
-    const totalPayableNet = mockDetrafInvoices
+    const totalPayableNet = invoices
       .filter(i => i.direction === 'OUTBOUND')
       .reduce((acc, i) => acc + i.netValue, 0);
 
@@ -77,16 +87,16 @@ export const DetrafView: React.FC = () => {
     const netSettlementBalance = totalReceivableNet - totalPayableNet;
 
     // Valores em Aberto (A_VENCER ou VENCIDO ou CONTESTADO)
-    const openReceivables = mockDetrafInvoices
+    const openReceivables = invoices
       .filter(i => i.direction === 'INBOUND' && i.status !== 'PAGO')
       .reduce((acc, i) => acc + i.netValue, 0);
 
-    const openPayables = mockDetrafInvoices
+    const openPayables = invoices
       .filter(i => i.direction === 'OUTBOUND' && i.status !== 'PAGO')
       .reduce((acc, i) => acc + i.netValue, 0);
 
     // Valores Vencidos (Aging > 0)
-    const overdueReceivables = mockDetrafInvoices
+    const overdueReceivables = invoices
       .filter(i => i.direction === 'INBOUND' && i.status === 'VENCIDO')
       .reduce((acc, i) => acc + i.netValue, 0);
 
@@ -95,7 +105,7 @@ export const DetrafView: React.FC = () => {
       .filter(c => c.status === 'EM_ANALISE' || c.status === 'ARBITRAGEM_ANATEL')
       .reduce((acc, c) => acc + c.disputedValue, 0);
 
-    const totalMinutesProcessed = mockDetrafInvoices
+    const totalMinutesProcessed = invoices
       .reduce((acc, i) => acc + i.totalMinutes, 0);
 
     return {
@@ -110,18 +120,18 @@ export const DetrafView: React.FC = () => {
       totalDisputed,
       totalMinutesProcessed
     };
-  }, []);
+  }, [invoices]);
 
   // Filtragem de Faturas
   const filteredInvoices = useMemo(() => {
-    return mockDetrafInvoices.filter(inv => {
+    return invoices.filter(inv => {
       const matchCarrier = selectedCarrier === 'TODAS' || inv.carrierId === selectedCarrier;
       const matchStatus = selectedStatus === 'TODOS' || inv.status === selectedStatus;
       const matchSearch = inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           inv.carrierName.toLowerCase().includes(searchTerm.toLowerCase());
       return matchCarrier && matchStatus && matchSearch;
     });
-  }, [selectedCarrier, selectedStatus, searchTerm]);
+  }, [invoices, selectedCarrier, selectedStatus, searchTerm]);
 
   // Cálculos da Simulação
   const simCalculations = useMemo(() => {
@@ -215,7 +225,7 @@ export const DetrafView: React.FC = () => {
             <ArrowDownLeft className="w-4 h-4 text-emerald-400" />
             <span>DETRAF Inbound (A Receber)</span>
             <span className="px-1.5 py-0.2 bg-emerald-950/80 border border-emerald-500/40 rounded text-[10px] text-emerald-300 font-mono">
-              {mockDetrafInvoices.filter(i => i.direction === 'INBOUND').length}
+              {invoices.filter(i => i.direction === 'INBOUND').length}
             </span>
           </button>
 
@@ -230,7 +240,7 @@ export const DetrafView: React.FC = () => {
             <ArrowUpRight className="w-4 h-4 text-rose-400" />
             <span>DETRAF Outbound (A Pagar)</span>
             <span className="px-1.5 py-0.2 bg-rose-950/80 border border-rose-500/40 rounded text-[10px] text-rose-300 font-mono">
-              {mockDetrafInvoices.filter(i => i.direction === 'OUTBOUND').length}
+              {invoices.filter(i => i.direction === 'OUTBOUND').length}
             </span>
           </button>
 
@@ -259,6 +269,14 @@ export const DetrafView: React.FC = () => {
           >
             <Calculator className="w-4 h-4 text-indigo-300" />
             <span>Simulador & Calculadora</span>
+          </button>
+
+          <button
+            onClick={() => setIsEntryModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/25 transition-all cursor-pointer hover:scale-105 active:scale-95"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>+ Novo Lançamento / Importar</span>
           </button>
         </div>
       </div>
@@ -1336,6 +1354,13 @@ export const DetrafView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Modal de Novo Lançamento / Importar Arquivo */}
+      <NewEntryModal
+        isOpen={isEntryModalOpen}
+        onClose={() => setIsEntryModalOpen(false)}
+        onSaveDetrafInvoice={handleSaveDetrafInvoice}
+      />
     </div>
   );
 };
