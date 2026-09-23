@@ -6,10 +6,8 @@
  * ============================================================================
  */
 
-const NOME_PLANILHA = "OrçaHub - Base Orçamentária Telefonia";
-
 /**
- * Cria e formata todas as abas necessárias com cabeçalhos e dados iniciais.
+ * Cria e formata todas as abas necessárias com cabeçalhos e dados fictícios completos para apresentação.
  * Execute esta função UMA VEZ no editor do Apps Script para configurar a planilha.
  */
 function configurarPlanilhaInicial() {
@@ -65,23 +63,32 @@ function configurarPlanilhaInicial() {
   }
 
   // 6. FLUXO DE CAIXA
-  obterOuCriarAba(ss, "FLUXO_CAIXA", [
+  const abaFluxo = obterOuCriarAba(ss, "FLUXO_CAIXA", [
     "ID", "DATA_LIQUIDACAO", "TIPO", "CATEGORIA", "DESCRICAO", "VALOR", "STATUS", "ORIGEM"
   ]);
+  if (abaFluxo.getLastRow() === 1) {
+    popularFluxoCaixaInicial(abaFluxo);
+  }
 
   // 7. AUDITORIA
-  obterOuCriarAba(ss, "AUDITORIA", [
+  const abaAuditoria = obterOuCriarAba(ss, "AUDITORIA", [
     "ID", "TIMESTAMP", "USUARIO", "ACAO", "ENTIDADE", "ENTIDADE_ID", "DESCRICAO",
     "VALOR_ANTERIOR", "VALOR_NOVO", "JUSTIFICATIVA"
   ]);
+  if (abaAuditoria.getLastRow() === 1) {
+    popularAuditoriaInicial(abaAuditoria);
+  }
 
   // 8. REMANEJAMENTOS
-  obterOuCriarAba(ss, "REMANEJAMENTOS", [
+  const abaRemanejamento = obterOuCriarAba(ss, "REMANEJAMENTOS", [
     "ID", "PROTOCOLO", "DATA_SOLICITACAO", "SOLICITANTE", "CC_ORIGEM", "CC_DESTINO",
     "VALOR", "CATEGORIA", "MES_EFETIVO", "STATUS", "JUSTIFICATIVA", "APROVADOR", "DATA_APROVACAO"
   ]);
+  if (abaRemanejamento.getLastRow() === 1) {
+    popularRemanejamentosInicial(abaRemanejamento);
+  }
 
-  SpreadsheetApp.getUi().alert("OrçaHub: Banco de dados configurado com sucesso com todas as abas e cabeçalhos!");
+  SpreadsheetApp.getUi().alert("OrçaHub: Banco de dados configurado com sucesso com todos os exemplos fictícios de apresentação!");
 }
 
 /**
@@ -151,7 +158,7 @@ function registrarAuditoria(acao, entidade, entidadeId, descricao, valorAnterior
       descricao,
       valorAnterior || "",
       valorNovo || "",
-      justification || justificativa || ""
+      justificativa || ""
     ]);
   } catch (e) {
     Logger.log("Erro ao registrar auditoria: " + e.toString());
@@ -198,6 +205,36 @@ function popularTorresInicial(aba) {
     ["CTR-TWR-002", "BR-CE-FOR-019", "Site Aldeota Prime", "Fortaleza/CE", "SBA Torres Brasil", "Rooftop Topo Edifício", 9800, "IPCA", "Novembro", "ATIVO"],
     ["CTR-TWR-003", "BR-RN-MOS-008", "Site Mossoró Oeste", "Mossoró/RN", "Telxius Torres Brasil", "Greenfield 50m", 11200, "IGP-M", "Março", "REAJUSTADO"],
     ["CTR-TWR-004", "BR-PB-PAT-002", "Site Patos Rodoanel", "Patos/PB", "IHS Towers", "Monopolo 40m", 8400, "IPCA", "Outubro", "ATIVO"]
+  ];
+  itens.forEach(function(r) { aba.appendRow(r); });
+}
+
+function popularFluxoCaixaInicial(aba) {
+  const itens = [
+    ["FLX-001", "2026-07-05", "SAIDA", "Infraestrutura", "Enel Ceará - Energia Estações Juazeiro", 85400, "PREVISTO", "OPEX"],
+    ["FLX-002", "2026-07-10", "ENTRADA", "Interconexão", "Claro Telecom - Faturamento Terminação VU-M", 25138, "LIQUIDADO", "DETRAF"],
+    ["FLX-003", "2026-07-12", "SAIDA", "Locação", "American Tower do Brasil - Aluguel Sites", 62500, "PREVISTO", "CONTRATOS"],
+    ["FLX-004", "2026-07-15", "ENTRADA", "Interconexão", "Telefônica Vivo - Compensação Bilateral Netting", 68839, "PREVISTO", "DETRAF"],
+    ["FLX-005", "2026-07-15", "SAIDA", "Interconexão", "TIM Brasil - Tráfego Móvel Outbound (Incontroverso)", 40974, "PREVISTO", "DETRAF"],
+    ["FLX-006", "2026-07-20", "SAIDA", "TI Core", "Licenciamento & Suporte Plataforma IMS/SBC", 95000, "PREVISTO", "OPEX"],
+    ["FLX-007", "2026-07-25", "SAIDA", "Combustível", "Abastecimento Geradores Diesel Sites Críticos", 42000, "PREVISTO", "OPEX"]
+  ];
+  itens.forEach(function(r) { aba.appendRow(r); });
+}
+
+function popularAuditoriaInicial(aba) {
+  const itens = [
+    ["AUD-001", "2026-06-20 09:14:22", "rodrigo.henrique@grupobrisanet.com.br", "CONTESTACAO_ANATEL", "DETRAF", "CONT-2026-001", "Abertura de dossiê de glosa formal contra TIM Brasil S.A. (Resolução 693/2017)", "", "R$ 48.910,00", "Divergência de tarifação SMP vs LD."],
+    ["AUD-002", "2026-06-18 16:45:10", "carlos.telefonia@grupobrisanet.com.br", "REMANEJAMENTO", "OPEX", "TRF-2026-088", "Aprovação de suplementação de verba do CC 1020 para CC 1010", "R$ 0,00", "R$ 150.000,00", "Aceleração do swap de baterias de lítio."],
+    ["AUD-003", "2026-06-15 11:30:05", "telefonia.administrativo@grupobrisanet.com.br", "IMPORTACAO_ARQUIVO", "DETRAF", "IMP-FILE-889", "Importação e parsing de CDRs bilaterais da Claro Telecom", "", "1.420.500 minutos", "Fechamento de interconexão periódica."]
+  ];
+  itens.forEach(function(r) { aba.appendRow(r); });
+}
+
+function popularRemanejamentosInicial(aba) {
+  const itens = [
+    ["TRF-001", "TRF-2026-088", "2026-06-18 14:10:00", "fernando.engenharia@grupobrisanet.com.br", "101.02 - Core de Telefonia & TI Telecom", "101.01 - Operações de Rede & Torres", 150000, "Manutenção de Infraestrutura", "Julho/2026", "APROVADO", "Aceleração do swap de baterias de lítio nos sites estratégicos de Juazeiro do Norte.", "carlos.telefonia@grupobrisanet.com.br", "2026-06-18 16:45:10"],
+    ["TRF-002", "TRF-2026-092", "2026-06-22 08:30:00", "mariana.ti@grupobrisanet.com.br", "401.01 - Qualidade & Regulatório Anatel", "101.02 - Core de Telefonia & TI Telecom", 65000, "Licenciamento & Software Core", "Julho/2026", "PENDENTE", "Upgrade de capacidade de nós de banco de dados para suportar volumetria de conciliação de CDRs.", "", ""]
   ];
   itens.forEach(function(r) { aba.appendRow(r); });
 }

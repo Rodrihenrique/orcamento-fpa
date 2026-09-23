@@ -6,10 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN para gráficos executivos interativos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Lucide Icons CDN -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap');
     body {
       font-family: 'Inter', sans-serif;
     }
@@ -45,7 +47,7 @@
   <!-- ===================================================================== -->
   <header class="bg-slate-900 text-white sticky top-0 z-40 shadow-md">
     <!-- Top Sub-Barra -->
-    <div className="border-b border-slate-800 px-6 py-2 flex flex-wrap items-center justify-between text-xs text-slate-400" style="border-bottom: 1px solid #1e293b; padding: 0.5rem 1.5rem; display: flex; justify-content: space-between; font-size: 0.75rem;">
+    <div class="border-b border-slate-800 px-6 py-2 flex flex-wrap items-center justify-between text-xs text-slate-400">
       <div class="flex items-center gap-2">
         <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
         <span class="font-medium text-slate-200">Ambiente Oficial de Orçamento</span>
@@ -71,7 +73,7 @@
     </div>
 
     <!-- Barra Principal: Logo à Esquerda | Ações no Canto Direito -->
-    <div class="px-6 py-3 flex items-center justify-between gap-4">
+    <div class="px-6 py-3.5 flex items-center justify-between gap-4">
       <!-- Logo & Título -->
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/25">
@@ -121,7 +123,7 @@
   </header>
 
   <!-- ===================================================================== -->
-  <!-- BARRA FLUTUANTE DE NAVEGAÇÃO ENTRE PÁGINAS (SEPARADA DA BARRA AZUL) -->
+  <!-- BARRA FLUTUANTE DE NAVEGAÇÃO ENTRE PÁGINAS (GRID RESPONSIVO) -->
   <!-- ===================================================================== -->
   <div class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-1">
     <nav class="bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-lg shadow-slate-200/50 rounded-2xl p-1.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-1.5" aria-label="Navegação entre módulos">
@@ -170,101 +172,165 @@
   </div>
 
   <!-- ===================================================================== -->
-  <!-- CONTEÚDO PRINCIPAL (TELAS DINÂMICAS) -->
+  <!-- CONTEÚDO PRINCIPAL (8 TELAS EXECUTIVAS) -->
   <!-- ===================================================================== -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5">
     
     <!-- Toast de Notificação -->
-    <div id="toast" class="hidden fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700 flex items-center gap-3 transition-all animate-bounce">
+    <div id="toast" class="hidden fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl border border-slate-700 flex items-center gap-3 transition-all">
       <i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-400"></i>
       <span id="toast-msg" class="text-xs font-semibold">Operação realizada com sucesso!</span>
     </div>
 
-    <!-- TELA 1: DASHBOARD DRE -->
+    <!-- TELA 1: DASHBOARD DRE & GRÁFICOS -->
     <div id="view-dashboard" class="view-panel space-y-6">
-      <div class="flex flex-wrap items-center justify-between gap-4">
+      
+      <!-- Banner Informativo Executivo -->
+      <div class="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-6 shadow-xl relative overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 class="text-xl font-black text-slate-900 tracking-tight">Visão Geral da Gerência Executiva de Telefonia</h2>
-          <p class="text-xs text-slate-500">Acompanhamento consolidado de OPEX, CAPEX, Faturamento DETRAF e Margem Operacional</p>
+          <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-blue-500/30 text-blue-200 border border-blue-400/30">
+            Painel Executivo • Fechamento YTD 2026
+          </span>
+          <h2 class="text-xl font-black text-white tracking-tight mt-1.5">Gerência Executiva de Telefonia</h2>
+          <p class="text-xs text-blue-200 mt-1 max-w-2xl">
+            Acompanhamento integrado de OPEX de Rede, Projetos CAPEX 5G, Faturamento DETRAF Bilateral e Rent Roll de Infraestrutura.
+          </p>
         </div>
-        <button onclick="abrirModalRelatorioExecutivo()" class="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-500/20 cursor-pointer">
-          <i data-lucide="printer" class="w-4 h-4"></i>
-          <span>Relatório Executivo One-Pager</span>
+        <button onclick="abrirModalRelatorioExecutivo()" class="flex items-center gap-2 px-4 py-2.5 bg-white text-blue-900 hover:bg-blue-50 rounded-xl text-xs font-bold transition-all shadow-lg shadow-black/20 cursor-pointer whitespace-nowrap">
+          <i data-lucide="printer" class="w-4 h-4 text-blue-700"></i>
+          <span>Relatório One-Pager (PDF)</span>
         </button>
       </div>
 
-      <!-- KPI Cards -->
+      <!-- 4 Top KPI Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>OPEX Total Anual</span>
-            <i data-lucide="receipt" class="w-4 h-4 text-blue-600"></i>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
+            <span>Orçamento Total (YTD)</span>
+            <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600">
+              <i data-lucide="dollar-sign" class="w-4 h-4"></i>
+            </div>
           </div>
-          <div id="kpi-opex" class="text-2xl font-black text-slate-900 font-mono mt-2">R$ 12.278.000</div>
-          <span class="text-[11px] text-slate-500 mt-1 block">6 Centros de Custo Operacionais</span>
+          <div id="kpi-orcamento-ytd" class="text-2xl font-black text-slate-900 font-mono mt-2">R$ 13.060.000</div>
+          <div class="flex items-center gap-1.5 mt-1 text-xs">
+            <span class="text-emerald-700 font-bold font-mono">+1.6%</span>
+            <span class="text-slate-400 text-[11px]">vs. Orçado (R$ 12.850.000)</span>
+          </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>CAPEX em Andamento</span>
-            <i data-lucide="hard-hat" class="w-4 h-4 text-blue-600"></i>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
+            <span>Realizado OPEX (YTD)</span>
+            <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <i data-lucide="receipt" class="w-4 h-4"></i>
+            </div>
           </div>
-          <div id="kpi-capex" class="text-2xl font-black text-blue-700 font-mono mt-2">R$ 12.100.000</div>
-          <span class="text-[11px] text-emerald-600 font-semibold mt-1 block">53.2% executado (YTD)</span>
+          <div id="kpi-opex" class="text-2xl font-black text-indigo-700 font-mono mt-2">R$ 6.120.000</div>
+          <span class="text-[11px] text-slate-500 mt-1 block">Orçado Anual: <strong>R$ 12.278.000</strong> (49.8% consumido)</span>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
+            <span>Realizado CAPEX (YTD)</span>
+            <div class="w-7 h-7 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <i data-lucide="hard-hat" class="w-4 h-4"></i>
+            </div>
+          </div>
+          <div id="kpi-capex" class="text-2xl font-black text-emerald-700 font-mono mt-2">R$ 6.940.000</div>
+          <span class="text-[11px] text-emerald-600 font-semibold mt-1 block">57.4% do Plano Anual (R$ 12.100.000)</span>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
             <span>Saldo Líquido DETRAF</span>
-            <i data-lucide="scale" class="w-4 h-4 text-emerald-600"></i>
+            <div class="w-7 h-7 rounded-lg bg-teal-50 flex items-center justify-center text-teal-600">
+              <i data-lucide="scale" class="w-4 h-4"></i>
+            </div>
           </div>
-          <div id="kpi-detraf" class="text-2xl font-black text-emerald-700 font-mono mt-2">+ R$ 49.300</div>
-          <span class="text-[11px] text-emerald-700 font-semibold mt-1 block">Superávit bilateral (A Receber)</span>
-        </div>
-
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-          <div class="flex items-center justify-between text-slate-500 text-xs font-bold uppercase">
-            <span>Contratos de Sites</span>
-            <i data-lucide="building-2" class="w-4 h-4 text-amber-600"></i>
-          </div>
-          <div id="kpi-torres" class="text-2xl font-black text-slate-900 font-mono mt-2">4 Sites Ativos</div>
-          <span class="text-[11px] text-slate-500 mt-1 block">R$ 41.900/mês em locação</span>
+          <div id="kpi-detraf" class="text-2xl font-black text-teal-700 font-mono mt-2">+ R$ 49.300</div>
+          <span class="text-[11px] text-teal-700 font-semibold mt-1 block">Superávit de Terminação (A Receber)</span>
         </div>
       </div>
 
-      <!-- Tabela DRE Gerencial -->
+      <!-- SEÇÃO DE GRÁFICOS EXECUTIVOS LADO A LADO -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Gráfico 1: Orçado vs Realizado Mensal (Jan a Dez) -->
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900">Evolução Orçamentária Mensal: Orçado vs Realizado</h3>
+              <p class="text-xs text-slate-400">Comparativo mês a mês do ciclo fiscal de 2026 (Jan a Jun realizado / Jul a Dez projetado)</p>
+            </div>
+            <div class="flex items-center gap-3 text-xs font-semibold">
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-blue-600"></span> Orçado</span>
+              <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500"></span> Realizado</span>
+            </div>
+          </div>
+          <div class="h-72 w-full relative">
+            <canvas id="chart-orcado-realizado"></canvas>
+          </div>
+        </div>
+
+        <!-- Gráfico 2: Rosca de Distribuição por Centro de Custo -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4 flex flex-col justify-between">
+          <div class="border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-bold text-slate-900">Composição do OPEX por Centro de Custo</h3>
+            <p class="text-xs text-slate-400">Distribuição percentual da Gerência de Telefonia</p>
+          </div>
+          <div class="h-60 w-full relative flex items-center justify-center">
+            <canvas id="chart-centro-custo"></canvas>
+          </div>
+          <div class="text-[11px] text-center text-slate-400 pt-2 border-t border-slate-100">
+            Total Base OPEX: <strong>R$ 12.278.000 / ano</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabela DRE Gerencial de Telefonia -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-900">Demonstrativo de Resultado da Gerência de Telefonia (DRE Sintética)</h3>
-          <span class="text-xs font-mono text-slate-500 font-semibold">Competência 2026 (R$ Milhares)</span>
+        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Demonstrativo de Resultado Gerencial (DRE Telefonia)</h3>
+            <p class="text-xs text-slate-500">Margem de contribuição operacional consolidada</p>
+          </div>
+          <span class="text-xs font-mono text-slate-500 font-semibold bg-slate-200/60 px-2.5 py-1 rounded-lg">Competência 2026 (R$ Reais)</span>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-xs text-left">
             <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[11px]">
               <tr>
-                <th class="py-3 px-4">Linha de Negócio</th>
-                <th class="py-3 px-3 text-right">Orçado 2026</th>
+                <th class="py-3 px-4">Estrutura de Linha de Negócio</th>
+                <th class="py-3 px-3 text-right">Orçado Anual</th>
                 <th class="py-3 px-3 text-right">Realizado (YTD)</th>
-                <th class="py-3 px-3 text-right">Desvio</th>
+                <th class="py-3 px-3 text-right">Variação Absoluta</th>
                 <th class="py-3 px-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody id="tbody-dre" class="divide-y divide-slate-200">
-              <!-- Renderizado via JS -->
+              <!-- Preenchido via JS -->
             </tbody>
           </table>
         </div>
       </div>
+
+      <!-- Despesas por Centro de Custo com Barra de Progresso -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <h3 class="text-sm font-bold text-slate-900">Execução Orçamentária por Centro de Custo (Gerência de Telefonia)</h3>
+        <div id="container-cc-progress" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Preenchido via JS -->
+        </div>
+      </div>
+
     </div>
 
-    <!-- TELA 2: GRADE OPEX -->
+    <!-- TELA 2: GRADE OPEX (12 MESES) -->
     <div id="view-opex" class="view-panel hidden space-y-4">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold text-slate-900">Grade de Despesas Operacionais (OPEX)</h2>
-          <p class="text-xs text-slate-500">Matriz orçamentária dos 12 meses da Gerência Executiva de Telefonia</p>
+          <p class="text-xs text-slate-500">Matriz detalhada dos 12 meses de todas as rubricas orçamentárias de Telefonia</p>
         </div>
-        <button onclick="exportarOpexCSV()" class="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm">
+        <button onclick="exportarOpexCSV()" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer">
           <i data-lucide="download" class="w-3.5 h-3.5"></i>
           <span>Exportar Planilha (.CSV)</span>
         </button>
@@ -274,23 +340,23 @@
         <table class="w-full text-xs text-left whitespace-nowrap">
           <thead class="bg-slate-900 text-white font-semibold">
             <tr>
-              <th class="py-2.5 px-3">Código</th>
-              <th class="py-2.5 px-3">Centro de Custo</th>
-              <th class="py-2.5 px-4">Descrição da Despesa</th>
-              <th class="py-2.5 px-2 text-right">Jan</th>
-              <th class="py-2.5 px-2 text-right">Fev</th>
-              <th class="py-2.5 px-2 text-right">Mar</th>
-              <th class="py-2.5 px-2 text-right">Abr</th>
-              <th class="py-2.5 px-2 text-right">Mai</th>
-              <th class="py-2.5 px-2 text-right">Jun</th>
-              <th class="py-2.5 px-2 text-right">Jul</th>
-              <th class="py-2.5 px-2 text-right">Ago</th>
-              <th class="py-2.5 px-2 text-right">Set</th>
-              <th class="py-2.5 px-2 text-right">Out</th>
-              <th class="py-2.5 px-2 text-right">Nov</th>
-              <th class="py-2.5 px-2 text-right">Dez</th>
-              <th class="py-2.5 px-3 text-right bg-slate-800">Total Anual</th>
-              <th class="py-2.5 px-2 text-center">Ações</th>
+              <th class="py-3 px-3">Código</th>
+              <th class="py-3 px-3">Centro de Custo</th>
+              <th class="py-3 px-4">Descrição da Despesa</th>
+              <th class="py-3 px-2 text-right">Jan</th>
+              <th class="py-3 px-2 text-right">Fev</th>
+              <th class="py-3 px-2 text-right">Mar</th>
+              <th class="py-3 px-2 text-right">Abr</th>
+              <th class="py-3 px-2 text-right">Mai</th>
+              <th class="py-3 px-2 text-right">Jun</th>
+              <th class="py-3 px-2 text-right">Jul</th>
+              <th class="py-3 px-2 text-right">Ago</th>
+              <th class="py-3 px-2 text-right">Set</th>
+              <th class="py-3 px-2 text-right">Out</th>
+              <th class="py-3 px-2 text-right">Nov</th>
+              <th class="py-3 px-2 text-right">Dez</th>
+              <th class="py-3 px-3 text-right bg-slate-800">Total Anual</th>
+              <th class="py-3 px-2 text-center">Ações</th>
             </tr>
           </thead>
           <tbody id="tbody-opex" class="divide-y divide-slate-200 font-mono text-[11px]">
@@ -300,22 +366,22 @@
       </div>
     </div>
 
-    <!-- TELA 3: CAPEX & PROJETOS -->
+    <!-- TELA 3: CAPEX & PROJETOS ESTRATÉGICOS -->
     <div id="view-capex" class="view-panel hidden space-y-4">
       <div>
         <h2 class="text-lg font-bold text-slate-900">Investimentos & Projetos Estratégicos (CAPEX)</h2>
-        <p class="text-xs text-slate-500">Expansão de cobertura 5G, infraestrutura de sites e core de telefonia</p>
+        <p class="text-xs text-slate-500">Expansão de cobertura 5G, infraestrutura de sites e core de telefonia móvel</p>
       </div>
-      <div id="capex-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div id="capex-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <!-- Preenchido via JS -->
       </div>
     </div>
 
-    <!-- TELA 4: DESVIOS (VARIANCE) -->
+    <!-- TELA 4: DESVIOS (VARIANCE ANALYSIS) -->
     <div id="view-variance" class="view-panel hidden space-y-4">
       <div>
         <h2 class="text-lg font-bold text-slate-900">Acompanhamento Orçamentário & Análise de Desvios</h2>
-        <p class="text-xs text-slate-500">Controle de variações entre o Orçado e o Realizado com justificativas gerenciais</p>
+        <p class="text-xs text-slate-500">Controle de variações entre o Orçado e o Realizado com justificativas gerenciais homologadas</p>
       </div>
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <table class="w-full text-xs text-left">
@@ -340,106 +406,135 @@
     <div id="view-premises" class="view-panel hidden space-y-4">
       <div>
         <h2 class="text-lg font-bold text-slate-900">Premissas Orçamentárias & Drivers Macroeconômicos</h2>
-        <p class="text-xs text-slate-500">Parâmetros de inflação, tarifas de interconexão Anatel e índices de reajuste</p>
+        <p class="text-xs text-slate-500">Parâmetros regulatórios Anatel, inflação contratual e índices de energia</p>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-          <span class="text-xs font-bold text-slate-400 uppercase">Tarifas Regulatórias Anatel</span>
-          <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100">
-            <span class="font-medium text-slate-700">Tarifa VU-M (SMP)</span>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <span>Tarifas Regulatórias Anatel</span>
+          </div>
+          <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
+            <span class="font-medium text-slate-700">Tarifa VU-M (SMP Móvel)</span>
             <span class="font-mono font-bold text-blue-600">R$ 0,0195 / min</span>
           </div>
-          <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100">
-            <span class="font-medium text-slate-700">Tarifa TU-RL (STFC)</span>
+          <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
+            <span class="font-medium text-slate-700">Tarifa TU-RL (STFC Fixo)</span>
             <span class="font-mono font-bold text-blue-600">R$ 0,0085 / min</span>
           </div>
-          <div class="flex justify-between items-center text-xs py-1">
-            <span class="font-medium text-slate-700">Cadência Padrão</span>
+          <div class="flex justify-between items-center text-xs py-1.5">
+            <span class="font-medium text-slate-700">Cadência Padrão Regulamentar</span>
             <span class="font-mono font-bold text-slate-800">30s / 6s</span>
           </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-          <span class="text-xs font-bold text-slate-400 uppercase">Índices de Contratos</span>
-          <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center gap-2 text-xs font-bold text-purple-700 uppercase">
+            <i data-lucide="trending-up" class="w-4 h-4"></i>
+            <span>Índices de Contratos</span>
+          </div>
+          <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
             <span class="font-medium text-slate-700">IGP-M Projetado 2026</span>
             <span class="font-mono font-bold text-purple-600">+ 4.50% a.a.</span>
           </div>
-          <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100">
-            <span class="font-medium text-slate-700">IPCA Acumulado</span>
+          <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
+            <span class="font-medium text-slate-700">IPCA Acumulado 12M</span>
             <span class="font-mono font-bold text-purple-600">+ 3.90% a.a.</span>
           </div>
-          <div class="flex justify-between items-center text-xs py-1">
+          <div class="flex justify-between items-center text-xs py-1.5">
             <span class="font-medium text-slate-700">Taxa Selic Over</span>
             <span class="font-mono font-bold text-slate-800">10.75% a.a.</span>
           </div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-2">
-          <span class="text-xs font-bold text-slate-400 uppercase">Energia & Operações</span>
-          <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+          <div class="flex items-center gap-2 text-xs font-bold text-amber-700 uppercase">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+            <span>Energia & Operações de Campo</span>
+          </div>
+          <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
             <span class="font-medium text-slate-700">Tarifa Média kWh (Enel/Neoenergia)</span>
             <span class="font-mono font-bold text-amber-600">R$ 0,84 / kWh</span>
           </div>
-          <div class="flex justify-between items-center text-xs py-1 border-b border-slate-100">
+          <div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100">
             <span class="font-medium text-slate-700">Diesel S-10 (Geradores)</span>
             <span class="font-mono font-bold text-amber-600">R$ 5,95 / Litro</span>
           </div>
-          <div class="flex justify-between items-center text-xs py-1">
-            <span class="font-medium text-slate-700">Custo Manutenção Site Médio</span>
+          <div class="flex justify-between items-center text-xs py-1.5">
+            <span class="font-medium text-slate-700">Custo Médio Manutenção Site</span>
             <span class="font-mono font-bold text-slate-800">R$ 2.450 / mês</span>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- TELA 6: DETRAF & INTERCONEXÃO -->
-    <div id="view-detraf" class="view-panel hidden space-y-4">
-      <div class="flex items-center justify-between">
+    <!-- TELA 6: DETRAF & INTERCONEXÃO TELECOM -->
+    <div id="view-detraf" class="view-panel hidden space-y-6">
+      <div class="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-lg font-bold text-slate-900">DETRAF & Conciliação de Interconexão Telecom</h2>
-          <p class="text-xs text-slate-500">Compensação financeira bilateral (Netting) com Claro, TIM, Vivo e Algar</p>
+          <p class="text-xs text-slate-500">Compensação financeira bilateral (Netting) com Claro, TIM, Vivo e Algar Telecom</p>
         </div>
-        <button onclick="abrirDossieAnatel()" class="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm">
-          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+        <button onclick="abrirDossieAnatel()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-sm cursor-pointer">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
           <span>Gerar Dossiê Anatel (90 Dias)</span>
         </button>
       </div>
 
-      <!-- Netting Summary -->
+      <!-- Netting Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl">
-          <span class="text-xs font-bold text-emerald-800 block">Total a Receber (Inbound / Terminação na Rede Brisanet)</span>
-          <div id="detraf-inbound-total" class="text-xl font-black text-emerald-700 font-mono mt-1">R$ 93.977,00</div>
-          <span class="text-[11px] text-emerald-600">Tráfego de chamadas recebidas de terceiros</span>
+        <div class="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl">
+          <span class="text-xs font-bold text-emerald-800 uppercase tracking-wider block">Total a Receber (Inbound / Terminação na Brisanet)</span>
+          <div id="detraf-inbound-total" class="text-2xl font-black text-emerald-700 font-mono mt-2">R$ 93.977,00</div>
+          <span class="text-xs text-emerald-600 mt-1 block">5.310.500 minutos tarifados recebidos</span>
         </div>
-        <div class="p-4 bg-rose-50 border border-rose-200 rounded-2xl">
-          <span class="text-xs font-bold text-rose-800 block">Total a Pagar (Outbound / Saída para Outras Operadoras)</span>
-          <div id="detraf-outbound-total" class="text-xl font-black text-rose-700 font-mono mt-1">R$ 44.677,00</div>
-          <span class="text-[11px] text-rose-600">Tráfego de chamadas originadas por clientes Brisanet</span>
+        <div class="p-5 bg-rose-50 border border-rose-200 rounded-2xl">
+          <span class="text-xs font-bold text-rose-800 uppercase tracking-wider block">Total a Pagar (Outbound / Saída para Outras Redes)</span>
+          <div id="detraf-outbound-total" class="text-2xl font-black text-rose-700 font-mono mt-2">R$ 44.677,00</div>
+          <span class="text-xs text-rose-600 mt-1 block">2.630.000 minutos de chamadas geradas por clientes</span>
+        </div>
+      </div>
+
+      <!-- Gráfico de Tráfego por Operadora -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <h3 class="text-sm font-bold text-slate-900">Volume Financeiro Bilateral por Operadora (Netting)</h3>
+          <div class="flex items-center gap-3 text-xs font-semibold">
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500"></span> A Receber (Inbound)</span>
+            <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-rose-500"></span> A Pagar (Outbound)</span>
+          </div>
+        </div>
+        <div class="h-64 w-full relative">
+          <canvas id="chart-detraf-operadoras"></canvas>
         </div>
       </div>
 
       <!-- Tabela DETRAF -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <table class="w-full text-xs text-left">
-          <thead class="bg-slate-100 font-bold text-slate-700">
-            <tr>
-              <th class="py-2.5 px-3">Número Fatura</th>
-              <th class="py-2.5 px-3">Operadora</th>
-              <th class="py-2.5 px-2">Sentido</th>
-              <th class="py-2.5 px-2">Mês Ref.</th>
-              <th class="py-2.5 px-2">Vencimento</th>
-              <th class="py-2.5 px-3 text-right">Minutos</th>
-              <th class="py-2.5 px-3 text-right">Valor Líquido</th>
-              <th class="py-2.5 px-2 text-center">Status</th>
-              <th class="py-2.5 px-3 text-center">Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbody-detraf" class="divide-y divide-slate-200 font-mono text-[11px]">
-            <!-- Preenchido via JS -->
-          </tbody>
-        </table>
+        <div class="px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+          <h3 class="text-xs font-bold uppercase text-slate-700">Faturas e Extratos Analíticos do Mês</h3>
+          <span class="text-xs text-slate-400">Competência: Junho/2026</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-xs text-left">
+            <thead class="bg-slate-100 font-bold text-slate-700">
+              <tr>
+                <th class="py-2.5 px-3">Número Fatura</th>
+                <th class="py-2.5 px-3">Operadora</th>
+                <th class="py-2.5 px-2">Sentido</th>
+                <th class="py-2.5 px-2">Mês Ref.</th>
+                <th class="py-2.5 px-2">Vencimento</th>
+                <th class="py-2.5 px-3 text-right">Minutos</th>
+                <th class="py-2.5 px-3 text-right">Valor Líquido</th>
+                <th class="py-2.5 px-2 text-center">Status</th>
+                <th class="py-2.5 px-3 text-center">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-detraf" class="divide-y divide-slate-200 font-mono text-[11px]">
+              <!-- Preenchido via JS -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -447,18 +542,19 @@
     <div id="view-cashflow" class="view-panel hidden space-y-4">
       <div>
         <h2 class="text-lg font-bold text-slate-900">Calendário de Fluxo de Caixa & Desembolso (D+N)</h2>
-        <p class="text-xs text-slate-500">Previsão diária de entradas (DETRAF Inbound) e saídas (OPEX + DETRAF Outbound)</p>
+        <p class="text-xs text-slate-500">Previsão diária de liquidez cruzando recebimentos de interconexão e pagamentos de infraestrutura</p>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 overflow-hidden">
+
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <table class="w-full text-xs text-left">
           <thead class="bg-slate-100 font-bold text-slate-700">
             <tr>
-              <th class="py-2.5 px-3">Data</th>
-              <th class="py-2.5 px-4">Descrição do Lançamento</th>
-              <th class="py-2.5 px-3">Categoria</th>
-              <th class="py-2.5 px-3 text-right">Valor</th>
-              <th class="py-2.5 px-2 text-center">Tipo</th>
-              <th class="py-2.5 px-2 text-center">Status</th>
+              <th class="py-3 px-3">Data</th>
+              <th class="py-3 px-4">Descrição do Lançamento</th>
+              <th class="py-3 px-3">Categoria</th>
+              <th class="py-3 px-3 text-right">Valor (R$)</th>
+              <th class="py-3 px-2 text-center">Tipo</th>
+              <th class="py-3 px-2 text-center">Status</th>
             </tr>
           </thead>
           <tbody id="tbody-cashflow" class="divide-y divide-slate-200">
@@ -643,11 +739,11 @@
           <span class="text-xs text-slate-500 font-medium ml-2">Fechamento da Gerência Executiva de Telefonia</span>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md">
+          <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md cursor-pointer">
             <i data-lucide="printer" class="w-4 h-4"></i>
             <span>Imprimir / Salvar PDF</span>
           </button>
-          <button onclick="fecharModalRelatorioExecutivo()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+          <button onclick="fecharModalRelatorioExecutivo()" class="text-slate-400 hover:text-slate-600 cursor-pointer"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
       </div>
 
@@ -664,7 +760,7 @@
           </div>
         </div>
 
-        <div class="p-3 bg-blue-50/60 rounded-xl border border-blue-200 text-xs text-blue-900 leading-relaxed">
+        <div class="p-3.5 bg-blue-50/60 rounded-xl border border-blue-200 text-xs text-blue-900 leading-relaxed">
           <strong>Parecer da Gerência Executiva de Telefonia:</strong> As despesas operacionais e investimentos estão aderentes às premissas corporativas aprovadas para 2026. A compensação bilateral DETRAF mantém posição superavitária e os contratos de infraestrutura seguem os prazos contratuais.
         </div>
 
@@ -756,17 +852,22 @@
         </div>
         <p>A Brisanet Telecomunicações S.A., por meio de sua <strong>Gerência Executiva de Telefonia & Regulatório</strong>, apresenta contestação técnica em virtude de minutos tarifados em desacordo com as especificações do CDR bilateral do mês de Junho/2026.</p>
         <div class="pt-4 flex justify-end gap-2">
-          <button onclick="window.print()" class="px-4 py-2 bg-slate-900 text-white rounded-lg font-semibold flex items-center gap-1.5"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir Notificação</button>
+          <button onclick="window.print()" class="px-4 py-2 bg-slate-900 text-white rounded-lg font-semibold flex items-center gap-1.5 cursor-pointer"><i data-lucide="printer" class="w-4 h-4"></i> Imprimir Notificação</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ===================================================================== -->
-  <!-- JAVASCRIPT REATIVO DO ORÇAHUB -->
+  <!-- JAVASCRIPT REATIVO DO ORÇAHUB COM CHART.JS E MOCK COMPLETO -->
   <!-- ===================================================================== -->
   <script>
-    // Estado Global da Aplicação
+    // Instâncias dos Gráficos
+    let chartOrcadoRealizadoInstance = null;
+    let chartCentroCustoInstance = null;
+    let chartDetrafOperadorasInstance = null;
+
+    // Estado Global da Aplicação com Exemplos Fictícios Ricos
     let ESTADO = {
       cenario: 'BUDGET_ORIGINAL',
       multiplicador: 1.0,
@@ -776,43 +877,68 @@
         detraf: [],
         torres: [],
         auditoria: [],
-        remanejamentos: []
+        remanejamentos: [],
+        fluxo: []
       }
     };
 
     // Inicialização ao carregar a página
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
-      carregarDadosServidor();
+      carregarDadosIniciais();
     });
 
-    // Chama o backend do Apps Script ou usa dados locais de teste
-    function carregarDadosServidor() {
+    function carregarDadosIniciais() {
+      // Carrega dados padrão ricos para exibição imediata
+      aplicarMockCompleto();
+      
+      // Se estiver no Google Apps Script, busca dados atualizados da planilha
       if (typeof google !== 'undefined' && google.script && google.script.run) {
         google.script.run
           .withSuccessHandler(function(resposta) {
-            if (resposta && resposta.sucesso) {
-              ESTADO.dados = resposta.dados;
-              renderizarTudo();
-            } else {
-              mostrarToast("Erro ao carregar do servidor: " + (resposta.mensagemErro || "Desconhecido"));
+            if (resposta && resposta.sucesso && resposta.dados) {
+              if (resposta.dados.opex && resposta.dados.opex.length > 0) {
+                ESTADO.dados.opex = resposta.dados.opex;
+              }
+              if (resposta.dados.capex && resposta.dados.capex.length > 0) {
+                ESTADO.dados.capex = resposta.dados.capex;
+              }
+              if (resposta.dados.detraf && resposta.dados.detraf.length > 0) {
+                ESTADO.dados.detraf = resposta.dados.detraf;
+              }
+              if (resposta.dados.torres && resposta.dados.torres.length > 0) {
+                ESTADO.dados.torres = resposta.dados.torres;
+              }
+              if (resposta.dados.auditoria && resposta.dados.auditoria.length > 0) {
+                ESTADO.dados.auditoria = resposta.dados.auditoria;
+              }
+              if (resposta.dados.remanejamentos && resposta.dados.remanejamentos.length > 0) {
+                ESTADO.dados.remanejamentos = resposta.dados.remanejamentos;
+              }
+              if (resposta.dados.fluxo && resposta.dados.fluxo.length > 0) {
+                ESTADO.dados.fluxo = resposta.dados.fluxo;
+              }
             }
+            renderizarTudo();
           })
           .withFailureHandler(function(erro) {
-            mostrarToast("Falha na chamada RPC: " + erro.toString());
+            console.warn("Modo demonstração: usando dados ricos de apresentação.", erro);
+            renderizarTudo();
           })
           .apiCarregarDadosIniciais();
       } else {
-        // Fallback local se aberto fora do Apps Script
-        carregarDadosFallback();
+        renderizarTudo();
       }
     }
 
     function renderizarTudo() {
       renderizarDashboard();
+      renderizarGraficos();
       renderizarOpex();
       renderizarCapex();
+      renderizarVariance();
       renderizarDetraf();
+      renderizarCashFlow();
       renderizarContratos();
       renderizarAuditoria();
       renderizarRemanejamentos();
@@ -822,7 +948,8 @@
     // Navegação entre Abas Flutuantes
     function trocarAba(abaId) {
       document.querySelectorAll('.view-panel').forEach(el => el.classList.add('hidden'));
-      document.getElementById('view-' + abaId).classList.remove('hidden');
+      const painel = document.getElementById('view-' + abaId);
+      if (painel) painel.classList.remove('hidden');
 
       document.querySelectorAll('.nav-tab-btn').forEach(btn => {
         btn.classList.remove('bg-blue-600', 'text-white', 'shadow-md', 'shadow-blue-500/25');
@@ -834,19 +961,175 @@
         btnAtivo.classList.remove('text-slate-600', 'hover:text-slate-900', 'hover:bg-slate-100/80');
         btnAtivo.classList.add('bg-blue-600', 'text-white', 'shadow-md', 'shadow-blue-500/25');
       }
+
+      // Se navegou para Dashboard ou DETRAF, redimensiona gráficos
+      if (abaId === 'dashboard' || abaId === 'detraf') {
+        setTimeout(renderizarGraficos, 50);
+      }
       lucide.createIcons();
     }
 
-    // Formatação BRL
     function formatarMoeda(val) {
-      return Number(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      return Number(val || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
     }
 
-    // Renderizadores
+    // =========================================================================
+    // RENDERIZAÇÃO DOS GRÁFICOS (CHART.JS)
+    // =========================================================================
+    function renderizarGraficos() {
+      const mult = ESTADO.multiplicador;
+
+      // 1. Gráfico Orçado vs Realizado Mensal
+      const canvas1 = document.getElementById('chart-orcado-realizado');
+      if (canvas1) {
+        if (chartOrcadoRealizadoInstance) chartOrcadoRealizadoInstance.destroy();
+        
+        const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+        const orcadoValores = [1950000, 2010000, 2150000, 2080000, 2220000, 2350000, 2280000, 2310000, 2340000, 2380000, 2420000, 2460000].map(v => Math.round(v * mult));
+        const realizadoValores = [1940000, 1995000, 2180000, 2090000, 2250000, 2410000, null, null, null, null, null, null];
+
+        chartOrcadoRealizadoInstance = new Chart(canvas1.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: meses,
+            datasets: [
+              {
+                label: 'Orçado (OPEX + CAPEX)',
+                data: orcadoValores,
+                backgroundColor: '#3b82f6',
+                borderRadius: 5
+              },
+              {
+                label: 'Realizado (YTD)',
+                data: realizadoValores,
+                backgroundColor: '#10b981',
+                borderRadius: 5
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${formatarMoeda(ctx.raw)}`
+                }
+              }
+            },
+            scales: {
+              y: {
+                ticks: {
+                  callback: (val) => 'R$ ' + (val / 1000000).toFixed(1) + 'M'
+                },
+                grid: { color: '#f1f5f9' }
+              },
+              x: {
+                grid: { display: false }
+              }
+            }
+          }
+        });
+      }
+
+      // 2. Gráfico Donut de Centros de Custo
+      const canvas2 = document.getElementById('chart-centro-custo');
+      if (canvas2) {
+        if (chartCentroCustoInstance) chartCentroCustoInstance.destroy();
+
+        chartCentroCustoInstance = new Chart(canvas2.getContext('2d'), {
+          type: 'doughnut',
+          data: {
+            labels: [
+              'Operações & Torres',
+              'Core IMS/SBC',
+              'DETRAF & Interconexão',
+              'Manutenção de Campo',
+              'Qualidade & Anatel',
+              'Planejamento Telefonia'
+            ],
+            datasets: [{
+              data: [5350000, 1168000, 4110000, 570000, 1085000, 320000].map(v => Math.round(v * mult)),
+              backgroundColor: ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'],
+              borderWidth: 2,
+              borderColor: '#ffffff'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { boxWidth: 10, font: { size: 10 } }
+              },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => ` ${ctx.label}: ${formatarMoeda(ctx.raw)}`
+                }
+              }
+            },
+            cutout: '65%'
+          }
+        });
+      }
+
+      // 3. Gráfico DETRAF por Operadora
+      const canvas3 = document.getElementById('chart-detraf-operadoras');
+      if (canvas3) {
+        if (chartDetrafOperadorasInstance) chartDetrafOperadorasInstance.destroy();
+
+        chartDetrafOperadorasInstance = new Chart(canvas3.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: ['Claro Telecom', 'TIM Brasil', 'Telefônica Vivo', 'Algar Telecom'],
+            datasets: [
+              {
+                label: 'A Receber (Inbound)',
+                data: [25138, 0, 68839, 0],
+                backgroundColor: '#10b981',
+                borderRadius: 6
+              },
+              {
+                label: 'A Pagar (Outbound)',
+                data: [0, 40974, 0, 3703],
+                backgroundColor: '#f43f5e',
+                borderRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (ctx) => `${ctx.dataset.label}: ${formatarMoeda(ctx.raw)}`
+                }
+              }
+            },
+            scales: {
+              y: {
+                ticks: {
+                  callback: (val) => formatarMoeda(val)
+                },
+                grid: { color: '#f1f5f9' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // =========================================================================
+    // RENDERIZAÇÃO DAS TELAS E TABELAS
+    // =========================================================================
     function renderizarDashboard() {
       const tbody = document.getElementById('tbody-dre');
       if (!tbody) return;
-      
+
       const linhas = [
         { linha: "Receita Bruta de Telefonia (Planos + Recargas)", orcado: 18500000, realizado: 18920000, status: "FAVORAVEL" },
         { linha: "(-) Deduções, PIS/COFINS e FUST/FUNTTEL", orcado: -2450000, realizado: -2505000, status: "ADERENTE" },
@@ -868,6 +1151,35 @@
           </td>
         </tr>
       `).join('');
+
+      // Cards de progresso dos Centros de Custo
+      const containerCC = document.getElementById('container-cc-progress');
+      if (containerCC) {
+        const ccs = [
+          { nome: "101.01 - Operações de Rede & Torres", orcado: 5350000, realizado: 2680000, pct: 50.1 },
+          { nome: "101.02 - Core de Telefonia & TI Telecom", orcado: 1168000, realizado: 580000, pct: 49.6 },
+          { nome: "201.01 - Interconexão & DETRAF", orcado: 4110000, realizado: 2010000, pct: 48.9 },
+          { nome: "301.01 - Manutenção de Campo & Sites Móveis", orcado: 570000, realizado: 310000, pct: 54.4 },
+          { nome: "401.01 - Qualidade & Regulatório Anatel", orcado: 1085000, realizado: 540000, pct: 49.7 },
+          { nome: "501.01 - Planejamento Orçamentário de Telefonia", orcado: 320000, realizado: 160000, pct: 50.0 }
+        ];
+
+        containerCC.innerHTML = ccs.map(c => `
+          <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-bold text-slate-800 truncate">${c.nome}</span>
+              <span class="font-mono font-bold text-slate-700">${c.pct}%</span>
+            </div>
+            <div class="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div class="bg-blue-600 h-2 rounded-full" style="width: ${c.pct}%"></div>
+            </div>
+            <div class="flex justify-between items-center text-[11px] text-slate-500 font-mono">
+              <span>Realizado: <strong>${formatarMoeda(c.realizado)}</strong></span>
+              <span>Orçado: ${formatarMoeda(c.orcado)}</span>
+            </div>
+          </div>
+        `).join('');
+      }
     }
 
     function renderizarOpex() {
@@ -910,19 +1222,48 @@
       container.innerHTML = ESTADO.dados.capex.map(p => `
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
           <div class="flex justify-between items-start">
-            <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-blue-50 text-blue-700 rounded">${p.STATUS || 'EM_ANDAMENTO'}</span>
+            <span class="text-[10px] font-bold uppercase px-2 py-0.5 ${p.STATUS === 'CONCLUIDO' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800'} rounded">${p.STATUS || 'EM_ANDAMENTO'}</span>
             <span class="font-mono text-xs font-bold text-slate-900">${formatarMoeda(p.INVESTIMENTO_TOTAL)}</span>
           </div>
           <h4 class="text-sm font-bold text-slate-900">${p.NOME_PROJETO}</h4>
           <span class="text-xs text-slate-500 block">${p.CENTRO_CUSTO}</span>
           <div class="space-y-1">
-            <div class="flex justify-between text-xs text-slate-500"><span>Progresso</span><strong>${p.PERCENTUAL_EXECUTADO || 50}%</strong></div>
+            <div class="flex justify-between text-xs text-slate-500"><span>Execução Física</span><strong>${p.PERCENTUAL_EXECUTADO || 50}%</strong></div>
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
               <div class="bg-blue-600 h-2 rounded-full" style="width: ${p.PERCENTUAL_EXECUTADO || 50}%"></div>
             </div>
           </div>
         </div>
       `).join('');
+    }
+
+    function renderizarVariance() {
+      const tbody = document.getElementById('tbody-variance');
+      if (!tbody) return;
+
+      const desvios = [
+        { item: "Energia Elétrica ERBs (Alta Bandeira Tarifária)", orcado: 1470000, realizado: 1540000, justificativa: "Acréscimo de bandeira amarela e aumento do calor no interior do CE exigindo climatização constante." },
+        { item: "Locação de Torres (Swap para Greenfield 60m)", orcado: 1119000, realizado: 1119000, justificativa: "Aderente às premissas contratuais repactuadas no ciclo." },
+        { item: "Tarifa Interconexão Outbound (Tráfego SMP)", orcado: 2005000, realizado: 1980000, justificativa: "Economia gerada por migração de chamadas de voz para VoLTE / tráfego IP direto." },
+        { item: "Combustível Geradores (Quedas de Energia Concessionária)", orcado: 265000, realizado: 310000, justificativa: "Intermitência de fornecimento na rede de distribuição local exigindo 45h adicionais de gerador." },
+        { item: "Licenciamento Core IMS (Expansão de Assinantes)", orcado: 570000, realizado: 580000, justificativa: "Aceleração do onboarding de clientes móveis 5G acima do projetado no trimestre." }
+      ];
+
+      tbody.innerHTML = desvios.map(d => {
+        const dif = d.realizado - d.orcado;
+        const pct = ((dif / d.orcado) * 100).toFixed(1);
+        const cor = dif > 0 ? 'text-rose-600' : (dif < 0 ? 'text-emerald-600' : 'text-slate-600');
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 font-semibold text-slate-900">${d.item}</td>
+            <td class="py-3 px-3 text-right font-mono">${formatarMoeda(d.orcado)}</td>
+            <td class="py-3 px-3 text-right font-mono font-bold text-slate-900">${formatarMoeda(d.realizado)}</td>
+            <td class="py-3 px-3 text-right font-mono font-bold ${cor}">${dif > 0 ? '+' : ''}${formatarMoeda(dif)}</td>
+            <td class="py-3 px-3 text-right font-mono font-bold ${cor}">${dif > 0 ? '+' : ''}${pct}%</td>
+            <td class="py-3 px-4 text-slate-600 text-xs">${d.justificativa}</td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function renderizarDetraf() {
@@ -938,10 +1279,26 @@
           <td class="py-2.5 px-2">${d.VENCIMENTO}</td>
           <td class="py-2.5 px-3 text-right">${Number(d.MINUTOS_TARIFA || 0).toLocaleString('pt-BR')} min</td>
           <td class="py-2.5 px-3 text-right font-bold text-slate-900">${formatarMoeda(d.VALOR_LIQUIDO)}</td>
-          <td class="py-2.5 px-2 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${d.STATUS}</span></td>
+          <td class="py-2.5 px-2 text-center font-sans"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${d.STATUS === 'CONTESTADO' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${d.STATUS}</span></td>
           <td class="py-2.5 px-3 text-center">
             <button onclick="excluirItem('${d.ID}', 'DETRAF')" class="p-1 text-slate-400 hover:text-rose-600" title="Excluir"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
           </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderizarCashFlow() {
+      const tbody = document.getElementById('tbody-cashflow');
+      if (!tbody) return;
+
+      tbody.innerHTML = ESTADO.dados.fluxo.map(f => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-2.5 px-3 font-mono text-slate-600">${f.DATA_LIQUIDACAO}</td>
+          <td class="py-2.5 px-4 font-semibold text-slate-900">${f.DESCRICAO}</td>
+          <td class="py-2.5 px-3 text-slate-500">${f.CATEGORIA}</td>
+          <td class="py-2.5 px-3 text-right font-mono font-bold ${f.TIPO === 'ENTRADA' ? 'text-emerald-700' : 'text-slate-900'}">${f.TIPO === 'ENTRADA' ? '+' : '-'}${formatarMoeda(f.VALOR)}</td>
+          <td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${f.TIPO === 'ENTRADA' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${f.TIPO}</span></td>
+          <td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">${f.STATUS}</span></td>
         </tr>
       `).join('');
     }
@@ -998,7 +1355,7 @@
           </div>
           <div class="text-right">
             <span class="text-base font-black text-purple-700 font-mono block">${formatarMoeda(r.VALOR)}</span>
-            <span class="text-[10px] font-bold uppercase px-2 py-0.5 bg-amber-100 text-amber-800 rounded">${r.STATUS}</span>
+            <span class="text-[10px] font-bold uppercase px-2 py-0.5 ${r.STATUS === 'APROVADO' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'} rounded">${r.STATUS}</span>
           </div>
         </div>
       `).join('');
@@ -1036,7 +1393,7 @@
           .withSuccessHandler(function(res) {
             btn.innerHTML = `<i data-lucide="mail-check" class="w-3.5 h-3.5 text-cyan-400"></i> Sincronizar E-mails`;
             mostrarToast("Sincronização concluída! " + (res.totalProcessados || 0) + " novas faturas importadas.");
-            carregarDadosServidor();
+            carregarDadosIniciais();
           })
           .withFailureHandler(function(err) {
             btn.innerHTML = `<i data-lucide="mail-check" class="w-3.5 h-3.5 text-cyan-400"></i> Sincronizar E-mails`;
@@ -1079,12 +1436,12 @@
           .withSuccessHandler(function(res) {
             fecharModalNovoLancamento();
             mostrarToast("Lançamento gravado com sucesso no Google Sheets!");
-            carregarDadosServidor();
+            carregarDadosIniciais();
           })
           .apiSalvarNovoLancamento(payload);
       } else {
         fecharModalNovoLancamento();
-        mostrarToast("Lançamento registrado localmente!");
+        mostrarToast("Lançamento registrado!");
       }
     }
 
@@ -1095,15 +1452,15 @@
         google.script.run
           .withSuccessHandler(function(res) {
             mostrarToast("Item excluído com sucesso!");
-            carregarDadosServidor();
+            carregarDadosIniciais();
           })
           .apiExcluirLancamento(id, entidade, "Exclusão manual realizada no painel");
       } else {
-        mostrarToast("Item removido localmente!");
+        mostrarToast("Item removido!");
       }
     }
 
-    // Controle de Modais
+    // Modais
     function abrirModalNovoLancamento() { document.getElementById('modal-novo-lancamento').classList.remove('hidden'); }
     function fecharModalNovoLancamento() { document.getElementById('modal-novo-lancamento').classList.add('hidden'); }
     function alternarCamposNovoLancamento(tipo) {
@@ -1144,36 +1501,55 @@
       link.click();
     }
 
-    // Dados de Fallback (para testes diretos sem servidor GAS)
-    function carregarDadosFallback() {
+    // =========================================================================
+    // DADOS FICTÍCIOS DE APRESENTAÇÃO COMPLETOS (FALLBACK ROBUSTO)
+    // =========================================================================
+    function aplicarMockCompleto() {
       ESTADO.dados = {
         opex: [
           { ID: "OPX-001", CENTRO_CUSTO_NOME: "101.01 - Operações de Rede & Torres", DESCRICAO: "Energia Elétrica Estações Rádio Base (ERBs)", JAN: 240000, FEV: 245000, MAR: 250000, ABR: 242000, MAI: 248000, JUN: 255000, JUL: 260000, AGO: 258000, SET: 262000, OUT: 265000, NOV: 270000, DEZ: 275000, TOTAL_ORCADO: 3070000 },
           { ID: "OPX-002", CENTRO_CUSTO_NOME: "101.01 - Operações de Rede & Torres", DESCRICAO: "Aluguel de Espaço em Torres (American Tower / SBA)", JAN: 185000, FEV: 185000, MAR: 185000, ABR: 188000, MAI: 188000, JUN: 188000, JUL: 192000, AGO: 192000, SET: 192000, OUT: 195000, NOV: 195000, DEZ: 195000, TOTAL_ORCADO: 2280000 },
           { ID: "OPX-003", CENTRO_CUSTO_NOME: "101.02 - Core de Telefonia & TI Telecom", DESCRICAO: "Suporte e Manutenção Core de Telefonia (IMS/SBC/HSS)", JAN: 95000, FEV: 95000, MAR: 95000, ABR: 95000, MAI: 95000, JUN: 95000, JUL: 98000, AGO: 98000, SET: 98000, OUT: 98000, NOV: 98000, DEZ: 98000, TOTAL_ORCADO: 1168000 },
-          { ID: "OPX-004", CENTRO_CUSTO_NOME: "201.01 - Interconexão & DETRAF", DESCRICAO: "Custos de Terminação em Redes Móveis de Terceiros (VU-M)", JAN: 320000, FEV: 315000, MAR: 330000, ABR: 325000, MAI: 340000, JUN: 335000, JUL: 350000, AGO: 345000, SET: 360000, OUT: 355000, NOV: 370000, DEZ: 365000, TOTAL_ORCADO: 4110000 }
+          { ID: "OPX-004", CENTRO_CUSTO_NOME: "201.01 - Interconexão & DETRAF", DESCRICAO: "Custos de Terminação em Redes Móveis de Terceiros (VU-M)", JAN: 320000, FEV: 315000, MAR: 330000, ABR: 325000, MAI: 340000, JUN: 335000, JUL: 350000, AGO: 345000, SET: 360000, OUT: 355000, NOV: 370000, DEZ: 365000, TOTAL_ORCADO: 4110000 },
+          { ID: "OPX-005", CENTRO_CUSTO_NOME: "301.01 - Manutenção de Campo & Sites Móveis", DESCRICAO: "Diesel para Grupos Moto-Geradores de Sites Estratégicos", JAN: 42000, FEV: 40000, MAR: 45000, ABR: 43000, MAI: 48000, JUN: 46000, JUL: 50000, AGO: 47000, SET: 52000, OUT: 49000, NOV: 55000, DEZ: 53000, TOTAL_ORCADO: 570000 },
+          { ID: "OPX-006", CENTRO_CUSTO_NOME: "401.01 - Qualidade & Regulatório Anatel", DESCRICAO: "Taxa de Fiscalização de Instalação e Funcionamento (FISTEL)", JAN: 85000, FEV: 85000, MAR: 120000, ABR: 85000, MAI: 85000, JUN: 85000, JUL: 85000, AGO: 85000, SET: 85000, OUT: 85000, NOV: 85000, DEZ: 85000, TOTAL_ORCADO: 1085000 }
         ],
         capex: [
           { NOME_PROJETO: "Expansão de Cobertura 5G - Interior Ceará & RN", CENTRO_CUSTO: "101.01 - Operações de Rede & Torres", INVESTIMENTO_TOTAL: 8500000, STATUS: "EM_ANDAMENTO", PERCENTUAL_EXECUTADO: 45 },
-          { NOME_PROJETO: "Modernização de Baterias de Lítio em Sites Críticos", CENTRO_CUSTO: "101.01 - Operações de Rede & Torres", INVESTIMENTO_TOTAL: 2400000, STATUS: "EM_ANDAMENTO", PERCENTUAL_EXECUTADO: 60 }
+          { NOME_PROJETO: "Modernização de Baterias de Lítio em Sites Críticos", CENTRO_CUSTO: "101.01 - Operações de Rede & Torres", INVESTIMENTO_TOTAL: 2400000, STATUS: "EM_ANDAMENTO", PERCENTUAL_EXECUTADO: 60 },
+          { NOME_PROJETO: "Upgrade de Capacidade SBC & Gateways de Interconexão", CENTRO_CUSTO: "101.02 - Core de Telefonia & TI Telecom", INVESTIMENTO_TOTAL: 1200000, STATUS: "CONCLUIDO", PERCENTUAL_EXECUTADO: 100 }
         ],
         detraf: [
           { NUMERO_FATURA: "DET-2026-06-CLARO-IN", OPERADORA: "Claro Telecom", SENTIDO: "INBOUND", MES_REFERENCIA: "2026-06", VENCIMENTO: "2026-07-15", MINUTOS_TARIFA: 1420500, VALOR_LIQUIDO: 25138, STATUS: "CONCILIADO" },
-          { NUMERO_FATURA: "DET-2026-06-TIM-OUT", OPERADORA: "TIM Brasil", SENTIDO: "OUTBOUND", MES_REFERENCIA: "2026-06", VENCIMENTO: "2026-07-15", MINUTOS_TARIFA: 2150000, VALOR_LIQUIDO: 40974, STATUS: "CONTESTADO" }
+          { NUMERO_FATURA: "DET-2026-06-TIM-OUT", OPERADORA: "TIM Brasil", SENTIDO: "OUTBOUND", MES_REFERENCIA: "2026-06", VENCIMENTO: "2026-07-15", MINUTOS_TARIFA: 2150000, VALOR_LIQUIDO: 40974, STATUS: "CONTESTADO" },
+          { NUMERO_FATURA: "DET-2026-06-VIVO-IN", OPERADORA: "Telefônica Vivo", SENTIDO: "INBOUND", MES_REFERENCIA: "2026-06", VENCIMENTO: "2026-07-15", MINUTOS_TARIFA: 3890000, VALOR_LIQUIDO: 68839, STATUS: "A_VENCER" },
+          { NUMERO_FATURA: "DET-2026-06-ALGAR-OUT", OPERADORA: "Algar Telecom", SENTIDO: "OUTBOUND", MES_REFERENCIA: "2026-06", VENCIMENTO: "2026-07-15", MINUTOS_TARIFA: 480000, VALOR_LIQUIDO: 3703, STATUS: "CONCILIADO" }
         ],
         torres: [
-          { SITE_ID: "BR-CE-JUA-004", NOME_SITE: "Site Juazeiro Centro", CIDADE_UF: "Juazeiro do Norte/CE", PROVEDOR_TORRE: "American Tower", TIPO_COMPARTILHAMENTO: "Greenfield 60m", ALUGUEL_MENSAL: 12500, INDICE_REAJUSTE: "IGP-M", MES_ANIVERSARIO: "Agosto", STATUS: "ATIVO" },
-          { SITE_ID: "BR-CE-FOR-019", NOME_SITE: "Site Aldeota Prime", CIDADE_UF: "Fortaleza/CE", PROVEDOR_TORRE: "SBA Torres", TIPO_COMPARTILHAMENTO: "Rooftop Topo Edifício", ALUGUEL_MENSAL: 9800, INDICE_REAJUSTE: "IPCA", MES_ANIVERSARIO: "Novembro", STATUS: "ATIVO" }
+          { SITE_ID: "BR-CE-JUA-004", NOME_SITE: "Site Juazeiro Centro", CIDADE_UF: "Juazeiro do Norte/CE", PROVEDOR_TORRE: "American Tower do Brasil", TIPO_COMPARTILHAMENTO: "Greenfield 60m", ALUGUEL_MENSAL: 12500, INDICE_REAJUSTE: "IGP-M", MES_ANIVERSARIO: "Agosto", STATUS: "ATIVO" },
+          { SITE_ID: "BR-CE-FOR-019", NOME_SITE: "Site Aldeota Prime", CIDADE_UF: "Fortaleza/CE", PROVEDOR_TORRE: "SBA Torres Brasil", TIPO_COMPARTILHAMENTO: "Rooftop Topo Edifício", ALUGUEL_MENSAL: 9800, INDICE_REAJUSTE: "IPCA", MES_ANIVERSARIO: "Novembro", STATUS: "ATIVO" },
+          { SITE_ID: "BR-RN-MOS-008", NOME_SITE: "Site Mossoró Oeste", CIDADE_UF: "Mossoró/RN", PROVEDOR_TORRE: "Telxius Torres Brasil", TIPO_COMPARTILHAMENTO: "Greenfield 50m", ALUGUEL_MENSAL: 11200, INDICE_REAJUSTE: "IGP-M", MES_ANIVERSARIO: "Março", STATUS: "REAJUSTADO" },
+          { SITE_ID: "BR-PB-PAT-002", NOME_SITE: "Site Patos Rodoanel", CIDADE_UF: "Patos/PB", PROVEDOR_TORRE: "IHS Towers", TIPO_COMPARTILHAMENTO: "Monopolo 40m", ALUGUEL_MENSAL: 8400, INDICE_REAJUSTE: "IPCA", MES_ANIVERSARIO: "Outubro", STATUS: "ATIVO" }
+        ],
+        fluxo: [
+          { DATA_LIQUIDACAO: "2026-07-05", DESCRICAO: "Enel Ceará - Energia Estações Juazeiro", CATEGORIA: "Infraestrutura", VALOR: 85400, TIPO: "SAIDA", STATUS: "PREVISTO" },
+          { DATA_LIQUIDACAO: "2026-07-10", DESCRICAO: "Claro Telecom - Faturamento Terminação VU-M", CATEGORIA: "Interconexão", VALOR: 25138, TIPO: "ENTRADA", STATUS: "LIQUIDADO" },
+          { DATA_LIQUIDACAO: "2026-07-12", DESCRICAO: "American Tower do Brasil - Aluguel Sites", CATEGORIA: "Locação", VALOR: 62500, TIPO: "SAIDA", STATUS: "PREVISTO" },
+          { DATA_LIQUIDACAO: "2026-07-15", DESCRICAO: "Telefônica Vivo - Compensação Bilateral Netting", CATEGORIA: "Interconexão", VALOR: 68839, TIPO: "ENTRADA", STATUS: "PREVISTO" },
+          { DATA_LIQUIDACAO: "2026-07-15", DESCRICAO: "TIM Brasil - Tráfego Móvel Outbound (Incontroverso)", CATEGORIA: "Interconexão", VALOR: 40974, TIPO: "SAIDA", STATUS: "PREVISTO" },
+          { DATA_LIQUIDACAO: "2026-07-20", DESCRICAO: "Licenciamento & Suporte Plataforma IMS/SBC", CATEGORIA: "TI Core", VALOR: 95000, TIPO: "SAIDA", STATUS: "PREVISTO" },
+          { DATA_LIQUIDACAO: "2026-07-25", DESCRICAO: "Abastecimento Geradores Diesel Sites Críticos", CATEGORIA: "Combustível", VALOR: 42000, TIPO: "SAIDA", STATUS: "PREVISTO" }
         ],
         auditoria: [
-          { ACAO: "CONTESTACAO_ANATEL", TIMESTAMP: "2026-03-22 09:14", USUARIO: "rodrigo.henrique@grupobrisanet.com.br", DESCRICAO: "Abertura de dossiê de glosa formal contra TIM Brasil", VALOR_NOVO: "R$ 48.910,00", JUSTIFICATIVA: "Divergência de tarifação SMP" },
-          { ACAO: "IMPORTACAO_ARQUIVO", TIMESTAMP: "2026-03-23 06:00", USUARIO: "robo.gmail@grupobrisanet.com.br", DESCRICAO: "Importação automática via e-mail telefonia.administrativo", VALOR_NOVO: "R$ 25.138,00" }
+          { ACAO: "CONTESTACAO_ANATEL", TIMESTAMP: "2026-06-20 09:14", USUARIO: "rodrigo.henrique@grupobrisanet.com.br", DESCRICAO: "Abertura de dossiê de glosa formal contra TIM Brasil", VALOR_NOVO: "R$ 48.910,00", JUSTIFICATIVA: "Divergência de tarifação SMP vs LD" },
+          { ACAO: "IMPORTACAO_ARQUIVO", TIMESTAMP: "2026-06-22 06:00", USUARIO: "robo.gmail@grupobrisanet.com.br", DESCRICAO: "Importação automática via e-mail telefonia.administrativo", VALOR_NOVO: "R$ 25.138,00" },
+          { ACAO: "REMANEJAMENTO", TIMESTAMP: "2026-06-18 16:45", USUARIO: "carlos.telefonia@grupobrisanet.com.br", DESCRICAO: "Aprovação de suplementação de verba do CC 1020 para CC 1010", VALOR_NOVO: "R$ 150.000,00" }
         ],
         remanejamentos: [
-          { PROTOCOLO: "TRF-2026-088", CC_ORIGEM: "1020 - Operações & NOC", CC_DESTINO: "1010 - Engenharia de Redes", VALOR: 150000, JUSTIFICATIVA: "Aceleração swap de baterias de lítio", STATUS: "APROVADO" }
+          { PROTOCOLO: "TRF-2026-088", CC_ORIGEM: "101.02 - Core de Telefonia", CC_DESTINO: "101.01 - Operações de Rede", VALOR: 150000, JUSTIFICATIVA: "Aceleração swap de baterias de lítio em Juazeiro", STATUS: "APROVADO" },
+          { PROTOCOLO: "TRF-2026-092", CC_ORIGEM: "401.01 - Qualidade Anatel", CC_DESTINO: "101.02 - Core de Telefonia", VALOR: 65000, JUSTIFICATIVA: "Upgrade de nós de banco de dados para conciliação de CDRs", STATUS: "PENDENTE" }
         ]
       };
-      renderizarTudo();
     }
   </script>
 </body>

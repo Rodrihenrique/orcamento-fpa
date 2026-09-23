@@ -74,12 +74,13 @@ function apiCarregarDadosIniciais() {
     const torres = lerDadosAba("TORRES_SITES");
     const auditoria = lerDadosAba("AUDITORIA");
     const remanejamentos = lerDadosAba("REMANEJAMENTOS");
+    const fluxo = lerDadosAba("FLUXO_CAIXA");
     
     let userEmail = "";
     try {
       userEmail = Session.getActiveUser().getEmail();
     } catch (e) {
-      userEmail = "usuario.telefonia@grupobrisanet.com.br";
+      userEmail = "rodrigo.henrique@grupobrisanet.com.br";
     }
 
     return {
@@ -92,7 +93,8 @@ function apiCarregarDadosIniciais() {
         detraf: detraf,
         torres: torres,
         auditoria: auditoria,
-        remanejamentos: remanejamentos
+        remanejamentos: remanejamentos,
+        fluxo: fluxo
       }
     };
   } catch (erro) {
