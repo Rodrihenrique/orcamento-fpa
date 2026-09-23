@@ -30,8 +30,6 @@ interface DashboardViewProps {
   capexProjects: CapexProject[];
   varianceItems: VarianceItem[];
   costCenters: CostCenter[];
-  onNavigateToVariance: () => void;
-  onNavigateToCapex: () => void;
   onOpenExecutiveReport?: () => void;
 }
 
@@ -40,8 +38,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   capexProjects,
   varianceItems,
   costCenters,
-  onNavigateToVariance,
-  onNavigateToCapex,
   onOpenExecutiveReport
 }) => {
   // Totals calculations
@@ -134,29 +130,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <button 
-              onClick={onNavigateToVariance}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer"
-            >
-              <AlertCircle className="w-4 h-4" />
-              <span>Ver {varianceItems.length} Desvios de Junho</span>
-            </button>
-            <button 
-              onClick={onNavigateToCapex}
-              className="bg-white/10 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl text-xs border border-white/20 flex items-center gap-2 transition-all cursor-pointer"
-            >
-              <HardHat className="w-4 h-4" />
-              <span>Cronograma CAPEX & TAPs</span>
-            </button>
-
             {onOpenExecutiveReport && (
               <button
                 onClick={onOpenExecutiveReport}
                 className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition-all cursor-pointer"
-                title="Abrir relatório executivo formal para impressão e PDF"
+                title="Abrir relatório executivo formal para impressão e download em PDF"
               >
                 <FileText className="w-4 h-4 text-slate-950" />
-                <span>One-Pager Executivo (PDF)</span>
+                <span>Download Relatório (PDF)</span>
               </button>
             )}
           </div>

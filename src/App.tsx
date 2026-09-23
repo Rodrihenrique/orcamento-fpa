@@ -260,8 +260,6 @@ export function App() {
             capexProjects={capexProjects}
             varianceItems={varianceItems}
             costCenters={mockCostCenters}
-            onNavigateToVariance={() => setActiveTab('variance')}
-            onNavigateToCapex={() => setActiveTab('capex')}
             onOpenExecutiveReport={() => setIsExecutiveReportOpen(true)}
           />
         )}
