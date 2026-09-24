@@ -134,65 +134,65 @@
       </button>
     </nav>
 
-    <!-- 3. Seção de Indicadores Executivos (KPI Cards) -->
-    <div id="secaoKpis" class="mb-8">
-      <div class="flex items-center gap-2 mb-4">
-        <h2 class="text-xs font-bold text-brisa-navy uppercase tracking-widest">
-          Visão Geral & Indicadores Executivos
-        </h2>
-        <span class="text-slate-300">|</span>
-        <span class="text-xs text-slate-500 font-medium">
-          Consolidação de volumetria, SLA e produtividade da telefonia
-        </span>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <!-- KPI 1 -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Novos Sem Atendente</span>
-            <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-          </div>
-          <div id="kpiNovos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
-          <div class="text-xs text-slate-500">Aguardando triagem técnica</div>
-        </div>
-
-        <!-- KPI 2 -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Em Atendimento</span>
-            <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-          </div>
-          <div id="kpiEmAndamento" class="font-rubik text-3xl font-bold text-brisa-orange mb-1">--</div>
-          <div class="text-xs text-slate-500">Em análise com a equipe</div>
-        </div>
-
-        <!-- KPI 3 -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Concluídos no Período</span>
-            <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-          </div>
-          <div id="kpiConcluidos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
-          <div class="text-xs text-slate-500">Tempo Médio: <strong id="kpiTempoMedio" class="text-slate-700">-- h</strong></div>
-        </div>
-
-        <!-- KPI 4 -->
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-          <div class="flex justify-between items-start mb-2">
-            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Taxa de Resolução</span>
-            <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-          </div>
-          <div id="kpiTaxa" class="font-rubik text-3xl font-bold text-emerald-600 mb-1">--%</div>
-          <div class="text-xs text-slate-500">Conformidade geral de SLA</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 4. Conteúdo Dinâmico por Aba -->
+    <!-- 3. Conteúdo Dinâmico por Aba -->
 
     <!-- ABA 1: FILA GERAL DE CHAMADOS (ADMIN) -->
-    <div id="viewFilaGeral" class="space-y-4">
+    <div id="viewFilaGeral" class="space-y-6">
+      <!-- Seção de Indicadores Executivos (KPI Cards - Exclusivo Admin) -->
+      <div id="secaoKpis" class="mb-6">
+        <div class="flex items-center gap-2 mb-4">
+          <h2 class="text-xs font-bold text-brisa-navy uppercase tracking-widest">
+            Visão Geral & Indicadores Executivos
+          </h2>
+          <span class="text-slate-300">|</span>
+          <span class="text-xs text-slate-500 font-medium">
+            Consolidação de volumetria, SLA e produtividade da telefonia
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- KPI 1 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Novos Sem Atendente</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiNovos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
+            <div class="text-xs text-slate-500">Aguardando triagem técnica</div>
+          </div>
+
+          <!-- KPI 2 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Em Atendimento</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiEmAndamento" class="font-rubik text-3xl font-bold text-brisa-orange mb-1">--</div>
+            <div class="text-xs text-slate-500">Em análise com a equipe</div>
+          </div>
+
+          <!-- KPI 3 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Concluídos no Período</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiConcluidos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
+            <div class="text-xs text-slate-500">Tempo Médio: <strong id="kpiTempoMedio" class="text-slate-700">-- h</strong></div>
+          </div>
+
+          <!-- KPI 4 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Taxa de Resolução</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiTaxa" class="font-rubik text-3xl font-bold text-emerald-600 mb-1">--%</div>
+            <div class="text-xs text-slate-500">Conformidade geral de SLA</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Filtros Rápidos da Tabela -->
       <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex-1 relative">
@@ -243,7 +243,7 @@
 
     <!-- ABA 2: NOVA SOLICITAÇÃO (FORMULÁRIO) -->
     <div id="viewNovaSolicitacao" class="hidden">
-      <div class="max-w-3xl mx-auto bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+      <div class="w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
         <div class="border-b border-slate-100 pb-4 mb-6">
           <h2 class="text-lg font-bold text-slate-900">Abertura de Chamado de Telefonia</h2>
           <p class="text-xs text-slate-500 mt-1">Preencha as informações detalhadas para atendimento pelo time técnico.</p>
