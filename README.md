@@ -29,4 +29,13 @@ If you are developing a production application, we recommend enabling type-aware
 }
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+---
+
+## Módulos do Repositório
+
+### 1. Painel de Chamados Administrativos | Gestão de Telefonia
+Localizado no diretório [`painel-chamados-telefonia/`](./painel-chamados-telefonia/):
+* Sistema de chamados desenvolvido em **Google Apps Script** e **Google Sheets**.
+* Criação automatizada de pasta no Drive e planilha via `Setup.js`.
+* Interface executiva alinhada com o design da **brisanet** (Figtree, Rubik, sem emojis).
+* Veja as instruções de uso no [`README.md`](./painel-chamados-telefonia/README.md) do módulo.
