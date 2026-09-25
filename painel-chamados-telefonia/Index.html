@@ -145,17 +145,26 @@
             <textarea id="campoDescricao" required rows="4" placeholder="Descreva todas as especificações técnicas, números de linha, matrículas ou justificativas..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-xs text-slate-800 focus:ring-1 focus:ring-brisa-blue outline-none"></textarea>
           </div>
 
-          <!-- Upload Multi-Formato -->
+          <!-- Upload Multi-Formato com Drag & Drop e Seleção por Clique -->
           <div>
             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
               Anexar Arquivos (PDF, Planilhas, Documentos, Imagens, ZIP)
             </label>
-            <div class="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:border-brisa-blue/60 transition-colors bg-slate-50/50">
+            <div id="dropzonePrincipal"
+                 ondragover="handleDragOver(event, 'dropzonePrincipal')"
+                 ondragenter="handleDragOver(event, 'dropzonePrincipal')"
+                 ondragleave="handleDragLeave(event, 'dropzonePrincipal')"
+                 ondrop="handleDrop(event, 'principal')"
+                 class="border-2 border-dashed border-slate-200 rounded-2xl p-7 text-center transition-all bg-slate-50/50 hover:bg-slate-50 hover:border-brisa-blue/60 cursor-pointer">
               <input type="file" id="campoArquivos" multiple onchange="atualizarListaArquivos(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.rar">
               <label for="campoArquivos" class="cursor-pointer flex flex-col items-center">
-                <svg class="w-8 h-8 text-slate-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                <span class="text-xs font-semibold text-brisa-blue hover:underline">Clique para selecionar arquivos</span>
-                <span class="text-[11px] text-slate-400 mt-1">Formatos suportados: PDF, Word, Excel, Imagens e ZIP (até 15MB cada)</span>
+                <div class="w-12 h-12 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center mb-2.5 text-brisa-blue">
+                  <svg class="w-6 h-6 text-brisa-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                </div>
+                <div class="text-xs text-slate-700 font-medium">
+                  <span class="font-bold text-slate-900">Arraste e solte seus arquivos aqui</span> ou <span class="text-brisa-blue font-bold hover:underline">clique para selecionar</span>
+                </div>
+                <span class="text-[11px] text-slate-400 mt-1.5">Formatos suportados: PDF, Word, Excel, Imagens e ZIP (até 15MB cada)</span>
               </label>
             </div>
             <div id="listaArquivosContainer" class="flex flex-wrap gap-2 mt-3"></div>
@@ -433,18 +442,23 @@
             </select>
           </div>
 
-          <!-- Anexos do Atendente -->
-          <div class="pt-1.5 border-t border-slate-200/70">
-            <div class="flex items-center justify-between mb-1">
+          <!-- Anexos do Atendente com Drag & Drop -->
+          <div class="pt-2 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1.5">
               <label class="block text-[11px] font-bold text-slate-600 uppercase">Anexar Arquivo / Parecer Técnico</label>
-              <span id="adminArquivosCount" class="text-[11px] text-slate-400">0 selecionado(s)</span>
+              <span id="adminArquivosCount" class="text-[11px] text-slate-400 font-rubik">0 selecionado(s)</span>
             </div>
-            <div class="flex items-center gap-2">
-              <label for="adminArquivosAnexo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-sm">
-                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                <span>Selecionar Arquivo</span>
-              </label>
+            <div id="dropzoneAdmin"
+                 ondragover="handleDragOver(event, 'dropzoneAdmin')"
+                 ondragenter="handleDragOver(event, 'dropzoneAdmin')"
+                 ondragleave="handleDragLeave(event, 'dropzoneAdmin')"
+                 ondrop="handleDrop(event, 'admin')"
+                 class="border border-dashed border-slate-200 rounded-xl p-3 text-center transition-all bg-slate-50/50 hover:bg-slate-50 hover:border-brisa-blue/60 cursor-pointer">
               <input type="file" id="adminArquivosAnexo" multiple onchange="atualizarListaArquivosAdmin(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.rar">
+              <label for="adminArquivosAnexo" class="cursor-pointer flex items-center justify-center gap-2 text-xs text-slate-600">
+                <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <span>Arraste ou <span class="text-brisa-blue font-semibold hover:underline">clique para anexar</span></span>
+              </label>
             </div>
             <div id="adminListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
           </div>
@@ -472,18 +486,23 @@
           <label class="block text-[11px] font-bold text-slate-600 uppercase">Escreva sua resposta ou esclarecimento</label>
           <textarea id="drawerTextoRespostaSolicitante" rows="3" placeholder="Digite sua resposta, esclarecimentos adicionais ou informações solicitadas pelo atendente..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
           
-          <!-- Anexos do Solicitante -->
-          <div class="pt-1.5 border-t border-slate-200/70">
-            <div class="flex items-center justify-between mb-1">
+          <!-- Anexos do Solicitante com Drag & Drop -->
+          <div class="pt-2 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1.5">
               <label class="block text-[11px] font-bold text-slate-600 uppercase">Anexar Documento / Comprovante</label>
-              <span id="solicitanteArquivosCount" class="text-[11px] text-slate-400">0 selecionado(s)</span>
+              <span id="solicitanteArquivosCount" class="text-[11px] text-slate-400 font-rubik">0 selecionado(s)</span>
             </div>
-            <div class="flex items-center gap-2">
-              <label for="solicitanteArquivosAnexo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-sm">
-                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                <span>Selecionar Arquivo</span>
-              </label>
+            <div id="dropzoneSolicitante"
+                 ondragover="handleDragOver(event, 'dropzoneSolicitante')"
+                 ondragenter="handleDragOver(event, 'dropzoneSolicitante')"
+                 ondragleave="handleDragLeave(event, 'dropzoneSolicitante')"
+                 ondrop="handleDrop(event, 'solicitante')"
+                 class="border border-dashed border-slate-200 rounded-xl p-3 text-center transition-all bg-slate-50/50 hover:bg-slate-50 hover:border-brisa-blue/60 cursor-pointer">
               <input type="file" id="solicitanteArquivosAnexo" multiple onchange="atualizarListaArquivosSolicitante(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.rar">
+              <label for="solicitanteArquivosAnexo" class="cursor-pointer flex items-center justify-center gap-2 text-xs text-slate-600">
+                <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <span>Arraste ou <span class="text-brisa-blue font-semibold hover:underline">clique para anexar</span></span>
+              </label>
             </div>
             <div id="solicitanteListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
           </div>
@@ -513,6 +532,10 @@
     };
 
     window.onload = function() {
+      // Prevenir comportamento padrão do navegador de abrir arquivos arrastados fora da dropzone
+      window.addEventListener('dragover', function(e) { e.preventDefault(); }, false);
+      window.addEventListener('drop', function(e) { e.preventDefault(); }, false);
+
       inicializarApp();
     };
 
@@ -734,50 +757,186 @@
       filtrarTabelaAdmin();
     }
 
+    // =========================================================================
+    // Funções de Arrastar e Soltar (Drag & Drop) e Gestão de Anexos
+    // =========================================================================
+
+    function handleDragOver(e, dropzoneId) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = document.getElementById(dropzoneId);
+      if (el) {
+        el.classList.add('border-brisa-blue', 'bg-blue-50/70', 'ring-2', 'ring-brisa-blue/20');
+        el.classList.remove('border-slate-200', 'bg-slate-50/50');
+      }
+    }
+
+    function handleDragLeave(e, dropzoneId) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = document.getElementById(dropzoneId);
+      if (el) {
+        el.classList.remove('border-brisa-blue', 'bg-blue-50/70', 'ring-2', 'ring-brisa-blue/20');
+        el.classList.add('border-slate-200', 'bg-slate-50/50');
+      }
+    }
+
+    function handleDrop(e, destino) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let dropzoneId = 'dropzonePrincipal';
+      if (destino === 'admin') dropzoneId = 'dropzoneAdmin';
+      if (destino === 'solicitante') dropzoneId = 'dropzoneSolicitante';
+
+      const el = document.getElementById(dropzoneId);
+      if (el) {
+        el.classList.remove('border-brisa-blue', 'bg-blue-50/70', 'ring-2', 'ring-brisa-blue/20');
+        el.classList.add('border-slate-200', 'bg-slate-50/50');
+      }
+
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const files = Array.from(e.dataTransfer.files);
+        if (destino === 'principal') {
+          adicionarArquivosSelecionados(files);
+        } else if (destino === 'admin') {
+          adicionarArquivosAdmin(files);
+        } else if (destino === 'solicitante') {
+          adicionarArquivosSolicitante(files);
+        }
+      }
+    }
+
+    // 1. Nova Solicitação (Principal)
     function atualizarListaArquivos(e) {
-      const files = Array.from(e.target.files);
-      appState.arquivosSelecionados = files;
+      if (e.target && e.target.files) {
+        adicionarArquivosSelecionados(Array.from(e.target.files));
+      }
+    }
+
+    function adicionarArquivosSelecionados(novosArquivos) {
+      novosArquivos.forEach(function(novo) {
+        const jaExiste = appState.arquivosSelecionados.some(function(arq) {
+          return arq.name === novo.name && arq.size === novo.size;
+        });
+        if (!jaExiste) {
+          appState.arquivosSelecionados.push(novo);
+        }
+      });
+      renderizarChipsArquivos();
+    }
+
+    function removerArquivo(index) {
+      appState.arquivosSelecionados.splice(index, 1);
+      renderizarChipsArquivos();
+      const input = document.getElementById('campoArquivos');
+      if (input) input.value = '';
+    }
+
+    function renderizarChipsArquivos() {
       const container = document.getElementById('listaArquivosContainer');
+      if (!container) return;
       container.innerHTML = '';
 
-      files.forEach(function(file) {
+      appState.arquivosSelecionados.forEach(function(file, idx) {
         const chip = document.createElement('div');
-        chip.className = 'flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-700';
-        chip.innerHTML = '<span>' + file.name + '</span><span class="text-slate-400">(' + (file.size / 1024).toFixed(0) + 'KB)</span>';
+        chip.className = 'flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 shadow-sm';
+        chip.innerHTML = [
+          '<svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>',
+          '<span class="font-medium text-slate-800 truncate max-w-[220px]">' + file.name + '</span>',
+          '<span class="text-slate-400 font-rubik text-[11px]">(' + (file.size / 1024).toFixed(0) + 'KB)</span>',
+          '<button type="button" onclick="removerArquivo(' + idx + ')" class="text-slate-400 hover:text-red-500 font-bold ml-1 text-sm p-0.5 transition-colors" title="Remover anexo">&times;</button>'
+        ].join('');
         container.appendChild(chip);
       });
     }
 
+    // 2. Anexos do Atendente (Admin)
     function atualizarListaArquivosAdmin(e) {
-      const files = Array.from(e.target.files);
-      appState.arquivosAdmin = files;
+      if (e.target && e.target.files) {
+        adicionarArquivosAdmin(Array.from(e.target.files));
+      }
+    }
+
+    function adicionarArquivosAdmin(novosArquivos) {
+      novosArquivos.forEach(function(novo) {
+        const jaExiste = appState.arquivosAdmin.some(function(arq) {
+          return arq.name === novo.name && arq.size === novo.size;
+        });
+        if (!jaExiste) {
+          appState.arquivosAdmin.push(novo);
+        }
+      });
+      renderizarChipsAdmin();
+    }
+
+    function removerArquivoAdmin(index) {
+      appState.arquivosAdmin.splice(index, 1);
+      renderizarChipsAdmin();
+      const input = document.getElementById('adminArquivosAnexo');
+      if (input) input.value = '';
+    }
+
+    function renderizarChipsAdmin() {
       const container = document.getElementById('adminListaArquivosContainer');
       const countLabel = document.getElementById('adminArquivosCount');
-      if (countLabel) countLabel.textContent = files.length + ' selecionado(s)';
+      if (countLabel) countLabel.textContent = appState.arquivosAdmin.length + ' selecionado(s)';
       if (!container) return;
       container.innerHTML = '';
 
-      files.forEach(function(file) {
+      appState.arquivosAdmin.forEach(function(file, idx) {
         const chip = document.createElement('div');
-        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 shadow-sm';
-        chip.innerHTML = '<span>' + file.name + '</span><span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>';
+        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 shadow-sm';
+        chip.innerHTML = [
+          '<span class="truncate max-w-[160px]">' + file.name + '</span>',
+          '<span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>',
+          '<button type="button" onclick="removerArquivoAdmin(' + idx + ')" class="text-slate-400 hover:text-red-500 font-bold ml-1 transition-colors" title="Remover">&times;</button>'
+        ].join('');
         container.appendChild(chip);
       });
     }
 
+    // 3. Anexos do Solicitante (Drawer)
     function atualizarListaArquivosSolicitante(e) {
-      const files = Array.from(e.target.files);
-      appState.arquivosSolicitante = files;
+      if (e.target && e.target.files) {
+        adicionarArquivosSolicitante(Array.from(e.target.files));
+      }
+    }
+
+    function adicionarArquivosSolicitante(novosArquivos) {
+      novosArquivos.forEach(function(novo) {
+        const jaExiste = appState.arquivosSolicitante.some(function(arq) {
+          return arq.name === novo.name && arq.size === novo.size;
+        });
+        if (!jaExiste) {
+          appState.arquivosSolicitante.push(novo);
+        }
+      });
+      renderizarChipsSolicitante();
+    }
+
+    function removerArquivoSolicitante(index) {
+      appState.arquivosSolicitante.splice(index, 1);
+      renderizarChipsSolicitante();
+      const input = document.getElementById('solicitanteArquivosAnexo');
+      if (input) input.value = '';
+    }
+
+    function renderizarChipsSolicitante() {
       const container = document.getElementById('solicitanteListaArquivosContainer');
       const countLabel = document.getElementById('solicitanteArquivosCount');
-      if (countLabel) countLabel.textContent = files.length + ' selecionado(s)';
+      if (countLabel) countLabel.textContent = appState.arquivosSolicitante.length + ' selecionado(s)';
       if (!container) return;
       container.innerHTML = '';
 
-      files.forEach(function(file) {
+      appState.arquivosSolicitante.forEach(function(file, idx) {
         const chip = document.createElement('div');
-        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 shadow-sm';
-        chip.innerHTML = '<span>' + file.name + '</span><span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>';
+        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 shadow-sm';
+        chip.innerHTML = [
+          '<span class="truncate max-w-[160px]">' + file.name + '</span>',
+          '<span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>',
+          '<button type="button" onclick="removerArquivoSolicitante(' + idx + ')" class="text-slate-400 hover:text-red-500 font-bold ml-1 transition-colors" title="Remover">&times;</button>'
+        ].join('');
         container.appendChild(chip);
       });
     }
