@@ -92,7 +92,8 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
         arquivoSalvo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
         anexosSalvos.push({
           nome: arq.nome,
-          url: arquivoSalvo.getUrl()
+          url: arquivoSalvo.getUrl(),
+          id: arquivoSalvo.getId()
         });
       } catch (errUpload) {
         Logger.log('Erro ao salvar anexo ' + arq.nome + ': ' + errUpload.message);
@@ -170,7 +171,8 @@ function criarChamado(dados, arquivosBase64) {
         idChamado: idChamado,
         titulo: dados.titulo,
         mensagem: 'Sua solicitação foi recebida pela Gerência Executiva de Telefonia e está aguardando triagem técnica.',
-        autor: nomeSolicitante
+        autor: nomeSolicitante,
+        anexos: urlsAnexos
       });
     } catch (eMail) {
       Logger.log('Erro ao enviar e-mail: ' + eMail.message);
@@ -586,23 +588,109 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
 }
 
 /**
+ * Extrai o ID de um arquivo a partir da URL do Google Drive.
+ */
+function extrairIdDrive(url) {
+  if (!url) return null;
+  const match = url.match(/\/d\/([-\w]{25,})/i) || url.match(/id=([-\w]{25,})/i) || url.match(/[-\w]{25,}/);
+  return match ? (match[1] || match[0]) : null;
+}
+
+/**
+ * Converte um objeto de anexo { nome, url, id } em um Blob do Google Apps Script para anexo no e-mail.
+ */
+function obterBlobDoAnexo(anexo) {
+  try {
+    if (!anexo) return null;
+    let fileId = anexo.id;
+    if (!fileId && anexo.url) {
+      fileId = extrairIdDrive(anexo.url);
+    }
+    if (fileId) {
+      const file = DriveApp.getFileById(fileId);
+      const blob = file.getBlob();
+      if (anexo.nome) {
+        blob.setName(anexo.nome);
+      }
+      return blob;
+    }
+  } catch (err) {
+    Logger.log('Erro ao obter blob do anexo ' + (anexo.nome || '') + ': ' + err.message);
+  }
+  return null;
+}
+
+/**
  * Template corporativo oficial de notificação por e-mail (brisanet).
  * Utiliza tipografia e paleta do projeto (Navy #0B316D, Laranja #FF5022, Cinza #E8E8E8).
- * Envia via GmailApp em nome do usuário conectado e configura replyTo para impedir respostas por e-mail.
+ * Envia via GmailApp em nome do usuário conectado com os arquivos fisicamente anexados (attachments)
+ * e configura replyTo para impedir respostas por e-mail.
  */
 function enviarEmailNotificacao(params) {
   const emailAtendente = params.autor || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
 
+  // 1. Coletar Blobs dos anexos para envio como anexos nativos no e-mail
+  const blobsAnexos = [];
+  let tamanhoTotalBytes = 0;
+  const LIMITE_ANEXOS_BYTES = 20 * 1024 * 1024; // 20 MB limite seguro para envio de e-mails corporativos
+
+  if (params.anexos && Array.isArray(params.anexos)) {
+    for (let i = 0; i < params.anexos.length; i++) {
+      const anexo = params.anexos[i];
+      try {
+        const blob = obterBlobDoAnexo(anexo);
+        if (blob) {
+          const tamanho = blob.getBytes().length;
+          if (tamanhoTotalBytes + tamanho <= LIMITE_ANEXOS_BYTES) {
+            blobsAnexos.push(blob);
+            tamanhoTotalBytes += tamanho;
+          } else {
+            Logger.log('Anexo ' + (anexo.nome || '') + ' ultrapassou o limite total de 20MB. Disponível no Google Drive.');
+          }
+        }
+      } catch (errBlob) {
+        Logger.log('Erro ao processar blob do anexo para e-mail: ' + errBlob.message);
+      }
+    }
+  }
+
+  // 2. Montar bloco HTML destacado para os anexos no corpo do e-mail
   let htmlAnexos = '';
   if (params.anexos && params.anexos.length > 0) {
+    const cardsAnexos = params.anexos.map(function(a) {
+      return [
+        '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px;">',
+        '  <tr>',
+        '    <td style="padding: 10px 14px; vertical-align: middle;">',
+        '      <span style="color: #FF5022; font-size: 14px; font-weight: bold; margin-right: 8px;">&bull;</span>',
+        '      <span style="font-size: 13px; font-weight: 600; color: #1E293B;">' + a.nome + '</span>',
+        '    </td>',
+        '    <td style="padding: 10px 14px; text-align: right; vertical-align: middle; white-space: nowrap;">',
+        '      <a href="' + a.url + '" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; color: #2242D4; font-size: 11px; font-weight: 700; text-decoration: none;">Abrir no Drive</a>',
+        '    </td>',
+        '  </tr>',
+        '</table>'
+      ].join('\n');
+    }).join('\n');
+
     htmlAnexos = [
-      '<div style="margin-top: 16px; padding: 14px; background-color: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">',
-      '  <div style="font-size: 11px; font-weight: 700; color: #0B316D; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">Documentos / Anexos Adicionados:</div>',
-      params.anexos.map(function(a) {
-        return '<div style="margin-bottom: 6px;"><a href="' + a.url + '" target="_blank" style="color: #2242D4; font-weight: 600; text-decoration: none; font-size: 13px;">&bull; ' + a.nome + '</a></div>';
-      }).join(''),
+      '<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 12px; padding: 18px 20px; margin-bottom: 22px;">',
+      '  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">',
+      '    <tr>',
+      '      <td style="font-size: 12px; font-weight: 700; color: #0B316D; text-transform: uppercase; letter-spacing: 0.5px;">',
+      '        Documentos e Arquivos Anexados',
+      '      </td>',
+      '      <td style="text-align: right;">',
+      '        <span style="background-color: #E2E8F0; color: #334155; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;">' + params.anexos.length + ' arquivo(s)</span>',
+      '      </td>',
+      '    </tr>',
+      '  </table>',
+      '  <div style="font-size: 12px; color: #475569; margin-bottom: 12px; line-height: 1.5;">',
+      '    Os arquivos foram anexados diretamente a esta mensagem para download e também estão salvos na pasta corporativa do chamado:',
+      '  </div>',
+      cardsAnexos,
       '</div>'
     ].join('\n');
   }
@@ -650,8 +738,9 @@ function enviarEmailNotificacao(params) {
     '          Mensagem / Parecer:',
     '        </div>',
     '        <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + params.mensagem + '</div>',
-    htmlAnexos,
     '      </div>',
+    '      ',
+    htmlAnexos,
     '      ',
     '      <!-- Atendente Responsável -->',
     '      <div style="font-size: 12px; color: #64748B; margin-bottom: 24px;">',
@@ -684,17 +773,33 @@ function enviarEmailNotificacao(params) {
     replyTo: 'nao-responda@grupobrisanet.com.br'
   };
 
+  if (blobsAnexos.length > 0) {
+    options.attachments = blobsAnexos;
+  }
+
+  const mailAppOptions = {
+    to: params.destinatario,
+    subject: params.assunto,
+    htmlBody: htmlCorpo,
+    name: nomeFormatado + ' | Gestão de Telefonia brisanet',
+    replyTo: 'nao-responda@grupobrisanet.com.br'
+  };
+
+  if (blobsAnexos.length > 0) {
+    mailAppOptions.attachments = blobsAnexos;
+  }
+
   try {
     GmailApp.sendEmail(params.destinatario, params.assunto, '', options);
   } catch (errGmail) {
     Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
-    MailApp.sendEmail({
-      to: params.destinatario,
-      subject: params.assunto,
-      htmlBody: htmlCorpo,
-      name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-      replyTo: 'nao-responda@grupobrisanet.com.br'
-    });
+    try {
+      MailApp.sendEmail(mailAppOptions);
+    } catch (errMail) {
+      Logger.log('Falha no MailApp com anexos: ' + errMail.message + ' - enviando sem anexos físicos...');
+      delete options.attachments;
+      GmailApp.sendEmail(params.destinatario, params.assunto, '', options);
+    }
   }
 }
 
