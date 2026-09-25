@@ -790,7 +790,24 @@
       if (anexos && anexos.length > 0) {
         secaoAnexos.classList.remove('hidden');
         anexos.forEach(function(a) {
-          listaAnexos.innerHTML += '<a href="' + a.url + '" target="_blank" class="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-brisa-blue hover:underline"><svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="truncate">' + a.nome + '</span></a>';
+          let fileId = a.id;
+          if (!fileId && a.url) {
+            const match = a.url.match(/\/d\/([-\w]{25,})/i) || a.url.match(/id=([-\w]{25,})/i) || a.url.match(/[-\w]{25,}/);
+            if (match) fileId = match[1] || match[0];
+          }
+          const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+
+          listaAnexos.innerHTML += [
+            '<div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">',
+            '  <a href="' + a.url + '" target="_blank" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2">',
+            '    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+            '    <span class="truncate">' + a.nome + '</span>',
+            '  </a>',
+            '  <a href="' + downloadUrl + '" target="_blank" title="Baixar Arquivo" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0">',
+            '    Baixar',
+            '  </a>',
+            '</div>'
+          ].join('');
         });
       } else {
         secaoAnexos.classList.add('hidden');

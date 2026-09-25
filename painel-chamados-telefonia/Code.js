@@ -89,11 +89,14 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
         const bytes = Utilities.base64Decode(arq.base64.split(',')[1] || arq.base64);
         const blob = Utilities.newBlob(bytes, contentType, arq.nome);
         const arquivoSalvo = pastaChamado.createFile(blob);
-        arquivoSalvo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        const fileId = arquivoSalvo.getId();
+        const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + fileId;
         anexosSalvos.push({
           nome: arq.nome,
           url: arquivoSalvo.getUrl(),
-          id: arquivoSalvo.getId()
+          id: fileId,
+          downloadUrl: downloadUrl,
+          blob: blob
         });
       } catch (errUpload) {
         Logger.log('Erro ao salvar anexo ' + arq.nome + ': ' + errUpload.message);
@@ -104,6 +107,22 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
   }
 
   return anexosSalvos;
+}
+
+/**
+ * Remove propriedades não serializáveis (como Blobs em memória) antes de salvar na planilha.
+ */
+function sanitizarAnexosParaPlanilha(listaAnexos) {
+  if (!Array.isArray(listaAnexos)) return [];
+  return listaAnexos.map(function(a) {
+    const id = a.id || extrairIdDrive(a.url) || '';
+    return {
+      nome: a.nome || 'Arquivo',
+      url: a.url || '',
+      id: id,
+      downloadUrl: a.downloadUrl || (id ? 'https://drive.google.com/uc?export=download&id=' + id : (a.url || ''))
+    };
+  });
 }
 
 /**
@@ -142,7 +161,7 @@ function criarChamado(dados, arquivosBase64) {
       dados.prioridade || 'Média',
       dados.titulo,
       dados.descricao,
-      JSON.stringify(urlsAnexos),
+      JSON.stringify(sanitizarAnexosParaPlanilha(urlsAnexos)),
       'Aberto',
       '', // Atendente responsável
       '', // Início atendimento
@@ -377,7 +396,7 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
   const novosAnexos = salvarAnexosNoDrive(idChamado, arquivosBase64);
   if (novosAnexos.length > 0) {
     anexosExistentes = anexosExistentes.concat(novosAnexos);
-    abaChamados.getRange(linhaAlvo, 11).setValue(JSON.stringify(anexosExistentes));
+    abaChamados.getRange(linhaAlvo, 11).setValue(JSON.stringify(sanitizarAnexosParaPlanilha(anexosExistentes)));
   }
 
   const statusFinal = novoStatus || statusAnterior;
@@ -434,7 +453,7 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
   return { 
     sucesso: true, 
     mensagem: 'Interação registrada com sucesso.', 
-    chamadoAtualizado: { anexos: anexosExistentes } 
+    chamadoAtualizado: { anexos: sanitizarAnexosParaPlanilha(anexosExistentes) } 
   };
 }
 
@@ -529,7 +548,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
     const novosAnexos = salvarAnexosNoDrive(idChamado, arquivosBase64);
     if (novosAnexos.length > 0) {
       anexosExistentes = anexosExistentes.concat(novosAnexos);
-      abaChamados.getRange(linhaAlvo, 11).setValue(JSON.stringify(anexosExistentes));
+      abaChamados.getRange(linhaAlvo, 11).setValue(JSON.stringify(sanitizarAnexosParaPlanilha(anexosExistentes)));
     }
 
     // Se estava Aguardando Retorno, volta automaticamente para Em Atendimento
@@ -579,7 +598,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
     return { 
       sucesso: true, 
       mensagem: 'Resposta enviada com sucesso!', 
-      chamadoAtualizado: { anexos: anexosExistentes } 
+      chamadoAtualizado: { anexos: sanitizarAnexosParaPlanilha(anexosExistentes) } 
     };
   } catch (err) {
     Logger.log('Erro em adicionarRespostaSolicitante: ' + err.message);
@@ -597,11 +616,16 @@ function extrairIdDrive(url) {
 }
 
 /**
- * Converte um objeto de anexo { nome, url, id } em um Blob do Google Apps Script para anexo no e-mail.
+ * Converte um objeto de anexo { nome, url, id, blob } em um Blob do Google Apps Script para anexo físico no e-mail.
  */
 function obterBlobDoAnexo(anexo) {
   try {
     if (!anexo) return null;
+    // 1. Se o Blob já estiver em memória (do upload atual), use diretamente
+    if (anexo.blob && typeof anexo.blob.getBytes === 'function') {
+      return anexo.blob;
+    }
+    // 2. Tentar recuperar o arquivo diretamente pelo ID do Google Drive
     let fileId = anexo.id;
     if (!fileId && anexo.url) {
       fileId = extrairIdDrive(anexo.url);
@@ -624,14 +648,14 @@ function obterBlobDoAnexo(anexo) {
  * Template corporativo oficial de notificação por e-mail (brisanet).
  * Utiliza tipografia e paleta do projeto (Navy #0B316D, Laranja #FF5022, Cinza #E8E8E8).
  * Envia via GmailApp em nome do usuário conectado com os arquivos fisicamente anexados (attachments)
- * e configura replyTo para impedir respostas por e-mail.
+ * e disponibiliza botões de DOWNLOAD DIRETO dos arquivos no corpo da mensagem.
  */
 function enviarEmailNotificacao(params) {
   const emailAtendente = params.autor || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
 
-  // 1. Coletar Blobs dos anexos para envio como anexos nativos no e-mail
+  // 1. Coletar Blobs dos anexos para envio como anexos físicos nativos no e-mail
   const blobsAnexos = [];
   let tamanhoTotalBytes = 0;
   const LIMITE_ANEXOS_BYTES = 20 * 1024 * 1024; // 20 MB limite seguro para envio de e-mails corporativos
@@ -647,7 +671,7 @@ function enviarEmailNotificacao(params) {
             blobsAnexos.push(blob);
             tamanhoTotalBytes += tamanho;
           } else {
-            Logger.log('Anexo ' + (anexo.nome || '') + ' ultrapassou o limite total de 20MB. Disponível no Google Drive.');
+            Logger.log('Anexo ' + (anexo.nome || '') + ' ultrapassou o limite total de 20MB. Disponível via link direto.');
           }
         }
       } catch (errBlob) {
@@ -656,19 +680,28 @@ function enviarEmailNotificacao(params) {
     }
   }
 
-  // 2. Montar bloco HTML destacado para os anexos no corpo do e-mail
+  // 2. Montar bloco HTML destacado para os anexos no corpo do e-mail com BOTÕES DE DOWNLOAD DIRETO
   let htmlAnexos = '';
   if (params.anexos && params.anexos.length > 0) {
     const cardsAnexos = params.anexos.map(function(a) {
+      const fileId = a.id || extrairIdDrive(a.url);
+      const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+      const viewUrl = a.url || (fileId ? 'https://drive.google.com/file/d/' + fileId + '/view' : '#');
+
       return [
-        '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 8px; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px;">',
+        '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 10px; background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px;">',
         '  <tr>',
-        '    <td style="padding: 10px 14px; vertical-align: middle;">',
-        '      <span style="color: #FF5022; font-size: 14px; font-weight: bold; margin-right: 8px;">&bull;</span>',
-        '      <span style="font-size: 13px; font-weight: 600; color: #1E293B;">' + a.nome + '</span>',
+        '    <td style="padding: 12px 14px; vertical-align: middle;">',
+        '      <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 2px;">',
+        '        <span style="color: #FF5022; font-size: 14px; font-weight: bold; margin-right: 6px;">&bull;</span>' + a.nome,
+        '      </div>',
+        '      <div style="font-size: 11px; color: #64748B; padding-left: 14px;">',
+        '        Documento anexado à solicitação',
+        '      </div>',
         '    </td>',
-        '    <td style="padding: 10px 14px; text-align: right; vertical-align: middle; white-space: nowrap;">',
-        '      <a href="' + a.url + '" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 6px; color: #2242D4; font-size: 11px; font-weight: 700; text-decoration: none;">Abrir no Drive</a>',
+        '    <td style="padding: 12px 14px; text-align: right; vertical-align: middle; white-space: nowrap;">',
+        '      <a href="' + downloadUrl + '" target="_blank" style="display: inline-block; padding: 7px 14px; background-color: #FF5022; color: #FFFFFF; font-size: 11px; font-weight: 700; text-decoration: none; border-radius: 6px; margin-right: 6px;">Baixar Arquivo</a>',
+        '      <a href="' + viewUrl + '" target="_blank" style="display: inline-block; padding: 7px 12px; background-color: #EFF6FF; border: 1px solid #BFDBFE; color: #2242D4; font-size: 11px; font-weight: 700; text-decoration: none; border-radius: 6px;">Ver no Drive</a>',
         '    </td>',
         '  </tr>',
         '</table>'
@@ -688,7 +721,7 @@ function enviarEmailNotificacao(params) {
       '    </tr>',
       '  </table>',
       '  <div style="font-size: 12px; color: #475569; margin-bottom: 12px; line-height: 1.5;">',
-      '    Os arquivos foram anexados diretamente a esta mensagem para download e também estão salvos na pasta corporativa do chamado:',
+      '    Clique em <strong>Baixar Arquivo</strong> para salvar o documento diretamente em seu dispositivo, ou visualize online. Os arquivos também foram anexados a este e-mail para download.',
       '  </div>',
       cardsAnexos,
       '</div>'
@@ -767,6 +800,25 @@ function enviarEmailNotificacao(params) {
     '</html>'
   ].join('\n');
 
+  const textoPlano = [
+    'Chamado: ' + params.idChamado,
+    'Assunto: ' + params.titulo,
+    '',
+    'Mensagem / Parecer:',
+    params.mensagem,
+    '',
+    (params.anexos && params.anexos.length > 0 ? 'Anexos para download:\n' + params.anexos.map(function(a) { 
+      const id = a.id || extrairIdDrive(a.url);
+      const dl = a.downloadUrl || (id ? 'https://drive.google.com/uc?export=download&id=' + id : a.url);
+      return '- ' + a.nome + ': ' + dl;
+    }).join('\n') : ''),
+    '',
+    'Atendente: ' + emailAtendente,
+    '',
+    'COMUNICADO: NÃO RESPONDA A ESTE E-MAIL.',
+    'Acesse a aba Meus Chamados no Painel Web para interagir.'
+  ].join('\n');
+
   const options = {
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
@@ -780,6 +832,7 @@ function enviarEmailNotificacao(params) {
   const mailAppOptions = {
     to: params.destinatario,
     subject: params.assunto,
+    body: textoPlano,
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
     replyTo: 'nao-responda@grupobrisanet.com.br'
@@ -789,16 +842,27 @@ function enviarEmailNotificacao(params) {
     mailAppOptions.attachments = blobsAnexos;
   }
 
+  let enviado = false;
   try {
-    GmailApp.sendEmail(params.destinatario, params.assunto, '', options);
+    GmailApp.sendEmail(params.destinatario, params.assunto, textoPlano, options);
+    enviado = true;
   } catch (errGmail) {
     Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
+  }
+
+  if (!enviado) {
     try {
       MailApp.sendEmail(mailAppOptions);
+      enviado = true;
     } catch (errMail) {
-      Logger.log('Falha no MailApp com anexos: ' + errMail.message + ' - enviando sem anexos físicos...');
-      delete options.attachments;
-      GmailApp.sendEmail(params.destinatario, params.assunto, '', options);
+      Logger.log('Erro MailApp com anexos: ' + errMail.message + ' - tentando fallback sem anexo físico...');
+      try {
+        delete mailAppOptions.attachments;
+        MailApp.sendEmail(mailAppOptions);
+        enviado = true;
+      } catch (errFinal) {
+        Logger.log('Erro crítico ao enviar e-mail: ' + errFinal.message);
+      }
     }
   }
 }
