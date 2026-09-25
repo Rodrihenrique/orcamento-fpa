@@ -9,7 +9,16 @@
  */
 
 function doGet(e) {
-  return HtmlService.createTemplateFromFile('Index')
+  const template = HtmlService.createTemplateFromFile('Index');
+
+  // Capturar parâmetros de URL para redirecionamento direto a um chamado
+  const idChamadoParam = (e && e.parameter && (e.parameter.chamado || e.parameter.id)) ? String(e.parameter.chamado || e.parameter.id).trim() : '';
+  const abaParam = (e && e.parameter && e.parameter.aba) ? String(e.parameter.aba).trim() : '';
+
+  template.urlParamChamado = idChamadoParam;
+  template.urlParamAba = abaParam;
+
+  return template
     .evaluate()
     .setTitle('Painel de Chamados Administrativos | Gestão de Telefonia')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
@@ -55,7 +64,8 @@ function obterConfiguracoesIniciais() {
       isAdmin: isAdmin
     },
     gerencias: gerencias,
-    categorias: categorias
+    categorias: categorias,
+    webAppUrl: obterUrlWebApp()
   };
 }
 
@@ -191,7 +201,8 @@ function criarChamado(dados, arquivosBase64) {
         titulo: dados.titulo,
         mensagem: 'Sua solicitação foi recebida pela Gerência Executiva de Telefonia e está aguardando triagem técnica.',
         autor: nomeSolicitante,
-        anexos: urlsAnexos
+        anexos: urlsAnexos,
+        aba: 'meus'
       });
     } catch (eMail) {
       Logger.log('Erro ao enviar e-mail: ' + eMail.message);
@@ -443,7 +454,8 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
         titulo: tituloChamado,
         mensagem: mensagemFeedback ? mensagemFeedback.trim() : 'Novo parecer e documento(s) anexado(s) pelo atendente.',
         autor: usuarioEmail,
-        anexos: novosAnexos
+        anexos: novosAnexos,
+        aba: 'meus'
       });
     } catch (e) {
       Logger.log('Erro de e-mail: ' + e.message);
@@ -588,7 +600,8 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
           titulo: tituloChamado,
           mensagem: 'O solicitante adicionou uma nova resposta ao chamado:\n\n"' + (temTexto ? respostaTexto.trim() : 'Novo(s) arquivo(s) anexado(s) pelo solicitante.') + '"',
           autor: usuarioEmail,
-          anexos: novosAnexos
+          anexos: novosAnexos,
+          aba: 'fila'
         });
       } catch (eMail) {
         Logger.log('Erro ao notificar atendente: ' + eMail.message);
@@ -645,6 +658,64 @@ function obterBlobDoAnexo(anexo) {
 }
 
 /**
+ * Retorna a URL publicada do Web App, com cache em ScriptProperties.
+ */
+function obterUrlWebApp() {
+  let url = '';
+  try {
+    url = ScriptApp.getService().getUrl();
+    if (url && url.length > 5) {
+      try {
+        const props = PropertiesService.getScriptProperties();
+        if (props.getProperty('WEB_APP_URL') !== url) {
+          props.setProperty('WEB_APP_URL', url);
+        }
+      } catch (eProp) {}
+      return url;
+    }
+  } catch (err) {
+    Logger.log('Aviso ao obter URL via ScriptApp: ' + err.message);
+  }
+
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const salva = props.getProperty('WEB_APP_URL');
+    if (salva) return salva;
+  } catch (e2) {}
+
+  return '';
+}
+
+/**
+ * Retorna os detalhes de um chamado específico pelo seu ID (Protocolo).
+ * Permite que a interface abra o chamado imediatamente via link direto de e-mail.
+ */
+function obterChamadoPorId(idChamado) {
+  if (!idChamado) return null;
+  const config = obterConfiguracoesIniciais();
+  const usuarioEmail = config.usuario.email.trim().toLowerCase();
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaChamados = ss.getSheetByName('CHAMADOS');
+
+  const dados = abaChamados.getDataRange().getValues();
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0]).trim().toUpperCase() === String(idChamado).trim().toUpperCase()) {
+      const emailSolicitante = String(dados[i][2]).trim().toLowerCase();
+      // Permitir acesso se for Administrador ou se for o próprio Solicitante
+      if (config.usuario.isAdmin || emailSolicitante === usuarioEmail) {
+        return montarObjetoChamado(dados[i]);
+      } else {
+        throw new Error('Você não tem permissão para visualizar este chamado.');
+      }
+    }
+  }
+  return null;
+}
+
+/**
  * Template corporativo oficial de notificação por e-mail (brisanet).
  * Utiliza tipografia e paleta do projeto (Navy #0B316D, Laranja #FF5022, Cinza #E8E8E8).
  * Envia via GmailApp em nome do usuário conectado com os arquivos fisicamente anexados (attachments)
@@ -654,6 +725,15 @@ function enviarEmailNotificacao(params) {
   const emailAtendente = params.autor || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
+
+  // Link direto para o chamado no painel web
+  const abaAlvo = params.aba || 'meus';
+  const urlBase = params.webAppUrl || obterUrlWebApp();
+  let linkChamado = '';
+  if (urlBase) {
+    const sep = urlBase.includes('?') ? '&' : '?';
+    linkChamado = urlBase + sep + 'chamado=' + encodeURIComponent(params.idChamado) + '&aba=' + encodeURIComponent(abaAlvo);
+  }
 
   // 1. Coletar Blobs dos anexos para envio como anexos físicos nativos no e-mail
   const blobsAnexos = [];
@@ -756,9 +836,17 @@ function enviarEmailNotificacao(params) {
     '    <!-- Conteúdo Principal -->',
     '    <div style="padding: 28px 24px; color: #1E293B;">',
     '      <!-- Protocolo -->',
-    '      <div style="display: inline-block; padding: 5px 12px; background-color: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; margin-bottom: 18px;">',
-    '        Protocolo: ' + params.idChamado,
-    '      </div>',
+    (linkChamado ? [
+      '      <div style="margin-bottom: 18px;">',
+      '        <a href="' + linkChamado + '" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; text-decoration: none;" title="Abrir chamado no painel">',
+      '          Protocolo: ' + params.idChamado + ' <span style="color: #2242D4; font-size: 12px; margin-left: 4px;">&#8599;</span>',
+      '        </a>',
+      '      </div>'
+    ].join('\n') : [
+      '      <div style="display: inline-block; padding: 5px 12px; background-color: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; margin-bottom: 18px;">',
+      '        Protocolo: ' + params.idChamado,
+      '      </div>'
+    ].join('\n')),
     '      ',
     '      <!-- Assunto -->',
     '      <h2 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: #0F172A; line-height: 1.4;">',
@@ -776,9 +864,21 @@ function enviarEmailNotificacao(params) {
     htmlAnexos,
     '      ',
     '      <!-- Atendente Responsável -->',
-    '      <div style="font-size: 12px; color: #64748B; margin-bottom: 24px;">',
+    '      <div style="font-size: 12px; color: #64748B; margin-bottom: 20px;">',
     '        Atendente responsável: <strong style="color: #0F172A;">' + emailAtendente + '</strong>',
     '      </div>',
+    '      ',
+    (linkChamado ? [
+      '      <!-- Botão Direto para o Chamado -->',
+      '      <div style="margin: 22px 0 24px 0; text-align: center;">',
+      '        <a href="' + linkChamado + '" target="_blank" style="display: inline-block; width: 100%; max-width: 380px; padding: 13px 22px; background-color: #0B316D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(11, 49, 109, 0.2); text-align: center; box-sizing: border-box; letter-spacing: 0.3px;">',
+      '          ' + (abaAlvo === 'fila' ? 'Atender Chamado na Fila Geral &rarr;' : 'Visualizar Chamado em Meus Chamados &rarr;'),
+      '        </a>',
+      '        <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">',
+      '          Clique para abrir diretamente este chamado na plataforma',
+      '        </div>',
+      '      </div>'
+    ].join('\n') : ''),
     '      ',
     '      <!-- AVISO DE NÃO RESPONDER POR E-MAIL -->',
     '      <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; margin-bottom: 15px;">',
@@ -786,7 +886,7 @@ function enviarEmailNotificacao(params) {
     '          COMUNICADO: NÃO RESPONDA A ESTE E-MAIL',
     '        </div>',
     '        <div style="font-size: 12px; color: #78350F; line-height: 1.5;">',
-    '          Respostas enviadas diretamente por e-mail <strong>não são recebidas nem monitoradas</strong>. Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, acesse a aba <strong>Meus Chamados</strong> no Painel Web.',
+    '          Respostas enviadas diretamente por e-mail <strong>não são recebidas nem monitoradas</strong>. ' + (linkChamado ? 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, <a href="' + linkChamado + '" target="_blank" style="color: #0B316D; font-weight: 700; text-decoration: underline;">clique aqui para acessar diretamente seu chamado em Meus Chamados</a>.' : 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, acesse a aba <strong>Meus Chamados</strong> no Painel Web.'),
     '        </div>',
     '      </div>',
     '    </div>',
@@ -807,6 +907,7 @@ function enviarEmailNotificacao(params) {
     'Mensagem / Parecer:',
     params.mensagem,
     '',
+    (linkChamado ? 'Link direto para o chamado no painel:\n' + linkChamado + '\n\n' : ''),
     (params.anexos && params.anexos.length > 0 ? 'Anexos para download:\n' + params.anexos.map(function(a) { 
       const id = a.id || extrairIdDrive(a.url);
       const dl = a.downloadUrl || (id ? 'https://drive.google.com/uc?export=download&id=' + id : a.url);
@@ -816,7 +917,7 @@ function enviarEmailNotificacao(params) {
     'Atendente: ' + emailAtendente,
     '',
     'COMUNICADO: NÃO RESPONDA A ESTE E-MAIL.',
-    'Acesse a aba Meus Chamados no Painel Web para interagir.'
+    (linkChamado ? 'Para responder ou anexar arquivos, acesse o link:\n' + linkChamado : 'Acesse a aba Meus Chamados no Painel Web para interagir.')
   ].join('\n');
 
   const options = {

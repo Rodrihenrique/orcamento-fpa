@@ -603,6 +603,10 @@
 
   <!-- Lógica JavaScript do Cliente -->
   <script>
+    // Variáveis injetadas pelo template do Google Apps Script (doGet)
+    const URL_PARAM_CHAMADO = '<?= urlParamChamado ?>';
+    const URL_PARAM_ABA = '<?= urlParamAba ?>';
+
     let appState = {
       usuario: null,
       gerencias: [],
@@ -613,7 +617,10 @@
       arquivosSelecionados: [],
       arquivosSolicitante: [],
       arquivosAdmin: [],
-      abaAtiva: 'nova'
+      abaAtiva: 'nova',
+      chamadoUrlPendente: null,
+      abaUrlPendente: null,
+      chamadoUrlProcessado: false
     };
 
     window.onload = function() {
@@ -621,8 +628,53 @@
       window.addEventListener('dragover', function(e) { e.preventDefault(); }, false);
       window.addEventListener('drop', function(e) { e.preventDefault(); }, false);
 
+      detectarParametrosUrl();
       inicializarApp();
     };
+
+    function detectarParametrosUrl() {
+      let idChamado = '';
+      let aba = '';
+
+      if (typeof URL_PARAM_CHAMADO !== 'undefined' && URL_PARAM_CHAMADO && !URL_PARAM_CHAMADO.includes('<?=') ) {
+        idChamado = URL_PARAM_CHAMADO.trim();
+      }
+      if (typeof URL_PARAM_ABA !== 'undefined' && URL_PARAM_ABA && !URL_PARAM_ABA.includes('<?=') ) {
+        aba = URL_PARAM_ABA.trim();
+      }
+
+      if (!idChamado) {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          idChamado = params.get('chamado') || params.get('id') || '';
+          if (!aba) aba = params.get('aba') || '';
+        } catch (e) {}
+      }
+
+      if (idChamado) {
+        appState.chamadoUrlPendente = idChamado;
+        appState.abaUrlPendente = aba || 'meus';
+      }
+
+      // Suporte para Web App executado dentro do iframe do Google Apps Script
+      if (typeof google !== 'undefined' && google.script && google.script.url && google.script.url.getLocation) {
+        google.script.url.getLocation(function(loc) {
+          if (loc && loc.parameter) {
+            const paramId = loc.parameter.chamado || loc.parameter.id;
+            const paramAba = loc.parameter.aba || 'meus';
+            if (paramId && !appState.chamadoUrlProcessado) {
+              appState.chamadoUrlPendente = paramId;
+              appState.abaUrlPendente = paramAba;
+              if (appState.usuario) {
+                const destino = (paramAba === 'fila' && appState.usuario.isAdmin) ? 'fila' : 'meus';
+                navegarAba(destino);
+                processarAberturaDiretaChamado(paramId);
+              }
+            }
+          }
+        });
+      }
+    }
 
     function inicializarApp() {
       google.script.run
@@ -643,20 +695,61 @@
             document.getElementById('tabFilaGeral').classList.remove('hidden');
             document.getElementById('tabFilaGeral').classList.add('flex');
             
-            // Ordem inicial: Nova Solicitação
-            navegarAba('nova');
-            carregarDados();
+            if (appState.chamadoUrlPendente) {
+              const destino = (appState.abaUrlPendente === 'fila') ? 'fila' : 'meus';
+              navegarAba(destino);
+              processarAberturaDiretaChamado(appState.chamadoUrlPendente);
+            } else {
+              navegarAba('nova');
+              carregarDados();
+            }
           } else {
             // Se for solicitante comum, garantir que a aba Fila Geral permaneça estritamente oculta
             document.getElementById('tabFilaGeral').classList.add('hidden');
             document.getElementById('tabFilaGeral').classList.remove('flex');
-            navegarAba('nova');
+            
+            if (appState.chamadoUrlPendente) {
+              navegarAba('meus');
+              processarAberturaDiretaChamado(appState.chamadoUrlPendente);
+            } else {
+              navegarAba('nova');
+            }
           }
         })
         .withFailureHandler(function(err) {
           alert('Erro ao inicializar: ' + err.message);
         })
         .obterConfiguracoesIniciais();
+    }
+
+    function processarAberturaDiretaChamado(idChamado) {
+      if (!idChamado || appState.chamadoUrlProcessado) return;
+      appState.chamadoUrlProcessado = true;
+      appState.chamadoUrlPendente = idChamado;
+
+      // Buscar diretamente pelo endpoint do chamado para abrir de imediato
+      google.script.run
+        .withSuccessHandler(function(chamado) {
+          if (chamado) {
+            abrirDrawer(chamado.idChamado, chamado);
+            destacarLinhaChamado(chamado.idChamado);
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.warn('Aviso ao carregar chamado direto: ' + err.message);
+        })
+        .obterChamadoPorId(idChamado);
+    }
+
+    function destacarLinhaChamado(idChamado) {
+      if (!idChamado) return;
+      setTimeout(function() {
+        const row = document.getElementById('row-chamado-' + idChamado) || document.getElementById('row-admin-' + idChamado);
+        if (row) {
+          row.classList.add('bg-amber-50', 'ring-2', 'ring-brisa-orange', 'ring-inset');
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 350);
     }
 
     function normalizarTexto(str) {
@@ -1039,7 +1132,10 @@
 
       let html = '';
       chamados.forEach(function(ch) {
-        html += '<tr class="hover:bg-slate-50/80 transition-colors">';
+        const isHighlight = appState.chamadoUrlPendente && (ch.idChamado === appState.chamadoUrlPendente);
+        const classeDestaque = isHighlight ? ' bg-amber-50 ring-2 ring-brisa-orange ring-inset font-medium' : '';
+
+        html += '<tr id="row-admin-' + ch.idChamado + '" class="hover:bg-slate-50/80 transition-colors' + classeDestaque + '">';
         html += '<td class="py-3 px-4 font-bold text-brisa-blue font-rubik">' + ch.idChamado + '</td>';
         html += '<td class="py-3 px-4 text-slate-500">' + ch.dataCriacao.split(' ')[0] + '</td>';
         html += '<td class="py-3 px-4">' + ch.solicitanteNome + '</td>';
@@ -1052,6 +1148,10 @@
         html += '</tr>';
       });
       tbody.innerHTML = html;
+
+      if (appState.chamadoUrlPendente) {
+        destacarLinhaChamado(appState.chamadoUrlPendente);
+      }
     }
 
     function renderizarTabelaMeusChamados(chamados) {
@@ -1063,7 +1163,10 @@
 
       let html = '';
       chamados.forEach(function(ch) {
-        html += '<tr class="hover:bg-slate-50/80 transition-colors">';
+        const isHighlight = appState.chamadoUrlPendente && (ch.idChamado === appState.chamadoUrlPendente);
+        const classeDestaque = isHighlight ? ' bg-amber-50 ring-2 ring-brisa-orange ring-inset font-medium' : '';
+
+        html += '<tr id="row-chamado-' + ch.idChamado + '" class="hover:bg-slate-50/80 transition-colors' + classeDestaque + '">';
         html += '<td class="py-3 px-4 font-bold text-brisa-blue font-rubik">' + ch.idChamado + '</td>';
         html += '<td class="py-3 px-4 text-slate-500">' + ch.dataCriacao + '</td>';
         html += '<td class="py-3 px-4 font-semibold text-slate-800">' + ch.titulo + '</td>';
@@ -1074,6 +1177,10 @@
         html += '</tr>';
       });
       tbody.innerHTML = html;
+
+      if (appState.chamadoUrlPendente) {
+        destacarLinhaChamado(appState.chamadoUrlPendente);
+      }
     }
 
     function renderBadgeStatus(status) {
@@ -1396,9 +1503,9 @@
         .criarChamado(dados, arquivosBase64);
     }
 
-    function abrirDrawer(idChamado) {
-      let chamado = null;
-      if (appState.abaAtiva === 'fila' && appState.chamadosAdmin) {
+    function abrirDrawer(idChamado, objetoChamadoFallback) {
+      let chamado = objetoChamadoFallback || null;
+      if (!chamado && appState.abaAtiva === 'fila' && appState.chamadosAdmin) {
         chamado = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
       }
       if (!chamado && appState.meusChamados) {
@@ -1407,7 +1514,16 @@
       if (!chamado && appState.chamadosAdmin) {
         chamado = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
       }
-      if (!chamado) return;
+      if (!chamado) {
+        google.script.run
+          .withSuccessHandler(function(ch) {
+            if (ch) {
+              abrirDrawer(idChamado, ch);
+            }
+          })
+          .obterChamadoPorId(idChamado);
+        return;
+      }
 
       appState.chamadoSelecionado = chamado;
 
