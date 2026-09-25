@@ -211,27 +211,73 @@ function criarChamado(dados, arquivosBase64) {
 }
 
 /**
- * Retorna exclusivamente os chamados pertencentes ao usuário conectado.
+ * Retorna os chamados de telefonia e as visitas corporativas pertencentes ao usuário.
+ * Suporta usuário corporativo logado ou parâmetros de fallback (e-mail ou token do visitante).
  */
-function obterMeusChamados() {
+function obterMeusChamados(emailFallback, tokenFallback) {
   const props = PropertiesService.getScriptProperties();
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const abaChamados = ss.getSheetByName('CHAMADOS');
-  const usuarioEmail = Session.getActiveUser().getEmail().trim().toLowerCase();
+  const abaVisitas = ss.getSheetByName('VISITAS');
 
-  const dados = abaChamados.getDataRange().getValues();
-  const meusChamados = [];
+  let usuarioEmail = '';
+  try {
+    usuarioEmail = Session.getActiveUser().getEmail().trim().toLowerCase();
+  } catch (e) {}
 
-  for (let i = 1; i < dados.length; i++) {
-    const emailLinha = String(dados[i][2]).trim().toLowerCase();
-    if (emailLinha === usuarioEmail) {
-      meusChamados.push(montarObjetoChamado(dados[i]));
+  const emailAlvo = (emailFallback && emailFallback.trim()) ? emailFallback.trim().toLowerCase() : usuarioEmail;
+  const tokenAlvo = (tokenFallback && tokenFallback.trim()) ? tokenFallback.trim() : '';
+
+  const listaItens = [];
+
+  // 1. Chamados de Telefonia
+  if (abaChamados && emailAlvo) {
+    const dadosCh = abaChamados.getDataRange().getValues();
+    for (let i = 1; i < dadosCh.length; i++) {
+      const emailLinha = String(dadosCh[i][2]).trim().toLowerCase();
+      if (emailLinha === emailAlvo) {
+        const ch = montarObjetoChamado(dadosCh[i]);
+        ch.tipoItem = 'CHAMADO';
+        listaItens.push(ch);
+      }
+    }
+  }
+
+  // 2. Solicitações de Visita Corporativa
+  if (abaVisitas && (emailAlvo || tokenAlvo)) {
+    const dadosVis = abaVisitas.getDataRange().getValues();
+    for (let j = 1; j < dadosVis.length; j++) {
+      const emailVisita = String(dadosVis[j][4]).trim().toLowerCase();
+      const tokenVisita = String(dadosVis[j][17] || '').trim();
+
+      const bateEmail = emailAlvo && (emailVisita === emailAlvo);
+      const bateToken = tokenAlvo && (tokenVisita === tokenAlvo);
+
+      if (bateEmail || bateToken) {
+        const v = montarObjetoVisita(dadosVis[j]);
+        listaItens.push({
+          idChamado: v.idVisita,
+          dataCriacao: v.dataCriacao,
+          solicitanteNome: v.responsavelNome,
+          solicitanteEmail: v.responsavelEmail,
+          gerencia: v.empresa,
+          categoria: 'Visita Corporativa',
+          prioridade: 'Normal',
+          titulo: 'Visita Corporativa • ' + v.empresa + ' (' + v.periodoInicio + ' a ' + v.periodoFim + ')',
+          status: v.status,
+          atendente: v.atendente,
+          tipoItem: 'VISITA',
+          tokenAcesso: v.tokenAcesso,
+          anexos: v.anexos,
+          dadosVisita: v
+        });
+      }
     }
   }
 
   // Ordenar do mais recente para o mais antigo
-  return meusChamados.reverse();
+  return listaItens.reverse();
 }
 
 /**
@@ -1143,9 +1189,9 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
       ]);
     }
 
-    // Link com Token seguro para acompanhamento pelo visitante externo
+    // Link com Token seguro para acompanhamento pelo visitante externo na página Meus Chamados
     const urlWeb = obterUrlWebApp();
-    const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&token=' + tokenAcesso) : '';
+    const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
 
     // Enviar confirmação por e-mail ao visitante externo
     try {
@@ -1156,7 +1202,7 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
         empresa: empresa,
         periodo: (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || ''),
         status: 'Pendente',
-        mensagem: 'Sua solicitação de visita à Brisanet foi recebida com sucesso e está em análise pela equipe administrativa e gestores anfitriões.',
+        mensagem: 'Sua solicitação de visita à Brisanet foi recebida com sucesso e está em análise pela equipe administrativa e gestores anfitriões.\n\nVocê pode consultar o status, cronograma e deliberações acessando a página "Meus Chamados" pelo link abaixo.',
         linkAcompanhamento: linkAcompanhamento,
         anexos: urlsAnexos
       });
@@ -1329,6 +1375,74 @@ function obterHistoricoVisita(idVisita, token) {
 
 
 /**
+ * Atribui um atendente responsável para a solicitação de visita corporativa.
+ */
+function atribuirVisita(idVisita, atendenteEmail) {
+  const config = obterConfiguracoesIniciais();
+  if (!config.usuario.isAdmin) {
+    throw new Error('Apenas administradores podem atribuir responsáveis para a visita.');
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaVisitas = garantirAbaVisitas(ss);
+  const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+  const dados = abaVisitas.getDataRange().getValues();
+  let linhaEncontrada = -1;
+  let visitaObj = null;
+
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
+      linhaEncontrada = i + 1;
+      visitaObj = montarObjetoVisita(dados[i]);
+      break;
+    }
+  }
+
+  if (linhaEncontrada === -1 || !visitaObj) {
+    throw new Error('Visita não encontrada: ' + idVisita);
+  }
+
+  const atendenteFinal = atendenteEmail ? atendenteEmail.trim().toLowerCase() : Session.getActiveUser().getEmail().trim().toLowerCase();
+  const statusAnterior = visitaObj.status;
+  let novoStatus = statusAnterior;
+
+  // Se estiver Pendente, avança para "Em Análise" automaticamente
+  if (statusAnterior === 'Pendente') {
+    novoStatus = 'Em Análise';
+    abaVisitas.getRange(linhaEncontrada, 16).setValue(novoStatus); // Coluna 16: STATUS
+  }
+
+  abaVisitas.getRange(linhaEncontrada, 17).setValue(atendenteFinal); // Coluna 17: ATENDENTE
+
+  // Gravar no log de interações
+  if (abaLog) {
+    const agora = new Date();
+    const adminExecutor = Session.getActiveUser().getEmail();
+    abaLog.appendRow([
+      Utilities.getUuid(),
+      idVisita,
+      agora,
+      adminExecutor,
+      'Atribuição de Responsável',
+      statusAnterior,
+      novoStatus,
+      'Atendente responsável definido como: ' + atendenteFinal,
+      'NÃO' // Log interno para a equipe administrativa
+    ]);
+  }
+
+  return {
+    sucesso: true,
+    novoStatus: novoStatus,
+    atendente: atendenteFinal,
+    mensagem: 'Visita atribuída a ' + atendenteFinal + ' com sucesso.'
+  };
+}
+
+/**
  * Atualiza o status da visita (Aprovação, Ajuste ou Reprovação) com disparo de e-mail.
  */
 function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail) {
@@ -1385,7 +1499,7 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
 
   // Notificar visitante por e-mail com visual institucional
   const urlWeb = obterUrlWebApp();
-  const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&token=' + visitaObj.tokenAcesso) : '';
+  const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'aba=meus&visita=' + idVisita + '&token=' + visitaObj.tokenAcesso + '&email=' + encodeURIComponent(visitaObj.responsavelEmail)) : '';
 
   try {
     let mensagemStatus = '';
