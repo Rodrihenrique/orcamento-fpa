@@ -117,12 +117,35 @@
         <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
         Fila Geral de Atendimentos
       </button>
+
+      <!-- 4. Gestão de Visitas (Quarta - Exclusiva Admin) -->
+      <button id="tabGestaoVisitas" onclick="navegarAba('visitas')" class="hidden items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200">
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+        Gestão de Visitas
+      </button>
     </nav>
 
     <!-- 3. Conteúdo Dinâmico por Aba -->
 
     <!-- ABA 1: NOVA SOLICITAÇÃO (FORMULÁRIO NA LARGURA TOTAL) -->
     <div id="viewNovaSolicitacao" class="space-y-4">
+      
+      <!-- Banner para Solicitação de Visitas Corporativas -->
+      <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-sm">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-brisa-blue text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+          </div>
+          <div>
+            <h3 class="text-xs font-bold text-slate-800">Receberá visitantes externos ou comitivas parceiras na Brisanet?</h3>
+            <p class="text-[11px] text-slate-500">Cadastre a visita corporativa com cronograma, salas reservadas e liberação antecipada na portaria.</p>
+          </div>
+        </div>
+        <button type="button" onclick="abrirModalSolicitacaoVisita()" class="px-4 py-2 bg-brisa-blue hover:bg-opacity-90 text-white rounded-xl text-xs font-semibold shadow-sm transition-all whitespace-nowrap self-start sm:self-auto flex items-center gap-1.5">
+          <span>Solicitar Visita Corporativa &rarr;</span>
+        </button>
+      </div>
+
       <div class="w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
         <div class="border-b border-slate-100 pb-4 mb-6">
           <h2 class="text-lg font-bold text-slate-900">Abertura de Chamado de Telefonia</h2>
@@ -448,6 +471,126 @@
       </div>
     </div>
 
+    <!-- ABA 4: GESTÃO DE VISITAS CORPORATIVAS (EXCLUSIVA ADMIN) -->
+    <div id="viewGestaoVisitas" class="hidden space-y-6">
+      
+      <!-- Topo da Gestão de Visitas -->
+      <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-xs font-bold text-brisa-navy uppercase tracking-widest">
+              Gestão de Visitas Corporativas &bull; Painel Administrativo
+            </h2>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-brisa-blue border border-blue-200">Exclusivo Telefonia / ADM</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Acompanhamento, deliberação, controle de cronograma, itinerário físico e liberação de portaria para visitas de empresas externas.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <button onclick="carregarVisitas()" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5 transition-colors">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            Atualizar
+          </button>
+          <button onclick="abrirModalSolicitacaoVisita()" class="px-4 py-2 bg-brisa-orange hover:bg-opacity-90 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Nova Solicitação de Visita
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIs da Gestão de Visitas -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- KPI 1: Pendentes -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+          <div class="flex justify-between items-start mb-2">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pendentes de Parecer</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>
+          </div>
+          <div id="kpiVisitasPendentes" class="font-rubik text-3xl font-bold text-amber-600 mb-1">--</div>
+          <div class="text-xs text-slate-500">Aguardando avaliação administrativa</div>
+        </div>
+
+        <!-- KPI 2: Aprovadas -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+          <div class="flex justify-between items-start mb-2">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Visitas Aprovadas</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          </div>
+          <div id="kpiVisitasAprovadas" class="font-rubik text-3xl font-bold text-emerald-600 mb-1">--</div>
+          <div class="text-xs text-slate-500">Salas e portaria autorizadas</div>
+        </div>
+
+        <!-- KPI 3: Ajustes Solicitados -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+          <div class="flex justify-between items-start mb-2">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Ajustes Solicitados</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-brisa-orange"></span>
+          </div>
+          <div id="kpiVisitasAjustes" class="font-rubik text-3xl font-bold text-brisa-orange mb-1">--</div>
+          <div class="text-xs text-slate-500">Aguardando resposta do visitante</div>
+        </div>
+
+        <!-- KPI 4: Total de Visitantes -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+          <div class="flex justify-between items-start mb-2">
+            <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total de Visitantes</span>
+            <span class="w-2.5 h-2.5 rounded-full bg-brisa-blue"></span>
+          </div>
+          <div id="kpiTotalVisitantes" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
+          <div class="text-xs text-slate-500">Participantes externos previstos</div>
+        </div>
+      </div>
+
+      <!-- Filtros da Fila de Visitas -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex-1 relative">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" id="buscaVisitasTexto" oninput="filtrarTabelaVisitas()" placeholder="Buscar por protocolo, empresa parceira ou responsável..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="filtroStatusVisita" onchange="filtrarTabelaVisitas()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
+            <option value="TODOS">Todos os Status</option>
+            <option value="Pendente">Pendente</option>
+            <option value="Em Análise">Em Análise</option>
+            <option value="Aprovada">Aprovada</option>
+            <option value="Ajuste Solicitado">Ajuste Solicitado</option>
+            <option value="Reprovada">Reprovada</option>
+          </select>
+          <button onclick="limparFiltrosVisitas()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-600 hover:bg-slate-50 font-medium">
+            Resetar
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela de Solicitações de Visitas -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th class="py-3.5 px-4">Protocolo</th>
+                <th class="py-3.5 px-4">Empresa Solicitante</th>
+                <th class="py-3.5 px-4">Responsável / Contato</th>
+                <th class="py-3.5 px-4">Período da Visita</th>
+                <th class="py-3.5 px-4">Visitantes</th>
+                <th class="py-3.5 px-4">Status</th>
+                <th class="py-3.5 px-4">Atendente Brisanet</th>
+                <th class="py-3.5 px-4 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyVisitas" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
+              <tr>
+                <td colspan="8" class="py-8 text-center text-slate-400">Carregando solicitações de visitas...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
   </div>
 
   <!-- GAVETA LATERAL (DRAWER) DE ATENDIMENTO E INTERAÇÃO -->
@@ -594,10 +737,461 @@
 
           <button id="btnEnviarRespostaSolicitante" onclick="executarEnviarRespostaSolicitante()" class="w-full py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
-            <span>Enviar Resposta ao Atendente</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE SOLICITAÇÃO OFICIAL DE VISITA CORPORATIVA -->
+  <div id="modalVisitaOverlay" onclick="fecharModalSolicitacaoVisita(event)" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
+    <div onclick="event.stopPropagation()" class="bg-white w-full max-w-4xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-fadeIn">
+      
+      <!-- Topo com gradiente laranja oficial brisanet -->
+      <div class="h-1.5 bg-gradient-to-r from-brisa-orange to-brisa-orangeMid flex-shrink-0"></div>
+
+      <!-- Header do Modal -->
+      <div class="p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between bg-slate-50/60 flex-shrink-0">
+        <div class="flex items-center gap-3.5">
+          <div class="w-10 h-10 rounded-xl bg-brisa-navy text-white flex items-center justify-center font-bold text-sm tracking-wide shadow-sm flex-shrink-0">
+            VIS
+          </div>
+          <div>
+            <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <span>Solicitação Oficial de Visita Corporativa</span>
+              <span class="text-slate-300 font-light hidden sm:inline">|</span>
+              <span class="text-xs text-slate-500 font-medium hidden sm:inline">brisanet</span>
+            </h2>
+            <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mt-0.5">
+              Formulário digital integrado para empresas parceiras, auditorias e fornecedores
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="fecharModalSolicitacaoVisita()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <!-- Corpo com Scroll do Modal -->
+      <div class="p-5 sm:p-7 overflow-y-auto space-y-7 custom-scrollbar text-xs">
+
+        <!-- Callout informativo / Diretrizes -->
+        <div class="bg-blue-50/70 border border-blue-200/80 rounded-xl p-4 flex items-start gap-3 text-slate-700">
+          <svg class="w-5 h-5 text-brisa-blue flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          <div class="leading-relaxed">
+            <span class="font-bold text-slate-900">Orientações de Preenchimento:</span>
+            Este formulário digital substitui o modelo impresso ou anexo Word de visitas corporativas. Não são requeridos números de documento pessoal (CPF/RG/Passaporte), pois visitantes do exterior possuem padrões distintos. Preencha os participantes, anfitriões, pautas e salas desejadas para análise da gerência.
+          </div>
+        </div>
+
+        <form id="formSolicitacaoVisita" onsubmit="enviarSolicitacaoVisita(event)" class="space-y-7">
+          
+          <!-- 1. Dados da Empresa e Responsável -->
+          <div>
+            <div class="flex items-center gap-2 mb-3 pb-1 border-b border-slate-100">
+              <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">1</span>
+              <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Empresa Solicitante & Responsável pelo Contato</h3>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Empresa Visitante *</label>
+                <input type="text" id="visitaEmpresa" required placeholder="Ex.: Huawei, ZTE, Furukawa, etc." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Nome do Responsável / Solicitante *</label>
+                <input type="text" id="visitaResponsavelNome" required placeholder="Nome completo do ponto de contato" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">E-mail Corporativo de Contato *</label>
+                <input type="email" id="visitaResponsavelEmail" required placeholder="exemplo@empresa.com (aceita qualquer domínio externo)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                <span class="text-[10px] text-slate-400 mt-1 block">O parecer, aprovação e link seguro de acompanhamento serão enviados a este e-mail.</span>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Telefone / WhatsApp com DDD *</label>
+                <input type="text" id="visitaResponsavelTelefone" required placeholder="Ex.: (88) 99999-9999 ou +55 ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Data Início Prevista *</label>
+                <input type="date" id="visitaDataInicio" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Data Término Prevista *</label>
+                <input type="date" id="visitaDataFim" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Participantes Visitantes -->
+          <div>
+            <div class="flex items-center justify-between mb-3 pb-1 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">2</span>
+                <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Participantes Visitantes (Comitiva Externa)</h3>
+              </div>
+              <button type="button" onclick="adicionarLinhaVisitante()" class="text-xs text-brisa-blue hover:text-blue-700 font-bold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Adicionar Visitante
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-left border-collapse" id="tabelaFormVisitantes">
+                <thead>
+                  <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                    <th class="py-2.5 px-3">Nome Completo do Visitante *</th>
+                    <th class="py-2.5 px-3">Cargo / Função *</th>
+                    <th class="py-2.5 px-2 w-12 text-center">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyFormVisitantes" class="divide-y divide-slate-100">
+                  <!-- Linhas dinâmicas -->
+                </tbody>
+              </table>
+            </div>
+            <p class="text-[11px] text-slate-400 mt-1.5">* Conforme diretriz corporativa para recepção de visitantes estrangeiros, não é obrigatório envio de CPF ou RG.</p>
+          </div>
+
+          <!-- 3. Anfitriões Brisanet -->
+          <div>
+            <div class="flex items-center justify-between mb-3 pb-1 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">3</span>
+                <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Anfitriões / Representantes Brisanet</h3>
+              </div>
+              <button type="button" onclick="adicionarLinhaAnfitriao()" class="text-xs text-brisa-blue hover:text-blue-700 font-bold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Adicionar Anfitrião
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-left border-collapse" id="tabelaFormAnfitrioes">
+                <thead>
+                  <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                    <th class="py-2.5 px-3">Nome do Colaborador Brisanet *</th>
+                    <th class="py-2.5 px-3">Área / Cargo *</th>
+                    <th class="py-2.5 px-2 w-12 text-center">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyFormAnfitrioes" class="divide-y divide-slate-100">
+                  <!-- Linhas dinâmicas -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 4. Cronograma de Atividades e Pautas -->
+          <div>
+            <div class="flex items-center justify-between mb-3 pb-1 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">4</span>
+                <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Cronograma de Atividades & Pautas</h3>
+              </div>
+              <button type="button" onclick="adicionarLinhaCronograma()" class="text-xs text-brisa-blue hover:text-blue-700 font-bold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Adicionar Pauta
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-left border-collapse" id="tabelaFormCronograma">
+                <thead>
+                  <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                    <th class="py-2.5 px-3 w-36">Data *</th>
+                    <th class="py-2.5 px-3 w-28">Horário *</th>
+                    <th class="py-2.5 px-3">Atividade / Pauta da Reunião *</th>
+                    <th class="py-2.5 px-2 w-12 text-center">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyFormCronograma" class="divide-y divide-slate-100">
+                  <!-- Linhas dinâmicas -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 5. Itinerário Físico & Salas Solicitadas -->
+          <div>
+            <div class="flex items-center justify-between mb-3 pb-1 border-b border-slate-100">
+              <div class="flex items-center gap-2">
+                <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">5</span>
+                <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Itinerário Físico & Ambientes / Salas</h3>
+              </div>
+              <button type="button" onclick="adicionarLinhaItinerario()" class="text-xs text-brisa-blue hover:text-blue-700 font-bold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Adicionar Sala
+              </button>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+              <table class="w-full text-left border-collapse" id="tabelaFormItinerario">
+                <thead>
+                  <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200">
+                    <th class="py-2.5 px-3 w-36">Data *</th>
+                    <th class="py-2.5 px-3 w-36">Turno *</th>
+                    <th class="py-2.5 px-3">Ambiente / Sala Solicitada *</th>
+                    <th class="py-2.5 px-2 w-12 text-center">Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="tbodyFormItinerario" class="divide-y divide-slate-100">
+                  <!-- Linhas dinâmicas -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 6. Áreas para Tour & Observações Gerais -->
+          <div>
+            <div class="flex items-center gap-2 mb-3 pb-1 border-b border-slate-100">
+              <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">6</span>
+              <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Áreas Desejadas para Tour & Observações</h3>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-2 text-[11px]">Selecione as Áreas Desejadas para Visitação / Tour:</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5" id="containerCheckboxesTour">
+                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
+                    <input type="checkbox" value="Data Center / Sala de Equipamentos" class="check-tour rounded text-brisa-blue">
+                    <span class="text-xs text-slate-700">Data Center / Equipamentos</span>
+                  </label>
+                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
+                    <input type="checkbox" value="NOC (Centro de Operações de Rede)" class="check-tour rounded text-brisa-blue">
+                    <span class="text-xs text-slate-700">NOC (Centro de Operações)</span>
+                  </label>
+                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
+                    <input type="checkbox" value="Engenharia de Redes & Telefonia" class="check-tour rounded text-brisa-blue">
+                    <span class="text-xs text-slate-700">Engenharia & Telefonia</span>
+                  </label>
+                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
+                    <input type="checkbox" value="Central de Atendimento / Call Center" class="check-tour rounded text-brisa-blue">
+                    <span class="text-xs text-slate-700">Central de Atendimento</span>
+                  </label>
+                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
+                    <input type="checkbox" value="Centro de Distribuição & Logística" class="check-tour rounded text-brisa-blue">
+                    <span class="text-xs text-slate-700">Logística & CD</span>
+                  </label>
+                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
+                    <input type="checkbox" value="Espaço de Inovação & Treinamentos" class="check-tour rounded text-brisa-blue">
+                    <span class="text-xs text-slate-700">Espaço de Inovação</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Observações Gerais, Necessidades Técnicas ou Restrições Alimentares</label>
+                <textarea id="visitaObservacoes" rows="3" placeholder="Informe recursos necessários (projetores, microfones, adaptadores de energia, Wi-Fi visitante) ou particularidades da comitiva..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all"></textarea>
+              </div>
+
+              <!-- Termo de Conduta e Segurança -->
+              <div class="bg-amber-50/60 border border-amber-200/80 rounded-xl p-3.5">
+                <label class="flex items-start gap-2.5 cursor-pointer">
+                  <input type="checkbox" id="visitaTermoConformidade" required class="rounded text-brisa-blue mt-0.5">
+                  <span class="text-[11px] text-amber-950 font-medium leading-relaxed">
+                    <strong>Declaração de Conformidade & Confidencialidade:</strong> Declaro estar ciente de que as instalações corporativas da Brisanet são monitoradas e sujeitas a normas de segurança da informação, uso obrigatório de crachá de identificação e acompanhamento permanente de anfitrião credenciado.
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7. Anexos de Apresentação / Arquivos Complementares -->
+          <div>
+            <div class="flex items-center gap-2 mb-3 pb-1 border-b border-slate-100">
+              <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-[10px]">7</span>
+              <h3 class="font-bold text-slate-900 uppercase tracking-wider text-xs">Anexar Apresentações & Documentos de Apoio (Opcional)</h3>
+            </div>
+
+            <div id="dropzoneFormVisita"
+                 ondragover="handleDragOver(event, 'dropzoneFormVisita')"
+                 ondragenter="handleDragOver(event, 'dropzoneFormVisita')"
+                 ondragleave="handleDragLeave(event, 'dropzoneFormVisita')"
+                 ondrop="handleDropVisita(event)"
+                 class="border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center transition-all bg-slate-50/50 hover:bg-slate-50 hover:border-brisa-blue/60 cursor-pointer">
+              <input type="file" id="campoArquivosVisita" multiple onchange="atualizarListaArquivosVisita(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip">
+              <label for="campoArquivosVisita" class="cursor-pointer flex flex-col items-center">
+                <div class="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center mb-2 text-brisa-blue">
+                  <svg class="w-5 h-5 text-brisa-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                </div>
+                <div class="text-xs text-slate-700 font-medium">
+                  <span class="font-bold text-slate-900">Arraste seus arquivos aqui</span> ou <span class="text-brisa-blue font-bold hover:underline">clique para selecionar</span>
+                </div>
+                <span class="text-[10px] text-slate-400 mt-1">Apresentações PowerPoint, Relatórios em PDF, Planilhas ou Imagens (até 15MB cada)</span>
+              </label>
+            </div>
+            <div id="listaArquivosFormVisitaContainer" class="flex flex-wrap gap-2 mt-3"></div>
+          </div>
+
+          <!-- Rodapé do Formulário -->
+          <div class="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <button type="button" onclick="fecharModalSolicitacaoVisita()" class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+              Cancelar
+            </button>
+            <button type="submit" id="btnSalvarVisita" class="px-6 py-2.5 rounded-xl bg-brisa-orange text-white text-xs font-semibold hover:bg-opacity-90 shadow-sm transition-all flex items-center gap-2">
+              <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+              <span>Submeter Solicitação de Visita</span>
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- GAVETA LATERAL (DRAWER) DE GESTÃO E DECISÃO DE VISITAS -->
+  <div id="drawerVisitaOverlay" onclick="fecharDrawerVisita()" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 hidden transition-opacity"></div>
+  <div id="drawerVisita" class="fixed right-0 top-0 bottom-0 w-full max-w-2xl bg-white z-50 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+    <!-- Header do Drawer -->
+    <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+      <div>
+        <div class="flex items-center gap-2">
+          <span id="drawerVisitaProtocolo" class="text-sm font-bold text-brisa-blue font-rubik">BRISA-VIS-XXXX</span>
+          <span id="drawerVisitaBadgeStatus" class="px-2 py-0.5 rounded text-[11px] font-semibold">Status</span>
+        </div>
+        <h3 id="drawerVisitaEmpresa" class="text-xs font-semibold text-slate-800 mt-1 line-clamp-1">Empresa Solicitante</h3>
+      </div>
+      <button onclick="fecharDrawerVisita()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+      </button>
+    </div>
+
+    <!-- Corpo com Scroll do Drawer -->
+    <div class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar text-xs">
+      
+      <!-- Informações Principais -->
+      <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-2">
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Empresa Parceira:</span><span id="drawerVisitaEmpresaDetalhe" class="font-bold text-slate-900"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Responsável:</span><span id="drawerVisitaResponsavel" class="font-medium text-slate-800"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">E-mail:</span><span id="drawerVisitaEmail" class="font-medium text-slate-800"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Telefone:</span><span id="drawerVisitaTelefone" class="font-medium text-slate-800"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Período da Visita:</span><span id="drawerVisitaPeriodo" class="font-bold text-brisa-navy font-rubik"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Criada em:</span><span id="drawerVisitaDataCriacao" class="font-medium text-slate-800"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Atendente Brisanet:</span><span id="drawerVisitaAtendente" class="font-medium text-slate-800"></span></div>
+      </div>
+
+      <!-- Visitantes -->
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Participantes Visitantes</span>
+          <span id="drawerVisitaCountVisitantes" class="text-[11px] text-slate-400 font-normal"></span>
+        </h4>
+        <div id="drawerVisitaListaVisitantes" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Anfitriões -->
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
+          <span>Anfitriões Brisanet</span>
+          <span id="drawerVisitaCountAnfitrioes" class="text-[11px] text-slate-400 font-normal"></span>
+        </h4>
+        <div id="drawerVisitaListaAnfitrioes" class="space-y-1.5"></div>
+      </div>
+
+      <!-- Cronograma -->
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Cronograma de Atividades</h4>
+        <div id="drawerVisitaListaCronograma" class="overflow-x-auto rounded-xl border border-slate-200"></div>
+      </div>
+
+      <!-- Itinerário Físico -->
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Itinerário Físico & Salas Reservadas</h4>
+        <div id="drawerVisitaListaItinerario" class="overflow-x-auto rounded-xl border border-slate-200"></div>
+      </div>
+
+      <!-- Áreas de Tour & Observações -->
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Áreas de Tour & Observações</h4>
+        <div class="bg-white p-3.5 rounded-xl border border-slate-200 space-y-3">
+          <div id="drawerVisitaAreasTour" class="flex flex-wrap gap-1.5"></div>
+          <div id="drawerVisitaObservacoes" class="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed border-t border-slate-100 pt-2.5"></div>
+        </div>
+      </div>
+
+      <!-- Anexos da Visita -->
+      <div id="drawerVisitaSecaoAnexos" class="hidden">
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Anexos & Apresentações</h4>
+        <div id="drawerVisitaListaAnexos" class="flex flex-col gap-2"></div>
+      </div>
+
+      <!-- Linha do Tempo de Pareceres / Histórico -->
+      <div>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3">Histórico e Pareceres</h4>
+        <div id="drawerVisitaTimeline" class="space-y-4 border-l-2 border-slate-200 pl-4 ml-2">
+          <!-- Logs renderizados via JS -->
+        </div>
+      </div>
+
+      <!-- Ações do Administrador (Exclusivo Admin) -->
+      <div id="drawerVisitaAcoesAdmin" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+        <h4 class="text-xs font-bold text-brisa-navy uppercase tracking-wider">Deliberação da Visita &bull; Telefonia</h4>
+        
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 uppercase mb-1">Parecer Administrativo / Justificativa *</label>
+          <textarea id="drawerVisitaParecerAdmin" rows="3" placeholder="Digite o parecer, orientações para portaria ou solicitação de ajustes de horário/sala..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+          <button type="button" onclick="executarDecisaoVisita('Aprovada')" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors text-center">
+            Aprovar Visita
+          </button>
+          <button type="button" onclick="executarDecisaoVisita('Ajuste Solicitado')" class="py-2.5 px-3 bg-brisa-orange hover:bg-opacity-90 text-white rounded-xl text-xs font-bold shadow-sm transition-colors text-center">
+            Solicitar Ajuste
+          </button>
+          <button type="button" onclick="executarDecisaoVisita('Reprovada')" class="py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors text-center">
+            Reprovar Visita
+          </button>
+        </div>
+        <p class="text-[10px] text-slate-400 mt-1">Ao decidir, o visitante receberá automaticamente a notificação institucional no e-mail corporativo cadastrado.</p>
+      </div>
+
+      <!-- Ações do Visitante Externo (quando acessado via Token de Visitante) -->
+      <div id="drawerVisitaAcoesVisitante" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 hidden">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-brisa-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+          <h4 class="text-xs font-bold text-brisa-navy uppercase tracking-wider">Responder à Equipe Brisanet</h4>
+        </div>
+
+        <div id="drawerVisitaVisitanteAlerta" class="p-3 rounded-lg text-xs leading-relaxed hidden"></div>
+
+        <div id="drawerVisitaVisitanteForm" class="space-y-2.5">
+          <label class="block text-[11px] font-bold text-slate-600 uppercase">Escreva sua resposta ou novas datas/horários propostos</label>
+          <textarea id="drawerVisitaTextoResposta" rows="3" placeholder="Digite sua manifestação quanto aos ajustes solicitados..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
+
+          <!-- Upload de novos anexos pelo visitante -->
+          <div class="pt-2 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[11px] font-bold text-slate-600 uppercase">Anexar Nova Apresentação ou Pauta</label>
+              <span id="visitanteArquivosCount" class="text-[11px] text-slate-400 font-rubik">0 selecionado(s)</span>
+            </div>
+            <div id="dropzoneRespostaVisitante"
+                 ondragover="handleDragOver(event, 'dropzoneRespostaVisitante')"
+                 ondragenter="handleDragOver(event, 'dropzoneRespostaVisitante')"
+                 ondragleave="handleDragLeave(event, 'dropzoneRespostaVisitante')"
+                 ondrop="handleDropRespostaVisitante(event)"
+                 class="border border-dashed border-slate-200 rounded-xl p-3 text-center transition-all bg-slate-50/50 hover:bg-slate-50 hover:border-brisa-blue/60 cursor-pointer">
+              <input type="file" id="visitanteArquivosAnexo" multiple onchange="atualizarListaArquivosRespostaVisitante(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip">
+              <label for="visitanteArquivosAnexo" class="cursor-pointer flex items-center justify-center gap-2 text-xs text-slate-600">
+                <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <span>Arraste ou <span class="text-brisa-blue font-semibold hover:underline">clique para anexar</span></span>
+              </label>
+            </div>
+            <div id="visitanteListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
+          </div>
+
+          <button id="btnEnviarRespostaVisitante" onclick="executarRespostaVisitante()" class="w-full py-2.5 bg-brisa-orange text-white rounded-xl text-xs font-semibold hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            <span>Enviar Resposta à Telefonia Brisanet</span>
           </button>
         </div>
       </div>
+
     </div>
   </div>
 
@@ -616,7 +1210,15 @@
       abaAtiva: 'nova',
       chamadoUrlPendente: null,
       abaUrlPendente: null,
-      chamadoUrlProcessado: false
+      chamadoUrlProcessado: false,
+      visitas: [],
+      visitaSelecionada: null,
+      arquivosVisita: [],
+      arquivosRespostaVisitante: [],
+      visitaUrlPendente: null,
+      visitaTokenPendente: null,
+      visitaTokenAtual: null,
+      visitaUrlProcessada: false
     };
 
     window.onload = function() {
@@ -631,16 +1233,25 @@
     function detectarParametrosUrl() {
       let idChamado = '';
       let aba = '';
+      let idVisita = '';
+      let tokenVisita = '';
 
       try {
         const params = new URLSearchParams(window.location.search);
         idChamado = params.get('chamado') || params.get('id') || '';
         aba = params.get('aba') || '';
+        idVisita = params.get('visita') || '';
+        tokenVisita = params.get('token') || '';
       } catch (e) {}
 
       if (idChamado) {
         appState.chamadoUrlPendente = idChamado.trim();
         appState.abaUrlPendente = aba ? aba.trim() : 'meus';
+      }
+      if (idVisita) {
+        appState.visitaUrlPendente = idVisita.trim();
+        appState.visitaTokenPendente = tokenVisita ? tokenVisita.trim() : '';
+        if (aba) appState.abaUrlPendente = aba.trim();
       }
 
       // Suporte para Web App executado dentro do iframe do Google Apps Script
@@ -649,6 +1260,15 @@
           if (loc && loc.parameter) {
             const paramId = loc.parameter.chamado || loc.parameter.id;
             const paramAba = loc.parameter.aba || 'meus';
+            const paramVisita = loc.parameter.visita;
+            const paramToken = loc.parameter.token;
+
+            if (paramVisita && !appState.visitaUrlProcessada) {
+              appState.visitaUrlPendente = String(paramVisita).trim();
+              appState.visitaTokenPendente = paramToken ? String(paramToken).trim() : '';
+              processarAberturaDiretaVisita(appState.visitaUrlPendente, appState.visitaTokenPendente);
+            }
+
             if (paramId && !appState.chamadoUrlProcessado) {
               appState.chamadoUrlPendente = String(paramId).trim();
               appState.abaUrlPendente = String(paramAba).trim();
@@ -678,11 +1298,16 @@
           popularDropdowns();
 
           if (config.usuario.isAdmin) {
-            // Revelar a aba Fila Geral apenas para Administradores
+            // Revelar as abas Fila Geral e Gestão de Visitas apenas para Administradores
             document.getElementById('tabFilaGeral').classList.remove('hidden');
             document.getElementById('tabFilaGeral').classList.add('flex');
+            document.getElementById('tabGestaoVisitas').classList.remove('hidden');
+            document.getElementById('tabGestaoVisitas').classList.add('flex');
             
-            if (appState.chamadoUrlPendente) {
+            if (appState.visitaUrlPendente) {
+              navegarAba('visitas');
+              processarAberturaDiretaVisita(appState.visitaUrlPendente, appState.visitaTokenPendente);
+            } else if (appState.chamadoUrlPendente) {
               const destino = (appState.abaUrlPendente === 'fila') ? 'fila' : 'meus';
               navegarAba(destino);
               processarAberturaDiretaChamado(appState.chamadoUrlPendente);
@@ -691,11 +1316,15 @@
               carregarDados();
             }
           } else {
-            // Se for solicitante comum, garantir que a aba Fila Geral permaneça estritamente oculta
+            // Se for solicitante comum ou visitante externo, garantir que as abas administrativas permaneçam estritamente ocultas
             document.getElementById('tabFilaGeral').classList.add('hidden');
             document.getElementById('tabFilaGeral').classList.remove('flex');
+            document.getElementById('tabGestaoVisitas').classList.add('hidden');
+            document.getElementById('tabGestaoVisitas').classList.remove('flex');
             
-            if (appState.chamadoUrlPendente) {
+            if (appState.visitaUrlPendente) {
+              processarAberturaDiretaVisita(appState.visitaUrlPendente, appState.visitaTokenPendente);
+            } else if (appState.chamadoUrlPendente) {
               navegarAba('meus');
               processarAberturaDiretaChamado(appState.chamadoUrlPendente);
             } else {
@@ -738,6 +1367,37 @@
         }
       }, 350);
     }
+
+    function processarAberturaDiretaVisita(idVisita, token) {
+      if (!idVisita || appState.visitaUrlProcessada) return;
+      appState.visitaUrlProcessada = true;
+      appState.visitaUrlPendente = idVisita;
+      appState.visitaTokenPendente = token;
+
+      google.script.run
+        .withSuccessHandler(function(visita) {
+          if (visita) {
+            abrirDrawerVisita(visita.idVisita, token, visita);
+            destacarLinhaVisita(visita.idVisita);
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.warn('Aviso ao carregar visita direta: ' + err.message);
+        })
+        .obterVisitaPorIdOuToken(idVisita, token);
+    }
+
+    function destacarLinhaVisita(idVisita) {
+      if (!idVisita) return;
+      setTimeout(function() {
+        const row = document.getElementById('row-visita-' + idVisita);
+        if (row) {
+          row.classList.add('bg-amber-50', 'ring-2', 'ring-brisa-orange', 'ring-inset');
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 350);
+    }
+
 
     function normalizarTexto(str) {
       if (!str) return '';
@@ -1027,8 +1687,8 @@
     });
 
     function navegarAba(aba) {
-      // Bloquear acesso a Fila Geral caso não seja admin
-      if (aba === 'fila' && (!appState.usuario || !appState.usuario.isAdmin)) {
+      // Bloquear acesso a Fila Geral ou Gestão de Visitas caso não seja admin
+      if ((aba === 'fila' || aba === 'visitas') && (!appState.usuario || !appState.usuario.isAdmin)) {
         aba = 'nova';
       }
       appState.abaAtiva = aba;
@@ -1036,15 +1696,19 @@
       const vFila = document.getElementById('viewFilaGeral');
       const vNova = document.getElementById('viewNovaSolicitacao');
       const vMeus = document.getElementById('viewMeusChamados');
+      const vVisitas = document.getElementById('viewGestaoVisitas');
+
       const tFila = document.getElementById('tabFilaGeral');
       const tNova = document.getElementById('tabNovaSolicitacao');
       const tMeus = document.getElementById('tabMeusChamados');
+      const tVisitas = document.getElementById('tabGestaoVisitas');
 
-      [vFila, vNova, vMeus].forEach(function(el) { el.classList.add('hidden'); });
+      [vFila, vNova, vMeus, vVisitas].forEach(function(el) { if (el) el.classList.add('hidden'); });
 
       // Reset de estilos dos botões
-      [tNova, tMeus, tFila].forEach(function(el) {
-        if (el === tFila && (!appState.usuario || !appState.usuario.isAdmin)) {
+      [tNova, tMeus, tFila, tVisitas].forEach(function(el) {
+        if (!el) return;
+        if ((el === tFila || el === tVisitas) && (!appState.usuario || !appState.usuario.isAdmin)) {
           el.className = 'hidden';
         } else {
           el.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200';
@@ -1055,22 +1719,36 @@
 
       // Ativar aba selecionada
       if (aba === 'nova') {
-        vNova.classList.remove('hidden');
-        tNova.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
-        const svg = tNova.querySelector('svg');
-        if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        if (vNova) vNova.classList.remove('hidden');
+        if (tNova) {
+          tNova.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+          const svg = tNova.querySelector('svg');
+          if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        }
       } else if (aba === 'meus') {
-        vMeus.classList.remove('hidden');
-        tMeus.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
-        const svg = tMeus.querySelector('svg');
-        if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        if (vMeus) vMeus.classList.remove('hidden');
+        if (tMeus) {
+          tMeus.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+          const svg = tMeus.querySelector('svg');
+          if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        }
         carregarMeusChamados();
       } else if (aba === 'fila' && appState.usuario && appState.usuario.isAdmin) {
-        vFila.classList.remove('hidden');
-        tFila.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
-        const svg = tFila.querySelector('svg');
-        if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        if (vFila) vFila.classList.remove('hidden');
+        if (tFila) {
+          tFila.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+          const svg = tFila.querySelector('svg');
+          if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        }
         carregarDados();
+      } else if (aba === 'visitas' && appState.usuario && appState.usuario.isAdmin) {
+        if (vVisitas) vVisitas.classList.remove('hidden');
+        if (tVisitas) {
+          tVisitas.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+          const svg = tVisitas.querySelector('svg');
+          if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        }
+        carregarVisitas();
       }
     }
 
@@ -1805,6 +2483,755 @@
         reader.onerror = function(error) { reject(error); };
       });
     }
+
+    // =========================================================================
+    // Funções de Gestão de Visitas Corporativas
+    // =========================================================================
+
+    function carregarVisitas() {
+      const filtro = {
+        status: document.getElementById('filtroStatusVisita') ? document.getElementById('filtroStatusVisita').value : 'TODOS'
+      };
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          appState.visitas = res.visitas;
+          
+          document.getElementById('kpiVisitasPendentes').textContent = res.kpis.pendentes;
+          document.getElementById('kpiVisitasAprovadas').textContent = res.kpis.aprovadas;
+          document.getElementById('kpiVisitasAjustes').textContent = res.kpis.ajustes;
+          document.getElementById('kpiTotalVisitantes').textContent = res.kpis.totalVisitantes;
+
+          renderizarTabelaVisitas(res.visitas);
+        })
+        .withFailureHandler(function(err) {
+          alert('Erro ao carregar fila de visitas: ' + err.message);
+        })
+        .obterFilaVisitas(filtro);
+    }
+
+    function renderizarTabelaVisitas(visitas) {
+      const tbody = document.getElementById('tbodyVisitas');
+      if (!tbody) return;
+      if (!visitas || visitas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-slate-400">Nenhuma solicitação de visita encontrada.</td></tr>';
+        return;
+      }
+
+      let html = '';
+      visitas.forEach(function(v) {
+        const isHighlight = appState.visitaUrlPendente && (v.idVisita === appState.visitaUrlPendente);
+        const classeDestaque = isHighlight ? ' bg-amber-50 ring-2 ring-brisa-orange ring-inset font-medium' : '';
+        const qtdPart = (v.participantes && Array.isArray(v.participantes)) ? v.participantes.length : 0;
+
+        html += '<tr id="row-visita-' + v.idVisita + '" class="hover:bg-slate-50/80 transition-colors' + classeDestaque + '">';
+        html += '<td class="py-3 px-4 font-bold text-brisa-blue font-rubik">' + v.idVisita + '</td>';
+        html += '<td class="py-3 px-4 font-semibold text-slate-900">' + v.empresa + '</td>';
+        html += '<td class="py-3 px-4 text-slate-600">' + v.responsavelNome + '<br><span class="text-[11px] text-slate-400">' + v.responsavelEmail + '</span></td>';
+        html += '<td class="py-3 px-4 text-slate-600 font-rubik text-[11px]">' + v.periodoInicio + '<br><span class="text-slate-400">até ' + v.periodoFim + '</span></td>';
+        html += '<td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-brisa-navy border border-blue-200">' + qtdPart + ' participante(s)</span></td>';
+        html += '<td class="py-3 px-4">' + renderBadgeStatusVisita(v.status) + '</td>';
+        html += '<td class="py-3 px-4 text-slate-500">' + (v.atendente ? v.atendente.split('@')[0] : '<em>A definir</em>') + '</td>';
+        html += '<td class="py-3 px-4 text-right"><button onclick="abrirDrawerVisita(\'' + v.idVisita + '\')" class="text-xs text-brisa-blue hover:underline font-semibold">Analisar</button></td>';
+        html += '</tr>';
+      });
+
+      tbody.innerHTML = html;
+
+      if (appState.visitaUrlPendente) {
+        destacarLinhaVisita(appState.visitaUrlPendente);
+      }
+    }
+
+    function renderBadgeStatusVisita(status) {
+      if (status === 'Pendente') return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-800 border border-amber-200">Pendente</span>';
+      if (status === 'Em Análise') return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-800 border border-blue-200">Em Análise</span>';
+      if (status === 'Aprovada') return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">Aprovada</span>';
+      if (status === 'Ajuste Solicitado') return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-orange-50 text-orange-800 border border-orange-200">Ajuste Solicitado</span>';
+      if (status === 'Reprovada') return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-800 border border-rose-200">Reprovada</span>';
+      return '<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">' + status + '</span>';
+    }
+
+    function filtrarTabelaVisitas() {
+      const termo = document.getElementById('buscaVisitasTexto').value.toLowerCase();
+      const status = document.getElementById('filtroStatusVisita').value;
+
+      const filtrados = (appState.visitas || []).filter(function(v) {
+        const matchTermo = v.idVisita.toLowerCase().includes(termo) ||
+                           v.empresa.toLowerCase().includes(termo) ||
+                           v.responsavelNome.toLowerCase().includes(termo) ||
+                           v.responsavelEmail.toLowerCase().includes(termo);
+        const matchStatus = (status === 'TODOS') || (v.status === status);
+        return matchTermo && matchStatus;
+      });
+
+      renderizarTabelaVisitas(filtrados);
+    }
+
+    function limparFiltrosVisitas() {
+      document.getElementById('buscaVisitasTexto').value = '';
+      document.getElementById('filtroStatusVisita').value = 'TODOS';
+      filtrarTabelaVisitas();
+    }
+
+    // =========================================================================
+    // Modal de Solicitação Oficial de Visita e Tabelas Dinâmicas
+    // =========================================================================
+
+    function abrirModalSolicitacaoVisita() {
+      document.getElementById('formSolicitacaoVisita').reset();
+      appState.arquivosVisita = [];
+      const containerChips = document.getElementById('listaArquivosFormVisitaContainer');
+      if (containerChips) containerChips.innerHTML = '';
+
+      // Limpar tabelas dinâmicas
+      document.getElementById('tbodyFormVisitantes').innerHTML = '';
+      document.getElementById('tbodyFormAnfitrioes').innerHTML = '';
+      document.getElementById('tbodyFormCronograma').innerHTML = '';
+      document.getElementById('tbodyFormItinerario').innerHTML = '';
+
+      // Adicionar linha inicial vazia em cada
+      adicionarLinhaVisitante();
+      adicionarLinhaAnfitriao();
+      adicionarLinhaCronograma();
+      adicionarLinhaItinerario();
+
+      document.getElementById('modalVisitaOverlay').classList.remove('hidden');
+    }
+
+    function fecharModalSolicitacaoVisita(e) {
+      if (e && e.target && e.target.id !== 'modalVisitaOverlay' && e.type === 'click') return;
+      document.getElementById('modalVisitaOverlay').classList.add('hidden');
+    }
+
+    function adicionarLinhaVisitante(nome, cargo) {
+      const tbody = document.getElementById('tbodyFormVisitantes');
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition-colors';
+      tr.innerHTML = [
+        '<td class="py-2 px-3"><input type="text" class="input-vis-nome w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="Nome completo do visitante" value="' + (nome || '') + '"></td>',
+        '<td class="py-2 px-3"><input type="text" class="input-vis-cargo w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="Ex.: Gerente de Soluções, Engenheiro..." value="' + (cargo || '') + '"></td>',
+        '<td class="py-2 px-2 text-center"><button type="button" onclick="removerLinhaTabela(this)" class="text-slate-400 hover:text-rose-500 font-bold text-base p-1" title="Remover">&times;</button></td>'
+      ].join('');
+      tbody.appendChild(tr);
+    }
+
+    function adicionarLinhaAnfitriao(nome, cargo) {
+      const tbody = document.getElementById('tbodyFormAnfitrioes');
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition-colors';
+      tr.innerHTML = [
+        '<td class="py-2 px-3"><input type="text" class="input-anf-nome w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="Nome do colaborador Brisanet" value="' + (nome || '') + '"></td>',
+        '<td class="py-2 px-3"><input type="text" class="input-anf-cargo w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="Ex.: Diretoria, Gerente de Telefonia..." value="' + (cargo || '') + '"></td>',
+        '<td class="py-2 px-2 text-center"><button type="button" onclick="removerLinhaTabela(this)" class="text-slate-400 hover:text-rose-500 font-bold text-base p-1" title="Remover">&times;</button></td>'
+      ].join('');
+      tbody.appendChild(tr);
+    }
+
+    function adicionarLinhaCronograma(data, hora, pauta) {
+      const tbody = document.getElementById('tbodyFormCronograma');
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition-colors';
+      tr.innerHTML = [
+        '<td class="py-2 px-3"><input type="date" class="input-crono-data w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required value="' + (data || '') + '"></td>',
+        '<td class="py-2 px-3"><input type="text" class="input-crono-hora w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="09:00 - 10:30" value="' + (hora || '') + '"></td>',
+        '<td class="py-2 px-3"><input type="text" class="input-crono-pauta w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="Pauta / Apresentação de Soluções" value="' + (pauta || '') + '"></td>',
+        '<td class="py-2 px-2 text-center"><button type="button" onclick="removerLinhaTabela(this)" class="text-slate-400 hover:text-rose-500 font-bold text-base p-1" title="Remover">&times;</button></td>'
+      ].join('');
+      tbody.appendChild(tr);
+    }
+
+    function adicionarLinhaItinerario(data, turno, sala) {
+      const tbody = document.getElementById('tbodyFormItinerario');
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition-colors';
+      tr.innerHTML = [
+        '<td class="py-2 px-3"><input type="date" class="input-itin-data w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required value="' + (data || '') + '"></td>',
+        '<td class="py-2 px-3"><select class="input-itin-turno w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none"><option value="Manhã">Manhã</option><option value="Tarde">Tarde</option><option value="Integral">Dia Integral</option></select></td>',
+        '<td class="py-2 px-3"><input type="text" class="input-itin-sala w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none" required placeholder="Ex.: Sala Neylon, Sala Telefonia, Auditório..." value="' + (sala || '') + '"></td>',
+        '<td class="py-2 px-2 text-center"><button type="button" onclick="removerLinhaTabela(this)" class="text-slate-400 hover:text-rose-500 font-bold text-base p-1" title="Remover">&times;</button></td>'
+      ].join('');
+      tbody.appendChild(tr);
+      if (turno) {
+        tr.querySelector('.input-itin-turno').value = turno;
+      }
+    }
+
+    function removerLinhaTabela(btn) {
+      const tr = btn.closest('tr');
+      const tbody = tr.parentNode;
+      if (tbody.children.length <= 1) {
+        alert('É necessário manter pelo menos uma linha.');
+        return;
+      }
+      tr.remove();
+    }
+
+    // =========================================================================
+    // Drag & Drop e Uploads de Visita e Resposta de Visitante
+    // =========================================================================
+
+    function handleDropVisita(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = document.getElementById('dropzoneFormVisita');
+      if (el) {
+        el.classList.remove('border-brisa-blue', 'bg-blue-50/70', 'ring-2', 'ring-brisa-blue/20');
+        el.classList.add('border-slate-200', 'bg-slate-50/50');
+      }
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        adicionarArquivosVisita(Array.from(e.dataTransfer.files));
+      }
+    }
+
+    function atualizarListaArquivosVisita(e) {
+      if (e.target && e.target.files) {
+        adicionarArquivosVisita(Array.from(e.target.files));
+      }
+    }
+
+    function adicionarArquivosVisita(novos) {
+      novos.forEach(function(novo) {
+        const jaExiste = appState.arquivosVisita.some(function(arq) {
+          return arq.name === novo.name && arq.size === novo.size;
+        });
+        if (!jaExiste) appState.arquivosVisita.push(novo);
+      });
+      renderizarChipsArquivosVisita();
+    }
+
+    function removerArquivoVisita(index) {
+      appState.arquivosVisita.splice(index, 1);
+      renderizarChipsArquivosVisita();
+      const input = document.getElementById('campoArquivosVisita');
+      if (input) input.value = '';
+    }
+
+    function renderizarChipsArquivosVisita() {
+      const container = document.getElementById('listaArquivosFormVisitaContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      appState.arquivosVisita.forEach(function(file, idx) {
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 shadow-sm';
+        chip.innerHTML = [
+          '<svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>',
+          '<span class="font-medium text-slate-800 truncate max-w-[200px]">' + file.name + '</span>',
+          '<span class="text-slate-400 font-rubik text-[11px]">(' + (file.size / 1024).toFixed(0) + 'KB)</span>',
+          '<button type="button" onclick="removerArquivoVisita(' + idx + ')" class="text-slate-400 hover:text-red-500 font-bold ml-1 text-sm p-0.5" title="Remover">&times;</button>'
+        ].join('');
+        container.appendChild(chip);
+      });
+    }
+
+    function handleDropRespostaVisitante(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = document.getElementById('dropzoneRespostaVisitante');
+      if (el) {
+        el.classList.remove('border-brisa-blue', 'bg-blue-50/70', 'ring-2', 'ring-brisa-blue/20');
+        el.classList.add('border-slate-200', 'bg-slate-50/50');
+      }
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        adicionarArquivosRespostaVisitante(Array.from(e.dataTransfer.files));
+      }
+    }
+
+    function atualizarListaArquivosRespostaVisitante(e) {
+      if (e.target && e.target.files) {
+        adicionarArquivosRespostaVisitante(Array.from(e.target.files));
+      }
+    }
+
+    function adicionarArquivosRespostaVisitante(novos) {
+      novos.forEach(function(novo) {
+        const jaExiste = appState.arquivosRespostaVisitante.some(function(arq) {
+          return arq.name === novo.name && arq.size === novo.size;
+        });
+        if (!jaExiste) appState.arquivosRespostaVisitante.push(novo);
+      });
+      renderizarChipsRespostaVisitante();
+    }
+
+    function removerArquivoRespostaVisitante(index) {
+      appState.arquivosRespostaVisitante.splice(index, 1);
+      renderizarChipsRespostaVisitante();
+      const input = document.getElementById('visitanteArquivosAnexo');
+      if (input) input.value = '';
+    }
+
+    function renderizarChipsRespostaVisitante() {
+      const container = document.getElementById('visitanteListaArquivosContainer');
+      const countLabel = document.getElementById('visitanteArquivosCount');
+      if (countLabel) countLabel.textContent = appState.arquivosRespostaVisitante.length + ' selecionado(s)';
+      if (!container) return;
+      container.innerHTML = '';
+      appState.arquivosRespostaVisitante.forEach(function(file, idx) {
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 shadow-sm';
+        chip.innerHTML = [
+          '<span class="truncate max-w-[160px]">' + file.name + '</span>',
+          '<span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>',
+          '<button type="button" onclick="removerArquivoRespostaVisitante(' + idx + ')" class="text-slate-400 hover:text-red-500 font-bold ml-1" title="Remover">&times;</button>'
+        ].join('');
+        container.appendChild(chip);
+      });
+    }
+
+    // =========================================================================
+    // Envio Oficial da Solicitação de Visita
+    // =========================================================================
+
+    async function enviarSolicitacaoVisita(e) {
+      e.preventDefault();
+
+      const empresa = document.getElementById('visitaEmpresa').value.trim();
+      const responsavelNome = document.getElementById('visitaResponsavelNome').value.trim();
+      const responsavelEmail = document.getElementById('visitaResponsavelEmail').value.trim();
+      const responsavelTelefone = document.getElementById('visitaResponsavelTelefone').value.trim();
+      const dataInicio = document.getElementById('visitaDataInicio').value;
+      const dataFim = document.getElementById('visitaDataFim').value;
+
+      // Coletar participantes visitantes
+      const participantes = [];
+      const trsVis = document.querySelectorAll('#tbodyFormVisitantes tr');
+      trsVis.forEach(function(tr) {
+        const n = tr.querySelector('.input-vis-nome').value.trim();
+        const c = tr.querySelector('.input-vis-cargo').value.trim();
+        if (n && c) participantes.push({ nome: n, cargo: c });
+      });
+
+      if (participantes.length === 0) {
+        alert('Por favor, informe pelo menos um participante visitante com Nome e Cargo.');
+        return;
+      }
+
+      // Coletar anfitriões Brisanet
+      const anfitrioes = [];
+      const trsAnf = document.querySelectorAll('#tbodyFormAnfitrioes tr');
+      trsAnf.forEach(function(tr) {
+        const n = tr.querySelector('.input-anf-nome').value.trim();
+        const c = tr.querySelector('.input-anf-cargo').value.trim();
+        if (n && c) anfitrioes.push({ nome: n, cargoArea: c });
+      });
+
+      if (anfitrioes.length === 0) {
+        alert('Por favor, informe pelo menos um anfitrião da Brisanet responsável pela visita.');
+        return;
+      }
+
+      // Coletar cronograma
+      const cronograma = [];
+      const trsCro = document.querySelectorAll('#tbodyFormCronograma tr');
+      trsCro.forEach(function(tr) {
+        const d = tr.querySelector('.input-crono-data').value;
+        const h = tr.querySelector('.input-crono-hora').value.trim();
+        const p = tr.querySelector('.input-crono-pauta').value.trim();
+        if (d && h && p) cronograma.push({ data: d, horario: h, atividade: p });
+      });
+
+      // Coletar itinerário
+      const itinerario = [];
+      const trsItin = document.querySelectorAll('#tbodyFormItinerario tr');
+      trsItin.forEach(function(tr) {
+        const d = tr.querySelector('.input-itin-data').value;
+        const t = tr.querySelector('.input-itin-turno').value;
+        const s = tr.querySelector('.input-itin-sala').value.trim();
+        if (d && t && s) itinerario.push({ data: d, turno: t, sala: s });
+      });
+
+      if (itinerario.length === 0) {
+        alert('Por favor, informe pelo menos uma sala ou ambiente no Itinerário Físico.');
+        return;
+      }
+
+      // Coletar Áreas de Tour
+      const tour = [];
+      document.querySelectorAll('#containerCheckboxesTour .check-tour:checked').forEach(function(cb) {
+        tour.push(cb.value);
+      });
+
+      const observacoes = document.getElementById('visitaObservacoes').value.trim();
+      const termo = document.getElementById('visitaTermoConformidade').checked;
+      if (!termo) {
+        alert('É necessário assinalar a declaração de conformidade e confidencialidade da Brisanet.');
+        return;
+      }
+
+      const btn = document.getElementById('btnSalvarVisita');
+      btn.disabled = true;
+      btn.innerHTML = 'Enviando solicitação...';
+
+      // Converter arquivos para Base64
+      const arquivosBase64 = [];
+      for (let i = 0; i < appState.arquivosVisita.length; i++) {
+        const file = appState.arquivosVisita[i];
+        const base64 = await toBase64(file);
+        arquivosBase64.push({
+          nome: file.name,
+          tipo: file.type,
+          base64: base64
+        });
+      }
+
+      const dados = {
+        empresa: empresa,
+        responsavelNome: responsavelNome,
+        responsavelEmail: responsavelEmail,
+        responsavelTelefone: responsavelTelefone,
+        periodoInicio: dataInicio,
+        periodoFim: dataFim,
+        participantes: participantes,
+        anfitrioes: anfitrioes,
+        cronograma: cronograma,
+        itinerario: itinerario,
+        tour: tour,
+        observacoes: observacoes
+      };
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+          if (res.sucesso) {
+            alert('Solicitação de Visita (' + res.idVisita + ') submetida com sucesso!\n\nAs notificações formais foram enviadas para o e-mail corporativo: ' + responsavelEmail);
+            fecharModalSolicitacaoVisita();
+            if (appState.usuario && appState.usuario.isAdmin) {
+              carregarVisitas();
+            }
+          } else {
+            alert('Erro ao registrar visita: ' + res.erro);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+          alert('Erro de comunicação: ' + err.message);
+        })
+        .criarSolicitacaoVisita(dados, arquivosBase64);
+    }
+
+    // =========================================================================
+    // Gaveta Lateral (Drawer) da Visita e Interações
+    // =========================================================================
+
+    function abrirDrawerVisita(idVisita, tokenFallback, visitaFallback) {
+      let token = tokenFallback || appState.visitaTokenPendente || '';
+      let visita = visitaFallback || null;
+
+      if (!visita && appState.visitas) {
+        visita = appState.visitas.find(function(v) { return v.idVisita === idVisita; });
+      }
+
+      if (!visita) {
+        google.script.run
+          .withSuccessHandler(function(v) {
+            if (v) abrirDrawerVisita(idVisita, token, v);
+          })
+          .withFailureHandler(function(err) {
+            alert('Não foi possível carregar a visita: ' + err.message);
+          })
+          .obterVisitaPorIdOuToken(idVisita, token);
+        return;
+      }
+
+      appState.visitaSelecionada = visita;
+      appState.visitaTokenAtual = token || visita.tokenAcesso;
+
+      document.getElementById('drawerVisitaProtocolo').textContent = visita.idVisita;
+      document.getElementById('drawerVisitaBadgeStatus').innerHTML = renderBadgeStatusVisita(visita.status);
+      document.getElementById('drawerVisitaEmpresa').textContent = visita.empresa;
+      document.getElementById('drawerVisitaEmpresaDetalhe').textContent = visita.empresa;
+      document.getElementById('drawerVisitaResponsavel').textContent = visita.responsavelNome;
+      document.getElementById('drawerVisitaEmail').textContent = visita.responsavelEmail;
+      document.getElementById('drawerVisitaTelefone').textContent = visita.responsavelTelefone;
+      document.getElementById('drawerVisitaPeriodo').textContent = visita.periodoInicio + ' até ' + visita.periodoFim;
+      document.getElementById('drawerVisitaDataCriacao').textContent = visita.dataCriacao;
+      document.getElementById('drawerVisitaAtendente').textContent = visita.atendente || 'Sem atendente atribuído';
+
+      // Renderizar Visitantes
+      const listaVis = document.getElementById('drawerVisitaListaVisitantes');
+      listaVis.innerHTML = '';
+      const part = visita.participantes || [];
+      document.getElementById('drawerVisitaCountVisitantes').textContent = part.length + ' participante(s)';
+      part.forEach(function(p) {
+        listaVis.innerHTML += '<div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"><span class="font-bold text-slate-800">' + p.nome + '</span><span class="text-slate-500 font-medium">' + p.cargo + '</span></div>';
+      });
+
+      // Renderizar Anfitriões
+      const listaAnf = document.getElementById('drawerVisitaListaAnfitrioes');
+      listaAnf.innerHTML = '';
+      const anf = visita.anfitrioes || [];
+      document.getElementById('drawerVisitaCountAnfitrioes').textContent = anf.length + ' anfitrião(ões)';
+      anf.forEach(function(a) {
+        listaAnf.innerHTML += '<div class="p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between"><span class="font-bold text-slate-800">' + a.nome + '</span><span class="text-slate-500 font-medium">' + a.cargoArea + '</span></div>';
+      });
+
+      // Renderizar Cronograma
+      const boxCro = document.getElementById('drawerVisitaListaCronograma');
+      const cro = visita.cronograma || [];
+      if (cro.length > 0) {
+        let h = '<table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200"><th class="p-2">Data</th><th class="p-2">Horário</th><th class="p-2">Pauta</th></tr></thead><tbody class="divide-y divide-slate-100">';
+        cro.forEach(function(c) {
+          h += '<tr><td class="p-2 font-medium font-rubik text-slate-600">' + c.data + '</td><td class="p-2 text-slate-700">' + c.horario + '</td><td class="p-2 text-slate-800 font-medium">' + c.atividade + '</td></tr>';
+        });
+        h += '</tbody></table>';
+        boxCro.innerHTML = h;
+      } else {
+        boxCro.innerHTML = '<div class="p-3 text-center text-slate-400">Nenhuma pauta cadastrada</div>';
+      }
+
+      // Renderizar Itinerário
+      const boxItin = document.getElementById('drawerVisitaListaItinerario');
+      const itin = visita.itinerario || [];
+      if (itin.length > 0) {
+        let h = '<table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200"><th class="p-2">Data</th><th class="p-2">Turno</th><th class="p-2">Ambiente / Sala</th></tr></thead><tbody class="divide-y divide-slate-100">';
+        itin.forEach(function(i) {
+          h += '<tr><td class="p-2 font-medium font-rubik text-slate-600">' + i.data + '</td><td class="p-2 text-slate-700 font-bold">' + i.turno + '</td><td class="p-2 text-slate-800 font-medium">' + i.sala + '</td></tr>';
+        });
+        h += '</tbody></table>';
+        boxItin.innerHTML = h;
+      } else {
+        boxItin.innerHTML = '<div class="p-3 text-center text-slate-400">Nenhum itinerário cadastrado</div>';
+      }
+
+      // Renderizar Áreas de Tour & Observações
+      const boxTour = document.getElementById('drawerVisitaAreasTour');
+      boxTour.innerHTML = '';
+      const tour = visita.tour || [];
+      if (tour.length > 0) {
+        tour.forEach(function(t) {
+          boxTour.innerHTML += '<span class="px-2.5 py-1 bg-blue-50 text-brisa-blue border border-blue-200 rounded-lg text-[11px] font-semibold">' + t + '</span>';
+        });
+      } else {
+        boxTour.innerHTML = '<span class="text-slate-400 italic">Nenhuma área selecionada para tour</span>';
+      }
+      document.getElementById('drawerVisitaObservacoes').textContent = visita.observacoes || 'Sem observações adicionais.';
+
+      // Renderizar Anexos
+      const secaoAnexos = document.getElementById('drawerVisitaSecaoAnexos');
+      const listaAnexos = document.getElementById('drawerVisitaListaAnexos');
+      listaAnexos.innerHTML = '';
+      if (visita.anexos && visita.anexos.length > 0) {
+        secaoAnexos.classList.remove('hidden');
+        visita.anexos.forEach(function(a) {
+          let fileId = a.id;
+          if (!fileId && a.url) {
+            const match = a.url.match(/\/d\/([-\w]{25,})/i) || a.url.match(/id=([-\w]{25,})/i) || a.url.match(/[-\w]{25,}/);
+            if (match) fileId = match[1] || match[0];
+          }
+          const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+
+          listaAnexos.innerHTML += [
+            '<div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">',
+            '  <a href="' + a.url + '" target="_blank" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2">',
+            '    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
+            '    <span class="truncate">' + a.nome + '</span>',
+            '  </a>',
+            '  <a href="' + downloadUrl + '" target="_blank" title="Baixar Arquivo" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0">',
+            '    Baixar',
+            '  </a>',
+            '</div>'
+          ].join('');
+        });
+      } else {
+        secaoAnexos.classList.add('hidden');
+      }
+
+      // Painel de Ações: Admin vs Visitante Externo
+      const blocoAdmin = document.getElementById('drawerVisitaAcoesAdmin');
+      const blocoVisitante = document.getElementById('drawerVisitaAcoesVisitante');
+      const isAdmin = appState.usuario && appState.usuario.isAdmin;
+
+      if (isAdmin && !appState.visitaTokenAtual) {
+        blocoAdmin.classList.remove('hidden');
+        blocoVisitante.classList.add('hidden');
+        document.getElementById('drawerVisitaParecerAdmin').value = '';
+      } else {
+        // Modo visitante (ou visualização externa)
+        blocoAdmin.classList.add('hidden');
+        blocoVisitante.classList.remove('hidden');
+        configurarPainelVisitante(visita);
+      }
+
+      // Carregar Timeline de Histórico
+      carregarHistoricoVisita(visita.idVisita, appState.visitaTokenAtual);
+
+      // Exibir Gaveta
+      document.getElementById('drawerVisitaOverlay').classList.remove('hidden');
+      document.getElementById('drawerVisita').classList.remove('translate-x-full');
+    }
+
+    function fecharDrawerVisita() {
+      document.getElementById('drawerVisitaOverlay').classList.add('hidden');
+      document.getElementById('drawerVisita').classList.add('translate-x-full');
+    }
+
+    function configurarPainelVisitante(visita) {
+      const alerta = document.getElementById('drawerVisitaVisitanteAlerta');
+      const form = document.getElementById('drawerVisitaVisitanteForm');
+
+      appState.arquivosRespostaVisitante = [];
+      const input = document.getElementById('visitanteArquivosAnexo');
+      if (input) input.value = '';
+      const container = document.getElementById('visitanteListaArquivosContainer');
+      if (container) container.innerHTML = '';
+      const count = document.getElementById('visitanteArquivosCount');
+      if (count) count.textContent = '0 selecionado(s)';
+      document.getElementById('drawerVisitaTextoResposta').value = '';
+
+      if (visita.status === 'Aprovada') {
+        alerta.classList.remove('hidden');
+        alerta.className = 'p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed';
+        alerta.innerHTML = '<strong>Visita APROVADA:</strong> Sua comitiva está autorizada a ingressar na sede da Brisanet. Apresentem-se na recepção principal portando documento com foto.';
+        form.classList.add('hidden');
+      } else if (visita.status === 'Reprovada') {
+        alerta.classList.remove('hidden');
+        alerta.className = 'p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 leading-relaxed';
+        alerta.innerHTML = '<strong>Solicitação Reprovada:</strong> Não foi possível aprovar a visita corporativa no período solicitado. Para mais informações, contate a gerência de telefonia.';
+        form.classList.add('hidden');
+      } else if (visita.status === 'Ajuste Solicitado') {
+        alerta.classList.remove('hidden');
+        alerta.className = 'p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed';
+        alerta.innerHTML = '<strong>Ajuste Solicitado pela Brisanet:</strong> Por favor, verifique o parecer acima e responda no formulário abaixo com os novos horários ou documentações necessárias.';
+        form.classList.remove('hidden');
+      } else {
+        alerta.classList.remove('hidden');
+        alerta.className = 'p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed';
+        alerta.innerHTML = 'Sua solicitação de visita está <strong>' + visita.status + '</strong>. Aguarde a avaliação da equipe técnica.';
+        form.classList.add('hidden');
+      }
+    }
+
+    function carregarHistoricoVisita(idVisita, token) {
+      const container = document.getElementById('drawerVisitaTimeline');
+      container.innerHTML = '<div class="text-xs text-slate-400">Carregando linha do tempo da visita...</div>';
+
+      google.script.run
+        .withSuccessHandler(function(logs) {
+          if (!logs || logs.length === 0) {
+            container.innerHTML = '<div class="text-xs text-slate-400">Nenhum evento registrado até o momento.</div>';
+            return;
+          }
+          let html = '';
+          logs.forEach(function(l) {
+            let dotColor = 'bg-brisa-blue';
+            let bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+
+            if (l.tipoAcao.includes('Decisão')) {
+              dotColor = 'bg-emerald-600';
+              bgCaixa = 'bg-emerald-50/60 border-emerald-200 text-emerald-950 font-medium';
+            } else if (l.tipoAcao.includes('Visitante')) {
+              dotColor = 'bg-brisa-orange';
+              bgCaixa = 'bg-orange-50/60 border-orange-200 text-slate-800';
+            }
+
+            html += '<div class="relative mb-3.5">';
+            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + dotColor + ' border-2 border-white"></div>';
+            html += '<div class="flex items-center gap-2 mb-1">';
+            html += '<span class="text-[11px] text-slate-400 font-rubik">' + l.dataHora + ' • ' + l.autor + '</span>';
+            html += '</div>';
+            html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + l.tipoAcao + (l.novoStatus ? ' (' + l.novoStatus + ')' : '') + '</div>';
+            if (l.mensagem) {
+              html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + formatarMensagemTimeline(l.mensagem) + '</div>';
+            }
+            html += '</div>';
+          });
+          container.innerHTML = html;
+        })
+        .withFailureHandler(function(err) {
+          container.innerHTML = '<div class="text-xs text-slate-400">Não foi possível obter o histórico: ' + err.message + '</div>';
+        })
+        .obterHistoricoVisita(idVisita, token);
+    }
+
+    function executarDecisaoVisita(novoStatus) {
+      if (!appState.visitaSelecionada) return;
+      const motivo = document.getElementById('drawerVisitaParecerAdmin').value.trim();
+
+      if (!motivo && novoStatus !== 'Aprovada') {
+        alert('Por favor, informe a justificativa ou orientações no parecer administrativo.');
+        document.getElementById('drawerVisitaParecerAdmin').focus();
+        return;
+      }
+
+      if (!confirm('Confirma definir o status da visita ' + appState.visitaSelecionada.idVisita + ' para "' + novoStatus + '"?')) {
+        return;
+      }
+
+      const emailAtendente = (appState.usuario && appState.usuario.email) ? appState.usuario.email : '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.sucesso) {
+            alert('Decisão registrada com sucesso! Notificação enviada ao visitante.');
+            appState.visitaSelecionada.status = novoStatus;
+            document.getElementById('drawerVisitaBadgeStatus').innerHTML = renderBadgeStatusVisita(novoStatus);
+            carregarHistoricoVisita(appState.visitaSelecionada.idVisita, appState.visitaTokenAtual);
+            carregarVisitas();
+          } else {
+            alert('Erro: ' + res.erro);
+          }
+        })
+        .withFailureHandler(function(err) {
+          alert('Erro ao processar decisão: ' + err.message);
+        })
+        .atualizarStatusVisita(appState.visitaSelecionada.idVisita, novoStatus, motivo, emailAtendente);
+    }
+
+    async function executarRespostaVisitante() {
+      if (!appState.visitaSelecionada) return;
+      const respostaTexto = document.getElementById('drawerVisitaTextoResposta').value.trim();
+      const arquivos = appState.arquivosRespostaVisitante || [];
+
+      if (!respostaTexto && arquivos.length === 0) {
+        alert('Por favor, digite sua manifestação ou anexe arquivos complementares.');
+        return;
+      }
+
+      const btn = document.getElementById('btnEnviarRespostaVisitante');
+      btn.disabled = true;
+      btn.innerHTML = 'Enviando resposta...';
+
+      const arquivosBase64 = [];
+      for (let i = 0; i < arquivos.length; i++) {
+        const file = arquivos[i];
+        const base64 = await toBase64(file);
+        arquivosBase64.push({
+          nome: file.name,
+          tipo: file.type,
+          base64: base64
+        });
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Enviar Resposta à Telefonia Brisanet</span>';
+          if (res.sucesso) {
+            alert(res.mensagem || 'Resposta enviada com sucesso!');
+            document.getElementById('drawerVisitaTextoResposta').value = '';
+            appState.arquivosRespostaVisitante = [];
+            const input = document.getElementById('visitanteArquivosAnexo');
+            if (input) input.value = '';
+            const container = document.getElementById('visitanteListaArquivosContainer');
+            if (container) container.innerHTML = '';
+            const count = document.getElementById('visitanteArquivosCount');
+            if (count) count.textContent = '0 selecionado(s)';
+
+            carregarHistoricoVisita(appState.visitaSelecionada.idVisita, appState.visitaTokenAtual);
+          } else {
+            alert('Erro: ' + res.erro);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Enviar Resposta à Telefonia Brisanet</span>';
+          alert('Erro ao enviar resposta: ' + err.message);
+        })
+        .adicionarRespostaVisitante(appState.visitaSelecionada.idVisita, appState.visitaTokenAtual, respostaTexto, arquivosBase64);
+    }
+
   </script>
 </body>
 </html>

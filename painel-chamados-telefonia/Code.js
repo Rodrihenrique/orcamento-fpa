@@ -55,6 +55,7 @@ function obterConfiguracoesIniciais() {
     },
     gerencias: gerencias,
     categorias: categorias,
+    administradores: administradores,
     webAppUrl: obterUrlWebApp()
   };
 }
@@ -992,4 +993,632 @@ function formatarData(valorData) {
     return Utilities.formatDate(valorData, Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
   }
   return String(valorData);
+}
+
+// =========================================================================
+// MÓDULO EXECUTIVO DE GESTÃO DE VISITAS CORPORATIVAS | BRISANET
+// =========================================================================
+
+/**
+ * Garante que a aba VISITAS exista na planilha com cabeçalhos padronizados.
+ */
+function garantirAbaVisitas(ss) {
+  let aba = ss.getSheetByName('VISITAS');
+  if (!aba) {
+    aba = ss.insertSheet('VISITAS');
+    const cabecalhos = [
+      'ID_VISITA',
+      'DATA_CRIACAO',
+      'EMPRESA_VISITANTE',
+      'RESPONSAVEL_NOME',
+      'RESPONSAVEL_EMAIL',
+      'RESPONSAVEL_TELEFONE',
+      'PERIODO_INICIO',
+      'PERIODO_FIM',
+      'DADOS_PARTICIPANTES',
+      'DADOS_ANFITRIOES',
+      'DADOS_CRONOGRAMA',
+      'DADOS_ITINERARIO',
+      'DADOS_TOUR',
+      'OBSERVACOES',
+      'ANEXOS',
+      'STATUS',
+      'ATENDENTE_RESPONSAVEL',
+      'TOKEN_ACESSO',
+      'DATA_DECISAO',
+      'MOTIVO_DECISAO'
+    ];
+    aba.appendRow(cabecalhos);
+    aba.getRange(1, 1, 1, cabecalhos.length)
+      .setBackground('#0B316D')
+      .setFontColor('#FFFFFF')
+      .setFontWeight('bold');
+    aba.setFrozenRows(1);
+  }
+  return aba;
+}
+
+/**
+ * Converte uma linha da aba VISITAS em um objeto JavaScript.
+ */
+function montarObjetoVisita(linha) {
+  let participantes = [];
+  let anfitrioes = [];
+  let cronograma = [];
+  let itinerario = [];
+  let tour = [];
+  let anexos = [];
+
+  try { if (linha[8]) participantes = JSON.parse(linha[8]); } catch (e) {}
+  try { if (linha[9]) anfitrioes = JSON.parse(linha[9]); } catch (e) {}
+  try { if (linha[10]) cronograma = JSON.parse(linha[10]); } catch (e) {}
+  try { if (linha[11]) itinerario = JSON.parse(linha[11]); } catch (e) {}
+  try { if (linha[12]) tour = JSON.parse(linha[12]); } catch (e) {}
+  try { if (linha[14]) anexos = JSON.parse(linha[14]); } catch (e) {}
+
+  return {
+    idVisita: String(linha[0] || ''),
+    dataCriacao: formatarData(linha[1]),
+    empresa: String(linha[2] || ''),
+    responsavelNome: String(linha[3] || ''),
+    responsavelEmail: String(linha[4] || ''),
+    responsavelTelefone: String(linha[5] || ''),
+    periodoInicio: formatarData(linha[6]),
+    periodoFim: formatarData(linha[7]),
+    participantes: participantes,
+    anfitrioes: anfitrioes,
+    cronograma: cronograma,
+    itinerario: itinerario,
+    tour: tour,
+    observacoes: String(linha[13] || ''),
+    anexos: anexos,
+    status: String(linha[15] || 'Pendente'),
+    atendente: String(linha[16] || ''),
+    tokenAcesso: String(linha[17] || ''),
+    dataDecisao: formatarData(linha[18]),
+    motivoDecisao: String(linha[19] || '')
+  };
+}
+
+/**
+ * Cria uma nova solicitação de visita corporativa a partir do formulário web.
+ */
+function criarSolicitacaoVisita(dados, arquivosBase64) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const abaVisitas = garantirAbaVisitas(ss);
+    const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+    const agora = new Date();
+    const anoAtual = agora.getFullYear();
+    const proximaLinha = abaVisitas.getLastRow() + 1;
+    const sequencial = ('0000' + (proximaLinha - 1)).slice(-4);
+    const idVisita = 'BRISA-VIS-' + anoAtual + '-' + sequencial;
+    const tokenAcesso = Utilities.getUuid().replace(/-/g, '').substring(0, 16);
+
+    // Salvar anexos e apresentações no Google Drive
+    const urlsAnexos = salvarAnexosNoDrive(idVisita, arquivosBase64);
+
+    const emailResponsavel = String(dados.responsavelEmail || '').trim().toLowerCase();
+    const nomeResponsavel = String(dados.responsavelNome || '').trim();
+    const empresa = String(dados.empresa || '').trim();
+
+    abaVisitas.appendRow([
+      idVisita,
+      agora,
+      empresa,
+      nomeResponsavel,
+      emailResponsavel,
+      String(dados.responsavelTelefone || '').trim(),
+      dados.periodoInicio || '',
+      dados.periodoFim || '',
+      JSON.stringify(dados.participantes || []),
+      JSON.stringify(dados.anfitrioes || []),
+      JSON.stringify(dados.cronograma || []),
+      JSON.stringify(dados.itinerario || []),
+      JSON.stringify(dados.tour || []),
+      String(dados.observacoes || ''),
+      JSON.stringify(sanitizarAnexosParaPlanilha(urlsAnexos)),
+      'Pendente',
+      '', // Atendente
+      tokenAcesso,
+      '', // Data decisão
+      ''  // Motivo decisão
+    ]);
+
+    // Gravar log de auditoria
+    if (abaLog) {
+      abaLog.appendRow([
+        Utilities.getUuid(),
+        idVisita,
+        agora,
+        emailResponsavel,
+        'Solicitação de Visita',
+        '',
+        'Pendente',
+        'Visita solicitada pela empresa ' + empresa + ' (' + nomeResponsavel + '). Total de visitantes: ' + (dados.participantes ? dados.participantes.length : 0),
+        'SIM'
+      ]);
+    }
+
+    // Link com Token seguro para acompanhamento pelo visitante externo
+    const urlWeb = obterUrlWebApp();
+    const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&token=' + tokenAcesso) : '';
+
+    // Enviar confirmação por e-mail ao visitante externo
+    try {
+      enviarEmailNotificacaoVisita({
+        destinatario: emailResponsavel,
+        assunto: '[brisanet] Solicitação de Visita Recebida: ' + idVisita,
+        idVisita: idVisita,
+        empresa: empresa,
+        periodo: (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || ''),
+        status: 'Pendente',
+        mensagem: 'Sua solicitação de visita à Brisanet foi recebida com sucesso e está em análise pela equipe administrativa e gestores anfitriões.',
+        linkAcompanhamento: linkAcompanhamento,
+        anexos: urlsAnexos
+      });
+    } catch (eMail) {
+      Logger.log('Aviso ao enviar e-mail de confirmação de visita: ' + eMail.message);
+    }
+
+    // Notificar administradores cadastrados
+    try {
+      const config = obterConfiguracoesIniciais();
+      const administradores = config.administradores || [];
+      const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
+
+      administradores.forEach(function(adminEmail) {
+        if (adminEmail && adminEmail.includes('@')) {
+          enviarEmailNotificacaoVisita({
+            destinatario: adminEmail,
+            assunto: '[brisanet] Nova Solicitação de Visita: ' + empresa + ' (' + idVisita + ')',
+            idVisita: idVisita,
+            empresa: empresa,
+            periodo: (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || ''),
+            status: 'Pendente',
+            mensagem: 'Nova solicitação de visita corporativa recebida de ' + empresa + ' para o período de ' + (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || '') + '. Acesse a aba Gestão de Visitas para analisar a agenda e salas.',
+            linkAcompanhamento: linkAdmin,
+            anexos: urlsAnexos
+          });
+        }
+      });
+    } catch (eAdminMail) {
+      Logger.log('Aviso ao notificar administradores de nova visita: ' + eAdminMail.message);
+    }
+
+    return {
+      sucesso: true,
+      idVisita: idVisita,
+      tokenAcesso: tokenAcesso,
+      mensagem: 'Solicitação de visita registrada com sucesso sob o protocolo ' + idVisita + '.'
+    };
+  } catch (err) {
+    Logger.log('Erro em criarSolicitacaoVisita: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Retorna a fila administrativa de visitas e os indicadores KPI.
+ */
+function obterFilaVisitas(filtro) {
+  const config = obterConfiguracoesIniciais();
+  if (!config.usuario.isAdmin) {
+    throw new Error('Acesso restrito à equipe administrativa.');
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaVisitas = garantirAbaVisitas(ss);
+
+  const dados = abaVisitas.getDataRange().getValues();
+  const visitas = [];
+
+  let pendentes = 0;
+  let aprovadas = 0;
+  let ajustes = 0;
+  let totalVisitantes = 0;
+
+  for (let i = 1; i < dados.length; i++) {
+    const item = montarObjetoVisita(dados[i]);
+    const numParticipantes = item.participantes ? item.participantes.length : 0;
+
+    if (item.status === 'Pendente' || item.status === 'Em Análise') pendentes++;
+    if (item.status === 'Aprovada') {
+      aprovadas++;
+      totalVisitantes += numParticipantes;
+    }
+    if (item.status === 'Ajuste Solicitado') ajustes++;
+
+    visitas.push(item);
+  }
+
+  // Ordenar da mais recente para a mais antiga
+  visitas.reverse();
+
+  return {
+    visitas: visitas,
+    kpis: {
+      pendentes: pendentes,
+      aprovadas: aprovadas,
+      ajustes: ajustes,
+      totalVisitantes: totalVisitantes
+    }
+  };
+}
+
+/**
+ * Recupera os dados da visita por ID ou Token seguro.
+ */
+function obterVisitaPorIdOuToken(idVisita, token) {
+  if (!idVisita) return null;
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaVisitas = garantirAbaVisitas(ss);
+
+  let isAdmin = false;
+  try {
+    const config = obterConfiguracoesIniciais();
+    isAdmin = config.usuario.isAdmin;
+  } catch (e) {}
+
+  const dados = abaVisitas.getDataRange().getValues();
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
+      const tokenGravado = String(dados[i][17] || '').trim();
+      if (isAdmin || (token && tokenGravado && token === tokenGravado)) {
+        return montarObjetoVisita(dados[i]);
+      } else {
+        throw new Error('Acesso não autorizado para esta visita.');
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Retorna o histórico de pareceres e eventos de uma solicitação de visita.
+ * Acesso autorizado para Administradores ou visitantes portando o Token seguro.
+ */
+function obterHistoricoVisita(idVisita, token) {
+  const visita = obterVisitaPorIdOuToken(idVisita, token);
+  if (!visita) return [];
+
+  let isAdmin = false;
+  try {
+    const config = obterConfiguracoesIniciais();
+    isAdmin = config.usuario.isAdmin;
+  } catch (e) {}
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaLog = ss.getSheetByName('LOG_INTERACOES');
+  if (!abaLog) return [];
+
+  const dados = abaLog.getDataRange().getValues();
+  const logs = [];
+
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][1]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
+      const visivel = dados[i][8] === 'SIM';
+      if (isAdmin || visivel) {
+        logs.push({
+          idLog: dados[i][0],
+          dataHora: formatarData(dados[i][2]),
+          autor: dados[i][3],
+          tipoAcao: dados[i][4],
+          statusAnterior: dados[i][5],
+          novoStatus: dados[i][6],
+          mensagem: dados[i][7],
+          visivelSolicitante: visivel
+        });
+      }
+    }
+  }
+
+  return logs;
+}
+
+
+/**
+ * Atualiza o status da visita (Aprovação, Ajuste ou Reprovação) com disparo de e-mail.
+ */
+function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail) {
+  const config = obterConfiguracoesIniciais();
+  if (!config.usuario.isAdmin) {
+    throw new Error('Apenas administradores podem atualizar o status da visita.');
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaVisitas = garantirAbaVisitas(ss);
+  const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+  const dados = abaVisitas.getDataRange().getValues();
+  let linhaEncontrada = -1;
+  let visitaObj = null;
+
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
+      linhaEncontrada = i + 1;
+      visitaObj = montarObjetoVisita(dados[i]);
+      break;
+    }
+  }
+
+  if (linhaEncontrada === -1 || !visitaObj) {
+    throw new Error('Visita não encontrada: ' + idVisita);
+  }
+
+  const agora = new Date();
+  const emailAtendente = atendenteEmail || Session.getActiveUser().getEmail();
+
+  // Coluna 16: STATUS, 17: ATENDENTE, 19: DATA_DECISAO, 20: MOTIVO_DECISAO
+  abaVisitas.getRange(linhaEncontrada, 16).setValue(novoStatus);
+  abaVisitas.getRange(linhaEncontrada, 17).setValue(emailAtendente);
+  abaVisitas.getRange(linhaEncontrada, 19).setValue(agora);
+  abaVisitas.getRange(linhaEncontrada, 20).setValue(motivoParecer || '');
+
+  // Log de Auditoria
+  if (abaLog) {
+    abaLog.appendRow([
+      Utilities.getUuid(),
+      idVisita,
+      agora,
+      emailAtendente,
+      'Decisão de Visita (' + novoStatus + ')',
+      visitaObj.status,
+      novoStatus,
+      motivoParecer || ('Status alterado para ' + novoStatus),
+      'SIM'
+    ]);
+  }
+
+  // Notificar visitante por e-mail com visual institucional
+  const urlWeb = obterUrlWebApp();
+  const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&token=' + visitaObj.tokenAcesso) : '';
+
+  try {
+    let mensagemStatus = '';
+    if (novoStatus === 'Aprovada') {
+      mensagemStatus = 'Sua solicitação de visita à Brisanet foi APROVADA. Os participantes cadastrados estão autorizados a acessar as instalações e salas indicadas no itinerário oficial.';
+    } else if (novoStatus === 'Ajuste Solicitado') {
+      mensagemStatus = 'A equipe administrativa da Brisanet solicitou um ajuste de agenda, sala ou horário em sua visita:\n\n"' + (motivoParecer || '') + '"\n\nPor favor, acesse o link para responder com os novos horários ou esclarecimentos.';
+    } else if (novoStatus === 'Reprovada') {
+      mensagemStatus = 'Sua solicitação de visita à Brisanet não pôde ser aprovada no momento.\n\nMotivo: ' + (motivoParecer || 'Incompatibilidade de agenda ou indisponibilidade de salas.');
+    } else {
+      mensagemStatus = 'O status da sua solicitação de visita foi atualizado para: ' + novoStatus + '.\n\nParecer: ' + (motivoParecer || 'Sem observações adicionais.');
+    }
+
+    enviarEmailNotificacaoVisita({
+      destinatario: visitaObj.responsavelEmail,
+      assunto: '[brisanet] Visita ' + idVisita + ': ' + novoStatus,
+      idVisita: idVisita,
+      empresa: visitaObj.empresa,
+      periodo: visitaObj.periodoInicio + ' a ' + visitaObj.periodoFim,
+      status: novoStatus,
+      mensagem: mensagemStatus,
+      linkAcompanhamento: linkAcompanhamento
+    });
+  } catch (eMail) {
+    Logger.log('Aviso ao notificar visitante sobre status: ' + eMail.message);
+  }
+
+  return { sucesso: true, mensagem: 'Status da visita atualizado para ' + novoStatus + '.' };
+}
+
+/**
+ * Permite ao visitante externo enviar respostas e novos anexos via link seguro.
+ */
+function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase64) {
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaVisitas = garantirAbaVisitas(ss);
+  const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+  const dados = abaVisitas.getDataRange().getValues();
+  let linhaEncontrada = -1;
+  let visitaObj = null;
+
+  for (let i = 1; i < dados.length; i++) {
+    if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
+      linhaEncontrada = i + 1;
+      visitaObj = montarObjetoVisita(dados[i]);
+      break;
+    }
+  }
+
+  if (linhaEncontrada === -1 || !visitaObj) {
+    throw new Error('Visita não encontrada.');
+  }
+
+  if (visitaObj.tokenAcesso !== token) {
+    throw new Error('Token de acesso inválido.');
+  }
+
+  const agora = new Date();
+  const novosAnexos = salvarAnexosNoDrive(idVisita, arquivosBase64);
+
+  // Atualizar lista de anexos
+  let anexosExistentes = visitaObj.anexos || [];
+  if (novosAnexos.length > 0) {
+    anexosExistentes = anexosExistentes.concat(novosAnexos);
+    abaVisitas.getRange(linhaEncontrada, 15).setValue(JSON.stringify(sanitizarAnexosParaPlanilha(anexosExistentes)));
+  }
+
+  // Se o status estava 'Ajuste Solicitado', volta para 'Em Análise'
+  if (visitaObj.status === 'Ajuste Solicitado') {
+    abaVisitas.getRange(linhaEncontrada, 16).setValue('Em Análise');
+  }
+
+  // Gravar no log de interações
+  let textoLog = respostaTexto ? respostaTexto.trim() : '';
+  if (novosAnexos.length > 0) {
+    const nomes = novosAnexos.map(function(a) { return a.nome; }).join(', ');
+    textoLog += (textoLog ? '\n\n' : '') + 'Anexos adicionados pelo visitante: ' + nomes;
+  }
+
+  if (abaLog) {
+    abaLog.appendRow([
+      Utilities.getUuid(),
+      idVisita,
+      agora,
+      visitaObj.responsavelEmail,
+      'Resposta do Visitante',
+      visitaObj.status,
+      (visitaObj.status === 'Ajuste Solicitado' ? 'Em Análise' : visitaObj.status),
+      textoLog,
+      'SIM'
+    ]);
+  }
+
+  // Notificar atendente/admins
+  try {
+    const urlWeb = obterUrlWebApp();
+    const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
+    const destinatarioAdmin = visitaObj.atendente || 'telefonia@brisanet.com.br';
+
+    enviarEmailNotificacaoVisita({
+      destinatario: destinatarioAdmin,
+      assunto: '[brisanet] Resposta do Visitante (' + visitaObj.empresa + '): ' + idVisita,
+      idVisita: idVisita,
+      empresa: visitaObj.empresa,
+      periodo: visitaObj.periodoInicio + ' a ' + visitaObj.periodoFim,
+      status: 'Em Análise',
+      mensagem: 'O visitante ' + visitaObj.responsavelNome + ' respondeu ao chamado da visita:\n\n"' + (respostaTexto || 'Novos documentos anexados.') + '"',
+      linkAcompanhamento: linkAdmin,
+      anexos: novosAnexos
+    });
+  } catch (eNotif) {
+    Logger.log('Aviso ao notificar admin de resposta de visitante: ' + eNotif.message);
+  }
+
+  return { sucesso: true, mensagem: 'Resposta enviada com sucesso!' };
+}
+
+/**
+ * Template corporativo oficial de e-mail para Gestão de Visitas Externas (brisanet).
+ */
+function enviarEmailNotificacaoVisita(params) {
+  const emailAutor = Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
+  const nomeAutor = emailAutor.split('@')[0].replace('.', ' ');
+  const nomeFormatado = nomeAutor.charAt(0).toUpperCase() + nomeAutor.slice(1);
+
+  const statusCor = {
+    'Aprovada': '#059669',
+    'Pendente': '#0B316D',
+    'Em Análise': '#D97706',
+    'Ajuste Solicitado': '#EA580C',
+    'Reprovada': '#DC2626'
+  }[params.status] || '#0B316D';
+
+  const link = params.linkAcompanhamento || '';
+
+  // 1. Processar anexos físicos se fornecidos
+  const blobsAnexos = [];
+  if (params.anexos && Array.isArray(params.anexos)) {
+    for (let i = 0; i < params.anexos.length; i++) {
+      try {
+        const b = obterBlobDoAnexo(params.anexos[i]);
+        if (b) blobsAnexos.push(b);
+      } catch (eB) {}
+    }
+  }
+
+  const htmlCorpo = [
+    '<!DOCTYPE html>',
+    '<html>',
+    '<head><meta charset="UTF-8"></head>',
+    '<body style="background-color: #F8FAFC; font-family: Arial, sans-serif; margin: 0; padding: 24px;">',
+    '  <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E8E8E8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">',
+    '    <div style="height: 5px; background: linear-gradient(90deg, #FF5022, #E47D20);"></div>',
+    '    <div style="background-color: #0B316D; padding: 24px; color: #FFFFFF;">',
+    '      <div style="font-size: 19px; font-weight: 700; margin: 0;">',
+    '        <span>brisanet</span> <span style="color: #94A3B8; font-weight: 300;">|</span> <span>Gestão de Visitas Corporativas</span>',
+    '      </div>',
+    '      <div style="font-size: 11px; font-weight: 600; color: #E2E8F0; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">',
+    '        GERÊNCIA EXECUTIVA DE TELEFONIA &bull; BRISANET',
+    '      </div>',
+    '    </div>',
+    '    <div style="padding: 28px 24px; color: #1E293B;">',
+    '      <div style="display: flex; gap: 8px; margin-bottom: 18px;">',
+    '        <span style="display: inline-block; padding: 5px 12px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; font-size: 13px; font-weight: 700; color: #0B316D;">Protocolo: ' + params.idVisita + '</span>',
+    '        <span style="display: inline-block; padding: 5px 12px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 700; color: ' + statusCor + ';">Status: ' + params.status + '</span>',
+    '      </div>',
+    '      <h2 style="margin: 0 0 14px 0; font-size: 17px; font-weight: 700; color: #0F172A;">',
+    '        Solicitação de Visita &bull; ' + params.empresa,
+    '      </h2>',
+    '      <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; font-size: 12px; color: #475569; line-height: 1.6;">',
+    '        <div><strong>Empresa Visitante:</strong> ' + params.empresa + '</div>',
+    '        <div><strong>Período Previsto:</strong> ' + (params.periodo || 'A definir') + '</div>',
+    '      </div>',
+    '      <div style="background-color: #F8FAFC; border-left: 4px solid #FF5022; border-top: 1px solid #E8E8E8; border-right: 1px solid #E8E8E8; border-bottom: 1px solid #E8E8E8; border-radius: 0 10px 10px 0; padding: 16px; margin-bottom: 22px;">',
+    '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">Parecer / Comunicado:</div>',
+    '        <div style="font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + params.mensagem + '</div>',
+    '      </div>',
+    (link ? [
+      '      <div style="margin: 24px 0; text-align: center;">',
+      '        <a href="' + link + '" target="_blank" style="display: inline-block; width: 100%; max-width: 380px; padding: 13px 22px; background-color: #0B316D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(11, 49, 109, 0.2); text-align: center; box-sizing: border-box;">',
+      '          Acompanhar Solicitação de Visita &rarr;',
+      '        </a>',
+      '        <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">Acesse para consultar itinerário, pareceres ou enviar esclarecimentos</div>',
+      '      </div>'
+    ].join('\n') : ''),
+    '      <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; margin-bottom: 15px; font-size: 12px; color: #78350F; line-height: 1.5;">',
+    '        <strong>COMUNICADO:</strong> Respostas enviadas diretamente por e-mail não são processadas. ' + (link ? '<a href="' + link + '" target="_blank" style="color: #0B316D; font-weight: 700; text-decoration: underline;">Clique aqui para responder pelo painel seguro</a>.' : 'Acesse o painel web para interagir.'),
+    '      </div>',
+    '    </div>',
+    '    <div style="background-color: #F8FAFC; padding: 16px 24px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E8E8E8;">',
+    '      Gestão de Visitas Corporativas &bull; Gerência Executiva de Telefonia &bull; brisanet',
+    '    </div>',
+    '  </div>',
+    '</body></html>'
+  ].join('\n');
+
+  const textoPlano = [
+    'Solicitação de Visita: ' + params.idVisita,
+    'Empresa: ' + params.empresa,
+    'Status: ' + params.status,
+    '',
+    'Mensagem / Parecer:',
+    params.mensagem,
+    '',
+    (link ? 'Acesse o link seguro para acompanhar e responder:\n' + link + '\n\n' : ''),
+    'Gestão de Telefonia - Brisanet'
+  ].join('\n');
+
+  const options = {
+    htmlBody: htmlCorpo,
+    name: 'Gestão de Visitas | brisanet',
+    replyTo: 'nao-responda@grupobrisanet.com.br'
+  };
+  if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
+
+  try {
+    GmailApp.sendEmail(params.destinatario, params.assunto, textoPlano, options);
+  } catch (e1) {
+    try {
+      MailApp.sendEmail({
+        to: params.destinatario,
+        subject: params.assunto,
+        body: textoPlano,
+        htmlBody: htmlCorpo,
+        name: 'Gestão de Visitas | brisanet',
+        replyTo: 'nao-responda@grupobrisanet.com.br',
+        attachments: blobsAnexos
+      });
+    } catch (e2) {
+      Logger.log('Erro ao enviar e-mail de visita: ' + e2.message);
+    }
+  }
 }
