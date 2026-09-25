@@ -9,17 +9,7 @@
  */
 
 function doGet(e) {
-  const template = HtmlService.createTemplateFromFile('Index');
-
-  // Capturar parâmetros de URL para redirecionamento direto a um chamado
-  const idChamadoParam = (e && e.parameter && (e.parameter.chamado || e.parameter.id)) ? String(e.parameter.chamado || e.parameter.id).trim() : '';
-  const abaParam = (e && e.parameter && e.parameter.aba) ? String(e.parameter.aba).trim() : '';
-
-  template.urlParamChamado = idChamadoParam;
-  template.urlParamAba = abaParam;
-
-  return template
-    .evaluate()
+  return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Painel de Chamados Administrativos | Gestão de Telefonia')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

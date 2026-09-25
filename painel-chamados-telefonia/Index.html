@@ -603,10 +603,6 @@
 
   <!-- Lógica JavaScript do Cliente -->
   <script>
-    // Variáveis injetadas pelo template do Google Apps Script (doGet)
-    const URL_PARAM_CHAMADO = '<?= urlParamChamado ?>';
-    const URL_PARAM_ABA = '<?= urlParamAba ?>';
-
     let appState = {
       usuario: null,
       gerencias: [],
@@ -636,24 +632,15 @@
       let idChamado = '';
       let aba = '';
 
-      if (typeof URL_PARAM_CHAMADO !== 'undefined' && URL_PARAM_CHAMADO && !URL_PARAM_CHAMADO.includes('<?=') ) {
-        idChamado = URL_PARAM_CHAMADO.trim();
-      }
-      if (typeof URL_PARAM_ABA !== 'undefined' && URL_PARAM_ABA && !URL_PARAM_ABA.includes('<?=') ) {
-        aba = URL_PARAM_ABA.trim();
-      }
-
-      if (!idChamado) {
-        try {
-          const params = new URLSearchParams(window.location.search);
-          idChamado = params.get('chamado') || params.get('id') || '';
-          if (!aba) aba = params.get('aba') || '';
-        } catch (e) {}
-      }
+      try {
+        const params = new URLSearchParams(window.location.search);
+        idChamado = params.get('chamado') || params.get('id') || '';
+        aba = params.get('aba') || '';
+      } catch (e) {}
 
       if (idChamado) {
-        appState.chamadoUrlPendente = idChamado;
-        appState.abaUrlPendente = aba || 'meus';
+        appState.chamadoUrlPendente = idChamado.trim();
+        appState.abaUrlPendente = aba ? aba.trim() : 'meus';
       }
 
       // Suporte para Web App executado dentro do iframe do Google Apps Script
@@ -663,12 +650,12 @@
             const paramId = loc.parameter.chamado || loc.parameter.id;
             const paramAba = loc.parameter.aba || 'meus';
             if (paramId && !appState.chamadoUrlProcessado) {
-              appState.chamadoUrlPendente = paramId;
-              appState.abaUrlPendente = paramAba;
+              appState.chamadoUrlPendente = String(paramId).trim();
+              appState.abaUrlPendente = String(paramAba).trim();
               if (appState.usuario) {
                 const destino = (paramAba === 'fila' && appState.usuario.isAdmin) ? 'fila' : 'meus';
                 navegarAba(destino);
-                processarAberturaDiretaChamado(paramId);
+                processarAberturaDiretaChamado(appState.chamadoUrlPendente);
               }
             }
           }
