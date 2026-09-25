@@ -48,7 +48,17 @@ function setupSistema() {
   configurarAbaLogInteracoes(planilha);
   configurarAbaConfiguracoes(planilha);
 
-  // 4. Salvar referências de forma persistente nas ScriptProperties
+  // 4. Configurar permissões de acesso no domínio para execução como 'USER_ACCESSING'
+  try {
+    pastaRaiz.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.EDIT);
+    const arquivoPlanilha = DriveApp.getFileById(spreadsheetId);
+    arquivoPlanilha.setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.EDIT);
+    Logger.log('Permissões de edição no domínio configuradas com sucesso.');
+  } catch (errPerm) {
+    Logger.log('Aviso ao aplicar compartilhamento de domínio: ' + errPerm.message);
+  }
+
+  // 5. Salvar referências de forma persistente nas ScriptProperties
   const props = PropertiesService.getScriptProperties();
   props.setProperties({
     'SPREADSHEET_ID': spreadsheetId,
@@ -69,6 +79,37 @@ function setupSistema() {
     folderId: folderId,
     folderUrl: pastaRaiz.getUrl()
   };
+}
+
+/**
+ * Garante que a pasta raiz e a planilha possuam permissão de edição no domínio.
+ * Execute esta função caso tenha criado o ambiente anteriormente e deseje habilitar
+ * o envio de e-mails em nome de cada atendente sob USER_ACCESSING.
+ */
+function garantirPermissoesAmbiente() {
+  const props = PropertiesService.getScriptProperties();
+  const folderId = props.getProperty('ROOT_FOLDER_ID');
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+
+  if (folderId) {
+    try {
+      DriveApp.getFolderById(folderId).setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.EDIT);
+      Logger.log('Pasta do Drive compartilhada com o domínio.');
+    } catch (e) {
+      Logger.log('Aviso pasta: ' + e.message);
+    }
+  }
+
+  if (spreadsheetId) {
+    try {
+      DriveApp.getFileById(spreadsheetId).setSharing(DriveApp.Access.DOMAIN_WITH_LINK, DriveApp.Permission.EDIT);
+      Logger.log('Planilha compartilhada com o domínio.');
+    } catch (e) {
+      Logger.log('Aviso planilha: ' + e.message);
+    }
+  }
+
+  return 'Permissões atualizadas com sucesso!';
 }
 
 /**

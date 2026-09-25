@@ -433,7 +433,23 @@
             </select>
           </div>
 
-          <button onclick="executarSalvarInteracao()" class="w-full mt-2 py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors">
+          <!-- Anexos do Atendente -->
+          <div class="pt-1.5 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[11px] font-bold text-slate-600 uppercase">Anexar Arquivo / Parecer Técnico</label>
+              <span id="adminArquivosCount" class="text-[11px] text-slate-400">0 selecionado(s)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label for="adminArquivosAnexo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-sm">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                <span>Selecionar Arquivo</span>
+              </label>
+              <input type="file" id="adminArquivosAnexo" multiple onchange="atualizarListaArquivosAdmin(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.rar">
+            </div>
+            <div id="adminListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
+          </div>
+
+          <button onclick="executarSalvarInteracao()" class="w-full mt-2 py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors shadow-sm">
             Registrar Interação & Atualizar
           </button>
         </div>
@@ -456,6 +472,22 @@
           <label class="block text-[11px] font-bold text-slate-600 uppercase">Escreva sua resposta ou esclarecimento</label>
           <textarea id="drawerTextoRespostaSolicitante" rows="3" placeholder="Digite sua resposta, esclarecimentos adicionais ou informações solicitadas pelo atendente..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
           
+          <!-- Anexos do Solicitante -->
+          <div class="pt-1.5 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1">
+              <label class="block text-[11px] font-bold text-slate-600 uppercase">Anexar Documento / Comprovante</label>
+              <span id="solicitanteArquivosCount" class="text-[11px] text-slate-400">0 selecionado(s)</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <label for="solicitanteArquivosAnexo" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-colors shadow-sm">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                <span>Selecionar Arquivo</span>
+              </label>
+              <input type="file" id="solicitanteArquivosAnexo" multiple onchange="atualizarListaArquivosSolicitante(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.rar">
+            </div>
+            <div id="solicitanteListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
+          </div>
+
           <button id="btnEnviarRespostaSolicitante" onclick="executarEnviarRespostaSolicitante()" class="w-full py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
             <span>Enviar Resposta ao Atendente</span>
@@ -475,6 +507,8 @@
       meusChamados: [],
       chamadoSelecionado: null,
       arquivosSelecionados: [],
+      arquivosSolicitante: [],
+      arquivosAdmin: [],
       abaAtiva: 'nova'
     };
 
@@ -714,6 +748,55 @@
       });
     }
 
+    function atualizarListaArquivosAdmin(e) {
+      const files = Array.from(e.target.files);
+      appState.arquivosAdmin = files;
+      const container = document.getElementById('adminListaArquivosContainer');
+      const countLabel = document.getElementById('adminArquivosCount');
+      if (countLabel) countLabel.textContent = files.length + ' selecionado(s)';
+      if (!container) return;
+      container.innerHTML = '';
+
+      files.forEach(function(file) {
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 shadow-sm';
+        chip.innerHTML = '<span>' + file.name + '</span><span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>';
+        container.appendChild(chip);
+      });
+    }
+
+    function atualizarListaArquivosSolicitante(e) {
+      const files = Array.from(e.target.files);
+      appState.arquivosSolicitante = files;
+      const container = document.getElementById('solicitanteListaArquivosContainer');
+      const countLabel = document.getElementById('solicitanteArquivosCount');
+      if (countLabel) countLabel.textContent = files.length + ' selecionado(s)';
+      if (!container) return;
+      container.innerHTML = '';
+
+      files.forEach(function(file) {
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2 py-1 text-[11px] text-slate-700 shadow-sm';
+        chip.innerHTML = '<span>' + file.name + '</span><span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>';
+        container.appendChild(chip);
+      });
+    }
+
+    function renderizarAnexosDrawer(anexos) {
+      const secaoAnexos = document.getElementById('drawerSecaoAnexos');
+      const listaAnexos = document.getElementById('drawerListaAnexos');
+      if (!secaoAnexos || !listaAnexos) return;
+      listaAnexos.innerHTML = '';
+      if (anexos && anexos.length > 0) {
+        secaoAnexos.classList.remove('hidden');
+        anexos.forEach(function(a) {
+          listaAnexos.innerHTML += '<a href="' + a.url + '" target="_blank" class="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-brisa-blue hover:underline"><svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><span class="truncate">' + a.nome + '</span></a>';
+        });
+      } else {
+        secaoAnexos.classList.add('hidden');
+      }
+    }
+
     async function enviarNovoChamado(e) {
       e.preventDefault();
       const btn = document.getElementById('btnSalvarChamado');
@@ -787,18 +870,24 @@
       document.getElementById('drawerDescricao').textContent = chamado.descricao;
       document.getElementById('drawerBadgeStatus').innerHTML = renderBadgeStatus(chamado.status);
 
+      // Reset de anexos dos drawers
+      appState.arquivosAdmin = [];
+      appState.arquivosSolicitante = [];
+      const inputAdmin = document.getElementById('adminArquivosAnexo');
+      if (inputAdmin) inputAdmin.value = '';
+      const inputSolicitante = document.getElementById('solicitanteArquivosAnexo');
+      if (inputSolicitante) inputSolicitante.value = '';
+      const containerAdmin = document.getElementById('adminListaArquivosContainer');
+      if (containerAdmin) containerAdmin.innerHTML = '';
+      const containerSolicitante = document.getElementById('solicitanteListaArquivosContainer');
+      if (containerSolicitante) containerSolicitante.innerHTML = '';
+      const countAdmin = document.getElementById('adminArquivosCount');
+      if (countAdmin) countAdmin.textContent = '0 selecionado(s)';
+      const countSolicitante = document.getElementById('solicitanteArquivosCount');
+      if (countSolicitante) countSolicitante.textContent = '0 selecionado(s)';
+
       // Render Anexos
-      const secaoAnexos = document.getElementById('drawerSecaoAnexos');
-      const listaAnexos = document.getElementById('drawerListaAnexos');
-      listaAnexos.innerHTML = '';
-      if (chamado.anexos && chamado.anexos.length > 0) {
-        secaoAnexos.classList.remove('hidden');
-        chamado.anexos.forEach(function(a) {
-          listaAnexos.innerHTML += '<a href="' + a.url + '" target="_blank" class="flex items-center gap-2 p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-brisa-blue hover:underline"><svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>' + a.nome + '</a>';
-        });
-      } else {
-        secaoAnexos.classList.add('hidden');
-      }
+      renderizarAnexosDrawer(chamado.anexos);
 
       // Bloco de Atendimento exclusivo do Administrador vs Solicitante
       const blocoAcoesAdmin = document.getElementById('drawerAcoesAdmin');
@@ -846,6 +935,15 @@
       document.getElementById('drawerAtendimento').classList.add('translate-x-full');
     }
 
+    function formatarMensagemTimeline(msg) {
+      if (!msg) return '';
+      let seguro = msg.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return seguro.replace(urlRegex, function(url) {
+        return '<a href="' + url + '" target="_blank" class="text-brisa-blue font-semibold hover:underline inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-brisa-blue inline flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>' + url + '</a>';
+      });
+    }
+
     function carregarHistoricoDrawer(idChamado) {
       const container = document.getElementById('drawerTimeline');
       container.innerHTML = '<div class="text-xs text-slate-400">Carregando linha do tempo...</div>';
@@ -859,23 +957,35 @@
           let html = '';
           logs.forEach(function(l) {
             const isNotaInterna = !l.visivelSolicitante;
-            const badgeNota = isNotaInterna 
-              ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">Nota Interna</span>'
-              : '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-brisa-blue border border-blue-200">Resposta ao Solicitante</span>';
+            const isRespostaSolicitante = l.tipoAcao === 'Resposta do Solicitante';
 
-            const bgCaixa = isNotaInterna 
-              ? 'bg-amber-50/70 border-amber-200/80 text-amber-950'
-              : 'bg-slate-50 border-slate-100 text-slate-700';
+            let badgeNota = '';
+            let dotColor = 'bg-brisa-blue';
+            let bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+
+            if (isNotaInterna) {
+              badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">Nota Interna</span>';
+              dotColor = 'bg-amber-500';
+              bgCaixa = 'bg-amber-50/70 border-amber-200/80 text-amber-950';
+            } else if (isRespostaSolicitante) {
+              badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">Resposta do Solicitante</span>';
+              dotColor = 'bg-emerald-600';
+              bgCaixa = 'bg-emerald-50/60 border-emerald-200 text-slate-800';
+            } else {
+              badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-brisa-blue border border-blue-200">Resposta ao Solicitante</span>';
+              dotColor = 'bg-brisa-blue';
+              bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+            }
 
             html += '<div class="relative mb-3.5">';
-            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + (isNotaInterna ? 'bg-amber-500' : 'bg-brisa-blue') + ' border-2 border-white"></div>';
+            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + dotColor + ' border-2 border-white"></div>';
             html += '<div class="flex items-center gap-2 mb-1">';
             html += badgeNota;
             html += '<span class="text-[11px] text-slate-400 font-rubik">' + l.dataHora + ' • ' + l.autor + '</span>';
             html += '</div>';
             html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + l.tipoAcao + (l.novoStatus ? ' (' + l.novoStatus + ')' : '') + '</div>';
             if (l.mensagem) {
-              html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + l.mensagem + '</div>';
+              html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + formatarMensagemTimeline(l.mensagem) + '</div>';
             }
             html += '</div>';
           });
@@ -899,43 +1009,99 @@
         .assumirChamado(appState.chamadoSelecionado.idChamado);
     }
 
-    function executarSalvarInteracao() {
+    async function executarSalvarInteracao() {
       if (!appState.chamadoSelecionado) return;
       const msg = document.getElementById('drawerMensagemFeedback').value;
       const status = document.getElementById('drawerAlterarStatus').value;
       const notaInterna = document.getElementById('drawerNotaInterna').checked;
+      const arquivos = appState.arquivosAdmin || [];
 
-      if (!msg && !status) {
-        alert('Digite uma mensagem de parecer ou selecione um novo status.');
+      if (!msg && !status && arquivos.length === 0) {
+        alert('Digite uma mensagem de parecer, selecione um novo status ou anexe um arquivo.');
         return;
+      }
+
+      const btn = document.querySelector('button[onclick="executarSalvarInteracao()"]');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Registrando interação...';
+      }
+
+      // Converter arquivos para Base64
+      const arquivosBase64 = [];
+      for (let i = 0; i < arquivos.length; i++) {
+        const file = arquivos[i];
+        const base64 = await toBase64(file);
+        arquivosBase64.push({
+          nome: file.name,
+          tipo: file.type,
+          base64: base64
+        });
       }
 
       google.script.run
         .withSuccessHandler(function(res) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Registrar Interação & Atualizar';
+          }
           if (res.sucesso) {
             alert('Atualização registrada com sucesso!');
             document.getElementById('drawerMensagemFeedback').value = '';
             document.getElementById('drawerAlterarStatus').value = '';
+            appState.arquivosAdmin = [];
+            const inputAdmin = document.getElementById('adminArquivosAnexo');
+            if (inputAdmin) inputAdmin.value = '';
+            const containerAdmin = document.getElementById('adminListaArquivosContainer');
+            if (containerAdmin) containerAdmin.innerHTML = '';
+            const countAdmin = document.getElementById('adminArquivosCount');
+            if (countAdmin) countAdmin.textContent = '0 selecionado(s)';
+
+            if (res.chamadoAtualizado && res.chamadoAtualizado.anexos) {
+              appState.chamadoSelecionado.anexos = res.chamadoAtualizado.anexos;
+              renderizarAnexosDrawer(res.chamadoAtualizado.anexos);
+            }
+            carregarHistoricoDrawer(appState.chamadoSelecionado.idChamado);
             carregarDados();
-            fecharDrawer();
           } else {
             alert('Erro: ' + res.erro);
           }
         })
-        .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna);
+        .withFailureHandler(function(err) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Registrar Interação & Atualizar';
+          }
+          alert('Erro: ' + err.message);
+        })
+        .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna, arquivosBase64);
     }
 
-    function executarEnviarRespostaSolicitante() {
+    async function executarEnviarRespostaSolicitante() {
       if (!appState.chamadoSelecionado) return;
       const texto = document.getElementById('drawerTextoRespostaSolicitante').value;
-      if (!texto || !texto.trim()) {
-        alert('Por favor, digite sua resposta ou esclarecimento.');
+      const arquivos = appState.arquivosSolicitante || [];
+
+      if ((!texto || !texto.trim()) && arquivos.length === 0) {
+        alert('Por favor, digite sua resposta ou anexe um arquivo para enviar.');
         return;
       }
 
       const btn = document.getElementById('btnEnviarRespostaSolicitante');
       btn.disabled = true;
       btn.innerHTML = '<span>Enviando resposta...</span>';
+
+      // Converter arquivos para Base64
+      const arquivosBase64 = [];
+      for (let i = 0; i < arquivos.length; i++) {
+        const file = arquivos[i];
+        const base64 = await toBase64(file);
+        arquivosBase64.push({
+          nome: file.name,
+          tipo: file.type,
+          base64: base64
+        });
+      }
 
       google.script.run
         .withSuccessHandler(function(res) {
@@ -944,9 +1110,21 @@
           if (res.sucesso) {
             alert(res.mensagem || 'Resposta enviada com sucesso!');
             document.getElementById('drawerTextoRespostaSolicitante').value = '';
+            appState.arquivosSolicitante = [];
+            const inputSol = document.getElementById('solicitanteArquivosAnexo');
+            if (inputSol) inputSol.value = '';
+            const containerSol = document.getElementById('solicitanteListaArquivosContainer');
+            if (containerSol) containerSol.innerHTML = '';
+            const countSol = document.getElementById('solicitanteArquivosCount');
+            if (countSol) countSol.textContent = '0 selecionado(s)';
+
             if (appState.chamadoSelecionado.status === 'Aguardando Retorno') {
               appState.chamadoSelecionado.status = 'Em Atendimento';
               document.getElementById('drawerBadgeStatus').innerHTML = renderBadgeStatus('Em Atendimento');
+            }
+            if (res.chamadoAtualizado && res.chamadoAtualizado.anexos) {
+              appState.chamadoSelecionado.anexos = res.chamadoAtualizado.anexos;
+              renderizarAnexosDrawer(res.chamadoAtualizado.anexos);
             }
             carregarHistoricoDrawer(appState.chamadoSelecionado.idChamado);
             carregarMeusChamados();
@@ -962,7 +1140,7 @@
           btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Enviar Resposta ao Atendente</span>';
           alert('Erro de comunicação: ' + err.message);
         })
-        .adicionarRespostaSolicitante(appState.chamadoSelecionado.idChamado, texto);
+        .adicionarRespostaSolicitante(appState.chamadoSelecionado.idChamado, texto, arquivosBase64);
     }
 
     function toBase64(file) {

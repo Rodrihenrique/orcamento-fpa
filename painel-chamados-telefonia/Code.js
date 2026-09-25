@@ -60,13 +60,58 @@ function obterConfiguracoesIniciais() {
 }
 
 /**
+ * Salva arquivos codificados em Base64 no Google Drive na pasta do chamado.
+ * Retorna array de objetos com { nome, url }.
+ */
+function salvarAnexosNoDrive(idChamado, arquivosBase64) {
+  const anexosSalvos = [];
+  if (!arquivosBase64 || arquivosBase64.length === 0) return anexosSalvos;
+
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const rootFolderId = props.getProperty('ROOT_FOLDER_ID');
+    if (!rootFolderId) return anexosSalvos;
+
+    const pastaRaiz = DriveApp.getFolderById(rootFolderId);
+    const anoAtual = new Date().getFullYear();
+
+    // Pasta do Ano
+    let pastaAno = pastaRaiz.getFoldersByName(String(anoAtual));
+    pastaAno = pastaAno.hasNext() ? pastaAno.next() : pastaRaiz.createFolder(String(anoAtual));
+
+    // Pasta do Chamado
+    let pastaChamado = pastaAno.getFoldersByName(idChamado);
+    pastaChamado = pastaChamado.hasNext() ? pastaChamado.next() : pastaAno.createFolder(idChamado);
+
+    arquivosBase64.forEach(function(arq) {
+      try {
+        const contentType = arq.tipo || 'application/octet-stream';
+        const bytes = Utilities.base64Decode(arq.base64.split(',')[1] || arq.base64);
+        const blob = Utilities.newBlob(bytes, contentType, arq.nome);
+        const arquivoSalvo = pastaChamado.createFile(blob);
+        arquivoSalvo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        anexosSalvos.push({
+          nome: arq.nome,
+          url: arquivoSalvo.getUrl()
+        });
+      } catch (errUpload) {
+        Logger.log('Erro ao salvar anexo ' + arq.nome + ': ' + errUpload.message);
+      }
+    });
+  } catch (err) {
+    Logger.log('Erro geral ao processar anexos no Drive: ' + err.message);
+  }
+
+  return anexosSalvos;
+}
+
+/**
  * Cria um novo chamado com upload multi-formato no Google Drive.
  */
 function criarChamado(dados, arquivosBase64) {
   try {
     const props = PropertiesService.getScriptProperties();
     const spreadsheetId = props.getProperty('SPREADSHEET_ID');
-    const rootFolderId = props.getProperty('ROOT_FOLDER_ID');
     
     const ss = SpreadsheetApp.openById(spreadsheetId);
     const abaChamados = ss.getSheetByName('CHAMADOS');
@@ -79,33 +124,7 @@ function criarChamado(dados, arquivosBase64) {
     const idChamado = 'BRISA-TEL-' + anoAtual + '-' + sequencial;
 
     // 1. Processar e salvar múltiplos anexos no Google Drive
-    const urlsAnexos = [];
-    if (arquivosBase64 && arquivosBase64.length > 0 && rootFolderId) {
-      const pastaRaiz = DriveApp.getFolderById(rootFolderId);
-      
-      // Pasta do Ano
-      let pastaAno = pastaRaiz.getFoldersByName(String(anoAtual));
-      pastaAno = pastaAno.hasNext() ? pastaAno.next() : pastaRaiz.createFolder(String(anoAtual));
-      
-      // Pasta específica do Chamado
-      const pastaChamado = pastaAno.createFolder(idChamado);
-      
-      arquivosBase64.forEach(function(arq) {
-        try {
-          const contentType = arq.tipo || 'application/octet-stream';
-          const bytes = Utilities.base64Decode(arq.base64.split(',')[1] || arq.base64);
-          const blob = Utilities.newBlob(bytes, contentType, arq.nome);
-          const arquivoSalvo = pastaChamado.createFile(blob);
-          arquivoSalvo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-          urlsAnexos.push({
-            nome: arq.nome,
-            url: arquivoSalvo.getUrl()
-          });
-        } catch (errUpload) {
-          Logger.log('Erro ao salvar anexo ' + arq.nome + ': ' + errUpload.message);
-        }
-      });
-    }
+    const urlsAnexos = salvarAnexosNoDrive(idChamado, arquivosBase64);
 
     const emailSolicitante = Session.getActiveUser().getEmail() || dados.email || 'usuario@brisanet.com.br';
     const nomeSolicitante = dados.nome || emailSolicitante.split('@')[0];
@@ -314,16 +333,16 @@ function assumirChamado(idChamado) {
 }
 
 /**
- * Registra feedback, troca de status ou notas internas.
+ * Registra feedback, troca de status ou notas internas com suporte a anexos.
  */
-function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSolicitante) {
+function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSolicitante, arquivosBase64) {
   const props = PropertiesService.getScriptProperties();
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const abaChamados = ss.getSheetByName('CHAMADOS');
   const abaLog = ss.getSheetByName('LOG_INTERACOES');
   
-  const usuarioEmail = Session.getActiveUser().getEmail();
+  const usuarioEmail = Session.getActiveUser().getEmail() || '';
   const agora = new Date();
 
   const dados = abaChamados.getDataRange().getValues();
@@ -332,6 +351,7 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
   let emailSolicitante = '';
   let dataInicio = null;
   let tituloChamado = '';
+  let anexosExistentes = [];
 
   for (let i = 1; i < dados.length; i++) {
     if (dados[i][0] === idChamado) {
@@ -340,11 +360,23 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
       emailSolicitante = dados[i][2];
       dataInicio = dados[i][13];
       tituloChamado = dados[i][8];
+      try {
+        if (dados[i][10]) anexosExistentes = JSON.parse(dados[i][10]);
+      } catch (e) {
+        anexosExistentes = [];
+      }
       break;
     }
   }
 
   if (linhaAlvo === -1) return { sucesso: false, erro: 'Chamado não localizado.' };
+
+  // Processar novos anexos do atendente (se houver)
+  const novosAnexos = salvarAnexosNoDrive(idChamado, arquivosBase64);
+  if (novosAnexos.length > 0) {
+    anexosExistentes = anexosExistentes.concat(novosAnexos);
+    abaChamados.getRange(linhaAlvo, 11).setValue(JSON.stringify(anexosExistentes));
+  }
 
   const statusFinal = novoStatus || statusAnterior;
   abaChamados.getRange(linhaAlvo, 12).setValue(statusFinal);
@@ -359,6 +391,13 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
     }
   }
 
+  // Montar texto de log
+  let textoLog = mensagemFeedback ? mensagemFeedback.trim() : '';
+  if (novosAnexos.length > 0) {
+    const listaTxt = novosAnexos.map(function(a) { return a.nome + ' (' + a.url + ')'; }).join('\n');
+    textoLog = textoLog ? (textoLog + '\n\nAnexos adicionados:\n' + listaTxt) : ('Anexos adicionados:\n' + listaTxt);
+  }
+
   // Registrar Log
   abaLog.appendRow([
     Utilities.getUuid(),
@@ -368,29 +407,33 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
     novoStatus ? 'Mudança de Status' : 'Feedback',
     statusAnterior,
     statusFinal,
-    mensagemFeedback,
+    textoLog,
     visivelSolicitante ? 'SIM' : 'NÃO'
   ]);
 
-  // Notificar por e-mail APENAS se for visível ao solicitante E houver mensagem de parecer/feedback preenchida
-  // Mudanças de status sem texto não disparam e-mail (conforme regra de negócio)
-  const temMensagem = mensagemFeedback && mensagemFeedback.trim().length > 0;
-  if (visivelSolicitante && temMensagem) {
+  // Notificar por e-mail APENAS se for visível ao solicitante E houver texto ou anexos
+  const temConteudo = textoLog.length > 0;
+  if (visivelSolicitante && temConteudo) {
     try {
       enviarEmailNotificacao({
         destinatario: emailSolicitante,
         assunto: '[brisanet] Novo Parecer no Chamado: ' + idChamado,
         idChamado: idChamado,
         titulo: tituloChamado,
-        mensagem: mensagemFeedback,
-        autor: usuarioEmail
+        mensagem: mensagemFeedback ? mensagemFeedback.trim() : 'Novo parecer e documento(s) anexado(s) pelo atendente.',
+        autor: usuarioEmail,
+        anexos: novosAnexos
       });
     } catch (e) {
       Logger.log('Erro de e-mail: ' + e.message);
     }
   }
 
-  return { sucesso: true, mensagem: 'Interação registrada com sucesso.' };
+  return { 
+    sucesso: true, 
+    mensagem: 'Interação registrada com sucesso.', 
+    chamadoAtualizado: { anexos: anexosExistentes } 
+  };
 }
 
 /**
@@ -433,11 +476,15 @@ function obterHistoricoChamado(idChamado) {
 
 /**
  * Registra a resposta ou esclarecimento do usuário solicitante pela aba Meus Chamados.
+ * Suporta texto e/ou upload de múltiplos anexos.
  */
-function adicionarRespostaSolicitante(idChamado, respostaTexto) {
+function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) {
   try {
-    if (!respostaTexto || respostaTexto.trim().length === 0) {
-      return { sucesso: false, erro: 'Digite uma resposta antes de enviar.' };
+    const temTexto = respostaTexto && respostaTexto.trim().length > 0;
+    const temArquivos = arquivosBase64 && arquivosBase64.length > 0;
+
+    if (!temTexto && !temArquivos) {
+      return { sucesso: false, erro: 'Digite uma resposta ou anexe um arquivo antes de enviar.' };
     }
 
     const props = PropertiesService.getScriptProperties();
@@ -454,6 +501,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
     let statusAtual = '';
     let atendenteEmail = '';
     let tituloChamado = '';
+    let anexosExistentes = [];
 
     for (let i = 1; i < dados.length; i++) {
       if (dados[i][0] === idChamado) {
@@ -461,6 +509,11 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
         statusAtual = dados[i][11];
         atendenteEmail = dados[i][12];
         tituloChamado = dados[i][8];
+        try {
+          if (dados[i][10]) anexosExistentes = JSON.parse(dados[i][10]);
+        } catch (e) {
+          anexosExistentes = [];
+        }
         break;
       }
     }
@@ -470,6 +523,13 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
       return { sucesso: false, erro: 'Este chamado já foi finalizado e não aceita novas interações.' };
     }
 
+    // Processar novos anexos do solicitante (se houver)
+    const novosAnexos = salvarAnexosNoDrive(idChamado, arquivosBase64);
+    if (novosAnexos.length > 0) {
+      anexosExistentes = anexosExistentes.concat(novosAnexos);
+      abaChamados.getRange(linhaAlvo, 11).setValue(JSON.stringify(anexosExistentes));
+    }
+
     // Se estava Aguardando Retorno, volta automaticamente para Em Atendimento
     let novoStatus = statusAtual;
     if (statusAtual === 'Aguardando Retorno') {
@@ -477,7 +537,14 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
       abaChamados.getRange(linhaAlvo, 12).setValue(novoStatus);
     }
 
-    // Grava no Log de Interações
+    // Montar texto de log
+    let textoLog = temTexto ? respostaTexto.trim() : '';
+    if (novosAnexos.length > 0) {
+      const listaTxt = novosAnexos.map(function(a) { return a.nome + ' (' + a.url + ')'; }).join('\n');
+      textoLog = textoLog ? (textoLog + '\n\nAnexos adicionados:\n' + listaTxt) : ('Anexos adicionados:\n' + listaTxt);
+    }
+
+    // Grava no Log de Interações com tipo de ação exclusivo do solicitante
     abaLog.appendRow([
       Utilities.getUuid(),
       idChamado,
@@ -486,7 +553,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
       'Resposta do Solicitante',
       statusAtual,
       novoStatus,
-      respostaTexto.trim(),
+      textoLog,
       'SIM'
     ]);
 
@@ -498,15 +565,20 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
           assunto: '[brisanet] Resposta do Solicitante: ' + idChamado,
           idChamado: idChamado,
           titulo: tituloChamado,
-          mensagem: 'O solicitante adicionou uma nova resposta ao chamado:\n\n"' + respostaTexto.trim() + '"',
-          autor: usuarioEmail
+          mensagem: 'O solicitante adicionou uma nova resposta ao chamado:\n\n"' + (temTexto ? respostaTexto.trim() : 'Novo(s) arquivo(s) anexado(s) pelo solicitante.') + '"',
+          autor: usuarioEmail,
+          anexos: novosAnexos
         });
       } catch (eMail) {
         Logger.log('Erro ao notificar atendente: ' + eMail.message);
       }
     }
 
-    return { sucesso: true, mensagem: 'Resposta enviada com sucesso!' };
+    return { 
+      sucesso: true, 
+      mensagem: 'Resposta enviada com sucesso!', 
+      chamadoAtualizado: { anexos: anexosExistentes } 
+    };
   } catch (err) {
     Logger.log('Erro em adicionarRespostaSolicitante: ' + err.message);
     return { sucesso: false, erro: err.message };
@@ -516,12 +588,24 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto) {
 /**
  * Template corporativo oficial de notificação por e-mail (brisanet).
  * Utiliza tipografia e paleta do projeto (Navy #0B316D, Laranja #FF5022, Cinza #E8E8E8).
- * Configura replyTo para impedir respostas por e-mail e direciona para a tela Meus Chamados.
+ * Envia via GmailApp em nome do usuário conectado e configura replyTo para impedir respostas por e-mail.
  */
 function enviarEmailNotificacao(params) {
-  const emailAtendente = params.autor || 'telefonia@brisanet.com.br';
+  const emailAtendente = params.autor || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
+
+  let htmlAnexos = '';
+  if (params.anexos && params.anexos.length > 0) {
+    htmlAnexos = [
+      '<div style="margin-top: 16px; padding: 14px; background-color: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0;">',
+      '  <div style="font-size: 11px; font-weight: 700; color: #0B316D; text-transform: uppercase; margin-bottom: 8px; letter-spacing: 0.5px;">Documentos / Anexos Adicionados:</div>',
+      params.anexos.map(function(a) {
+        return '<div style="margin-bottom: 6px;"><a href="' + a.url + '" target="_blank" style="color: #2242D4; font-weight: 600; text-decoration: none; font-size: 13px;">&bull; ' + a.nome + '</a></div>';
+      }).join(''),
+      '</div>'
+    ].join('\n');
+  }
 
   const htmlCorpo = [
     '<!DOCTYPE html>',
@@ -566,6 +650,7 @@ function enviarEmailNotificacao(params) {
     '          Mensagem / Parecer:',
     '        </div>',
     '        <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + params.mensagem + '</div>',
+    htmlAnexos,
     '      </div>',
     '      ',
     '      <!-- Atendente Responsável -->',
@@ -594,21 +679,21 @@ function enviarEmailNotificacao(params) {
   ].join('\n');
 
   const options = {
-    to: params.destinatario,
-    subject: params.assunto,
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
     replyTo: 'nao-responda@grupobrisanet.com.br'
   };
 
   try {
-    MailApp.sendEmail(options);
-  } catch (err) {
-    Logger.log('Erro ao enviar e-mail com options: ' + err.message);
+    GmailApp.sendEmail(params.destinatario, params.assunto, '', options);
+  } catch (errGmail) {
+    Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
     MailApp.sendEmail({
       to: params.destinatario,
       subject: params.assunto,
-      htmlBody: htmlCorpo
+      htmlBody: htmlCorpo,
+      name: nomeFormatado + ' | Gestão de Telefonia brisanet',
+      replyTo: 'nao-responda@grupobrisanet.com.br'
     });
   }
 }
