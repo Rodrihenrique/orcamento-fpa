@@ -432,36 +432,185 @@ function obterHistoricoChamado(idChamado) {
 }
 
 /**
- * Template de notificação corporativa por e-mail sem emojis.
+ * Registra a resposta ou esclarecimento do usuário solicitante pela aba Meus Chamados.
+ */
+function adicionarRespostaSolicitante(idChamado, respostaTexto) {
+  try {
+    if (!respostaTexto || respostaTexto.trim().length === 0) {
+      return { sucesso: false, erro: 'Digite uma resposta antes de enviar.' };
+    }
+
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const abaChamados = ss.getSheetByName('CHAMADOS');
+    const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+    const usuarioEmail = Session.getActiveUser().getEmail() || 'solicitante@brisanet.com.br';
+    const agora = new Date();
+
+    const dados = abaChamados.getDataRange().getValues();
+    let linhaAlvo = -1;
+    let statusAtual = '';
+    let atendenteEmail = '';
+    let tituloChamado = '';
+
+    for (let i = 1; i < dados.length; i++) {
+      if (dados[i][0] === idChamado) {
+        linhaAlvo = i + 1;
+        statusAtual = dados[i][11];
+        atendenteEmail = dados[i][12];
+        tituloChamado = dados[i][8];
+        break;
+      }
+    }
+
+    if (linhaAlvo === -1) return { sucesso: false, erro: 'Chamado não localizado.' };
+    if (statusAtual === 'Concluído' || statusAtual === 'Cancelado') {
+      return { sucesso: false, erro: 'Este chamado já foi finalizado e não aceita novas interações.' };
+    }
+
+    // Se estava Aguardando Retorno, volta automaticamente para Em Atendimento
+    let novoStatus = statusAtual;
+    if (statusAtual === 'Aguardando Retorno') {
+      novoStatus = 'Em Atendimento';
+      abaChamados.getRange(linhaAlvo, 12).setValue(novoStatus);
+    }
+
+    // Grava no Log de Interações
+    abaLog.appendRow([
+      Utilities.getUuid(),
+      idChamado,
+      agora,
+      usuarioEmail,
+      'Resposta do Solicitante',
+      statusAtual,
+      novoStatus,
+      respostaTexto.trim(),
+      'SIM'
+    ]);
+
+    // Notifica o atendente responsável por e-mail (se houver analista atribuído)
+    if (atendenteEmail && atendenteEmail.includes('@')) {
+      try {
+        enviarEmailNotificacao({
+          destinatario: atendenteEmail,
+          assunto: '[brisanet] Resposta do Solicitante: ' + idChamado,
+          idChamado: idChamado,
+          titulo: tituloChamado,
+          mensagem: 'O solicitante adicionou uma nova resposta ao chamado:\n\n"' + respostaTexto.trim() + '"',
+          autor: usuarioEmail
+        });
+      } catch (eMail) {
+        Logger.log('Erro ao notificar atendente: ' + eMail.message);
+      }
+    }
+
+    return { sucesso: true, mensagem: 'Resposta enviada com sucesso!' };
+  } catch (err) {
+    Logger.log('Erro em adicionarRespostaSolicitante: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Template corporativo oficial de notificação por e-mail (brisanet).
+ * Utiliza tipografia e paleta do projeto (Navy #0B316D, Laranja #FF5022, Cinza #E8E8E8).
+ * Configura replyTo para impedir respostas por e-mail e direciona para a tela Meus Chamados.
  */
 function enviarEmailNotificacao(params) {
-  const htmlCorpo = [
-    '<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #E8E8E8; border-radius: 8px; overflow: hidden;">',
-    '  <div style="background-color: #0B316D; padding: 20px; color: #FFFFFF;">',
-    '    <h2 style="margin: 0; font-size: 18px; font-weight: bold; letter-spacing: 0.5px;">brisanet | Gestão de Telefonia</h2>',
-    '    <p style="margin: 5px 0 0 0; font-size: 12px; color: #E8E8E8; text-transform: uppercase;">Gerência Executiva de Telefonia</p>',
-    '  </div>',
-    '  <div style="padding: 24px; background-color: #FFFFFF; color: #1E293B;">',
-    '    <div style="display: inline-block; padding: 4px 10px; background-color: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 4px; font-size: 12px; font-weight: bold; color: #0B316D; margin-bottom: 15px;">',
-    '      Protocolo: ' + params.idChamado,
-    '    </div>',
-    '    <h3 style="margin: 0 0 10px 0; font-size: 16px; color: #0B316D;">' + params.titulo + '</h3>',
-    '    <p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 20px;">' + params.mensagem + '</p>',
-    '    <div style="border-top: 1px solid #E8E8E8; padding-top: 15px; font-size: 12px; color: #64748B;">',
-    '      Atualizado por: <strong>' + params.autor + '</strong>',
-    '    </div>',
-    '  </div>',
-    '  <div style="background-color: #F8FAFC; padding: 12px 20px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E8E8E8;">',
-    '    Mensagem automática enviada pelo Painel de Chamados Administrativos da brisanet.',
-    '  </div>',
-    '</div>'
-  ].join('');
+  const emailAtendente = params.autor || 'telefonia@brisanet.com.br';
+  const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
+  const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
 
-  MailApp.sendEmail({
+  const htmlCorpo = [
+    '<!DOCTYPE html>',
+    '<html>',
+    '<head>',
+    '  <meta charset="UTF-8">',
+    '  <style>',
+    '    @import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Rubik:wght@500;700&display=swap");',
+    '    body { font-family: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 20px; }',
+    '  </style>',
+    '</head>',
+    '<body style="background-color: #F8FAFC; font-family: \'Figtree\', Arial, sans-serif; margin: 0; padding: 24px;">',
+    '  <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E8E8E8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">',
+    '    <!-- Barra de Destaque Laranja Brisa -->',
+    '    <div style="height: 5px; background: linear-gradient(90deg, #FF5022, #E47D20);"></div>',
+    '    ',
+    '    <!-- Header Institucional Azul Marinho -->',
+    '    <div style="background-color: #0B316D; padding: 24px; color: #FFFFFF;">',
+    '      <div style="font-size: 19px; font-weight: 700; letter-spacing: -0.3px; margin: 0;">',
+    '        <span style="font-weight: 700;">brisanet</span> <span style="color: #94A3B8; font-weight: 300;">|</span> <span>Gestão de Telefonia</span>',
+    '      </div>',
+    '      <div style="font-size: 11px; font-weight: 600; color: #E2E8F0; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;">',
+    '        GERÊNCIA EXECUTIVA DE TELEFONIA &bull; BRISANET',
+    '      </div>',
+    '    </div>',
+    '    ',
+    '    <!-- Conteúdo Principal -->',
+    '    <div style="padding: 28px 24px; color: #1E293B;">',
+    '      <!-- Protocolo -->',
+    '      <div style="display: inline-block; padding: 5px 12px; background-color: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; margin-bottom: 18px;">',
+    '        Protocolo: ' + params.idChamado,
+    '      </div>',
+    '      ',
+    '      <!-- Assunto -->',
+    '      <h2 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: #0F172A; line-height: 1.4;">',
+    '        ' + params.titulo,
+    '      </h2>',
+    '      ',
+    '      <!-- Parecer Técnico / Mensagem -->',
+    '      <div style="background-color: #F8FAFC; border-left: 4px solid #FF5022; border-top: 1px solid #E8E8E8; border-right: 1px solid #E8E8E8; border-bottom: 1px solid #E8E8E8; border-radius: 0 10px 10px 0; padding: 16px; margin-bottom: 22px;">',
+    '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">',
+    '          Mensagem / Parecer:',
+    '        </div>',
+    '        <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + params.mensagem + '</div>',
+    '      </div>',
+    '      ',
+    '      <!-- Atendente Responsável -->',
+    '      <div style="font-size: 12px; color: #64748B; margin-bottom: 24px;">',
+    '        Atendente responsável: <strong style="color: #0F172A;">' + emailAtendente + '</strong>',
+    '      </div>',
+    '      ',
+    '      <!-- AVISO DE NÃO RESPONDER POR E-MAIL -->',
+    '      <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; margin-bottom: 15px;">',
+    '        <div style="font-size: 11px; font-weight: 700; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">',
+    '          COMUNICADO: NÃO RESPONDA A ESTE E-MAIL',
+    '        </div>',
+    '        <div style="font-size: 12px; color: #78350F; line-height: 1.5;">',
+    '          Respostas enviadas diretamente por e-mail <strong>não são recebidas nem monitoradas</strong>. Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, acesse a aba <strong>Meus Chamados</strong> no Painel Web.',
+    '        </div>',
+    '      </div>',
+    '    </div>',
+    '    ',
+    '    <!-- Rodapé Corporativo -->',
+    '    <div style="background-color: #F8FAFC; padding: 16px 24px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E8E8E8;">',
+    '      Mensagem automática enviada pelo Painel de Chamados Administrativos da Telefonia &bull; brisanet',
+    '    </div>',
+    '  </div>',
+    '</body>',
+    '</html>'
+  ].join('\n');
+
+  const options = {
     to: params.destinatario,
     subject: params.assunto,
-    htmlBody: htmlCorpo
-  });
+    htmlBody: htmlCorpo,
+    name: nomeFormatado + ' | Gestão de Telefonia brisanet',
+    replyTo: 'nao-responda@grupobrisanet.com.br'
+  };
+
+  try {
+    MailApp.sendEmail(options);
+  } catch (err) {
+    Logger.log('Erro ao enviar e-mail com options: ' + err.message);
+    MailApp.sendEmail({
+      to: params.destinatario,
+      subject: params.assunto,
+      htmlBody: htmlCorpo
+    });
+  }
 }
 
 function montarObjetoChamado(linha) {

@@ -438,6 +438,30 @@
           </button>
         </div>
       </div>
+
+      <!-- Ações do Solicitante (Disponível quando visualizado pelo Solicitante / aba Meus Chamados) -->
+      <div id="drawerAcoesSolicitante" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 hidden">
+        <div class="flex items-center gap-2">
+          <svg class="w-4 h-4 text-brisa-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
+          <h4 class="text-xs font-bold text-brisa-navy uppercase tracking-wider">Sua Resposta / Informações Complementares</h4>
+        </div>
+
+        <!-- Alerta de chamado encerrado -->
+        <div id="drawerSolicitanteEncerrado" class="hidden p-3 bg-slate-100 border border-slate-200 rounded-lg text-xs text-slate-600 leading-relaxed">
+          Este chamado foi finalizado. Não é mais possível enviar novas respostas. Caso necessite de novas tratativas, por favor abra uma nova solicitação.
+        </div>
+
+        <!-- Formulário de resposta do solicitante -->
+        <div id="drawerSolicitanteForm" class="space-y-2">
+          <label class="block text-[11px] font-bold text-slate-600 uppercase">Escreva sua resposta ou esclarecimento</label>
+          <textarea id="drawerTextoRespostaSolicitante" rows="3" placeholder="Digite sua resposta, esclarecimentos adicionais ou informações solicitadas pelo atendente..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
+          
+          <button id="btnEnviarRespostaSolicitante" onclick="executarEnviarRespostaSolicitante()" class="w-full py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            <span>Enviar Resposta ao Atendente</span>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -450,7 +474,8 @@
       chamadosAdmin: [],
       meusChamados: [],
       chamadoSelecionado: null,
-      arquivosSelecionados: []
+      arquivosSelecionados: [],
+      abaAtiva: 'nova'
     };
 
     window.onload = function() {
@@ -512,6 +537,7 @@
       if (aba === 'fila' && (!appState.usuario || !appState.usuario.isAdmin)) {
         aba = 'nova';
       }
+      appState.abaAtiva = aba;
 
       const vFila = document.getElementById('viewFilaGeral');
       const vNova = document.getElementById('viewNovaSolicitacao');
@@ -737,8 +763,16 @@
     }
 
     function abrirDrawer(idChamado) {
-      const lista = appState.usuario.isAdmin ? appState.chamadosAdmin : appState.meusChamados;
-      const chamado = lista.find(function(c) { return c.idChamado === idChamado; });
+      let chamado = null;
+      if (appState.abaAtiva === 'fila' && appState.chamadosAdmin) {
+        chamado = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
+      }
+      if (!chamado && appState.meusChamados) {
+        chamado = appState.meusChamados.find(function(c) { return c.idChamado === idChamado; });
+      }
+      if (!chamado && appState.chamadosAdmin) {
+        chamado = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
+      }
       if (!chamado) return;
 
       appState.chamadoSelecionado = chamado;
@@ -766,18 +800,37 @@
         secaoAnexos.classList.add('hidden');
       }
 
-      // Bloco de Atendimento exclusivo do Administrador
+      // Bloco de Atendimento exclusivo do Administrador vs Solicitante
       const blocoAcoesAdmin = document.getElementById('drawerAcoesAdmin');
+      const blocoAcoesSolicitante = document.getElementById('drawerAcoesSolicitante');
       const blocoAssumir = document.getElementById('blocoAssumir');
-      if (appState.usuario.isAdmin) {
+      const boxEncerrado = document.getElementById('drawerSolicitanteEncerrado');
+      const boxForm = document.getElementById('drawerSolicitanteForm');
+
+      const isVisualizacaoAdmin = appState.usuario && appState.usuario.isAdmin && appState.abaAtiva === 'fila';
+
+      if (isVisualizacaoAdmin) {
         blocoAcoesAdmin.classList.remove('hidden');
+        blocoAcoesSolicitante.classList.add('hidden');
         if (!chamado.atendente) {
           blocoAssumir.classList.remove('hidden');
         } else {
           blocoAssumir.classList.add('hidden');
         }
       } else {
+        // Visualização do Solicitante (na aba Meus Chamados ou usuário não-admin)
         blocoAcoesAdmin.classList.add('hidden');
+        blocoAcoesSolicitante.classList.remove('hidden');
+        document.getElementById('drawerTextoRespostaSolicitante').value = '';
+
+        const isFinalizado = (chamado.status === 'Concluído' || chamado.status === 'Cancelado');
+        if (isFinalizado) {
+          boxEncerrado.classList.remove('hidden');
+          boxForm.classList.add('hidden');
+        } else {
+          boxEncerrado.classList.add('hidden');
+          boxForm.classList.remove('hidden');
+        }
       }
 
       // Carregar histórico de interações
@@ -870,6 +923,46 @@
           }
         })
         .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna);
+    }
+
+    function executarEnviarRespostaSolicitante() {
+      if (!appState.chamadoSelecionado) return;
+      const texto = document.getElementById('drawerTextoRespostaSolicitante').value;
+      if (!texto || !texto.trim()) {
+        alert('Por favor, digite sua resposta ou esclarecimento.');
+        return;
+      }
+
+      const btn = document.getElementById('btnEnviarRespostaSolicitante');
+      btn.disabled = true;
+      btn.innerHTML = '<span>Enviando resposta...</span>';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Enviar Resposta ao Atendente</span>';
+          if (res.sucesso) {
+            alert(res.mensagem || 'Resposta enviada com sucesso!');
+            document.getElementById('drawerTextoRespostaSolicitante').value = '';
+            if (appState.chamadoSelecionado.status === 'Aguardando Retorno') {
+              appState.chamadoSelecionado.status = 'Em Atendimento';
+              document.getElementById('drawerBadgeStatus').innerHTML = renderBadgeStatus('Em Atendimento');
+            }
+            carregarHistoricoDrawer(appState.chamadoSelecionado.idChamado);
+            carregarMeusChamados();
+            if (appState.usuario && appState.usuario.isAdmin) {
+              carregarDados();
+            }
+          } else {
+            alert('Erro ao enviar resposta: ' + res.erro);
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Enviar Resposta ao Atendente</span>';
+          alert('Erro de comunicação: ' + err.message);
+        })
+        .adicionarRespostaSolicitante(appState.chamadoSelecionado.idChamado, texto);
     }
 
     function toBase64(file) {
