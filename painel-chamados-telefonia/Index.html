@@ -61,192 +61,62 @@
   <!-- Container Principal -->
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
 
-    <!-- 1. Header Card Institucional (Padrão 5G / Executivo brisanet) -->
-    <header class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-      <div class="flex items-center gap-4">
+    <!-- 1. Header Card Institucional (Compacto e Proporcional) -->
+    <header class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="flex items-center gap-3.5">
         <!-- Ícone / Badge da Gerência -->
-        <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-brisa-orange to-brisa-orangeMid flex items-center justify-center text-white font-bold text-xl tracking-wider shadow-sm flex-shrink-0">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brisa-orange to-brisa-orangeMid flex items-center justify-center text-white font-bold text-base tracking-wider shadow-sm flex-shrink-0">
           TEL
         </div>
         <div>
-          <h1 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            Painel de Chamados Administrativos <span class="text-slate-400 font-normal">|</span> Gestão de Telefonia
-          </h1>
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
-            GERÊNCIA EXECUTIVA DE TELEFONIA | BRISANET
+          <div class="flex flex-wrap items-center gap-x-2">
+            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Painel de Chamados Administrativos</h1>
+            <span class="text-slate-300 font-light hidden md:inline">|</span>
+            <span class="text-xs sm:text-sm font-semibold text-brisa-blue">Gestão de Telefonia</span>
+          </div>
+          <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
+            GERÊNCIA EXECUTIVA DE TELEFONIA &bull; BRISANET
           </p>
         </div>
       </div>
 
-      <!-- Filtros de Período e Usuário -->
-      <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase">
-          <span>Período:</span>
-          <select id="filtroMes" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-brisa-blue outline-none">
-            <option value="todos">Todos os meses</option>
-            <option value="01">Janeiro</option>
-            <option value="02">Fevereiro</option>
-            <option value="03">Março</option>
-            <option value="04">Abril</option>
-            <option value="05">Maio</option>
-            <option value="06">Junho</option>
-            <option value="07">Julho</option>
-            <option value="08">Agosto</option>
-            <option value="09" selected>Setembro</option>
-            <option value="10">Outubro</option>
-            <option value="11">Novembro</option>
-            <option value="12">Dezembro</option>
-          </select>
-          <select id="filtroAno" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-brisa-blue outline-none">
-            <option value="2026" selected>2026</option>
-            <option value="2025">2025</option>
-          </select>
-        </div>
-        <button onclick="carregarDados()" class="bg-brisa-orange hover:bg-opacity-90 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors">
-          Aplicar
-        </button>
-        <button onclick="limparFiltros()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium px-4 py-2 rounded-lg transition-colors">
-          Limpar
-        </button>
-        <div id="badgeUsuario" class="hidden sm:flex items-center gap-2 bg-slate-100/80 px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600">
-          <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-          <span id="labelUsuarioEmail" class="font-medium">Carregando...</span>
-          <span id="labelUsuarioRole" class="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-700"></span>
-        </div>
+      <!-- Usuário Logado -->
+      <div id="badgeUsuario" class="hidden sm:flex items-center gap-2.5 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-700">
+        <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+        <span id="labelUsuarioEmail" class="font-medium text-slate-700">Carregando...</span>
+        <span id="labelUsuarioRole" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-slate-200 text-slate-700"></span>
       </div>
     </header>
 
-    <!-- 2. Barra de Navegação por Abas (Pill Tabs com Ícones SVG) -->
+    <!-- 2. Barra de Navegação por Abas (Nova Sequência de Páginas) -->
     <nav class="flex flex-wrap items-center gap-2 mb-8">
-      <button id="tabFilaGeral" onclick="navegarAba('fila')" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
-        Fila Geral de Chamados
-      </button>
-
-      <button id="tabNovaSolicitacao" onclick="navegarAba('nova')" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200">
-        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+      <!-- 1. Nova Solicitação (Primeira) -->
+      <button id="tabNovaSolicitacao" onclick="navegarAba('nova')" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm">
+        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
         Nova Solicitação
       </button>
 
+      <!-- 2. Meus Chamados (Segunda) -->
       <button id="tabMeusChamados" onclick="navegarAba('meus')" class="flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200">
         <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
         Meus Chamados
+      </button>
+
+      <!-- 3. Fila Geral de Atendimentos (Terceira - Exclusiva Admin) -->
+      <button id="tabFilaGeral" onclick="navegarAba('fila')" class="hidden items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200">
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path></svg>
+        Fila Geral de Atendimentos
       </button>
     </nav>
 
     <!-- 3. Conteúdo Dinâmico por Aba -->
 
-    <!-- ABA 1: FILA GERAL DE CHAMADOS (ADMIN) -->
-    <div id="viewFilaGeral" class="space-y-6">
-      <!-- Seção de Indicadores Executivos (KPI Cards - Exclusivo Admin) -->
-      <div id="secaoKpis" class="mb-6">
-        <div class="flex items-center gap-2 mb-4">
-          <h2 class="text-xs font-bold text-brisa-navy uppercase tracking-widest">
-            Visão Geral & Indicadores Executivos
-          </h2>
-          <span class="text-slate-300">|</span>
-          <span class="text-xs text-slate-500 font-medium">
-            Consolidação de volumetria, SLA e produtividade da telefonia
-          </span>
-        </div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- KPI 1 -->
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-            <div class="flex justify-between items-start mb-2">
-              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Novos Sem Atendente</span>
-              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-            </div>
-            <div id="kpiNovos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
-            <div class="text-xs text-slate-500">Aguardando triagem técnica</div>
-          </div>
-
-          <!-- KPI 2 -->
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-            <div class="flex justify-between items-start mb-2">
-              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Em Atendimento</span>
-              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-            </div>
-            <div id="kpiEmAndamento" class="font-rubik text-3xl font-bold text-brisa-orange mb-1">--</div>
-            <div class="text-xs text-slate-500">Em análise com a equipe</div>
-          </div>
-
-          <!-- KPI 3 -->
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-            <div class="flex justify-between items-start mb-2">
-              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Concluídos no Período</span>
-              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-            </div>
-            <div id="kpiConcluidos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
-            <div class="text-xs text-slate-500">Tempo Médio: <strong id="kpiTempoMedio" class="text-slate-700">-- h</strong></div>
-          </div>
-
-          <!-- KPI 4 -->
-          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
-            <div class="flex justify-between items-start mb-2">
-              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Taxa de Resolução</span>
-              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
-            </div>
-            <div id="kpiTaxa" class="font-rubik text-3xl font-bold text-emerald-600 mb-1">--%</div>
-            <div class="text-xs text-slate-500">Conformidade geral de SLA</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Filtros Rápidos da Tabela -->
-      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div class="flex-1 relative">
-          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
-          <input type="text" id="buscaTexto" oninput="filtrarTabelaAdmin()" placeholder="Buscar por protocolo, título ou solicitante..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <select id="filtroStatus" onchange="filtrarTabelaAdmin()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
-            <option value="TODOS">Todos os Status</option>
-            <option value="Aberto">Aberto</option>
-            <option value="Em Atendimento">Em Atendimento</option>
-            <option value="Aguardando Retorno">Aguardando Retorno</option>
-            <option value="Concluído">Concluído</option>
-            <option value="Cancelado">Cancelado</option>
-          </select>
-          <select id="filtroGerencia" onchange="filtrarTabelaAdmin()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
-            <option value="TODAS">Todas as Gerências</option>
-          </select>
-        </div>
-      </div>
-
-      <!-- Grid de Dados Executivo -->
-      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div class="overflow-x-auto custom-scrollbar">
-          <table class="w-full text-left border-collapse">
-            <thead>
-              <tr class="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th class="py-3.5 px-4">Protocolo</th>
-                <th class="py-3.5 px-4">Abertura</th>
-                <th class="py-3.5 px-4">Solicitante</th>
-                <th class="py-3.5 px-4">Gerência</th>
-                <th class="py-3.5 px-4">Categoria</th>
-                <th class="py-3.5 px-4">Prioridade</th>
-                <th class="py-3.5 px-4">Status</th>
-                <th class="py-3.5 px-4">Atendente</th>
-                <th class="py-3.5 px-4 text-right">Ação</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyAdmin" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
-              <tr>
-                <td colspan="9" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- ABA 2: NOVA SOLICITAÇÃO (FORMULÁRIO) -->
-    <div id="viewNovaSolicitacao" class="hidden">
+    <!-- ABA 1: NOVA SOLICITAÇÃO (FORMULÁRIO NA LARGURA TOTAL) -->
+    <div id="viewNovaSolicitacao" class="space-y-4">
       <div class="w-full bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
         <div class="border-b border-slate-100 pb-4 mb-6">
           <h2 class="text-lg font-bold text-slate-900">Abertura de Chamado de Telefonia</h2>
-          <p class="text-xs text-slate-500 mt-1">Preencha as informações detalhadas para atendimento pelo time técnico.</p>
+          <p class="text-xs text-slate-500 mt-1">Preencha as informações detalhadas para atendimento pelo time técnico da telefonia.</p>
         </div>
 
         <form id="formNovoChamado" onsubmit="enviarNovoChamado(event)" class="space-y-5">
@@ -304,7 +174,7 @@
 
           <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
             <button type="button" onclick="navegarAba('meus')" class="px-5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
-              Cancelar
+              Ir para Meus Chamados
             </button>
             <button type="submit" id="btnSalvarChamado" class="px-6 py-2.5 rounded-xl bg-brisa-orange text-white text-xs font-semibold hover:bg-opacity-90 shadow-sm transition-all flex items-center gap-2">
               <span>Registrar Solicitação</span>
@@ -314,7 +184,7 @@
       </div>
     </div>
 
-    <!-- ABA 3: MEUS CHAMADOS (SOLICITANTE) -->
+    <!-- ABA 2: MEUS CHAMADOS (SOLICITANTE) -->
     <div id="viewMeusChamados" class="hidden space-y-4">
       <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
         <div>
@@ -344,6 +214,150 @@
             <tbody id="tbodyMeusChamados" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
               <tr>
                 <td colspan="7" class="py-8 text-center text-slate-400">Carregando seus chamados...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ABA 3: FILA GERAL DE ATENDIMENTOS (EXCLUSIVA ADMIN) -->
+    <div id="viewFilaGeral" class="hidden space-y-6">
+      
+      <!-- Seção de Indicadores Executivos (KPI Cards - Exclusivo Admin) -->
+      <div id="secaoKpis">
+        <div class="flex items-center gap-2 mb-4">
+          <h2 class="text-xs font-bold text-brisa-navy uppercase tracking-widest">
+            Visão Geral & Indicadores Executivos
+          </h2>
+          <span class="text-slate-300">|</span>
+          <span class="text-xs text-slate-500 font-medium">
+            Consolidação de volumetria, SLA e produtividade da telefonia
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- KPI 1 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Novos Sem Atendente</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiNovos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
+            <div class="text-xs text-slate-500">Aguardando triagem técnica</div>
+          </div>
+
+          <!-- KPI 2 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Em Atendimento</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiEmAndamento" class="font-rubik text-3xl font-bold text-brisa-orange mb-1">--</div>
+            <div class="text-xs text-slate-500">Em análise com a equipe</div>
+          </div>
+
+          <!-- KPI 3 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Concluídos no Período</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiConcluidos" class="font-rubik text-3xl font-bold text-brisa-blue mb-1">--</div>
+            <div class="text-xs text-slate-500">Tempo Médio: <strong id="kpiTempoMedio" class="text-slate-700">-- h</strong></div>
+          </div>
+
+          <!-- KPI 4 -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm hover:shadow-md transition-shadow relative">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Taxa de Resolução</span>
+              <span class="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold">i</span>
+            </div>
+            <div id="kpiTaxa" class="font-rubik text-3xl font-bold text-emerald-600 mb-1">--%</div>
+            <div class="text-xs text-slate-500">Conformidade geral de SLA</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros de Período da Fila Geral (Localizado Abaixo dos KPIs) -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-2.5">
+          <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Período de Análise:</span>
+          <select id="filtroMes" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-brisa-blue outline-none">
+            <option value="todos">Todos os meses</option>
+            <option value="01">Janeiro</option>
+            <option value="02">Fevereiro</option>
+            <option value="03">Março</option>
+            <option value="04">Abril</option>
+            <option value="05">Maio</option>
+            <option value="06">Junho</option>
+            <option value="07">Julho</option>
+            <option value="08">Agosto</option>
+            <option value="09" selected>Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
+          </select>
+          <select id="filtroAno" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-brisa-blue outline-none">
+            <option value="2026" selected>2026</option>
+            <option value="2025">2025</option>
+          </select>
+          <button onclick="carregarDados()" class="bg-brisa-orange hover:bg-opacity-90 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors shadow-sm">
+            Aplicar
+          </button>
+          <button onclick="limparFiltrosPeriodo()" class="bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-medium px-4 py-1.5 rounded-lg transition-colors">
+            Limpar
+          </button>
+        </div>
+        <div class="text-[11px] text-slate-400 font-medium hidden sm:block">
+          Métricas e fila consolidadas da telefonia
+        </div>
+      </div>
+
+      <!-- Filtros Rápidos da Tabela -->
+      <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex-1 relative">
+          <svg class="w-4 h-4 text-slate-400 absolute left-3 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="text" id="buscaTexto" oninput="filtrarTabelaAdmin()" placeholder="Buscar por protocolo, título ou solicitante..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <select id="filtroStatus" onchange="filtrarTabelaAdmin()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
+            <option value="TODOS">Todos os Status</option>
+            <option value="Aberto">Aberto</option>
+            <option value="Em Atendimento">Em Atendimento</option>
+            <option value="Aguardando Retorno">Aguardando Retorno</option>
+            <option value="Concluído">Concluído</option>
+            <option value="Cancelado">Cancelado</option>
+          </select>
+          <select id="filtroGerencia" onchange="filtrarTabelaAdmin()" class="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:ring-1 focus:ring-brisa-blue outline-none">
+            <option value="TODAS">Todas as Gerências</option>
+          </select>
+          <button onclick="limparFiltrosTabela()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-600 hover:bg-slate-50 font-medium">
+            Resetar
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid de Dados Executivo -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto custom-scrollbar">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th class="py-3.5 px-4">Protocolo</th>
+                <th class="py-3.5 px-4">Abertura</th>
+                <th class="py-3.5 px-4">Solicitante</th>
+                <th class="py-3.5 px-4">Gerência</th>
+                <th class="py-3.5 px-4">Categoria</th>
+                <th class="py-3.5 px-4">Prioridade</th>
+                <th class="py-3.5 px-4">Status</th>
+                <th class="py-3.5 px-4">Atendente</th>
+                <th class="py-3.5 px-4 text-right">Ação</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyAdmin" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
+              <tr>
+                <td colspan="9" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
               </tr>
             </tbody>
           </table>
@@ -469,14 +483,18 @@
           popularDropdowns();
 
           if (config.usuario.isAdmin) {
-            navegarAba('fila');
+            // Revelar a aba Fila Geral apenas para Administradores
+            document.getElementById('tabFilaGeral').classList.remove('hidden');
+            document.getElementById('tabFilaGeral').classList.add('flex');
+            
+            // Ordem inicial: Nova Solicitação
+            navegarAba('nova');
             carregarDados();
           } else {
-            // Se for solicitante comum, ocultar aba de fila geral e ir para Meus Chamados
+            // Se for solicitante comum, garantir que a aba Fila Geral permaneça estritamente oculta
             document.getElementById('tabFilaGeral').classList.add('hidden');
-            document.getElementById('secaoKpis').classList.add('hidden');
-            navegarAba('meus');
-            carregarMeusChamados();
+            document.getElementById('tabFilaGeral').classList.remove('flex');
+            navegarAba('nova');
           }
         })
         .withFailureHandler(function(err) {
@@ -501,6 +519,11 @@
     }
 
     function navegarAba(aba) {
+      // Bloquear acesso a Fila Geral caso não seja admin
+      if (aba === 'fila' && (!appState.usuario || !appState.usuario.isAdmin)) {
+        aba = 'nova';
+      }
+
       const vFila = document.getElementById('viewFilaGeral');
       const vNova = document.getElementById('viewNovaSolicitacao');
       const vMeus = document.getElementById('viewMeusChamados');
@@ -509,23 +532,45 @@
       const tMeus = document.getElementById('tabMeusChamados');
 
       [vFila, vNova, vMeus].forEach(function(el) { el.classList.add('hidden'); });
-      [tFila, tNova, tMeus].forEach(function(el) {
-        el.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200';
+
+      // Reset de estilos dos botões
+      [tNova, tMeus, tFila].forEach(function(el) {
+        if (el === tFila && (!appState.usuario || !appState.usuario.isAdmin)) {
+          el.className = 'hidden';
+        } else {
+          el.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-xs text-slate-600 hover:bg-white hover:text-slate-900 transition-all border border-transparent hover:border-slate-200';
+          const svg = el.querySelector('svg');
+          if (svg) svg.classList.remove('text-white'), svg.classList.add('text-slate-400');
+        }
       });
 
-      if (aba === 'fila') {
-        vFila.classList.remove('hidden');
-        tFila.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
-      } else if (aba === 'nova') {
+      // Ativar aba selecionada
+      if (aba === 'nova') {
         vNova.classList.remove('hidden');
         tNova.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+        const svg = tNova.querySelector('svg');
+        if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
       } else if (aba === 'meus') {
         vMeus.classList.remove('hidden');
         tMeus.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+        const svg = tMeus.querySelector('svg');
+        if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        carregarMeusChamados();
+      } else if (aba === 'fila' && appState.usuario && appState.usuario.isAdmin) {
+        vFila.classList.remove('hidden');
+        tFila.className = 'flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-xs transition-all bg-brisa-orange text-white shadow-sm';
+        const svg = tFila.querySelector('svg');
+        if (svg) svg.classList.remove('text-slate-400'), svg.classList.add('text-white');
+        carregarDados();
       }
     }
 
     function carregarDados() {
+      const filtro = {
+        mes: document.getElementById('filtroMes').value,
+        ano: document.getElementById('filtroAno').value
+      };
+
       google.script.run
         .withSuccessHandler(function(res) {
           appState.chamadosAdmin = res.chamados;
@@ -538,7 +583,13 @@
 
           renderizarTabelaAdmin(res.chamados);
         })
-        .obterFilaAdmin();
+        .obterFilaAdmin(filtro);
+    }
+
+    function limparFiltrosPeriodo() {
+      document.getElementById('filtroMes').value = 'todos';
+      document.getElementById('filtroAno').value = '2026';
+      carregarDados();
     }
 
     function carregarMeusChamados() {
@@ -553,7 +604,7 @@
     function renderizarTabelaAdmin(chamados) {
       const tbody = document.getElementById('tbodyAdmin');
       if (chamados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-slate-400">Nenhum chamado encontrado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
         return;
       }
 
@@ -627,13 +678,20 @@
       renderizarTabelaAdmin(filtrados);
     }
 
+    function limparFiltrosTabela() {
+      document.getElementById('buscaTexto').value = '';
+      document.getElementById('filtroStatus').value = 'TODOS';
+      document.getElementById('filtroGerencia').value = 'TODAS';
+      filtrarTabelaAdmin();
+    }
+
     function atualizarListaArquivos(e) {
       const files = Array.from(e.target.files);
       appState.arquivosSelecionados = files;
       const container = document.getElementById('listaArquivosContainer');
       container.innerHTML = '';
 
-      files.forEach(function(file, idx) {
+      files.forEach(function(file) {
         const chip = document.createElement('div');
         chip.className = 'flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-700';
         chip.innerHTML = '<span>' + file.name + '</span><span class="text-slate-400">(' + (file.size / 1024).toFixed(0) + 'KB)</span>';
@@ -677,7 +735,6 @@
             document.getElementById('listaArquivosContainer').innerHTML = '';
             appState.arquivosSelecionados = [];
             navegarAba('meus');
-            carregarMeusChamados();
           } else {
             alert('Erro: ' + res.erro);
           }
@@ -759,11 +816,25 @@
           }
           let html = '';
           logs.forEach(function(l) {
-            html += '<div class="relative mb-3">';
-            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-brisa-blue border-2 border-white"></div>';
-            html += '<div class="text-[11px] text-slate-400 font-rubik">' + l.dataHora + ' • ' + l.autor + '</div>';
+            const isNotaInterna = !l.visivelSolicitante;
+            const badgeNota = isNotaInterna 
+              ? '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">Nota Interna</span>'
+              : '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-brisa-blue border border-blue-200">Resposta ao Solicitante</span>';
+
+            const bgCaixa = isNotaInterna 
+              ? 'bg-amber-50/70 border-amber-200/80 text-amber-950'
+              : 'bg-slate-50 border-slate-100 text-slate-700';
+
+            html += '<div class="relative mb-3.5">';
+            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + (isNotaInterna ? 'bg-amber-500' : 'bg-brisa-blue') + ' border-2 border-white"></div>';
+            html += '<div class="flex items-center gap-2 mb-1">';
+            html += badgeNota;
+            html += '<span class="text-[11px] text-slate-400 font-rubik">' + l.dataHora + ' • ' + l.autor + '</span>';
+            html += '</div>';
             html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + l.tipoAcao + (l.novoStatus ? ' (' + l.novoStatus + ')' : '') + '</div>';
-            html += '<div class="text-xs text-slate-600 mt-1 bg-slate-50 p-2.5 rounded-lg border border-slate-100">' + l.mensagem + '</div>';
+            if (l.mensagem) {
+              html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + l.mensagem + '</div>';
+            }
             html += '</div>';
           });
           container.innerHTML = html;
@@ -819,13 +890,6 @@
         reader.onload = function() { resolve(reader.result); };
         reader.onerror = function(error) { reject(error); };
       });
-    }
-
-    function limparFiltros() {
-      document.getElementById('buscaTexto').value = '';
-      document.getElementById('filtroStatus').value = 'TODOS';
-      document.getElementById('filtroGerencia').value = 'TODAS';
-      filtrarTabelaAdmin();
     }
   </script>
 </body>

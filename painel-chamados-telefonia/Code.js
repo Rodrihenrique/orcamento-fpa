@@ -209,6 +209,9 @@ function obterFilaAdmin(filtroPeriodo) {
   const dados = abaChamados.getDataRange().getValues();
   const chamados = [];
   
+  const mesFiltro = filtroPeriodo && filtroPeriodo.mes ? filtroPeriodo.mes : 'todos';
+  const anoFiltro = filtroPeriodo && filtroPeriodo.ano ? String(filtroPeriodo.ano) : '';
+
   let novosSemAtendente = 0;
   let emAtendimento = 0;
   let concluidos = 0;
@@ -216,6 +219,17 @@ function obterFilaAdmin(filtroPeriodo) {
   let qtdComTempo = 0;
 
   for (let i = 1; i < dados.length; i++) {
+    const dataCriacaoValor = dados[i][1];
+    
+    // Filtragem por período de criação se data válida
+    if (dataCriacaoValor instanceof Date) {
+      const mesItem = ('0' + (dataCriacaoValor.getMonth() + 1)).slice(-2);
+      const anoItem = String(dataCriacaoValor.getFullYear());
+
+      if (anoFiltro && anoItem !== anoFiltro) continue;
+      if (mesFiltro !== 'todos' && mesItem !== mesFiltro) continue;
+    }
+
     const item = montarObjetoChamado(dados[i]);
     chamados.push(item);
 
@@ -296,20 +310,6 @@ function assumirChamado(idChamado) {
     'SIM'
   ]);
 
-  // Notificar solicitante
-  try {
-    enviarEmailNotificacao({
-      destinatario: emailSolicitante,
-      assunto: '[brisanet] Atendimento Iniciado: ' + idChamado,
-      idChamado: idChamado,
-      titulo: tituloChamado,
-      mensagem: 'Seu chamado foi assumido pelo analista ' + usuarioEmail + ' e está em análise.',
-      autor: usuarioEmail
-    });
-  } catch (e) {
-    Logger.log('Erro de e-mail: ' + e.message);
-  }
-
   return { sucesso: true, mensagem: 'Chamado assumido com sucesso.' };
 }
 
@@ -372,12 +372,14 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
     visivelSolicitante ? 'SIM' : 'NÃO'
   ]);
 
-  // Se visível ao solicitante, notificar por e-mail
-  if (visivelSolicitante) {
+  // Notificar por e-mail APENAS se for visível ao solicitante E houver mensagem de parecer/feedback preenchida
+  // Mudanças de status sem texto não disparam e-mail (conforme regra de negócio)
+  const temMensagem = mensagemFeedback && mensagemFeedback.trim().length > 0;
+  if (visivelSolicitante && temMensagem) {
     try {
       enviarEmailNotificacao({
         destinatario: emailSolicitante,
-        assunto: '[brisanet] Atualização do Chamado: ' + idChamado + ' (' + statusFinal + ')',
+        assunto: '[brisanet] Novo Parecer no Chamado: ' + idChamado,
         idChamado: idChamado,
         titulo: tituloChamado,
         mensagem: mensagemFeedback,
