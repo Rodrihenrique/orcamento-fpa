@@ -54,6 +54,16 @@
       background: #CBD5E1;
       border-radius: 4px;
     }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+    @keyframes dropdownFade {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: dropdownFade 0.15s ease-out forwards;
+    }
   </style>
 </head>
 <body class="text-slate-800 antialiased min-h-screen pb-12">
@@ -121,17 +131,92 @@
 
         <form id="formNovoChamado" onsubmit="enviarNovoChamado(event)" class="space-y-5">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Gerência Solicitante *</label>
-              <select id="campoGerencia" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:ring-1 focus:ring-brisa-blue outline-none">
-                <option value="">Selecione sua gerência...</option>
-              </select>
+            <!-- Campo 1: Gerência Solicitante com Busca e Combobox -->
+            <div class="relative" id="wrapperComboboxGerencia">
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Gerência Solicitante *
+              </label>
+              <div class="relative">
+                <input type="text" 
+                       id="buscaGerenciaInput" 
+                       autocomplete="off"
+                       placeholder="Digite para buscar ou selecione a gerência..."
+                       onfocus="abrirDropdownGerencia()"
+                       oninput="filtrarGerencias(this.value)"
+                       onkeydown="handleKeydownGerencia(event)"
+                       onblur="handleBlurGerencia()"
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-14 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-brisa-blue focus:ring-1 focus:ring-brisa-blue outline-none transition-all cursor-pointer">
+                
+                <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button type="button" 
+                          id="btnLimparGerencia" 
+                          onclick="limparSelecaoGerencia()" 
+                          class="hidden text-slate-400 hover:text-red-500 font-bold px-1 text-sm transition-colors" 
+                          title="Limpar seleção">
+                    &times;
+                  </button>
+                  <button type="button" 
+                          onclick="toggleDropdownGerencia()" 
+                          class="text-slate-400 hover:text-brisa-blue p-1 transition-transform" 
+                          id="chevronGerencia">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" id="campoGerencia">
+
+              <!-- Lista Dropdown com Scroll Vertical e Lateral -->
+              <div id="dropdownGerencia" 
+                   class="hidden absolute z-30 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-fadeIn">
+                <div id="listaOpcoesGerencia" 
+                     class="max-h-60 overflow-y-auto overflow-x-auto p-1.5 space-y-0.5 custom-scrollbar">
+                  <!-- Renderizado dinamicamente via JS -->
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Categoria da Demanda *</label>
-              <select id="campoCategoria" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:ring-1 focus:ring-brisa-blue outline-none">
-                <option value="">Selecione o tipo de chamado...</option>
-              </select>
+
+            <!-- Campo 2: Categoria da Demanda com Busca e Combobox -->
+            <div class="relative" id="wrapperComboboxCategoria">
+              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                Categoria da Demanda *
+              </label>
+              <div class="relative">
+                <input type="text" 
+                       id="buscaCategoriaInput" 
+                       autocomplete="off"
+                       placeholder="Digite para buscar ou selecione a categoria..."
+                       onfocus="abrirDropdownCategoria()"
+                       oninput="filtrarCategorias(this.value)"
+                       onkeydown="handleKeydownCategoria(event)"
+                       onblur="handleBlurCategoria()"
+                       class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-3.5 pr-14 py-2.5 text-xs text-slate-800 focus:bg-white focus:border-brisa-blue focus:ring-1 focus:ring-brisa-blue outline-none transition-all cursor-pointer">
+                
+                <div class="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <button type="button" 
+                          id="btnLimparCategoria" 
+                          onclick="limparSelecaoCategoria()" 
+                          class="hidden text-slate-400 hover:text-red-500 font-bold px-1 text-sm transition-colors" 
+                          title="Limpar seleção">
+                    &times;
+                  </button>
+                  <button type="button" 
+                          onclick="toggleDropdownCategoria()" 
+                          class="text-slate-400 hover:text-brisa-blue p-1 transition-transform" 
+                          id="chevronCategoria">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </button>
+                </div>
+              </div>
+              <input type="hidden" id="campoCategoria">
+
+              <!-- Lista Dropdown com Scroll Vertical e Lateral -->
+              <div id="dropdownCategoria" 
+                   class="hidden absolute z-30 left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden animate-fadeIn">
+                <div id="listaOpcoesCategoria" 
+                     class="max-h-60 overflow-y-auto overflow-x-auto p-1.5 space-y-0.5 custom-scrollbar">
+                  <!-- Renderizado dinamicamente via JS -->
+                </div>
+              </div>
             </div>
           </div>
 
@@ -574,20 +659,292 @@
         .obterConfiguracoesIniciais();
     }
 
+    function normalizarTexto(str) {
+      if (!str) return '';
+      return str.toString().toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
+    }
+
     function popularDropdowns() {
-      const selectGerencia = document.getElementById('campoGerencia');
+      // 1. Dropdown do filtro da Fila Geral de Atendimentos (Admin)
       const filtroGerencia = document.getElementById('filtroGerencia');
-      const selectCategoria = document.getElementById('campoCategoria');
+      if (filtroGerencia) {
+        filtroGerencia.innerHTML = '<option value="TODAS">Todas as Gerências</option>';
+        appState.gerencias.forEach(function(g) {
+          filtroGerencia.innerHTML += '<option value="' + g + '">' + g + '</option>';
+        });
+      }
 
-      appState.gerencias.forEach(function(g) {
-        selectGerencia.innerHTML += '<option value="' + g + '">' + g + '</option>';
-        filtroGerencia.innerHTML += '<option value="' + g + '">' + g + '</option>';
-      });
+      // 2. Renderizar listas dos comboboxes com busca digitável
+      renderizarOpcoesGerencia(appState.gerencias);
+      renderizarOpcoesCategoria(appState.categorias);
+    }
 
-      appState.categorias.forEach(function(c) {
-        selectCategoria.innerHTML += '<option value="' + c + '">' + c + '</option>';
+    // =========================================================================
+    // Combobox com Busca Digitável e Scroll: Gerência Solicitante
+    // =========================================================================
+    function renderizarOpcoesGerencia(lista) {
+      const container = document.getElementById('listaOpcoesGerencia');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!lista || lista.length === 0) {
+        container.innerHTML = '<div class="px-3 py-2 text-center text-xs text-slate-400 italic whitespace-nowrap">Nenhuma gerência encontrada</div>';
+        return;
+      }
+
+      const valorAtual = document.getElementById('campoGerencia') ? document.getElementById('campoGerencia').value : '';
+
+      lista.forEach(function(item) {
+        const isSelected = (item === valorAtual);
+        const div = document.createElement('div');
+        div.setAttribute('data-valor', item);
+        div.className = 'px-3 py-2 text-xs rounded-lg cursor-pointer whitespace-nowrap min-w-max transition-colors ' +
+          (isSelected ? 'bg-blue-50 text-brisa-blue font-bold' : 'text-slate-700 hover:bg-slate-100 hover:text-brisa-blue');
+        div.textContent = item;
+        div.onmousedown = function(e) {
+          e.preventDefault();
+          selecionarGerencia(item);
+        };
+        container.appendChild(div);
       });
     }
+
+    function abrirDropdownGerencia() {
+      const dd = document.getElementById('dropdownGerencia');
+      const chevron = document.getElementById('chevronGerencia');
+      if (dd) dd.classList.remove('hidden');
+      if (chevron) chevron.classList.add('rotate-180');
+      filtrarGerencias(document.getElementById('buscaGerenciaInput').value);
+    }
+
+    function fecharDropdownGerencia() {
+      const dd = document.getElementById('dropdownGerencia');
+      const chevron = document.getElementById('chevronGerencia');
+      if (dd) dd.classList.add('hidden');
+      if (chevron) chevron.classList.remove('rotate-180');
+    }
+
+    function toggleDropdownGerencia() {
+      const dd = document.getElementById('dropdownGerencia');
+      if (dd && dd.classList.contains('hidden')) {
+        document.getElementById('buscaGerenciaInput').focus();
+        abrirDropdownGerencia();
+      } else {
+        fecharDropdownGerencia();
+      }
+    }
+
+    function filtrarGerencias(termo) {
+      const norm = normalizarTexto(termo);
+      const filtradas = appState.gerencias.filter(function(g) {
+        return normalizarTexto(g).includes(norm);
+      });
+      renderizarOpcoesGerencia(filtradas);
+
+      const dd = document.getElementById('dropdownGerencia');
+      if (dd && dd.classList.contains('hidden')) {
+        abrirDropdownGerencia();
+      }
+    }
+
+    function selecionarGerencia(valor) {
+      const inputBusca = document.getElementById('buscaGerenciaInput');
+      const inputHidden = document.getElementById('campoGerencia');
+      const btnLimpar = document.getElementById('btnLimparGerencia');
+
+      inputBusca.value = valor;
+      inputHidden.value = valor;
+
+      if (btnLimpar) btnLimpar.classList.remove('hidden');
+      fecharDropdownGerencia();
+    }
+
+    function limparSelecaoGerencia() {
+      const inputBusca = document.getElementById('buscaGerenciaInput');
+      const inputHidden = document.getElementById('campoGerencia');
+      const btnLimpar = document.getElementById('btnLimparGerencia');
+
+      if (inputBusca) inputBusca.value = '';
+      if (inputHidden) inputHidden.value = '';
+      if (btnLimpar) btnLimpar.classList.add('hidden');
+
+      renderizarOpcoesGerencia(appState.gerencias);
+      fecharDropdownGerencia();
+    }
+
+    function handleBlurGerencia() {
+      setTimeout(function() {
+        fecharDropdownGerencia();
+        const inputBusca = document.getElementById('buscaGerenciaInput');
+        const inputHidden = document.getElementById('campoGerencia');
+        if (inputHidden && inputHidden.value) {
+          inputBusca.value = inputHidden.value;
+        } else if (inputBusca && inputBusca.value.trim()) {
+          const match = appState.gerencias.find(function(g) {
+            return normalizarTexto(g) === normalizarTexto(inputBusca.value);
+          });
+          if (match) {
+            selecionarGerencia(match);
+          } else {
+            inputBusca.value = '';
+          }
+        }
+      }, 200);
+    }
+
+    function handleKeydownGerencia(e) {
+      if (e.key === 'Escape') {
+        fecharDropdownGerencia();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const container = document.getElementById('listaOpcoesGerencia');
+        const firstOption = container ? container.querySelector('[data-valor]') : null;
+        if (firstOption) {
+          selecionarGerencia(firstOption.getAttribute('data-valor'));
+        }
+      }
+    }
+
+    // =========================================================================
+    // Combobox com Busca Digitável e Scroll: Categoria da Demanda
+    // =========================================================================
+    function renderizarOpcoesCategoria(lista) {
+      const container = document.getElementById('listaOpcoesCategoria');
+      if (!container) return;
+      container.innerHTML = '';
+
+      if (!lista || lista.length === 0) {
+        container.innerHTML = '<div class="px-3 py-2 text-center text-xs text-slate-400 italic whitespace-nowrap">Nenhuma categoria encontrada</div>';
+        return;
+      }
+
+      const valorAtual = document.getElementById('campoCategoria') ? document.getElementById('campoCategoria').value : '';
+
+      lista.forEach(function(item) {
+        const isSelected = (item === valorAtual);
+        const div = document.createElement('div');
+        div.setAttribute('data-valor', item);
+        div.className = 'px-3 py-2 text-xs rounded-lg cursor-pointer whitespace-nowrap min-w-max transition-colors ' +
+          (isSelected ? 'bg-blue-50 text-brisa-blue font-bold' : 'text-slate-700 hover:bg-slate-100 hover:text-brisa-blue');
+        div.textContent = item;
+        div.onmousedown = function(e) {
+          e.preventDefault();
+          selecionarCategoria(item);
+        };
+        container.appendChild(div);
+      });
+    }
+
+    function abrirDropdownCategoria() {
+      const dd = document.getElementById('dropdownCategoria');
+      const chevron = document.getElementById('chevronCategoria');
+      if (dd) dd.classList.remove('hidden');
+      if (chevron) chevron.classList.add('rotate-180');
+      filtrarCategorias(document.getElementById('buscaCategoriaInput').value);
+    }
+
+    function fecharDropdownCategoria() {
+      const dd = document.getElementById('dropdownCategoria');
+      const chevron = document.getElementById('chevronCategoria');
+      if (dd) dd.classList.add('hidden');
+      if (chevron) chevron.classList.remove('rotate-180');
+    }
+
+    function toggleDropdownCategoria() {
+      const dd = document.getElementById('dropdownCategoria');
+      if (dd && dd.classList.contains('hidden')) {
+        document.getElementById('buscaCategoriaInput').focus();
+        abrirDropdownCategoria();
+      } else {
+        fecharDropdownCategoria();
+      }
+    }
+
+    function filtrarCategorias(termo) {
+      const norm = normalizarTexto(termo);
+      const filtradas = appState.categorias.filter(function(c) {
+        return normalizarTexto(c).includes(norm);
+      });
+      renderizarOpcoesCategoria(filtradas);
+
+      const dd = document.getElementById('dropdownCategoria');
+      if (dd && dd.classList.contains('hidden')) {
+        abrirDropdownCategoria();
+      }
+    }
+
+    function selecionarCategoria(valor) {
+      const inputBusca = document.getElementById('buscaCategoriaInput');
+      const inputHidden = document.getElementById('campoCategoria');
+      const btnLimpar = document.getElementById('btnLimparCategoria');
+
+      inputBusca.value = valor;
+      inputHidden.value = valor;
+
+      if (btnLimpar) btnLimpar.classList.remove('hidden');
+      fecharDropdownCategoria();
+    }
+
+    function limparSelecaoCategoria() {
+      const inputBusca = document.getElementById('buscaCategoriaInput');
+      const inputHidden = document.getElementById('campoCategoria');
+      const btnLimpar = document.getElementById('btnLimparCategoria');
+
+      if (inputBusca) inputBusca.value = '';
+      if (inputHidden) inputHidden.value = '';
+      if (btnLimpar) btnLimpar.classList.add('hidden');
+
+      renderizarOpcoesCategoria(appState.categorias);
+      fecharDropdownCategoria();
+    }
+
+    function handleBlurCategoria() {
+      setTimeout(function() {
+        fecharDropdownCategoria();
+        const inputBusca = document.getElementById('buscaCategoriaInput');
+        const inputHidden = document.getElementById('campoCategoria');
+        if (inputHidden && inputHidden.value) {
+          inputBusca.value = inputHidden.value;
+        } else if (inputBusca && inputBusca.value.trim()) {
+          const match = appState.categorias.find(function(c) {
+            return normalizarTexto(c) === normalizarTexto(inputBusca.value);
+          });
+          if (match) {
+            selecionarCategoria(match);
+          } else {
+            inputBusca.value = '';
+          }
+        }
+      }, 200);
+    }
+
+    function handleKeydownCategoria(e) {
+      if (e.key === 'Escape') {
+        fecharDropdownCategoria();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        const container = document.getElementById('listaOpcoesCategoria');
+        const firstOption = container ? container.querySelector('[data-valor]') : null;
+        if (firstOption) {
+          selecionarCategoria(firstOption.getAttribute('data-valor'));
+        }
+      }
+    }
+
+    // Fechar dropdowns ao clicar fora
+    document.addEventListener('click', function(e) {
+      const wrapG = document.getElementById('wrapperComboboxGerencia');
+      const wrapC = document.getElementById('wrapperComboboxCategoria');
+      if (wrapG && !wrapG.contains(e.target)) {
+        fecharDropdownGerencia();
+      }
+      if (wrapC && !wrapC.contains(e.target)) {
+        fecharDropdownCategoria();
+      }
+    });
 
     function navegarAba(aba) {
       // Bloquear acesso a Fila Geral caso não seja admin
@@ -975,13 +1332,29 @@
 
     async function enviarNovoChamado(e) {
       e.preventDefault();
+
+      const gerencia = document.getElementById('campoGerencia').value;
+      const categoria = document.getElementById('campoCategoria').value;
+
+      if (!gerencia) {
+        alert('Por favor, selecione ou digite a Gerência Solicitante.');
+        document.getElementById('buscaGerenciaInput').focus();
+        return;
+      }
+
+      if (!categoria) {
+        alert('Por favor, selecione ou digite a Categoria da Demanda.');
+        document.getElementById('buscaCategoriaInput').focus();
+        return;
+      }
+
       const btn = document.getElementById('btnSalvarChamado');
       btn.disabled = true;
       btn.innerHTML = 'Salvando chamado...';
 
       const dados = {
-        gerencia: document.getElementById('campoGerencia').value,
-        categoria: document.getElementById('campoCategoria').value,
+        gerencia: gerencia,
+        categoria: categoria,
         prioridade: 'Normal',
         titulo: document.getElementById('campoTitulo').value,
         descricao: document.getElementById('campoDescricao').value
@@ -1006,6 +1379,8 @@
           if (res.sucesso) {
             alert('Chamado ' + res.idChamado + ' registrado com sucesso!');
             document.getElementById('formNovoChamado').reset();
+            limparSelecaoGerencia();
+            limparSelecaoCategoria();
             document.getElementById('listaArquivosContainer').innerHTML = '';
             appState.arquivosSelecionados = [];
             navegarAba('meus');
