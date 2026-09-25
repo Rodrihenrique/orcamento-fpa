@@ -69,11 +69,11 @@
           TEL
         </div>
         <div>
-          <div class="flex flex-wrap items-center gap-x-2">
-            <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight">Painel de Chamados Administrativos</h1>
-            <span class="text-slate-300 font-light hidden md:inline">|</span>
-            <span class="text-xs sm:text-sm font-semibold text-brisa-blue">Gestão de Telefonia</span>
-          </div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <span>Painel de Chamados Administrativos</span>
+            <span class="text-slate-300 font-light hidden sm:inline">|</span>
+            <span>Gestão de Telefonia</span>
+          </h1>
           <p class="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mt-0.5">
             GERÊNCIA EXECUTIVA DE TELEFONIA &bull; BRISANET
           </p>
@@ -135,20 +135,9 @@
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Prioridade Sugerida *</label>
-              <select id="campoPrioridade" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:ring-1 focus:ring-brisa-blue outline-none">
-                <option value="Baixa">Baixa (Rotina habitual)</option>
-                <option value="Média" selected>Média (Atendimento normal)</option>
-                <option value="Alta">Alta (Impacto setorial)</option>
-                <option value="Urgente">Urgente (Linha ou serviço parado)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Assunto Resumido *</label>
-              <input type="text" id="campoTitulo" required placeholder="Ex.: Solicitação de chip para novo colaborador" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:ring-1 focus:ring-brisa-blue outline-none">
-            </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Assunto Resumido *</label>
+            <input type="text" id="campoTitulo" required placeholder="Ex.: Solicitação de chip para novo colaborador" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:ring-1 focus:ring-brisa-blue outline-none">
           </div>
 
           <div>
@@ -708,7 +697,7 @@
       const dados = {
         gerencia: document.getElementById('campoGerencia').value,
         categoria: document.getElementById('campoCategoria').value,
-        prioridade: document.getElementById('campoPrioridade').value,
+        prioridade: 'Normal',
         titulo: document.getElementById('campoTitulo').value,
         descricao: document.getElementById('campoDescricao').value
       };
