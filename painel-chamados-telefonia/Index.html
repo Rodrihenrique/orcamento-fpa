@@ -1244,6 +1244,7 @@
       categorias: [],
       administradores: [],
       webAppUrl: '',
+      urlPortalVisitas: '',
       chamadosAdmin: [],
       meusChamados: [],
       chamadoSelecionado: null,
@@ -1363,6 +1364,7 @@
           appState.categorias = config.categorias;
           appState.administradores = config.administradores || [];
           appState.webAppUrl = config.webAppUrl || '';
+          appState.urlPortalVisitas = config.urlPortalVisitas || '';
 
           // Se estiver em modo formulário externo de visita, focar exclusivamente no formulário
           if (appState.modoFormVisita) {
@@ -1455,7 +1457,13 @@
     }
 
     function copiarLinkExternoVisita() {
-      let urlBase = appState.webAppUrl || window.location.href.split('?')[0].split('#')[0];
+      let urlBase = appState.urlPortalVisitas || appState.webAppUrl || window.location.href.split('?')[0].split('#')[0];
+
+      // Normalizar para garantir que não contenha prefixos restritivos de domínio corporativo (/a/macros/dominio/) ou /u/0/
+      urlBase = urlBase.replace(/https?:\/\/script\.google\.com\/a\/macros\/[^\/]+\/s\//i, 'https://script.google.com/macros/s/')
+                       .replace(/https?:\/\/script\.google\.com\/a\/[^\/]+\/macros\/s\//i, 'https://script.google.com/macros/s/')
+                       .replace(/https?:\/\/script\.google\.com\/u\/\d+\/macros\/s\//i, 'https://script.google.com/macros/s/');
+
       const linkFinal = urlBase + (urlBase.includes('?') ? '&' : '?') + 'portal=visita';
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -1466,10 +1474,12 @@
             btnLabel.textContent = 'Link Copiado!';
             setTimeout(function() { btnLabel.textContent = original; }, 2500);
           }
-          alert('Link do formulário copiado com sucesso!\n\nEnvie este link para os visitantes externos:\n' + linkFinal);
+          alert('Link do Portal de Visitas copiado com sucesso!\n\nEnvie este link para os visitantes externos:\n' + linkFinal);
         }).catch(function() {
           prompt('Copie o link abaixo para enviar ao visitante:', linkFinal);
         });
+      } else {
+        prompt('Copie o link abaixo para enviar ao visitante:', linkFinal);
       }
     }
 

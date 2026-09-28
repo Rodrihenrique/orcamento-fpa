@@ -82,7 +82,8 @@ function obterConfiguracoesIniciais() {
     gerencias: gerencias,
     categorias: categorias,
     administradores: administradores,
-    webAppUrl: obterUrlWebApp()
+    webAppUrl: normalizarUrlPublica(obterUrlWebApp()),
+    urlPortalVisitas: obterUrlPortalVisitas()
   };
 }
 
@@ -721,20 +722,21 @@ function obterBlobDoAnexo(anexo) {
 }
 
 /**
- * Retorna a URL publicada do Web App, com cache em ScriptProperties.
+ * Retorna a URL publicada do Web App, com normalização para o formato universal.
  */
 function obterUrlWebApp() {
   let url = '';
   try {
     url = ScriptApp.getService().getUrl();
     if (url && url.length > 5) {
+      const urlNorm = normalizarUrlPublica(url);
       try {
         const props = PropertiesService.getScriptProperties();
-        if (props.getProperty('WEB_APP_URL') !== url) {
-          props.setProperty('WEB_APP_URL', url);
+        if (props.getProperty('WEB_APP_URL') !== urlNorm) {
+          props.setProperty('WEB_APP_URL', urlNorm);
         }
       } catch (eProp) {}
-      return url;
+      return urlNorm;
     }
   } catch (err) {
     Logger.log('Aviso ao obter URL via ScriptApp: ' + err.message);
@@ -743,10 +745,62 @@ function obterUrlWebApp() {
   try {
     const props = PropertiesService.getScriptProperties();
     const salva = props.getProperty('WEB_APP_URL');
-    if (salva) return salva;
+    if (salva) return normalizarUrlPublica(salva);
   } catch (e2) {}
 
   return '';
+}
+
+/**
+ * Retorna a URL universal pública do Portal de Visitas Externas.
+ * Se configurada URL específica nas ScriptProperties (URL_PORTAL_VISITAS), utiliza ela com prioridade.
+ * Caso contrário, normaliza a URL retornada por ScriptApp.getService().getUrl()
+ * para a URL universal pública (https://script.google.com/macros/s/...),
+ * eliminando prefixos restritos de domínio Workspace (/a/macros/dominio/) e /u/0/
+ * que causam o redirecionamento indevido no Google Drive.
+ */
+function obterUrlPortalVisitas() {
+  const props = PropertiesService.getScriptProperties();
+  const urlEspecifica = props.getProperty('URL_PORTAL_VISITAS');
+  if (urlEspecifica && urlEspecifica.trim().startsWith('http')) {
+    return normalizarUrlPublica(urlEspecifica.trim());
+  }
+
+  const urlBase = obterUrlWebApp();
+  return normalizarUrlPublica(urlBase);
+}
+
+/**
+ * Normaliza URLs do Google Apps Script para a URL pública universal (https://script.google.com/macros/s/...),
+ * removendo prefixos restritivos de domínio corporativo (/a/macros/dominio.com.br/s/...)
+ * e números de conta Google (/u/0/, /u/1/) para garantir que qualquer usuário acesse a página sem erro do Drive.
+ */
+function normalizarUrlPublica(url) {
+  if (!url || typeof url !== 'string') return '';
+  let limpa = url.trim().split('#')[0].split('?')[0];
+
+  // Substitui /a/macros/dominio/s/ ou /a/dominio/macros/s/ por /macros/s/
+  limpa = limpa.replace(/https?:\/\/script\.google\.com\/a\/macros\/[^\/]+\/s\//i, 'https://script.google.com/macros/s/');
+  limpa = limpa.replace(/https?:\/\/script\.google\.com\/a\/[^\/]+\/macros\/s\//i, 'https://script.google.com/macros/s/');
+
+  // Remove prefixos /u/0/, /u/1/ que forçam conta específica do navegador
+  limpa = limpa.replace(/https?:\/\/script\.google\.com\/u\/\d+\/macros\/s\//i, 'https://script.google.com/macros/s/');
+
+  return limpa;
+}
+
+/**
+ * Permite que o administrador configure a URL pública oficial do Portal de Visitas.
+ */
+function configurarUrlPortalVisitas(url) {
+  const config = obterConfiguracoesIniciais();
+  if (!config.usuario.isAdmin) {
+    throw new Error('Apenas administradores podem configurar a URL do portal.');
+  }
+  const limpa = normalizarUrlPublica(url);
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('URL_PORTAL_VISITAS', limpa);
+  return { sucesso: true, url: limpa, mensagem: 'URL do Portal de Visitas atualizada com sucesso!' };
 }
 
 /**
@@ -1215,8 +1269,18 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
       ]);
     }
 
+    // Se a origem do formulário enviou a URL pública do portal, memorizar nas ScriptProperties
+    if (dados && dados.portalUrl && typeof dados.portalUrl === 'string' && dados.portalUrl.startsWith('http')) {
+      const urlOrigemNorm = normalizarUrlPublica(dados.portalUrl);
+      if (urlOrigemNorm) {
+        try {
+          props.setProperty('URL_PORTAL_VISITAS', urlOrigemNorm);
+        } catch (eProp) {}
+      }
+    }
+
     // Link com Token seguro para acompanhamento pelo visitante externo no Portal de Visitas
-    const urlWeb = obterUrlWebApp();
+    const urlWeb = obterUrlPortalVisitas();
     const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
 
     // Enviar confirmação por e-mail ao visitante externo
@@ -1581,7 +1645,7 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
   }
 
   // Notificar visitante por e-mail com visual institucional
-  const urlWeb = obterUrlWebApp();
+  const urlWeb = obterUrlPortalVisitas();
   const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + visitaObj.tokenAcesso + '&email=' + encodeURIComponent(visitaObj.responsavelEmail)) : '';
 
   try {

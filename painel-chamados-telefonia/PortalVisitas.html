@@ -836,6 +836,11 @@
         arquivosBase64.push({ nome: file.name, tipo: file.type, base64: base64 });
       }
 
+      let urlOrigem = '';
+      try {
+        urlOrigem = window.location.href.split('?')[0].split('#')[0];
+      } catch (e) {}
+
       const dados = {
         empresa: empresa,
         responsavelNome: responsavelNome,
@@ -848,7 +853,8 @@
         cronograma: cronograma,
         itinerario: itinerario,
         tour: tour,
-        observacoes: observacoes
+        observacoes: observacoes,
+        portalUrl: urlOrigem
       };
 
       google.script.run
