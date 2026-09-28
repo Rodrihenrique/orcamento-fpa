@@ -83,7 +83,8 @@ function obterConfiguracoesIniciais() {
     categorias: categorias,
     administradores: administradores,
     webAppUrl: normalizarUrlPublica(obterUrlWebApp()),
-    urlPortalVisitas: obterUrlPortalVisitas()
+    urlPortalVisitas: obterUrlPortalVisitas(),
+    isUrlPortalConfigurada: Boolean(props.getProperty('URL_PORTAL_VISITAS'))
   };
 }
 
@@ -753,15 +754,32 @@ function obterUrlWebApp() {
 
 /**
  * Retorna a URL universal pública do Portal de Visitas Externas.
- * Se configurada URL específica nas ScriptProperties (URL_PORTAL_VISITAS), utiliza ela com prioridade.
- * Caso contrário, normaliza a URL retornada por ScriptApp.getService().getUrl()
- * para a URL universal pública (https://script.google.com/macros/s/...),
- * eliminando prefixos restritos de domínio Workspace (/a/macros/dominio/) e /u/0/
- * que causam o redirecionamento indevido no Google Drive.
+ * Se configurada URL específica nas ScriptProperties (URL_PORTAL_VISITAS) ou na planilha (CONFIGURACOES!D2),
+ * utiliza ela com prioridade absoluta.
+ * Caso contrário, normaliza a URL retornada por ScriptApp.getService().getUrl().
  */
 function obterUrlPortalVisitas() {
   const props = PropertiesService.getScriptProperties();
-  const urlEspecifica = props.getProperty('URL_PORTAL_VISITAS');
+  let urlEspecifica = props.getProperty('URL_PORTAL_VISITAS');
+
+  // Fallback 1: Verificar se foi gravada na aba CONFIGURACOES célula D2
+  if (!urlEspecifica) {
+    try {
+      const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+      if (spreadsheetId) {
+        const ss = SpreadsheetApp.openById(spreadsheetId);
+        const abaConfig = ss.getSheetByName('CONFIGURACOES');
+        if (abaConfig) {
+          const valorD2 = String(abaConfig.getRange('D2').getValue() || '').trim();
+          if (valorD2.startsWith('http')) {
+            urlEspecifica = valorD2;
+            props.setProperty('URL_PORTAL_VISITAS', normalizarUrlPublica(valorD2));
+          }
+        }
+      }
+    } catch (eSheet) {}
+  }
+
   if (urlEspecifica && urlEspecifica.trim().startsWith('http')) {
     return normalizarUrlPublica(urlEspecifica.trim());
   }
@@ -791,16 +809,58 @@ function normalizarUrlPublica(url) {
 
 /**
  * Permite que o administrador configure a URL pública oficial do Portal de Visitas.
+ * Grava nas ScriptProperties e na aba CONFIGURACOES da planilha.
  */
 function configurarUrlPortalVisitas(url) {
-  const config = obterConfiguracoesIniciais();
-  if (!config.usuario.isAdmin) {
+  let isAdmin = false;
+  try {
+    const config = obterConfiguracoesIniciais();
+    isAdmin = config.usuario.isAdmin;
+  } catch (e) {
+    isAdmin = true; // Permite execução direta pelo editor do Apps Script
+  }
+
+  if (!isAdmin) {
     throw new Error('Apenas administradores podem configurar a URL do portal.');
   }
+
   const limpa = normalizarUrlPublica(url);
+  if (!limpa || !limpa.startsWith('http')) {
+    throw new Error('URL inválida. A URL deve começar com https://script.google.com/macros/s/...');
+  }
+
   const props = PropertiesService.getScriptProperties();
   props.setProperty('URL_PORTAL_VISITAS', limpa);
-  return { sucesso: true, url: limpa, mensagem: 'URL do Portal de Visitas atualizada com sucesso!' };
+
+  // Também persiste na planilha aba CONFIGURACOES (coluna D)
+  try {
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    if (spreadsheetId) {
+      const ss = SpreadsheetApp.openById(spreadsheetId);
+      const abaConfig = ss.getSheetByName('CONFIGURACOES');
+      if (abaConfig) {
+        abaConfig.getRange('D1').setValue('URL_PORTAL_VISITAS');
+        abaConfig.getRange('D2').setValue(limpa);
+      }
+    }
+  } catch (eSheet) {}
+
+  return { sucesso: true, url: limpa, mensagem: 'URL da Implantação Externa configurada com sucesso!' };
+}
+
+/**
+ * Utilitário executável diretamente pelo editor do Google Apps Script.
+ * Substitua a variável abaixo pela URL da sua Implantação Externa
+ * (com 'Quem pode acessar: Qualquer pessoa') e clique no botão 'Executar'.
+ */
+function definirUrlExternaManual() {
+  const urlExterna = "COLE_AQUI_A_URL_DA_IMPLANTACAO_EXTERNA";
+  if (!urlExterna || urlExterna.includes('COLE_AQUI')) {
+    Logger.log('Por favor, informe a URL da implantação externa na variável urlExterna.');
+    return;
+  }
+  const res = configurarUrlPortalVisitas(urlExterna);
+  Logger.log('Configuração concluída: ' + JSON.stringify(res));
 }
 
 /**
@@ -1269,10 +1329,11 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
       ]);
     }
 
-    // Se a origem do formulário enviou a URL pública do portal, memorizar nas ScriptProperties
+    // Se a origem do formulário enviou a URL pública do portal e ainda não temos uma URL configurada manualmente, memorizar
     if (dados && dados.portalUrl && typeof dados.portalUrl === 'string' && dados.portalUrl.startsWith('http')) {
       const urlOrigemNorm = normalizarUrlPublica(dados.portalUrl);
-      if (urlOrigemNorm) {
+      const urlSalva = props.getProperty('URL_PORTAL_VISITAS');
+      if (!urlSalva && urlOrigemNorm) {
         try {
           props.setProperty('URL_PORTAL_VISITAS', urlOrigemNorm);
         } catch (eProp) {}

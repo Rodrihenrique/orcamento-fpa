@@ -497,7 +497,12 @@
         <div class="flex items-center gap-2 flex-wrap">
           <button onclick="copiarLinkExternoVisita()" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 flex items-center gap-1.5 transition-colors shadow-sm" title="Copiar link direto para envio a empresas externas">
             <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
-            <span>Copiar Link Externo</span>
+            <span id="labelCopiarLinkVisita">Copiar Link Externo</span>
+          </button>
+          <button onclick="abrirModalConfigUrlPortal()" id="btnConfigUrlPortal" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 flex items-center gap-1.5 transition-colors shadow-sm" title="Configurar URL do Web App da Implantação Externa">
+            <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+            <span>Configurar URL Externa</span>
+            <span id="badgeIndicadorUrlPortal" class="w-2 h-2 rounded-full bg-amber-500" title="Verificando URL externa..."></span>
           </button>
           <button onclick="carregarVisitas()" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 flex items-center gap-1.5 transition-colors">
             <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
@@ -747,7 +752,64 @@
 
           <button id="btnEnviarRespostaSolicitante" onclick="executarEnviarRespostaSolicitante()" class="w-full py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+            <span>Enviar Resposta</span>
+          </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE CONFIGURAÇÃO DA URL DO PORTAL EXTERNO DE VISITAS -->
+  <div id="modalConfigUrlPortal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-5">
+    <div onclick="event.stopPropagation()" class="bg-white w-full max-w-xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-fadeIn">
+      <div class="h-1.5 bg-gradient-to-r from-brisa-orange to-brisa-orangeMid"></div>
+      
+      <div class="p-5 sm:p-6 border-b border-slate-200 flex items-start justify-between bg-slate-50/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-brisa-navy text-white flex items-center justify-center font-bold text-xs tracking-wider shadow-sm">
+            URL
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-slate-900">Configurar URL da Implantação Externa</h2>
+            <p class="text-xs text-slate-500">Garante o acesso de visitantes externos sem bloqueio do Google Drive</p>
+          </div>
+        </div>
+        <button type="button" onclick="fecharModalConfigUrlPortal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-5 sm:p-6 space-y-4">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-xs text-amber-800 leading-relaxed space-y-1">
+          <div class="font-bold flex items-center gap-1.5 text-amber-900">
+            <svg class="w-4 h-4 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            <span>Por que esta configuração é necessária?</span>
+          </div>
+          <p>
+            O Google Apps Script restringe os links da implantação interna exclusivamente a contas da organização Brisanet. Para que visitantes externos abram o link dos e-mails (confirmação, deliberações e solicitação de ajustes) sem receber o erro <em>"Não foi possível abrir o arquivo"</em>, o sistema utiliza a URL da <strong>Implantação Externa</strong> (configurada com <em>"Quem tem acesso: Qualquer pessoa"</em>).
+          </p>
+        </div>
+
+        <div class="space-y-1.5">
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+            URL do Aplicativo Web (Implantação Externa)
+          </label>
+          <input type="url" id="inputUrlPortalVisitas" placeholder="https://script.google.com/macros/s/AKfy.../exec" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-brisa-blue focus:bg-white font-mono transition-all">
+          <p class="text-[11px] text-slate-500">
+            Onde encontrar no Apps Script: <strong>Implantar &gt; Gerenciar implantações &gt; Implantação Externa &gt; URL do aplicativo Web</strong>.
+          </p>
+        </div>
+
+        <div id="msgFeedbackConfigUrl" class="hidden text-xs p-3 rounded-xl"></div>
+      </div>
+
+      <div class="p-4 sm:p-5 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+        <button type="button" onclick="fecharModalConfigUrlPortal()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+          Cancelar
+        </button>
+        <button type="button" id="btnSalvarUrlPortal" onclick="executarSalvarUrlPortal()" class="px-5 py-2 rounded-xl bg-brisa-orange hover:bg-opacity-90 text-white text-xs font-semibold shadow-sm transition-all flex items-center gap-2">
+          <span>Salvar URL Oficial</span>
+        </button>
       </div>
     </div>
   </div>
@@ -1245,6 +1307,7 @@
       administradores: [],
       webAppUrl: '',
       urlPortalVisitas: '',
+      isUrlPortalConfigurada: false,
       chamadosAdmin: [],
       meusChamados: [],
       chamadoSelecionado: null,
@@ -1365,6 +1428,8 @@
           appState.administradores = config.administradores || [];
           appState.webAppUrl = config.webAppUrl || '';
           appState.urlPortalVisitas = config.urlPortalVisitas || '';
+          appState.isUrlPortalConfigurada = Boolean(config.isUrlPortalConfigurada);
+          atualizarIndicadorUrlPortal(appState.isUrlPortalConfigurada);
 
           // Se estiver em modo formulário externo de visita, focar exclusivamente no formulário
           if (appState.modoFormVisita) {
@@ -1456,14 +1521,100 @@
       abrirModalSolicitacaoVisita();
     }
 
+    function abrirModalConfigUrlPortal() {
+      const modal = document.getElementById('modalConfigUrlPortal');
+      const input = document.getElementById('inputUrlPortalVisitas');
+      const feedback = document.getElementById('msgFeedbackConfigUrl');
+      if (feedback) feedback.className = 'hidden';
+      if (input) input.value = appState.urlPortalVisitas || '';
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function fecharModalConfigUrlPortal() {
+      const modal = document.getElementById('modalConfigUrlPortal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function executarSalvarUrlPortal() {
+      const input = document.getElementById('inputUrlPortalVisitas');
+      const url = (input ? input.value : '').trim();
+      const feedback = document.getElementById('msgFeedbackConfigUrl');
+      const btn = document.getElementById('btnSalvarUrlPortal');
+
+      if (!url || !url.startsWith('http')) {
+        if (feedback) {
+          feedback.className = 'text-xs p-3 rounded-xl bg-red-50 text-red-700 border border-red-200';
+          feedback.textContent = 'Por favor, insira uma URL válida iniciando com https://script.google.com/macros/s/...';
+        }
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Salvando...</span>';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Salvar URL Oficial</span>';
+          if (res && res.sucesso) {
+            appState.urlPortalVisitas = res.url;
+            appState.isUrlPortalConfigurada = true;
+            atualizarIndicadorUrlPortal(true);
+            if (feedback) {
+              feedback.className = 'text-xs p-3 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200';
+              feedback.textContent = 'URL configurada com sucesso! Os novos e-mails e links gerados já utilizarão a implantação externa.';
+            }
+            setTimeout(function() {
+              fecharModalConfigUrlPortal();
+            }, 1800);
+          } else {
+            if (feedback) {
+              feedback.className = 'text-xs p-3 rounded-xl bg-red-50 text-red-700 border border-red-200';
+              feedback.textContent = res ? res.erro : 'Erro desconhecido ao salvar.';
+            }
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Salvar URL Oficial</span>';
+          if (feedback) {
+            feedback.className = 'text-xs p-3 rounded-xl bg-red-50 text-red-700 border border-red-200';
+            feedback.textContent = 'Erro ao salvar: ' + (err.message || err);
+          }
+        })
+        .configurarUrlPortalVisitas(url);
+    }
+
+    function atualizarIndicadorUrlPortal(configurada) {
+      const badge = document.getElementById('badgeIndicadorUrlPortal');
+      if (!badge) return;
+      if (configurada) {
+        badge.className = 'w-2 h-2 rounded-full bg-emerald-500';
+        badge.title = 'URL da Implantação Externa configurada e ativa';
+      } else {
+        badge.className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+        badge.title = 'Atenção: Configure a URL externa para garantir acesso dos visitantes';
+      }
+    }
+
+    function normalizarUrlFrontend(url) {
+      if (!url || typeof url !== 'string') return '';
+      let limpa = url.trim().split('#')[0].split('?')[0];
+      limpa = limpa.replace(/https?:\/\/script\.google\.com\/a\/macros\/[^\/]+\/s\//i, 'https://script.google.com/macros/s/');
+      limpa = limpa.replace(/https?:\/\/script\.google\.com\/a\/[^\/]+\/macros\/s\//i, 'https://script.google.com/macros/s/');
+      limpa = limpa.replace(/https?:\/\/script\.google\.com\/u\/\d+\/macros\/s\//i, 'https://script.google.com/macros/s/');
+      return limpa;
+    }
+
     function copiarLinkExternoVisita() {
+      if (!appState.isUrlPortalConfigurada) {
+        alert('Atenção: A URL da Implantação Externa ainda não foi configurada.\n\nPor favor, informe a URL do Web App da Implantação Externa (configurada com "Quem tem acesso: Qualquer pessoa") para que o visitante acesse sem o erro do Google Drive.');
+        abrirModalConfigUrlPortal();
+        return;
+      }
+
       let urlBase = appState.urlPortalVisitas || appState.webAppUrl || window.location.href.split('?')[0].split('#')[0];
-
-      // Normalizar para garantir que não contenha prefixos restritivos de domínio corporativo (/a/macros/dominio/) ou /u/0/
-      urlBase = urlBase.replace(/https?:\/\/script\.google\.com\/a\/macros\/[^\/]+\/s\//i, 'https://script.google.com/macros/s/')
-                       .replace(/https?:\/\/script\.google\.com\/a\/[^\/]+\/macros\/s\//i, 'https://script.google.com/macros/s/')
-                       .replace(/https?:\/\/script\.google\.com\/u\/\d+\/macros\/s\//i, 'https://script.google.com/macros/s/');
-
+      urlBase = normalizarUrlFrontend(urlBase);
       const linkFinal = urlBase + (urlBase.includes('?') ? '&' : '?') + 'portal=visita';
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
