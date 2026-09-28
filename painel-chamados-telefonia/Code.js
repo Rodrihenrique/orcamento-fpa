@@ -780,6 +780,14 @@ function obterUrlPortalVisitas() {
     } catch (eSheet) {}
   }
 
+  // Fallback 2: URL Oficial da Implantação Externa registrada no projeto
+  if (!urlEspecifica) {
+    urlEspecifica = 'https://script.google.com/macros/s/AKfycbxPsXwK2d71IB47RZCIInk6LF_8jEtSLsc34rpH0p012JpDpP-qWV95_kBLRsG5MNst/exec';
+    try {
+      props.setProperty('URL_PORTAL_VISITAS', urlEspecifica);
+    } catch (eP) {}
+  }
+
   if (urlEspecifica && urlEspecifica.trim().startsWith('http')) {
     return normalizarUrlPublica(urlEspecifica.trim());
   }
@@ -854,13 +862,10 @@ function configurarUrlPortalVisitas(url) {
  * (com 'Quem pode acessar: Qualquer pessoa') e clique no botão 'Executar'.
  */
 function definirUrlExternaManual() {
-  const urlExterna = "COLE_AQUI_A_URL_DA_IMPLANTACAO_EXTERNA";
-  if (!urlExterna || urlExterna.includes('COLE_AQUI')) {
-    Logger.log('Por favor, informe a URL da implantação externa na variável urlExterna.');
-    return;
-  }
+  const urlExterna = "https://script.google.com/macros/s/AKfycbxPsXwK2d71IB47RZCIInk6LF_8jEtSLsc34rpH0p012JpDpP-qWV95_kBLRsG5MNst/exec";
   const res = configurarUrlPortalVisitas(urlExterna);
   Logger.log('Configuração concluída: ' + JSON.stringify(res));
+  return res;
 }
 
 /**
