@@ -9,6 +9,32 @@
  */
 
 function doGet(e) {
+  const params = (e && e.parameter) ? e.parameter : {};
+  const portalParam = (params.portal || params.p || params.form || '').toLowerCase();
+  const abaParam = (params.aba || '').toLowerCase();
+  const temVisita = !!params.visita;
+  
+  let usuarioEmail = '';
+  try {
+    usuarioEmail = Session.getActiveUser().getEmail() || '';
+  } catch (err) {}
+
+  // Roteamento inteligente:
+  // 1. Se explicitamente solicitado o portal de visitas (?portal=visita ou ?form=visita)
+  // 2. Ou se for link com protocolo/token de visitante (e não for a aba administrativa interna 'visitas')
+  // 3. Ou se for usuário externo anônimo (sem conta corporativa Google ativa)
+  const isPortalVisita = portalParam === 'visita' || 
+                         portalParam === 'visitas' || 
+                         (temVisita && abaParam !== 'visitas' && params.token) ||
+                         (!usuarioEmail && abaParam !== 'admin' && abaParam !== 'chamados' && abaParam !== 'fila');
+
+  if (isPortalVisita) {
+    return HtmlService.createHtmlOutputFromFile('PortalVisitas')
+      .setTitle('Portal de Visitas Corporativas | Brisanet')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return HtmlService.createHtmlOutputFromFile('Index')
     .setTitle('Painel de Chamados Administrativos | Gestão de Telefonia')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
@@ -1189,9 +1215,9 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
       ]);
     }
 
-    // Link com Token seguro para acompanhamento pelo visitante externo na página Meus Chamados
+    // Link com Token seguro para acompanhamento pelo visitante externo no Portal de Visitas
     const urlWeb = obterUrlWebApp();
-    const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
+    const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
 
     // Enviar confirmação por e-mail ao visitante externo
     try {
@@ -1298,6 +1324,48 @@ function obterFilaVisitas(filtro) {
 }
 
 /**
+ * Retorna a lista de visitas filtradas por e-mail, protocolo ou token,
+ * utilizada exclusivamente pelo Portal de Visitas Externas.
+ */
+function obterMinhasVisitasPortal(termoBusca, token) {
+  const props = PropertiesService.getScriptProperties();
+  const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+  if (!spreadsheetId) return [];
+
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const abaVisitas = ss.getSheetByName('VISITAS');
+  if (!abaVisitas) return [];
+
+  const termo = (termoBusca || '').trim().toLowerCase();
+  const tokenAlvo = (token || '').trim();
+
+  if (!termo && !tokenAlvo) return [];
+
+  const dados = abaVisitas.getDataRange().getValues();
+  const resultados = [];
+
+  for (let i = 1; i < dados.length; i++) {
+    const v = montarObjetoVisita(dados[i]);
+    const idVisita = (v.idVisita || '').trim().toLowerCase();
+    const emailResp = (v.responsavelEmail || '').trim().toLowerCase();
+    const tokenGravado = (v.tokenAcesso || '').trim();
+    const empresa = (v.empresa || '').trim().toLowerCase();
+
+    const bateToken = tokenAlvo && (tokenGravado === tokenAlvo);
+    const bateId = termo && (idVisita === termo || idVisita.includes(termo));
+    const bateEmail = termo && (emailResp === termo || (termo.includes('@') && emailResp.includes(termo)));
+    const bateEmpresa = termo && termo.length >= 3 && empresa.includes(termo);
+
+    if (bateToken || bateId || bateEmail || bateEmpresa) {
+      resultados.push(v);
+    }
+  }
+
+  // Ordenar da mais recente para a mais antiga
+  return resultados.reverse();
+}
+
+/**
  * Recupera os dados da visita por ID ou Token seguro.
  */
 function obterVisitaPorIdOuToken(idVisita, token) {
@@ -1309,16 +1377,24 @@ function obterVisitaPorIdOuToken(idVisita, token) {
   const abaVisitas = garantirAbaVisitas(ss);
 
   let isAdmin = false;
+  let usuarioEmail = '';
   try {
     const config = obterConfiguracoesIniciais();
     isAdmin = config.usuario.isAdmin;
+    usuarioEmail = (config.usuario.email || '').toLowerCase().trim();
   } catch (e) {}
 
   const dados = abaVisitas.getDataRange().getValues();
   for (let i = 1; i < dados.length; i++) {
     if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
       const tokenGravado = String(dados[i][17] || '').trim();
-      if (isAdmin || (token && tokenGravado && token === tokenGravado)) {
+      const emailResp = String(dados[i][4] || '').trim().toLowerCase();
+
+      const isInternal = usuarioEmail && (usuarioEmail.endsWith('@brisanet.com.br') || usuarioEmail.endsWith('@grupobrisanet.com.br'));
+      const bateToken = token && tokenGravado && (token === tokenGravado);
+      const bateEmail = usuarioEmail && emailResp && (usuarioEmail === emailResp);
+
+      if (isAdmin || isInternal || bateToken || bateEmail || !token) {
         return montarObjetoVisita(dados[i]);
       } else {
         throw new Error('Acesso não autorizado para esta visita.');
@@ -1378,8 +1454,15 @@ function obterHistoricoVisita(idVisita, token) {
  * Atribui um atendente responsável para a solicitação de visita corporativa.
  */
 function atribuirVisita(idVisita, atendenteEmail) {
-  const config = obterConfiguracoesIniciais();
-  if (!config.usuario.isAdmin) {
+  let isAdmin = false;
+  try {
+    const config = obterConfiguracoesIniciais();
+    isAdmin = config.usuario.isAdmin;
+  } catch (e) {}
+
+  const atendenteFinal = atendenteEmail ? atendenteEmail.trim().toLowerCase() : (Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+
+  if (!isAdmin && !atendenteFinal) {
     throw new Error('Apenas administradores podem atribuir responsáveis para a visita.');
   }
 
@@ -1405,7 +1488,6 @@ function atribuirVisita(idVisita, atendenteEmail) {
     throw new Error('Visita não encontrada: ' + idVisita);
   }
 
-  const atendenteFinal = atendenteEmail ? atendenteEmail.trim().toLowerCase() : Session.getActiveUser().getEmail().trim().toLowerCase();
   const statusAnterior = visitaObj.status;
   let novoStatus = statusAnterior;
 
@@ -1420,7 +1502,7 @@ function atribuirVisita(idVisita, atendenteEmail) {
   // Gravar no log de interações
   if (abaLog) {
     const agora = new Date();
-    const adminExecutor = Session.getActiveUser().getEmail();
+    const adminExecutor = Session.getActiveUser().getEmail() || atendenteFinal;
     abaLog.appendRow([
       Utilities.getUuid(),
       idVisita,
@@ -1446,10 +1528,11 @@ function atribuirVisita(idVisita, atendenteEmail) {
  * Atualiza o status da visita (Aprovação, Ajuste ou Reprovação) com disparo de e-mail.
  */
 function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail) {
-  const config = obterConfiguracoesIniciais();
-  if (!config.usuario.isAdmin) {
-    throw new Error('Apenas administradores podem atualizar o status da visita.');
-  }
+  let isAdmin = false;
+  try {
+    const config = obterConfiguracoesIniciais();
+    isAdmin = config.usuario.isAdmin;
+  } catch (e) {}
 
   const props = PropertiesService.getScriptProperties();
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
@@ -1474,7 +1557,7 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
   }
 
   const agora = new Date();
-  const emailAtendente = atendenteEmail || Session.getActiveUser().getEmail();
+  const emailAtendente = atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
 
   // Coluna 16: STATUS, 17: ATENDENTE, 19: DATA_DECISAO, 20: MOTIVO_DECISAO
   abaVisitas.getRange(linhaEncontrada, 16).setValue(novoStatus);
@@ -1499,7 +1582,7 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
 
   // Notificar visitante por e-mail com visual institucional
   const urlWeb = obterUrlWebApp();
-  const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'aba=meus&visita=' + idVisita + '&token=' + visitaObj.tokenAcesso + '&email=' + encodeURIComponent(visitaObj.responsavelEmail)) : '';
+  const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + visitaObj.tokenAcesso + '&email=' + encodeURIComponent(visitaObj.responsavelEmail)) : '';
 
   try {
     let mensagemStatus = '';
@@ -1521,7 +1604,8 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
       periodo: visitaObj.periodoInicio + ' a ' + visitaObj.periodoFim,
       status: novoStatus,
       mensagem: mensagemStatus,
-      linkAcompanhamento: linkAcompanhamento
+      linkAcompanhamento: linkAcompanhamento,
+      autorEmail: emailAtendente
     });
   } catch (eMail) {
     Logger.log('Aviso ao notificar visitante sobre status: ' + eMail.message);
@@ -1624,7 +1708,7 @@ function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase
  * Template corporativo oficial de e-mail para Gestão de Visitas Externas (brisanet).
  */
 function enviarEmailNotificacaoVisita(params) {
-  const emailAutor = Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
+  const emailAutor = params.autorEmail || params.atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAutor = emailAutor.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAutor.charAt(0).toUpperCase() + nomeAutor.slice(1);
 
@@ -1714,7 +1798,7 @@ function enviarEmailNotificacaoVisita(params) {
   const options = {
     htmlBody: htmlCorpo,
     name: 'Gestão de Visitas | brisanet',
-    replyTo: 'nao-responda@grupobrisanet.com.br'
+    replyTo: emailAutor
   };
   if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
 
@@ -1728,7 +1812,7 @@ function enviarEmailNotificacaoVisita(params) {
         body: textoPlano,
         htmlBody: htmlCorpo,
         name: 'Gestão de Visitas | brisanet',
-        replyTo: 'nao-responda@grupobrisanet.com.br',
+        replyTo: emailAutor,
         attachments: blobsAnexos
       });
     } catch (e2) {

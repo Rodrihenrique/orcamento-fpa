@@ -1456,7 +1456,7 @@
 
     function copiarLinkExternoVisita() {
       let urlBase = appState.webAppUrl || window.location.href.split('?')[0].split('#')[0];
-      const linkFinal = urlBase + (urlBase.includes('?') ? '&' : '?') + 'form=visita';
+      const linkFinal = urlBase + (urlBase.includes('?') ? '&' : '?') + 'portal=visita';
 
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(linkFinal).then(function() {
@@ -2689,7 +2689,7 @@
         html += '<td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-brisa-navy border border-blue-200">' + qtdPart + ' participante(s)</span></td>';
         html += '<td class="py-3 px-4">' + renderBadgeStatusVisita(v.status) + '</td>';
         html += '<td class="py-3 px-4 text-slate-500">' + (v.atendente ? v.atendente.split('@')[0] : '<em>A definir</em>') + '</td>';
-        html += '<td class="py-3 px-4 text-right"><button onclick="abrirDrawerVisita(\'' + v.idVisita + '\')" class="text-xs text-brisa-blue hover:underline font-semibold">Analisar</button></td>';
+        html += '<td class="py-3 px-4 text-right"><button onclick="abrirDrawerVisita(\'' + v.idVisita + '\', \'' + (v.tokenAcesso || '') + '\')" class="text-xs text-brisa-blue hover:underline font-semibold">Analisar</button></td>';
         html += '</tr>';
       });
 
@@ -3211,7 +3211,7 @@
       // Painel de Ações: Admin vs Visitante Externo
       const blocoAdmin = document.getElementById('drawerVisitaAcoesAdmin');
       const blocoVisitante = document.getElementById('drawerVisitaAcoesVisitante');
-      const isAdmin = appState.usuario && appState.usuario.isAdmin;
+      const isAdmin = (appState.usuario && appState.usuario.isAdmin) || appState.abaAtiva === 'visitas' || appState.abaAtiva === 'fila';
 
       if (isAdmin) {
         blocoAdmin.classList.remove('hidden');
@@ -3247,7 +3247,19 @@
       if (!select) return;
       select.innerHTML = '<option value="">Atribuir a outro atendente...</option>';
 
-      const admins = appState.administradores || [];
+      let admins = (appState.administradores || []).slice();
+
+      if (atendenteAtual && !admins.includes(atendenteAtual.toLowerCase().trim())) {
+        admins.push(atendenteAtual.toLowerCase().trim());
+      }
+
+      if (appState.usuario && appState.usuario.email) {
+        const meuEmail = appState.usuario.email.toLowerCase().trim();
+        if (meuEmail && !admins.includes(meuEmail) && meuEmail !== 'usuario@brisanet.com.br') {
+          admins.unshift(meuEmail);
+        }
+      }
+
       admins.forEach(function(email) {
         if (!email) return;
         const nomeCurto = email.split('@')[0].replace('.', ' ');
@@ -3255,17 +3267,24 @@
         const isSelected = (atendenteAtual && atendenteAtual.toLowerCase() === email.toLowerCase()) ? ' selected' : '';
         select.innerHTML += '<option value="' + email + '"' + isSelected + '>' + nomeFormatado + ' (' + email + ')</option>';
       });
+
+      select.innerHTML += '<option value="__outro__">+ Digitar outro e-mail corporativo...</option>';
     }
 
     function executarAssumirVisita() {
       if (!appState.visitaSelecionada) return;
-      if (!appState.usuario || !appState.usuario.email) {
-        alert('Usuário não autenticado.');
-        return;
+      let meuEmail = (appState.usuario && appState.usuario.email) ? appState.usuario.email.trim().toLowerCase() : '';
+      if (!meuEmail || meuEmail === 'usuario@brisanet.com.br') {
+        meuEmail = prompt('Informe seu e-mail corporativo Brisanet para assumir esta visita:');
+        if (!meuEmail || !meuEmail.includes('@')) {
+          alert('E-mail corporativo inválido.');
+          return;
+        }
+        meuEmail = meuEmail.trim().toLowerCase();
+        if (appState.usuario) appState.usuario.email = meuEmail;
       }
 
       const idVisita = appState.visitaSelecionada.idVisita;
-      const meuEmail = appState.usuario.email;
 
       if (!confirm('Deseja assumir a análise e condução desta solicitação de visita (' + idVisita + ')?')) {
         return;
@@ -3304,11 +3323,20 @@
     function executarAtribuirOutroVisita() {
       if (!appState.visitaSelecionada) return;
       const select = document.getElementById('selectAtribuirVisita');
-      const emailAlvo = select ? select.value.trim() : '';
+      let emailAlvo = select ? select.value.trim() : '';
 
       if (!emailAlvo) {
         alert('Por favor, selecione um atendente na lista antes de atribuir.');
         return;
+      }
+
+      if (emailAlvo === '__outro__') {
+        emailAlvo = prompt('Digite o e-mail corporativo Brisanet do atendente:');
+        if (!emailAlvo || !emailAlvo.includes('@')) {
+          alert('E-mail inválido.');
+          return;
+        }
+        emailAlvo = emailAlvo.trim().toLowerCase();
       }
 
       const idVisita = appState.visitaSelecionada.idVisita;
@@ -3439,7 +3467,15 @@
         return;
       }
 
-      const emailAtendente = (appState.usuario && appState.usuario.email) ? appState.usuario.email : '';
+      let emailAtendente = (appState.usuario && appState.usuario.email) ? appState.usuario.email.trim().toLowerCase() : '';
+      if (!emailAtendente || emailAtendente === 'usuario@brisanet.com.br') {
+        if (appState.visitaSelecionada.atendente) {
+          emailAtendente = appState.visitaSelecionada.atendente.trim().toLowerCase();
+        } else {
+          emailAtendente = prompt('Informe seu e-mail corporativo Brisanet para assinar esta deliberação:', '') || '';
+          if (emailAtendente) emailAtendente = emailAtendente.trim().toLowerCase();
+        }
+      }
 
       google.script.run
         .withSuccessHandler(function(res) {
