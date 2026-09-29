@@ -535,6 +535,28 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
 }
 
 /**
+ * Atualiza o status do chamado diretamente pela listagem rápida (Fila Geral).
+ */
+function alterarStatusChamadoDireto(idChamado, novoStatus) {
+  try {
+    const statusValidos = ['Aberto', 'Em Atendimento', 'Aguardando Retorno', 'Concluído'];
+    if (!statusValidos.includes(novoStatus)) {
+      return { sucesso: false, erro: 'Status inválido: ' + novoStatus };
+    }
+    const res = adicionarInteracao(
+      idChamado, 
+      'Status atualizado para "' + novoStatus + '" diretamente pela listagem da Fila Geral.', 
+      novoStatus, 
+      false, 
+      []
+    );
+    return { sucesso: res.sucesso, novoStatus: novoStatus };
+  } catch (err) {
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
  * Retorna o histórico de interações de um chamado específico.
  */
 function obterHistoricoChamado(idChamado) {

@@ -403,9 +403,9 @@
                 <th class="py-3 px-4">Data Registro</th>
                 <th class="py-3 px-4">Empresa</th>
                 <th class="py-3 px-4">Período Previsto</th>
-                <th class="py-3 px-4">Participantes</th>
-                <th class="py-3 px-4">Status Oficial</th>
-                <th class="py-3 px-4 text-right">Ação</th>
+                <th class="py-3 px-4 whitespace-nowrap">Participantes</th>
+                <th class="py-3 px-4 min-w-[150px] whitespace-nowrap">Status Oficial</th>
+                <th class="py-3 px-4 text-right whitespace-nowrap">Ação</th>
               </tr>
             </thead>
             <tbody id="tbodyPortalListaVisitas" class="divide-y divide-slate-100 bg-white">
@@ -1027,7 +1027,7 @@
         html += '<td class="py-3 px-4 font-semibold text-slate-900">' + v.empresa + '</td>';
         html += '<td class="py-3 px-4 text-slate-600 font-rubik text-[11px]">' + v.periodoInicio + ' a ' + v.periodoFim + '</td>';
         html += '<td class="py-3 px-4 text-slate-600">' + qtd + ' participante(s)</td>';
-        html += '<td class="py-3 px-4">' + renderBadgeStatusPortal(v.status) + '</td>';
+        html += '<td class="py-3 px-4 whitespace-nowrap">' + renderBadgeStatusPortal(v.status) + '</td>';
         html += '<td class="py-3 px-4 text-right"><button onclick="abrirDrawerVisitaPortal(\'' + v.idVisita + '\', \'' + (v.tokenAcesso || '') + '\')" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-blue text-brisa-blue font-bold rounded-lg transition-colors">Ver Detalhes</button></td>';
         html += '</tr>';
       });
@@ -1036,12 +1036,14 @@
     }
 
     function renderBadgeStatusPortal(status) {
-      if (status === 'Pendente') return '<span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">Pendente</span>';
-      if (status === 'Em Análise') return '<span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200">Em Análise</span>';
-      if (status === 'Aprovada') return '<span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">Aprovada</span>';
-      if (status === 'Ajuste Solicitado') return '<span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-orange-50 text-orange-800 border border-orange-200">Ajuste Solicitado</span>';
-      if (status === 'Reprovada') return '<span class="px-2.5 py-0.5 rounded text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">Reprovada</span>';
-      return '<span class="px-2.5 py-0.5 rounded text-[11px] font-semibold bg-slate-100 text-slate-700">' + status + '</span>';
+      let cor = 'bg-slate-100 text-slate-700 border-slate-200';
+      if (status === 'Pendente') cor = 'bg-amber-50 text-amber-800 border-amber-200';
+      else if (status === 'Em Análise') cor = 'bg-blue-50 text-blue-800 border-blue-200';
+      else if (status === 'Aprovada') cor = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+      else if (status === 'Ajuste Solicitado') cor = 'bg-orange-50 text-orange-800 border-orange-200';
+      else if (status === 'Reprovada') cor = 'bg-rose-50 text-rose-800 border-rose-200';
+
+      return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border shadow-xs ' + cor + '">' + status + '</span>';
     }
 
     // =========================================================================
