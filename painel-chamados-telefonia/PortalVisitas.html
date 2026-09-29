@@ -381,15 +381,16 @@
       <!-- Barra de Consulta Rápida -->
       <div class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs">
         <h2 class="text-base font-bold text-slate-900 mb-1">Acompanhamento de Solicitações de Visita</h2>
-        <p class="text-xs text-slate-500 mb-4">Informe o e-mail corporativo cadastrado ou o código do protocolo (ex: BRISA-VIS-0001) para visualizar o status e o histórico das suas visitas.</p>
+        <p class="text-xs text-slate-500 mb-4">Informe o e-mail corporativo cadastrado na solicitação para consultar o status, pareceres e histórico das suas visitas com segurança.</p>
         
         <form onsubmit="buscarVisitasPortal(event)" class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 max-w-2xl">
           <div class="relative flex-1">
-            <input type="text" id="campoBuscaPortal" placeholder="Digite seu e-mail corporativo ou protocolo BRISA-VIS-XXXX..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
-            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <input type="email" id="campoBuscaPortal" required placeholder="Digite o e-mail corporativo cadastrado (ex: contato@empresa.com.br)..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+            <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
           </div>
           <button type="submit" class="px-5 py-2.5 bg-brisa-blue hover:bg-opacity-90 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-1.5 whitespace-nowrap">
-            <span>Consultar Visitas</span>
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            <span>Consultar Minhas Visitas</span>
           </button>
         </form>
       </div>
@@ -417,7 +418,7 @@
             <tbody id="tbodyPortalListaVisitas" class="divide-y divide-slate-100 bg-white">
               <tr>
                 <td colspan="7" class="py-8 text-center text-slate-400">
-                  Utilize o campo de busca acima para carregar suas solicitações de visita.
+                  Informe o seu e-mail cadastrado acima para carregar suas solicitações de visita.
                 </td>
               </tr>
             </tbody>
@@ -624,10 +625,12 @@
     function processarAcessoDireto(aba, idVisita, token, email) {
       if (aba === 'meus' || aba === 'minhas' || idVisita || email) {
         alternarAbaPortal('minhas');
-        const termo = email || idVisita || '';
-        if (termo) {
-          document.getElementById('campoBuscaPortal').value = termo;
-          carregarVisitasPorTermo(termo, token, idVisita);
+        const emailConsulta = email || '';
+        if (emailConsulta) {
+          document.getElementById('campoBuscaPortal').value = emailConsulta;
+        }
+        if (emailConsulta || token) {
+          carregarVisitasPorTermo(emailConsulta, token, idVisita);
         }
       }
     }
@@ -908,17 +911,17 @@
 
     function buscarVisitasPortal(e) {
       if (e) e.preventDefault();
-      const termo = document.getElementById('campoBuscaPortal').value.trim();
-      if (!termo) {
-        alert('Por favor, informe seu e-mail corporativo ou o número do protocolo.');
+      const email = document.getElementById('campoBuscaPortal').value.trim();
+      if (!email || !email.includes('@') || email.indexOf('.') === -1) {
+        alert('Por favor, informe um endereço de e-mail corporativo válido (ex: contato@empresa.com.br) para consultar suas solicitações.');
         return;
       }
-      carregarVisitasPorTermo(termo);
+      carregarVisitasPorTermo(email);
     }
 
-    function carregarVisitasPorTermo(termo, token, idVisitaDestacar) {
+    function carregarVisitasPorTermo(emailOuTermo, token, idVisitaDestacar) {
       const tbody = document.getElementById('tbodyPortalListaVisitas');
-      tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-400">Consultando visitas registradas...</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-400">Consultando visitas associadas ao e-mail informado...</td></tr>';
 
       google.script.run
         .withSuccessHandler(function(visitas) {
@@ -933,13 +936,13 @@
         .withFailureHandler(function(err) {
           tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-rose-500">Erro ao consultar visitas: ' + err.message + '</td></tr>';
         })
-        .obterMinhasVisitasPortal(termo, token);
+        .obterMinhasVisitasPortal(emailOuTermo, token);
     }
 
     function renderizarTabelaVisitasPortal(visitas, idVisitaDestacar) {
       const tbody = document.getElementById('tbodyPortalListaVisitas');
       if (!visitas || visitas.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-400">Nenhuma solicitação de visita encontrada para o termo informado.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-8 text-center text-slate-400">Nenhuma solicitação de visita encontrada para o e-mail informado.</td></tr>';
         return;
       }
 
@@ -981,6 +984,7 @@
       const token = tokenFallback || (visita ? visita.tokenAcesso : '');
 
       if (!visita) {
+        const email = (document.getElementById('campoBuscaPortal') ? document.getElementById('campoBuscaPortal').value : '').trim();
         google.script.run
           .withSuccessHandler(function(v) {
             if (v) popularDrawerPortal(v, token);
@@ -988,7 +992,7 @@
           .withFailureHandler(function(err) {
             alert('Não foi possível carregar os detalhes: ' + err.message);
           })
-          .obterVisitaPorIdOuToken(idVisita, token);
+          .obterVisitaPorIdOuToken(idVisita, token, email);
         return;
       }
 

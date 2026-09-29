@@ -1457,7 +1457,13 @@ function obterFilaVisitas(filtro) {
  * Retorna a lista de visitas filtradas por e-mail, protocolo ou token,
  * utilizada exclusivamente pelo Portal de Visitas Externas.
  */
-function obterMinhasVisitasPortal(termoBusca, token) {
+/**
+ * Retorna a lista de visitas filtradas exclusivamente por e-mail ou token seguro.
+ * Utilizada pelo Portal de Visitas Externas.
+ * Por segurança e privacidade corporativa, NÃO permite busca por protocolo nem empresa,
+ * impedindo que usuários externos visualizem dados de outras empresas.
+ */
+function obterMinhasVisitasPortal(emailConsulta, token) {
   const props = PropertiesService.getScriptProperties();
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   if (!spreadsheetId) return [];
@@ -1466,27 +1472,26 @@ function obterMinhasVisitasPortal(termoBusca, token) {
   const abaVisitas = ss.getSheetByName('VISITAS');
   if (!abaVisitas) return [];
 
-  const termo = (termoBusca || '').trim().toLowerCase();
+  const emailAlvo = (emailConsulta || '').trim().toLowerCase();
   const tokenAlvo = (token || '').trim();
 
-  if (!termo && !tokenAlvo) return [];
+  // Segurança: exige e-mail com formato válido ou token de acesso seguro
+  const temEmailValido = emailAlvo && emailAlvo.includes('@') && emailAlvo.includes('.');
+  if (!temEmailValido && !tokenAlvo) return [];
 
   const dados = abaVisitas.getDataRange().getValues();
   const resultados = [];
 
   for (let i = 1; i < dados.length; i++) {
     const v = montarObjetoVisita(dados[i]);
-    const idVisita = (v.idVisita || '').trim().toLowerCase();
     const emailResp = (v.responsavelEmail || '').trim().toLowerCase();
     const tokenGravado = (v.tokenAcesso || '').trim();
-    const empresa = (v.empresa || '').trim().toLowerCase();
 
     const bateToken = tokenAlvo && (tokenGravado === tokenAlvo);
-    const bateId = termo && (idVisita === termo || idVisita.includes(termo));
-    const bateEmail = termo && (emailResp === termo || (termo.includes('@') && emailResp.includes(termo)));
-    const bateEmpresa = termo && termo.length >= 3 && empresa.includes(termo);
+    // Correspondência estrita e exata por e-mail
+    const bateEmail = temEmailValido && (emailResp === emailAlvo);
 
-    if (bateToken || bateId || bateEmail || bateEmpresa) {
+    if (bateToken || bateEmail) {
       resultados.push(v);
     }
   }
@@ -1497,8 +1502,9 @@ function obterMinhasVisitasPortal(termoBusca, token) {
 
 /**
  * Recupera os dados da visita por ID ou Token seguro.
+ * Protegido: exige perfil administrativo, domínio Brisanet, Token seguro ou correspondência de e-mail.
  */
-function obterVisitaPorIdOuToken(idVisita, token) {
+function obterVisitaPorIdOuToken(idVisita, token, emailConsulta) {
   if (!idVisita) return null;
 
   const props = PropertiesService.getScriptProperties();
@@ -1514,6 +1520,8 @@ function obterVisitaPorIdOuToken(idVisita, token) {
     usuarioEmail = (config.usuario.email || '').toLowerCase().trim();
   } catch (e) {}
 
+  const emailVerificar = (emailConsulta || usuarioEmail || '').toLowerCase().trim();
+
   const dados = abaVisitas.getDataRange().getValues();
   for (let i = 1; i < dados.length; i++) {
     if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
@@ -1522,12 +1530,12 @@ function obterVisitaPorIdOuToken(idVisita, token) {
 
       const isInternal = usuarioEmail && (usuarioEmail.endsWith('@brisanet.com.br') || usuarioEmail.endsWith('@grupobrisanet.com.br'));
       const bateToken = token && tokenGravado && (token === tokenGravado);
-      const bateEmail = usuarioEmail && emailResp && (usuarioEmail === emailResp);
+      const bateEmail = emailVerificar && emailResp && (emailVerificar === emailResp);
 
-      if (isAdmin || isInternal || bateToken || bateEmail || !token) {
+      if (isAdmin || isInternal || bateToken || bateEmail) {
         return montarObjetoVisita(dados[i]);
       } else {
-        throw new Error('Acesso não autorizado para esta visita.');
+        throw new Error('Acesso não autorizado. Por favor, acesse pelo link oficial enviado ao seu e-mail ou utilize o e-mail cadastrado na solicitação.');
       }
     }
   }
