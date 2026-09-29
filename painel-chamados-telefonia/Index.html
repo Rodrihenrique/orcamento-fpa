@@ -893,17 +893,31 @@
 
               <div>
                 <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Telefone / WhatsApp com DDD *</label>
-                <input type="text" id="visitaResponsavelTelefone" required placeholder="Ex.: (88) 99999-9999 ou +55 ..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                <input type="tel" id="visitaResponsavelTelefone" required placeholder="(DDD) 90000-0000" maxlength="15" oninput="aplicarMascaraTelefone(this)" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
               </div>
 
               <div>
-                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Data Início Prevista *</label>
-                <input type="date" id="visitaDataInicio" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Data & Horário de Início Previstos *</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <input type="date" id="visitaDataInicio" required title="Data Início Prevista" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                  </div>
+                  <div>
+                    <input type="time" id="visitaHoraInicio" required title="Horário de Início Previsto" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                  </div>
+                </div>
               </div>
 
               <div>
-                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Data Término Prevista *</label>
-                <input type="date" id="visitaDataFim" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1 text-[11px]">Data & Horário de Término Previstos *</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <input type="date" id="visitaDataFim" required title="Data Término Prevista" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                  </div>
+                  <div>
+                    <input type="time" id="visitaHoraFim" required title="Horário de Término Previsto" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all">
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1036,33 +1050,9 @@
 
             <div class="space-y-4">
               <div>
-                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-2 text-[11px]">Selecione as Áreas Desejadas para Visitação / Tour:</label>
-                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5" id="containerCheckboxesTour">
-                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
-                    <input type="checkbox" value="Data Center / Sala de Equipamentos" class="check-tour rounded text-brisa-blue">
-                    <span class="text-xs text-slate-700">Data Center / Equipamentos</span>
-                  </label>
-                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
-                    <input type="checkbox" value="NOC (Centro de Operações de Rede)" class="check-tour rounded text-brisa-blue">
-                    <span class="text-xs text-slate-700">NOC (Centro de Operações)</span>
-                  </label>
-                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
-                    <input type="checkbox" value="Engenharia de Redes & Telefonia" class="check-tour rounded text-brisa-blue">
-                    <span class="text-xs text-slate-700">Engenharia & Telefonia</span>
-                  </label>
-                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
-                    <input type="checkbox" value="Central de Atendimento / Call Center" class="check-tour rounded text-brisa-blue">
-                    <span class="text-xs text-slate-700">Central de Atendimento</span>
-                  </label>
-                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
-                    <input type="checkbox" value="Centro de Distribuição & Logística" class="check-tour rounded text-brisa-blue">
-                    <span class="text-xs text-slate-700">Logística & CD</span>
-                  </label>
-                  <label class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2.5 cursor-pointer hover:bg-white hover:border-slate-300 transition-colors">
-                    <input type="checkbox" value="Espaço de Inovação & Treinamentos" class="check-tour rounded text-brisa-blue">
-                    <span class="text-xs text-slate-700">Espaço de Inovação</span>
-                  </label>
-                </div>
+                <label class="block font-bold text-slate-700 uppercase tracking-wider mb-1.5 text-[11px]">Setores do Tour Técnico (Digite os setores desejados):</label>
+                <textarea id="visitaAreasTour" rows="3" placeholder="Digite os nomes dos setores que a comitiva deseja conhecer no tour técnico (ex.: NOC, Data Center, Laboratório de Testes, Central Telefônica, Engenharia de Redes, Almoxarifado Central)..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none transition-all leading-relaxed"></textarea>
+                <span class="text-[10px] text-slate-400 block mt-1">Indique os departamentos, ambientes ou laboratórios que deseja incluir no roteiro de visitação da Brisanet.</span>
               </div>
 
               <div>
@@ -2812,6 +2802,25 @@
       });
     }
 
+    function aplicarMascaraTelefone(input) {
+      if (!input) return;
+      let v = input.value.replace(/\D/g, '');
+      if (v.length > 11) v = v.substring(0, 11);
+      if (v.length === 0) {
+        input.value = '';
+        return;
+      }
+      if (v.length <= 2) {
+        input.value = '(' + v;
+      } else if (v.length <= 6) {
+        input.value = '(' + v.substring(0, 2) + ') ' + v.substring(2);
+      } else if (v.length <= 10) {
+        input.value = '(' + v.substring(0, 2) + ') ' + v.substring(2, 6) + '-' + v.substring(6);
+      } else {
+        input.value = '(' + v.substring(0, 2) + ') ' + v.substring(2, 7) + '-' + v.substring(7);
+      }
+    }
+
     // =========================================================================
     // Funções de Gestão de Visitas Corporativas
     // =========================================================================
@@ -3118,7 +3127,50 @@
       const responsavelEmail = document.getElementById('visitaResponsavelEmail').value.trim();
       const responsavelTelefone = document.getElementById('visitaResponsavelTelefone').value.trim();
       const dataInicio = document.getElementById('visitaDataInicio').value;
+      const horaInicio = (document.getElementById('visitaHoraInicio') ? document.getElementById('visitaHoraInicio').value : '').trim();
       const dataFim = document.getElementById('visitaDataFim').value;
+      const horaFim = (document.getElementById('visitaHoraFim') ? document.getElementById('visitaHoraFim').value : '').trim();
+
+      // Validação do Telefone com DDD
+      const digitosTelefone = responsavelTelefone.replace(/\D/g, '');
+      if (digitosTelefone.length < 10) {
+        alert('Por favor, informe um Telefone / WhatsApp válido com DDD no padrão (DDD) 90000-0000.');
+        document.getElementById('visitaResponsavelTelefone').focus();
+        return;
+      }
+
+      // Validação das Datas e Horários
+      if (!dataInicio) {
+        alert('Por favor, selecione a Data de Início Prevista.');
+        document.getElementById('visitaDataInicio').focus();
+        return;
+      }
+      if (!horaInicio) {
+        alert('Por favor, informe o Horário de Início Previsto.');
+        document.getElementById('visitaHoraInicio').focus();
+        return;
+      }
+      if (!dataFim) {
+        alert('Por favor, selecione a Data de Término Prevista.');
+        document.getElementById('visitaDataFim').focus();
+        return;
+      }
+      if (!horaFim) {
+        alert('Por favor, informe o Horário de Término Previsto.');
+        document.getElementById('visitaHoraFim').focus();
+        return;
+      }
+
+      function formatarDataHoraBr(dataIso, hora) {
+        if (!dataIso) return '';
+        let d = dataIso;
+        const p = dataIso.split('-');
+        if (p.length === 3) d = p[2] + '/' + p[1] + '/' + p[0];
+        return hora ? d + ' às ' + hora : d;
+      }
+
+      const periodoInicioFormatado = formatarDataHoraBr(dataInicio, horaInicio);
+      const periodoFimFormatado = formatarDataHoraBr(dataFim, horaFim);
 
       // Coletar participantes visitantes
       const participantes = [];
@@ -3173,11 +3225,13 @@
         return;
       }
 
-      // Coletar Áreas de Tour
-      const tour = [];
-      document.querySelectorAll('#containerCheckboxesTour .check-tour:checked').forEach(function(cb) {
-        tour.push(cb.value);
-      });
+      // Coletar Áreas de Tour digitadas
+      const tourTexto = (document.getElementById('visitaAreasTour') ? document.getElementById('visitaAreasTour').value : '').trim();
+      let tour = [];
+      if (tourTexto) {
+        tour = tourTexto.split(/[\n,;]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+        if (tour.length === 0) tour = [tourTexto];
+      }
 
       const observacoes = document.getElementById('visitaObservacoes').value.trim();
       const termo = document.getElementById('visitaTermoConformidade').checked;
@@ -3207,13 +3261,18 @@
         responsavelNome: responsavelNome,
         responsavelEmail: responsavelEmail,
         responsavelTelefone: responsavelTelefone,
-        periodoInicio: dataInicio,
-        periodoFim: dataFim,
+        periodoInicio: periodoInicioFormatado,
+        periodoFim: periodoFimFormatado,
+        dataInicio: dataInicio,
+        horaInicio: horaInicio,
+        dataFim: dataFim,
+        horaFim: horaFim,
         participantes: participantes,
         anfitrioes: anfitrioes,
         cronograma: cronograma,
         itinerario: itinerario,
         tour: tour,
+        tourTexto: tourTexto,
         observacoes: observacoes
       };
 

@@ -1181,9 +1181,22 @@ function montarObjetoChamado(linha) {
 function formatarData(valorData) {
   if (!valorData) return '';
   if (valorData instanceof Date) {
-    return Utilities.formatDate(valorData, Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    const tz = Session.getScriptTimeZone() || 'America/Fortaleza';
+    const h = valorData.getHours();
+    const m = valorData.getMinutes();
+    const s = valorData.getSeconds();
+    if (h === 0 && m === 0 && s === 0) {
+      return Utilities.formatDate(valorData, tz, 'dd/MM/yyyy');
+    }
+    return Utilities.formatDate(valorData, tz, 'dd/MM/yyyy HH:mm');
   }
-  return String(valorData);
+  const str = String(valorData).trim();
+  const matchIso = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (matchIso) {
+    const d = matchIso[3] + '/' + matchIso[2] + '/' + matchIso[1];
+    return matchIso[4] ? d + ' às ' + matchIso[4] + ':' + matchIso[5] : d;
+  }
+  return str;
 }
 
 // =========================================================================
@@ -1244,7 +1257,18 @@ function montarObjetoVisita(linha) {
   try { if (linha[9]) anfitrioes = JSON.parse(linha[9]); } catch (e) {}
   try { if (linha[10]) cronograma = JSON.parse(linha[10]); } catch (e) {}
   try { if (linha[11]) itinerario = JSON.parse(linha[11]); } catch (e) {}
-  try { if (linha[12]) tour = JSON.parse(linha[12]); } catch (e) {}
+  try {
+    if (linha[12]) {
+      const parsed = JSON.parse(linha[12]);
+      if (Array.isArray(parsed)) tour = parsed;
+      else if (parsed) tour = [String(parsed)];
+    }
+  } catch (e) {
+    if (linha[12]) {
+      tour = String(linha[12]).split(/[\n,;]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+      if (tour.length === 0) tour = [String(linha[12])];
+    }
+  }
   try { if (linha[14]) anexos = JSON.parse(linha[14]); } catch (e) {}
 
   return {
