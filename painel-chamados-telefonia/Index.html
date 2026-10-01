@@ -3942,12 +3942,12 @@
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'Formulario_Visita_' + visita.idVisita + '.doc';
+        a.download = 'Roteiro_Visita_' + visita.idVisita + '.doc';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        exibirToastRapido('Download do formulário DOC iniciado!', 'sucesso');
+        exibirToastRapido('Download do Roteiro de Visita (DOC) iniciado!', 'sucesso');
       } else if (formato === 'pdf') {
         const html = gerarHtmlFormularioVisita(visita, 'pdf');
         const win = window.open('', '_blank', 'width=850,height=900');
@@ -3965,174 +3965,226 @@
       }
     }
 
+    function extrairDiasEAtividadesVisita(visita) {
+      const cronograma = Array.isArray(visita.cronograma) ? visita.cronograma : [];
+      const datasMapa = {}; // { 'YYYY-MM-DD': [ { horario, atividade } ] }
+
+      function normalizarDataParaChave(dStr) {
+        if (!dStr) return '';
+        let limpa = dStr.toString().split('T')[0].split(' ')[0].trim();
+        if (limpa.includes('/')) {
+          const p = limpa.split('/');
+          if (p.length === 3) {
+            return p[2] + '-' + p[1].padStart(2, '0') + '-' + p[0].padStart(2, '0');
+          }
+        }
+        return limpa;
+      }
+
+      cronograma.forEach(function(item) {
+        if (!item) return;
+        const chave = normalizarDataParaChave(item.data);
+        if (chave) {
+          if (!datasMapa[chave]) datasMapa[chave] = [];
+          datasMapa[chave].push({
+            horario: (item.horario || '').trim(),
+            atividade: (item.atividade || '').trim()
+          });
+        }
+      });
+
+      // Se houver período informado na visita, preencher intervalo de dias
+      if (visita.periodoInicio) {
+        const inicioChave = normalizarDataParaChave(visita.periodoInicio);
+        const fimChave = normalizarDataParaChave(visita.periodoFim || visita.periodoInicio);
+
+        if (inicioChave && fimChave) {
+          const pIni = inicioChave.split('-');
+          const pFim = fimChave.split('-');
+          if (pIni.length === 3 && pFim.length === 3) {
+            const dIni = new Date(parseInt(pIni[0], 10), parseInt(pIni[1], 10) - 1, parseInt(pIni[2], 10), 12, 0, 0);
+            const dFim = new Date(parseInt(pFim[0], 10), parseInt(pFim[1], 10) - 1, parseInt(pFim[2], 10), 12, 0, 0);
+
+            let cur = new Date(dIni.getTime());
+            let count = 0;
+            while (cur <= dFim && count < 14) {
+              const ano = cur.getFullYear();
+              const mes = String(cur.getMonth() + 1).padStart(2, '0');
+              const dia = String(cur.getDate()).padStart(2, '0');
+              const chaveDia = ano + '-' + mes + '-' + dia;
+              if (!datasMapa[chaveDia]) {
+                datasMapa[chaveDia] = [];
+              }
+              cur.setDate(cur.getDate() + 1);
+              count++;
+            }
+          }
+        }
+      }
+
+      let datasOrdenadas = Object.keys(datasMapa).sort();
+      if (datasOrdenadas.length === 0) {
+        const hoje = new Date();
+        const ano = hoje.getFullYear();
+        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        const dia = String(hoje.getDate()).padStart(2, '0');
+        const chaveHoje = ano + '-' + mes + '-' + dia;
+        datasMapa[chaveHoje] = [];
+        datasOrdenadas = [chaveHoje];
+      }
+
+      return { datasOrdenadas: datasOrdenadas, datasMapa: datasMapa };
+    }
+
     function gerarHtmlFormularioVisita(visita, formato) {
       if (!visita) return '';
 
-      const participantes = Array.isArray(visita.participantes) ? visita.participantes : [];
-      let participantesHtml = '';
-      if (participantes.length > 0) {
-        participantes.forEach(function(p, i) {
-          participantesHtml += '<tr><td style="width:35px; text-align:center;">' + (i + 1) + '</td><td style="font-weight:bold;">' + (p.nome || '') + '</td><td>' + (p.cargo || '') + '</td></tr>';
+      // Determinar Elaborador (ex: APARECIDA QUEIROZ)
+      let elaborador = 'GERÊNCIA DE TELEFONIA';
+      if (visita.atendente) {
+        let nome = visita.atendente.split('@')[0].replace(/\./g, ' ');
+        elaborador = nome.toUpperCase();
+      } else if (visita.responsavelNome) {
+        elaborador = visita.responsavelNome.toUpperCase();
+      } else if (visita.anfitrioes && visita.anfitrioes.length > 0 && visita.anfitrioes[0].nome) {
+        elaborador = visita.anfitrioes[0].nome.toUpperCase();
+      }
+
+      // Determinar Data do Documento
+      let dataDoc = '';
+      if (visita.dataCriacao) {
+        dataDoc = visita.dataCriacao.split(' ')[0];
+      } else {
+        const agora = new Date();
+        dataDoc = String(agora.getDate()).padStart(2, '0') + '/' + String(agora.getMonth() + 1).padStart(2, '0') + '/' + agora.getFullYear();
+      }
+
+      const dadosDias = extrairDiasEAtividadesVisita(visita);
+      const datasOrdenadas = dadosDias.datasOrdenadas;
+      const datasMapa = dadosDias.datasMapa;
+
+      const horasPadrao = ['08h00', '09h00', '10h00', '11h00', '12h00', '13h00', '14h00', '15h00', '16h00', '17h00', '18h00'];
+
+      let tabelasCronogramaHtml = '';
+
+      datasOrdenadas.forEach(function(chaveData, index) {
+        const numDia = index + 1;
+        const partes = chaveData.split('-');
+        let dataFormatada = chaveData;
+        let diaSemana = '';
+
+        if (partes.length === 3) {
+          const ano = parseInt(partes[0], 10);
+          const mes = parseInt(partes[1], 10) - 1;
+          const dia = parseInt(partes[2], 10);
+          const dObj = new Date(ano, mes, dia, 12, 0, 0);
+          const diasSemana = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
+          diaSemana = diasSemana[dObj.getDay()];
+          dataFormatada = String(dia).padStart(2, '0') + '/' + String(mes + 1).padStart(2, '0') + '/' + ano;
+        }
+
+        const bannerDia = '📅 Dia ' + numDia + ' - ' + dataFormatada + (diaSemana ? ' (' + diaSemana + ')' : '');
+        const itensDoDia = datasMapa[chaveData] || [];
+
+        // Mapear atividades por hora
+        const atividadesPorHora = {};
+        const itensSemHoraExata = [];
+
+        itensDoDia.forEach(function(item) {
+          const hStr = item.horario || '';
+          const match = hStr.match(/(\d{1,2})/);
+          if (match) {
+            const hNum = parseInt(match[1], 10);
+            if (hNum >= 8 && hNum <= 18) {
+              if (!atividadesPorHora[hNum]) atividadesPorHora[hNum] = [];
+              atividadesPorHora[hNum].push(item.atividade);
+              return;
+            }
+          }
+          itensSemHoraExata.push(item);
         });
-      } else {
-        participantesHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum participante listado.</td></tr>';
-      }
 
-      const anfitrioes = Array.isArray(visita.anfitrioes) ? visita.anfitrioes : [];
-      let anfitrioesHtml = '';
-      if (anfitrioes.length > 0) {
-        anfitrioes.forEach(function(a, i) {
-          anfitrioesHtml += '<tr><td style="width:35px; text-align:center;">' + (i + 1) + '</td><td style="font-weight:bold;">' + (a.nome || '') + '</td><td>' + (a.cargoArea || a.cargo || '') + '</td></tr>';
+        let linhasTabelaHtml = '';
+
+        horasPadrao.forEach(function(horaLabel) {
+          const hNum = parseInt(horaLabel.substring(0, 2), 10);
+          const atvs = atividadesPorHora[hNum] || [];
+          const textoAtividade = atvs.length > 0 ? atvs.join('<br>') : '&nbsp;';
+
+          linhasTabelaHtml += '<tr>' +
+            '<td style="border: 1px solid #718096; padding: 6px 10px; font-weight: bold; color: #1e293b; width: 110px; text-align: left; vertical-align: top; font-size: 9.5pt;">' + horaLabel + '</td>' +
+            '<td style="border: 1px solid #718096; padding: 6px 10px; color: #0f172a; text-align: left; vertical-align: top; font-size: 9.5pt;">' + textoAtividade + '</td>' +
+            '</tr>';
         });
-      } else {
-        anfitrioesHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum anfitrião listado.</td></tr>';
-      }
 
-      const cronograma = Array.isArray(visita.cronograma) ? visita.cronograma : [];
-      let cronogramaHtml = '';
-      if (cronograma.length > 0) {
-        cronograma.forEach(function(c) {
-          cronogramaHtml += '<tr><td style="width:110px; font-weight:bold;">' + (c.data || '') + '</td><td style="width:120px;">' + (c.horario || '') + '</td><td>' + (c.atividade || '') + '</td></tr>';
-        });
-      } else {
-        cronogramaHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum cronograma informado.</td></tr>';
-      }
+        if (itensSemHoraExata.length > 0) {
+          itensSemHoraExata.forEach(function(item) {
+            linhasTabelaHtml += '<tr>' +
+              '<td style="border: 1px solid #718096; padding: 6px 10px; font-weight: bold; color: #1e293b; width: 110px; text-align: left; vertical-align: top; font-size: 9.5pt;">' + (item.horario || 'Extra') + '</td>' +
+              '<td style="border: 1px solid #718096; padding: 6px 10px; color: #0f172a; text-align: left; vertical-align: top; font-size: 9.5pt;">' + (item.atividade || '&nbsp;') + '</td>' +
+              '</tr>';
+          });
+        }
 
-      const itinerario = Array.isArray(visita.itinerario) ? visita.itinerario : [];
-      let itinerarioHtml = '';
-      if (itinerario.length > 0) {
-        itinerario.forEach(function(item) {
-          itinerarioHtml += '<tr><td style="width:110px; font-weight:bold;">' + (item.data || '') + '</td><td style="width:120px;">' + (item.turno || '') + '</td><td>' + (item.sala || '') + '</td></tr>';
-        });
-      } else {
-        itinerarioHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum itinerário de salas informado.</td></tr>';
-      }
-
-      let tourTexto = '';
-      if (Array.isArray(visita.tour) && visita.tour.length > 0) {
-        tourTexto = visita.tour.join(', ');
-      } else if (typeof visita.tour === 'string' && visita.tour.trim()) {
-        tourTexto = visita.tour;
-      } else {
-        tourTexto = 'Nenhum setor de tour solicitado.';
-      }
-
-      const agoraFormatada = new Date().toLocaleString('pt-BR');
+        tabelasCronogramaHtml += [
+          '<table border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse; margin-bottom: 24px; font-family: Arial, sans-serif; mso-table-lspace: 0pt; mso-table-rspace: 0pt; page-break-inside: avoid;">',
+          '  <thead>',
+          '    <tr style="background-color: #F8FAFC;">',
+          '      <th style="border: 1px solid #718096; padding: 7px 10px; font-size: 9.5pt; font-weight: bold; text-align: left; width: 110px; color: #334155;">Horário</th>',
+          '      <th style="border: 1px solid #718096; padding: 7px 10px; font-size: 9.5pt; font-weight: bold; text-align: left; color: #334155;">Atividade</th>',
+          '    </tr>',
+          '    <tr style="background-color: #F1F5F9;">',
+          '      <th colspan="2" style="border: 1px solid #718096; padding: 8px 10px; font-size: 10pt; font-weight: bold; text-align: left; color: #002244;">' + bannerDia + '</th>',
+          '    </tr>',
+          '  </thead>',
+          '  <tbody>',
+          linhasTabelaHtml,
+          '  </tbody>',
+          '</table>'
+        ].join('\n');
+      });
 
       return [
         '<!DOCTYPE html>',
         '<html>',
         '<head>',
         '  <meta charset="utf-8">',
-        '  <title>Formulário de Visita - ' + visita.idVisita + '</title>',
+        '  <title>Roteiro de Visita - ' + (visita.empresa || visita.idVisita) + '</title>',
         '  <style>',
-        '    @page { size: A4; margin: 12mm 15mm; }',
-        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #1e293b; font-size: 10pt; line-height: 1.45; margin: 0; padding: ' + (formato === 'doc' ? '0' : '15px') + '; background: #fff; }',
-        '    .topo { border-bottom: 3px solid #ff5500; padding-bottom: 10px; margin-bottom: 16px; }',
-        '    .logo { font-size: 20pt; font-weight: 800; color: #002244; letter-spacing: -0.5px; }',
-        '    .sublogo { font-size: 8pt; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }',
-        '    .titulo-doc { font-size: 13pt; font-weight: 700; color: #0f172a; text-transform: uppercase; margin-top: 4px; }',
-        '    .secao-titulo { background-color: #f1f5f9; color: #002244; font-size: 9.5pt; font-weight: 700; padding: 6px 10px; border-left: 4px solid #ff5500; margin-top: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }',
-        '    table.tabela { width: 100%; border-collapse: collapse; margin-bottom: 12px; }',
-        '    table.tabela th, table.tabela td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 9pt; vertical-align: top; }',
-        '    table.tabela th { background-color: #f8fafc; color: #334155; font-weight: 700; text-align: left; }',
-        '    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 8.5pt; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }',
-        '    .box-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 9pt; }',
-        '    .termo-legal { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; font-size: 8pt; color: #92400e; margin-top: 14px; line-height: 1.4; }',
-        '    .rodape { margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8pt; color: #64748b; }',
+        '    @page { size: A4 portrait; margin: 15mm 20mm; }',
+        '    body { font-family: Arial, Helvetica, sans-serif; color: #0f172a; font-size: 10pt; line-height: 1.45; margin: 0; padding: ' + (formato === 'doc' ? '0' : '20px') + '; background: #fff; }',
+        '    h1.titulo-roteiro { font-size: 18pt; font-weight: bold; color: #002244; margin: 0 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px; }',
+        '    table.tabela-info { width: 100%; border-collapse: collapse; margin-bottom: 22px; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }',
+        '    table.tabela-info td { border: 1px solid #718096; padding: 6px 10px; font-size: 9.5pt; vertical-align: middle; }',
+        '    .info-label { background-color: #F8FAFC; font-weight: bold; color: #475569; text-transform: uppercase; font-size: 8.5pt; }',
+        '    .info-val { font-weight: bold; color: #0F172A; }',
+        '    h2.secao-titulo { font-size: 11pt; font-weight: bold; color: #0F172A; margin: 20px 0 4px 0; text-transform: uppercase; }',
+        '    p.aviso-anfitriao { font-size: 9pt; color: #475569; font-style: italic; margin: 0 0 14px 0; }',
         '    @media print { body { padding: 0; } button { display: none !important; } }',
         '  </style>',
         '</head>',
         '<body>',
-        '  <div class="topo">',
-        '    <table style="width:100%;">',
-        '      <tr>',
-        '        <td>',
-        '          <div class="logo">brisanet</div>',
-        '          <div class="sublogo">Gerência de Telefonia &bull; Visitação Corporativa</div>',
-        '        </td>',
-        '        <td style="text-align:right;">',
-        '          <div class="titulo-doc">Solicitação de Visita Técnica</div>',
-        '          <div style="font-size:11pt; font-weight:bold; color:#ff5500;">' + visita.idVisita + '</div>',
-        '          <div style="font-size:8.5pt; color:#64748b;">Emitido em: ' + agoraFormatada + '</div>',
-        '        </td>',
-        '      </tr>',
-        '    </table>',
-        '  </div>',
+        '  <h1 class="titulo-roteiro">ROTEIRO DE VISITA</h1>',
         '',
-        '  <div class="secao-titulo">1. Dados Cadastrais & Contato da Empresa Solicitante</div>',
-        '  <table class="tabela">',
+        '  <table border="1" cellpadding="6" cellspacing="0" class="tabela-info">',
         '    <tr>',
-        '      <th style="width:25%;">Empresa Solicitante:</th>',
-        '      <td style="width:25%; font-weight:bold;">' + (visita.empresa || '-') + '</td>',
-        '      <th style="width:25%;">Status Atual:</th>',
-        '      <td style="width:25%;"><span class="badge">' + (visita.status || '-') + '</span></td>',
+        '      <td class="info-label" style="width: 25%;">ELABORADOR</td>',
+        '      <td class="info-val" style="width: 35%; text-transform: uppercase;">' + elaborador + '</td>',
+        '      <td class="info-label" style="width: 15%;">DATA</td>',
+        '      <td class="info-val" style="width: 25%;">' + dataDoc + '</td>',
         '    </tr>',
         '    <tr>',
-        '      <th>Responsável pelo Contato:</th>',
-        '      <td>' + (visita.responsavelNome || '-') + '</td>',
-        '      <th>Telefone / WhatsApp:</th>',
-        '      <td>' + (visita.responsavelTelefone || '-') + '</td>',
-        '    </tr>',
-        '    <tr>',
-        '      <th>E-mail Corporativo:</th>',
-        '      <td>' + (visita.responsavelEmail || '-') + '</td>',
-        '      <th>Data da Solicitação:</th>',
-        '      <td>' + (visita.dataCriacao || '-') + '</td>',
-        '    </tr>',
-        '    <tr>',
-        '      <th>Período Solicitado:</th>',
-        '      <td colspan="3" style="font-weight:bold; color:#002244;">' + (visita.periodoInicio || '-') + ' até ' + (visita.periodoFim || '-') + '</td>',
-        '    </tr>',
-        '    <tr>',
-        '      <th>Analista Responsável (Brisanet):</th>',
-        '      <td colspan="3">' + (visita.atendente ? visita.atendente : 'Em deliberação pela gerência') + '</td>',
+        '      <td class="info-label">EMPRESA VISITANTE</td>',
+        '      <td class="info-val" style="color: #002244;">' + (visita.empresa || '-') + '</td>',
+        '      <td class="info-label">PROTOCOLO</td>',
+        '      <td class="info-val" style="color: #FF5022;">' + visita.idVisita + '</td>',
         '    </tr>',
         '  </table>',
         '',
-        '  <div class="secao-titulo">2. Comitiva de Visitantes Credenciados</div>',
-        '  <table class="tabela">',
-        '    <thead><tr><th style="width:35px; text-align:center;">#</th><th>Nome Completo</th><th>Cargo / Especialidade</th></tr></thead>',
-        '    <tbody>' + participantesHtml + '</tbody>',
-        '  </table>',
+        '  <h2 class="secao-titulo">1. CRONOGRAMA DA VISITA</h2>',
+        '  <p class="aviso-anfitriao">Caso necessário, o anfitrião poderá duplicar a tabela para preenchimento dos demais dias da visita.</p>',
         '',
-        '  <div class="secao-titulo">3. Anfitriões Responsáveis (Brisanet)</div>',
-        '  <table class="tabela">',
-        '    <thead><tr><th style="width:35px; text-align:center;">#</th><th>Colaborador Brisanet</th><th>Cargo / Área</th></tr></thead>',
-        '    <tbody>' + anfitrioesHtml + '</tbody>',
-        '  </table>',
-        '',
-        '  <div class="secao-titulo">4. Cronograma de Atividades e Pautas Propostas</div>',
-        '  <table class="tabela">',
-        '    <thead><tr><th style="width:110px;">Data</th><th style="width:120px;">Horário</th><th>Pauta / Atividade</th></tr></thead>',
-        '    <tbody>' + cronogramaHtml + '</tbody>',
-        '  </table>',
-        '',
-        '  <div class="secao-titulo">5. Itinerário Físico & Salas Reservadas</div>',
-        '  <table class="tabela">',
-        '    <thead><tr><th style="width:110px;">Data</th><th style="width:120px;">Turno</th><th>Ambiente / Sala Solicitada</th></tr></thead>',
-        '    <tbody>' + itinerarioHtml + '</tbody>',
-        '  </table>',
-        '',
-        '  <div class="secao-titulo">6. Tour Técnico & Setores de Interesse</div>',
-        '  <div class="box-info">' + tourTexto + '</div>',
-        '',
-        '  <div class="secao-titulo">7. Observações e Necessidades Especiais</div>',
-        '  <div class="box-info">' + (visita.observacoes ? visita.observacoes.replace(/\n/g, '<br>') : 'Nenhuma observação informada.') + '</div>',
-        '',
-        '  <div class="termo-legal">',
-        '    <strong>Declaração de Conformidade e Confidencialidade:</strong><br>',
-        '    O solicitante declarou formalmente no ato da submissão que todos os membros da comitiva cumprirão as normas internas de segurança, uso de EPIs nas dependências técnicas e sigilo absoluto sobre segredos industriais e infraestruturas visitadas, conforme os padrões corporativos da Brisanet Telecomunicações S.A.',
-        '  </div>',
-        '',
-        '  <div class="rodape">',
-        '    <table style="width:100%;">',
-        '      <tr>',
-        '        <td>Sistema Integrado de Gestão de Chamados e Visitas &bull; Brisanet Telecomunicações S.A.</td>',
-        '        <td style="text-align:right;">Protocolo Oficial: ' + visita.idVisita + '</td>',
-        '      </tr>',
-        '    </table>',
-        '  </div>',
+        tabelasCronogramaHtml,
         '</body>',
         '</html>'
       ].join('\n');
