@@ -118,6 +118,19 @@
 
         <form id="formPortalVisita" onsubmit="enviarSolicitacaoPortalVisita(event)" class="p-6 sm:p-8 space-y-8 text-xs">
           
+          <!-- Banner de Edição / Ajuste de Proposta -->
+          <div id="bannerModoEdicaoPortal" class="p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-900 hidden">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-5 h-5 text-amber-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              <div>
+                <strong class="font-bold">Modo de Edição de Proposta:</strong> Você está ajustando os dados da visita <span id="lblIdVisitaEdicaoPortal" class="font-bold text-amber-950 font-rubik">BRISA-VIS-XXXX</span>. Ao enviar, a visita retornará para o status "Em Análise".
+              </div>
+            </div>
+            <button type="button" onclick="cancelarEdicaoAjustePortal()" class="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-800 rounded-lg font-bold text-xs transition-colors flex-shrink-0 ml-3">
+              Cancelar Edição
+            </button>
+          </div>
+
           <!-- 1. Dados da Empresa e Responsável -->
           <div>
             <div class="flex items-center gap-2 mb-4 pb-2 border-b border-slate-100">
@@ -359,7 +372,7 @@
             </button>
             <button type="submit" id="btnSubmeterPortalVisita" class="px-7 py-3 rounded-xl bg-brisa-orange text-white text-xs font-bold hover:bg-opacity-90 shadow-sm transition-all flex items-center gap-2">
               <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              <span>Submeter Solicitação de Visita</span>
+              <span id="btnSubmeterPortalTexto">Submeter Solicitação de Visita</span>
             </button>
           </div>
 
@@ -436,9 +449,22 @@
         </div>
         <h3 id="pDrawerEmpresa" class="text-xs font-semibold text-slate-800 mt-0.5 line-clamp-1">Empresa</h3>
       </div>
-      <button onclick="fecharDrawerPortal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      </button>
+      <div class="flex items-center gap-1.5">
+        <!-- Botão Baixar PDF -->
+        <button type="button" onclick="baixarFormularioVisitaPortal('pdf')" title="Baixar Formulário Preenchido em PDF" class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-brisa-blue text-slate-700 hover:text-brisa-blue rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-all">
+          <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span>PDF</span>
+        </button>
+        <!-- Botão Baixar DOC -->
+        <button type="button" onclick="baixarFormularioVisitaPortal('doc')" title="Baixar Formulário Preenchido em formato DOC (Word)" class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-brisa-blue text-slate-700 hover:text-brisa-blue rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-all">
+          <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span>DOC</span>
+        </button>
+        <!-- Fechar Drawer -->
+        <button onclick="fecharDrawerPortal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Conteúdo com Scroll do Drawer -->
@@ -500,6 +526,21 @@
       <div id="pDrawerAcoesInteracao" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
         <div id="pDrawerAlertaStatus" class="p-3 rounded-lg text-xs leading-relaxed hidden"></div>
 
+        <!-- Opção de editar a proposta diretamente no formulário caso status seja 'Ajuste Solicitado' -->
+        <div id="pDrawerBoxAjusteFormulario" class="p-3.5 bg-amber-50 border border-amber-300 rounded-xl space-y-2.5 hidden">
+          <div class="flex items-center gap-2 text-amber-900 font-bold text-xs">
+            <svg class="w-4 h-4 text-amber-700 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            <span>Ajuste da Proposta Solicitado</span>
+          </div>
+          <p class="text-[11px] text-amber-800 leading-relaxed">
+            A equipe da Telefonia Brisanet solicitou ajustes na sua solicitação. Você pode editar os dados da proposta (horários, salas, participantes, tour ou agenda) diretamente no formulário:
+          </p>
+          <button type="button" onclick="iniciarEdicaoAjustePortal()" class="w-full py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs">
+            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+            <span>Editar Proposta de Visita no Formulário</span>
+          </button>
+        </div>
+
         <div id="pDrawerFormResposta" class="space-y-2.5 hidden">
           <label class="block text-[11px] font-bold text-slate-700 uppercase">Escreva sua resposta à equipe da Brisanet</label>
           <textarea id="pDrawerTextoResposta" rows="3" placeholder="Digite seus esclarecimentos, novas salas ou horários propostos..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
@@ -558,8 +599,139 @@
       arquivosResposta: [],
       visitaSelecionada: null,
       visitaTokenAtual: null,
-      visitasCarregadas: []
+      visitasCarregadas: [],
+      visitaEmEdicao: null
     };
+
+    function extrairDataHoraIsoPortal(textoOuData, horaPadrao) {
+      let dataIso = '';
+      let hora = horaPadrao || '';
+      if (!textoOuData) return { data: dataIso, hora: hora };
+
+      const str = String(textoOuData).trim();
+      if (str.includes('às')) {
+        const partes = str.split('às');
+        const parteData = partes[0].trim();
+        if (partes[1]) hora = partes[1].trim();
+        const dParts = parteData.split('/');
+        if (dParts.length === 3) {
+          dataIso = dParts[2] + '-' + dParts[1].padStart(2, '0') + '-' + dParts[0].padStart(2, '0');
+        } else {
+          dataIso = parteData;
+        }
+      } else if (str.includes('/')) {
+        const dParts = str.split('/');
+        if (dParts.length === 3) {
+          dataIso = dParts[2].substring(0, 4) + '-' + dParts[1].padStart(2, '0') + '-' + dParts[0].padStart(2, '0');
+        }
+      } else if (str.includes('-')) {
+        dataIso = str.substring(0, 10);
+      }
+      return { data: dataIso, hora: hora };
+    }
+
+    function iniciarEdicaoAjustePortal() {
+      const v = portalState.visitaSelecionada;
+      if (!v) return;
+
+      if (v.status !== 'Ajuste Solicitado') {
+        alert('A proposta de visita só pode ser editada quando o status for "Ajuste Solicitado".');
+        return;
+      }
+
+      portalState.visitaEmEdicao = v;
+
+      // Exibir banner de edição e alterar texto do botão
+      const banner = document.getElementById('bannerModoEdicaoPortal');
+      if (banner) banner.classList.remove('hidden');
+      const lbl = document.getElementById('lblIdVisitaEdicaoPortal');
+      if (lbl) lbl.textContent = v.idVisita;
+      const btnTxt = document.getElementById('btnSubmeterPortalTexto');
+      if (btnTxt) btnTxt.textContent = 'Salvar Alterações da Proposta (' + v.idVisita + ')';
+
+      // Preencher campos principais
+      document.getElementById('pVisitaEmpresa').value = v.empresa || '';
+      document.getElementById('pVisitaResponsavelNome').value = v.responsavelNome || '';
+      document.getElementById('pVisitaResponsavelEmail').value = v.responsavelEmail || '';
+      document.getElementById('pVisitaResponsavelTelefone').value = v.responsavelTelefone || '';
+
+      // Datas e horários
+      const dtIni = extrairDataHoraIsoPortal(v.dataInicio || v.periodoInicio, v.horaInicio);
+      const dtFim = extrairDataHoraIsoPortal(v.dataFim || v.periodoFim, v.horaFim);
+      if (document.getElementById('pVisitaDataInicio')) document.getElementById('pVisitaDataInicio').value = dtIni.data;
+      if (document.getElementById('pVisitaHoraInicio')) document.getElementById('pVisitaHoraInicio').value = dtIni.hora;
+      if (document.getElementById('pVisitaDataFim')) document.getElementById('pVisitaDataFim').value = dtFim.data;
+      if (document.getElementById('pVisitaHoraFim')) document.getElementById('pVisitaHoraFim').value = dtFim.hora;
+
+      // Participantes
+      const tbodyVis = document.getElementById('tbodyPortalVisitantes');
+      tbodyVis.innerHTML = '';
+      const parts = Array.isArray(v.participantes) ? v.participantes : [];
+      if (parts.length > 0) {
+        parts.forEach(function(p) { adicionarLinhaVisitantePortal(p.nome, p.cargo); });
+      } else {
+        adicionarLinhaVisitantePortal();
+      }
+
+      // Anfitriões
+      const tbodyAnf = document.getElementById('tbodyPortalAnfitrioes');
+      tbodyAnf.innerHTML = '';
+      const anfs = Array.isArray(v.anfitrioes) ? v.anfitrioes : [];
+      if (anfs.length > 0) {
+        anfs.forEach(function(a) { adicionarLinhaAnfitriaoPortal(a.nome, a.cargoArea || a.cargo); });
+      } else {
+        adicionarLinhaAnfitriaoPortal();
+      }
+
+      // Cronograma
+      const tbodyCro = document.getElementById('tbodyPortalCronograma');
+      tbodyCro.innerHTML = '';
+      const cros = Array.isArray(v.cronograma) ? v.cronograma : [];
+      if (cros.length > 0) {
+        cros.forEach(function(c) { adicionarLinhaCronogramaPortal(c.data, c.horario, c.atividade); });
+      } else {
+        adicionarLinhaCronogramaPortal();
+      }
+
+      // Itinerário
+      const tbodyItin = document.getElementById('tbodyPortalItinerario');
+      tbodyItin.innerHTML = '';
+      const itins = Array.isArray(v.itinerario) ? v.itinerario : [];
+      if (itins.length > 0) {
+        itins.forEach(function(i) { adicionarLinhaItinerarioPortal(i.data, i.turno, i.sala); });
+      } else {
+        adicionarLinhaItinerarioPortal();
+      }
+
+      // Setores do Tour
+      const campoTour = document.getElementById('pVisitaAreasTour');
+      if (campoTour) {
+        if (Array.isArray(v.tour)) {
+          campoTour.value = v.tour.join('\n');
+        } else {
+          campoTour.value = v.tour || '';
+        }
+      }
+
+      // Observações
+      document.getElementById('pVisitaObservacoes').value = v.observacoes || '';
+      document.getElementById('pVisitaTermoConformidade').checked = true;
+
+      // Fechar o Drawer e alternar para a aba do formulário
+      fecharDrawerPortal();
+      alternarAbaPortal('nova');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function cancelarEdicaoAjustePortal() {
+      portalState.visitaEmEdicao = null;
+      const banner = document.getElementById('bannerModoEdicaoPortal');
+      if (banner) banner.classList.add('hidden');
+      const btnTxt = document.getElementById('btnSubmeterPortalTexto');
+      if (btnTxt) btnTxt.textContent = 'Submeter Solicitação de Visita';
+      document.getElementById('formPortalVisita').reset();
+      alternarAbaPortal('minhas');
+    }
 
     function aplicarMascaraTelefone(input) {
       if (!input) return;
@@ -929,10 +1101,36 @@
         portalUrl: urlOrigem
       };
 
+      if (portalState.visitaEmEdicao) {
+        dados.idVisita = portalState.visitaEmEdicao.idVisita;
+        google.script.run
+          .withSuccessHandler(function(res) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span id="btnSubmeterPortalTexto">Submeter Solicitação de Visita</span>';
+
+            if (res.sucesso) {
+              alert('Proposta de visita ' + dados.idVisita + ' ajustada com sucesso!\n\nSua visita retornou para o status "Em Análise" e a equipe da Telefonia Brisanet foi notificada.');
+              cancelarEdicaoAjustePortal();
+              alternarAbaPortal('minhas');
+              document.getElementById('campoBuscaPortal').value = responsavelEmail;
+              carregarVisitasPorTermo(responsavelEmail, portalState.visitaTokenAtual, dados.idVisita);
+            } else {
+              alert('Erro ao salvar alterações da proposta: ' + res.erro);
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span id="btnSubmeterPortalTexto">Submeter Solicitação de Visita</span>';
+            alert('Erro de comunicação: ' + err.message);
+          })
+          .salvarEdicaoVisita(dados, portalState.visitaTokenAtual);
+        return;
+      }
+
       google.script.run
         .withSuccessHandler(function(res) {
           btn.disabled = false;
-          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span id="btnSubmeterPortalTexto">Submeter Solicitação de Visita</span>';
           
           if (res.sucesso) {
             document.getElementById('lblProtocoloSucesso').textContent = res.idVisita;
@@ -955,7 +1153,7 @@
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
-          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+          btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span id="btnSubmeterPortalTexto">Submeter Solicitação de Visita</span>';
           alert('Erro de comunicação: ' + err.message);
         })
         .criarSolicitacaoVisita(dados, arquivosBase64);
@@ -963,6 +1161,222 @@
 
     function fecharModalSucesso() {
       document.getElementById('modalSucessoEnvio').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // Funções de Download e Exportação do Formulário no Portal (DOC e PDF)
+    // =========================================================================
+
+    function baixarFormularioVisitaPortal(formato) {
+      const visita = portalState.visitaSelecionada;
+      if (!visita) {
+        alert('Nenhuma visita selecionada para exportação.');
+        return;
+      }
+      exportarFormularioVisitaPortal(visita, formato);
+    }
+
+    function exportarFormularioVisitaPortal(visita, formato) {
+      if (!visita) return;
+      if (formato === 'doc') {
+        const html = gerarHtmlFormularioVisitaPortal(visita, 'doc');
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Formulario_Visita_' + visita.idVisita + '.doc';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } else if (formato === 'pdf') {
+        const html = gerarHtmlFormularioVisitaPortal(visita, 'pdf');
+        const win = window.open('', '_blank', 'width=850,height=900');
+        if (!win) {
+          alert('Por favor, autorize os pop-ups no seu navegador para visualizar e salvar o PDF.');
+          return;
+        }
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(function() {
+          win.print();
+        }, 400);
+      }
+    }
+
+    function gerarHtmlFormularioVisitaPortal(visita, formato) {
+      if (!visita) return '';
+
+      const participantes = Array.isArray(visita.participantes) ? visita.participantes : [];
+      let participantesHtml = '';
+      if (participantes.length > 0) {
+        participantes.forEach(function(p, i) {
+          participantesHtml += '<tr><td style="width:35px; text-align:center;">' + (i + 1) + '</td><td style="font-weight:bold;">' + (p.nome || '') + '</td><td>' + (p.cargo || '') + '</td></tr>';
+        });
+      } else {
+        participantesHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum participante listado.</td></tr>';
+      }
+
+      const anfitrioes = Array.isArray(visita.anfitrioes) ? visita.anfitrioes : [];
+      let anfitrioesHtml = '';
+      if (anfitrioes.length > 0) {
+        anfitrioes.forEach(function(a, i) {
+          anfitrioesHtml += '<tr><td style="width:35px; text-align:center;">' + (i + 1) + '</td><td style="font-weight:bold;">' + (a.nome || '') + '</td><td>' + (a.cargoArea || a.cargo || '') + '</td></tr>';
+        });
+      } else {
+        anfitrioesHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum anfitrião listado.</td></tr>';
+      }
+
+      const cronograma = Array.isArray(visita.cronograma) ? visita.cronograma : [];
+      let cronogramaHtml = '';
+      if (cronograma.length > 0) {
+        cronograma.forEach(function(c) {
+          cronogramaHtml += '<tr><td style="width:110px; font-weight:bold;">' + (c.data || '') + '</td><td style="width:120px;">' + (c.horario || '') + '</td><td>' + (c.atividade || '') + '</td></tr>';
+        });
+      } else {
+        cronogramaHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum cronograma informado.</td></tr>';
+      }
+
+      const itinerario = Array.isArray(visita.itinerario) ? visita.itinerario : [];
+      let itinerarioHtml = '';
+      if (itinerario.length > 0) {
+        itinerario.forEach(function(item) {
+          itinerarioHtml += '<tr><td style="width:110px; font-weight:bold;">' + (item.data || '') + '</td><td style="width:120px;">' + (item.turno || '') + '</td><td>' + (item.sala || '') + '</td></tr>';
+        });
+      } else {
+        itinerarioHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum itinerário de salas informado.</td></tr>';
+      }
+
+      let tourTexto = '';
+      if (Array.isArray(visita.tour) && visita.tour.length > 0) {
+        tourTexto = visita.tour.join(', ');
+      } else if (typeof visita.tour === 'string' && visita.tour.trim()) {
+        tourTexto = visita.tour;
+      } else {
+        tourTexto = 'Nenhum setor de tour solicitado.';
+      }
+
+      const agoraFormatada = new Date().toLocaleString('pt-BR');
+
+      return [
+        '<!DOCTYPE html>',
+        '<html>',
+        '<head>',
+        '  <meta charset="utf-8">',
+        '  <title>Formulário de Visita - ' + visita.idVisita + '</title>',
+        '  <style>',
+        '    @page { size: A4; margin: 12mm 15mm; }',
+        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #1e293b; font-size: 10pt; line-height: 1.45; margin: 0; padding: ' + (formato === 'doc' ? '0' : '15px') + '; background: #fff; }',
+        '    .topo { border-bottom: 3px solid #ff5500; padding-bottom: 10px; margin-bottom: 16px; }',
+        '    .logo { font-size: 20pt; font-weight: 800; color: #002244; letter-spacing: -0.5px; }',
+        '    .sublogo { font-size: 8pt; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }',
+        '    .titulo-doc { font-size: 13pt; font-weight: 700; color: #0f172a; text-transform: uppercase; margin-top: 4px; }',
+        '    .secao-titulo { background-color: #f1f5f9; color: #002244; font-size: 9.5pt; font-weight: 700; padding: 6px 10px; border-left: 4px solid #ff5500; margin-top: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }',
+        '    table.tabela { width: 100%; border-collapse: collapse; margin-bottom: 12px; }',
+        '    table.tabela th, table.tabela td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 9pt; vertical-align: top; }',
+        '    table.tabela th { background-color: #f8fafc; color: #334155; font-weight: 700; text-align: left; }',
+        '    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 8.5pt; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }',
+        '    .box-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 9pt; }',
+        '    .termo-legal { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; font-size: 8pt; color: #92400e; margin-top: 14px; line-height: 1.4; }',
+        '    .rodape { margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8pt; color: #64748b; }',
+        '    @media print { body { padding: 0; } button { display: none !important; } }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        '  <div class="topo">',
+        '    <table style="width:100%;">',
+        '      <tr>',
+        '        <td>',
+        '          <div class="logo">brisanet</div>',
+        '          <div class="sublogo">Gerência de Telefonia &bull; Visitação Corporativa</div>',
+        '        </td>',
+        '        <td style="text-align:right;">',
+        '          <div class="titulo-doc">Solicitação de Visita Técnica</div>',
+        '          <div style="font-size:11pt; font-weight:bold; color:#ff5500;">' + visita.idVisita + '</div>',
+        '          <div style="font-size:8.5pt; color:#64748b;">Emitido em: ' + agoraFormatada + '</div>',
+        '        </td>',
+        '      </tr>',
+        '    </table>',
+        '  </div>',
+        '',
+        '  <div class="secao-titulo">1. Dados Cadastrais & Contato da Empresa Solicitante</div>',
+        '  <table class="tabela">',
+        '    <tr>',
+        '      <th style="width:25%;">Empresa Solicitante:</th>',
+        '      <td style="width:25%; font-weight:bold;">' + (visita.empresa || '-') + '</td>',
+        '      <th style="width:25%;">Status Atual:</th>',
+        '      <td style="width:25%;"><span class="badge">' + (visita.status || '-') + '</span></td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>Responsável pelo Contato:</th>',
+        '      <td>' + (visita.responsavelNome || '-') + '</td>',
+        '      <th>Telefone / WhatsApp:</th>',
+        '      <td>' + (visita.responsavelTelefone || '-') + '</td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>E-mail Corporativo:</th>',
+        '      <td>' + (visita.responsavelEmail || '-') + '</td>',
+        '      <th>Data da Solicitação:</th>',
+        '      <td>' + (visita.dataCriacao || '-') + '</td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>Período Solicitado:</th>',
+        '      <td colspan="3" style="font-weight:bold; color:#002244;">' + (visita.periodoInicio || '-') + ' até ' + (visita.periodoFim || '-') + '</td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>Analista Responsável (Brisanet):</th>',
+        '      <td colspan="3">' + (visita.atendente ? visita.atendente : 'Em deliberação pela gerência') + '</td>',
+        '    </tr>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">2. Comitiva de Visitantes Credenciados</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:35px; text-align:center;">#</th><th>Nome Completo</th><th>Cargo / Especialidade</th></tr></thead>',
+        '    <tbody>' + participantesHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">3. Anfitriões Responsáveis (Brisanet)</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:35px; text-align:center;">#</th><th>Colaborador Brisanet</th><th>Cargo / Área</th></tr></thead>',
+        '    <tbody>' + anfitrioesHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">4. Cronograma de Atividades e Pautas Propostas</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:110px;">Data</th><th style="width:120px;">Horário</th><th>Pauta / Atividade</th></tr></thead>',
+        '    <tbody>' + cronogramaHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">5. Itinerário Físico & Salas Reservadas</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:110px;">Data</th><th style="width:120px;">Turno</th><th>Ambiente / Sala Solicitada</th></tr></thead>',
+        '    <tbody>' + itinerarioHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">6. Tour Técnico & Setores de Interesse</div>',
+        '  <div class="box-info">' + tourTexto + '</div>',
+        '',
+        '  <div class="secao-titulo">7. Observações e Necessidades Especiais</div>',
+        '  <div class="box-info">' + (visita.observacoes ? visita.observacoes.replace(/\n/g, '<br>') : 'Nenhuma observação informada.') + '</div>',
+        '',
+        '  <div class="termo-legal">',
+        '    <strong>Declaração de Conformidade e Confidencialidade:</strong><br>',
+        '    O solicitante declarou formalmente no ato da submissão que todos os membros da comitiva cumprirão as normas internas de segurança, uso de EPIs nas dependências técnicas e sigilo absoluto sobre segredos industriais e infraestruturas visitadas, conforme os padrões corporativos da Brisanet Telecomunicações S.A.',
+        '  </div>',
+        '',
+        '  <div class="rodape">',
+        '    <table style="width:100%;">',
+        '      <tr>',
+        '        <td>Sistema Integrado de Gestão de Chamados e Visitas &bull; Brisanet Telecomunicações S.A.</td>',
+        '        <td style="text-align:right;">Protocolo Oficial: ' + visita.idVisita + '</td>',
+        '      </tr>',
+        '    </table>',
+        '  </div>',
+        '</body>',
+        '</html>'
+      ].join('\n');
     }
 
     function fileToBase64(file) {
@@ -1185,26 +1599,32 @@
       if (chipsResp) chipsResp.innerHTML = '';
       document.getElementById('pDrawerTextoResposta').value = '';
 
+      const boxAjuste = document.getElementById('pDrawerBoxAjusteFormulario');
+
       if (visita.status === 'Aprovada') {
         alerta.classList.remove('hidden');
         alerta.className = 'p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 leading-relaxed';
         alerta.innerHTML = '<strong>Visita APROVADA:</strong> Sua comitiva está oficialmente autorizada a acessar a Brisanet. Apresentem-se na recepção principal portando documento com foto.';
         formResp.classList.add('hidden');
+        if (boxAjuste) boxAjuste.classList.add('hidden');
       } else if (visita.status === 'Reprovada') {
         alerta.classList.remove('hidden');
         alerta.className = 'p-3.5 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 leading-relaxed';
         alerta.innerHTML = '<strong>Solicitação Reprovada:</strong> Não foi possível aprovar a visita corporativa no período solicitado. Para mais esclarecimentos, contate os anfitriões da Brisanet.';
         formResp.classList.add('hidden');
+        if (boxAjuste) boxAjuste.classList.add('hidden');
       } else if (visita.status === 'Ajuste Solicitado') {
         alerta.classList.remove('hidden');
         alerta.className = 'p-3.5 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed';
-        alerta.innerHTML = '<strong>Ajuste Solicitado:</strong> A equipe da Brisanet solicitou esclarecimentos ou alteração de data/sala. Por favor, consulte o parecer na linha do tempo abaixo e envie sua resposta pelo campo a seguir.';
+        alerta.innerHTML = '<strong>Ajuste Solicitado:</strong> A equipe da Brisanet solicitou esclarecimentos ou alteração de data/sala. Por favor, consulte o parecer na linha do tempo abaixo e envie sua resposta pelo campo a seguir, ou utilize o botão acima para editar a proposta completa no formulário.';
         formResp.classList.remove('hidden');
+        if (boxAjuste) boxAjuste.classList.remove('hidden');
       } else {
         alerta.classList.remove('hidden');
         alerta.className = 'p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 leading-relaxed';
         alerta.innerHTML = 'Sua solicitação está <strong>' + visita.status + '</strong> pela equipe técnica da Brisanet. Você receberá notificações a cada atualização no seu e-mail.';
         formResp.classList.add('hidden');
+        if (boxAjuste) boxAjuste.classList.add('hidden');
       }
 
       // Carregar Timeline de Histórico

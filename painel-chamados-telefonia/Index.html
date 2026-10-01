@@ -447,6 +447,10 @@
           <button onclick="limparFiltrosTabela()" class="px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-600 hover:bg-slate-50 font-medium">
             Resetar
           </button>
+          <button onclick="atualizarFilaGeral()" id="btnAtualizarFila" title="Atualizar lista de chamados sem recarregar a página" class="px-3.5 py-2 bg-brisa-blue hover:bg-opacity-90 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-xs active:scale-95">
+            <svg id="iconeAtualizarFila" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            <span>Atualizar</span>
+          </button>
         </div>
       </div>
 
@@ -463,13 +467,14 @@
                 <th class="py-3.5 px-4">Categoria</th>
                 <th class="py-3.5 px-4 whitespace-nowrap">Prioridade</th>
                 <th class="py-3.5 px-4 min-w-[170px] whitespace-nowrap">Status</th>
+                <th class="py-3.5 px-4 min-w-[200px]">Observações</th>
                 <th class="py-3.5 px-4">Atendente</th>
                 <th class="py-3.5 px-4 text-right whitespace-nowrap">Ação</th>
               </tr>
             </thead>
             <tbody id="tbodyAdmin" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
               <tr>
-                <td colspan="9" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
+                <td colspan="10" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
               </tr>
             </tbody>
           </table>
@@ -646,6 +651,20 @@
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Atendente:</span><span id="drawerAtendente" class="font-medium text-slate-800"></span></div>
       </div>
 
+      <!-- Observações Administrativas (Notas Internas / Links) -->
+      <div id="drawerSecaoObservacoesAdmin" class="bg-blue-50/50 rounded-xl p-4 border border-blue-200/80 space-y-2 hidden">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-brisa-navy uppercase tracking-wider flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-brisa-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+            <span>Observações & Links Administrativos</span>
+          </span>
+          <button type="button" onclick="abrirModalObservacaoAdmin(appState.chamadoSelecionado ? appState.chamadoSelecionado.idChamado : '')" class="text-[11px] font-bold text-brisa-blue hover:underline">
+            Editar Nota
+          </button>
+        </div>
+        <div id="drawerChamadoObservacoes" class="text-xs text-slate-700 leading-relaxed break-words whitespace-pre-wrap"></div>
+      </div>
+
       <!-- Descrição Detalhada -->
       <div>
         <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Descrição da Demanda</h4>
@@ -814,6 +833,43 @@
     </div>
   </div>
 
+  <!-- MODAL DE OBSERVAÇÃO ADMINISTRATIVA (FILA GERAL) -->
+  <div id="modalObservacaoAdmin" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div onclick="event.stopPropagation()" class="bg-white w-full max-w-lg rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-fadeIn">
+      <div class="h-1 bg-gradient-to-r from-brisa-blue to-brisa-orange"></div>
+      <div class="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold uppercase tracking-wider text-brisa-blue">Observações Administrativas</span>
+            <span id="lblObsChamadoId" class="font-rubik text-xs font-bold text-slate-700 bg-slate-200/80 px-2 py-0.5 rounded">BRISA-TEL-XXXX</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">Adicione notas internas ou links clicáveis (https://...) para a equipe de atendimento.</p>
+        </div>
+        <button onclick="fecharModalObservacaoAdmin()" class="p-1 rounded-lg text-slate-400 hover:text-slate-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-3">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Notas / Links Úteis</label>
+          <textarea id="txtObservacaoAdmin" rows="5" placeholder="Digite observações internas, referências de chamados ou links diretos (ex: https://sistema.exemplo.com/ticket)..." class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-800 focus:bg-white focus:ring-1 focus:ring-brisa-blue outline-none leading-relaxed custom-scrollbar"></textarea>
+          <p class="text-[11px] text-slate-400 mt-1">URLs iniciadas com http:// ou https:// serão automaticamente convertidas em links clicáveis na listagem.</p>
+        </div>
+        <div id="feedbackObsAdmin" class="hidden text-xs p-2.5 rounded-lg"></div>
+      </div>
+
+      <div class="p-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button type="button" onclick="fecharModalObservacaoAdmin()" class="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors">
+          Cancelar
+        </button>
+        <button type="button" id="btnSalvarObsAdmin" onclick="executarSalvarObservacaoAdmin()" class="px-5 py-2 rounded-xl bg-brisa-blue hover:bg-opacity-90 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5">
+          <span>Salvar Observação</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL DE SOLICITAÇÃO OFICIAL DE VISITA CORPORATIVA -->
   <div id="modalVisitaOverlay" onclick="fecharModalSolicitacaoVisita(event)" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-3 sm:p-5 overflow-y-auto">
     <div onclick="event.stopPropagation()" class="bg-white w-full max-w-4xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden my-auto flex flex-col max-h-[92vh] animate-fadeIn">
@@ -829,7 +885,7 @@
           </div>
           <div>
             <h2 class="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Solicitação Oficial de Visita Corporativa</span>
+              <span id="modalVisitaTitulo">Solicitação Oficial de Visita Corporativa</span>
               <span class="text-slate-300 font-light hidden sm:inline">|</span>
               <span class="text-xs text-slate-500 font-medium hidden sm:inline">brisanet</span>
             </h2>
@@ -1118,9 +1174,26 @@
         </div>
         <h3 id="drawerVisitaEmpresa" class="text-xs font-semibold text-slate-800 mt-1 line-clamp-1">Empresa Solicitante</h3>
       </div>
-      <button onclick="fecharDrawerVisita()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-      </button>
+      <div class="flex items-center gap-1.5">
+        <!-- Botão Baixar PDF -->
+        <button type="button" onclick="baixarFormularioVisitaAtual('pdf')" title="Baixar Formulário Preenchido em PDF" class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-brisa-blue text-slate-700 hover:text-brisa-blue rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-all">
+          <svg class="w-3.5 h-3.5 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span>PDF</span>
+        </button>
+        <!-- Botão Baixar DOC -->
+        <button type="button" onclick="baixarFormularioVisitaAtual('doc')" title="Baixar Formulário Preenchido em formato DOC (Word)" class="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-brisa-blue text-slate-700 hover:text-brisa-blue rounded-xl text-xs font-semibold flex items-center gap-1 shadow-xs transition-all">
+          <svg class="w-3.5 h-3.5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+          <span>DOC</span>
+        </button>
+        <!-- Botão Editar Visita (Admin) -->
+        <button type="button" id="btnAdminEditarVisita" onclick="abrirModalEdicaoVisitaAdmin()" title="Editar dados da visita" class="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1 transition-all">
+          <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+          <span>Editar</span>
+        </button>
+        <button onclick="fecharDrawerVisita()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
     </div>
 
     <!-- Corpo com Scroll do Drawer -->
@@ -2080,10 +2153,149 @@
         .obterMeusChamados(emailFallback, tokenFallback);
     }
 
+    function formatarTextoComLinks(texto) {
+      if (!texto || typeof texto !== 'string') return '';
+      const escapado = texto
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+      const comLinks = escapado.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-brisa-blue font-semibold underline hover:text-blue-800 break-all" onclick="event.stopPropagation();">$1</a>');
+      return comLinks.replace(/\n/g, '<br>');
+    }
+
+    function renderCelulaObservacoesAdmin(ch) {
+      const temObs = ch.observacoesAdmin && ch.observacoesAdmin.trim().length > 0;
+      const conteudoHtml = temObs ? formatarTextoComLinks(ch.observacoesAdmin) : '<span class="text-slate-400 italic">Sem anotações</span>';
+
+      return [
+        '<div class="flex items-start justify-between gap-1.5 group">',
+        '  <div class="text-xs text-slate-700 leading-relaxed break-words flex-1 max-w-[240px] max-h-16 overflow-y-auto custom-scrollbar">',
+        '    ' + conteudoHtml,
+        '  </div>',
+        '  <button type="button" onclick="abrirModalObservacaoAdmin(\'' + ch.idChamado + '\')" title="Editar anotação ou links" class="text-slate-400 hover:text-brisa-blue p-1 rounded-lg hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100 flex-shrink-0">',
+        '    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>',
+        '  </button>',
+        '</div>'
+      ].join('');
+    }
+
+    function atualizarFilaGeral() {
+      const icone = document.getElementById('iconeAtualizarFila');
+      const btn = document.getElementById('btnAtualizarFila');
+      if (icone) icone.classList.add('animate-spin');
+      if (btn) btn.disabled = true;
+
+      const filtro = {
+        mes: document.getElementById('filtroMes').value,
+        ano: document.getElementById('filtroAno').value
+      };
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (icone) icone.classList.remove('animate-spin');
+          if (btn) btn.disabled = false;
+
+          appState.chamadosAdmin = res.chamados;
+          document.getElementById('kpiNovos').textContent = res.kpis.novosSemAtendente;
+          document.getElementById('kpiEmAndamento').textContent = res.kpis.emAtendimento;
+          document.getElementById('kpiConcluidos').textContent = res.kpis.concluidos;
+          document.getElementById('kpiTempoMedio').textContent = res.kpis.tempoMedioHoras + ' h';
+          document.getElementById('kpiTaxa').textContent = res.kpis.taxaResolucao;
+
+          renderizarTabelaAdmin(res.chamados);
+          exibirToastRapido('Lista de atendimentos atualizada com sucesso!', 'sucesso');
+        })
+        .withFailureHandler(function(err) {
+          if (icone) icone.classList.remove('animate-spin');
+          if (btn) btn.disabled = false;
+          alert('Erro ao atualizar fila: ' + err.message);
+        })
+        .obterFilaAdmin(filtro);
+    }
+
+    function abrirModalObservacaoAdmin(idChamado) {
+      if (!idChamado) return;
+      const modal = document.getElementById('modalObservacaoAdmin');
+      const lbl = document.getElementById('lblObsChamadoId');
+      const txt = document.getElementById('txtObservacaoAdmin');
+      const feedback = document.getElementById('feedbackObsAdmin');
+      if (feedback) feedback.className = 'hidden';
+
+      appState.chamadoObsAlvo = idChamado;
+      if (lbl) lbl.textContent = idChamado;
+
+      let valorAtual = '';
+      if (appState.chamadosAdmin) {
+        const ch = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
+        if (ch && ch.observacoesAdmin) valorAtual = ch.observacoesAdmin;
+      }
+      if (!valorAtual && appState.chamadoSelecionado && appState.chamadoSelecionado.idChamado === idChamado) {
+        valorAtual = appState.chamadoSelecionado.observacoesAdmin || '';
+      }
+
+      if (txt) txt.value = valorAtual;
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function fecharModalObservacaoAdmin() {
+      const modal = document.getElementById('modalObservacaoAdmin');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function executarSalvarObservacaoAdmin() {
+      const idChamado = appState.chamadoObsAlvo;
+      if (!idChamado) return;
+      const txt = document.getElementById('txtObservacaoAdmin');
+      const obsTexto = (txt ? txt.value : '').trim();
+      const btn = document.getElementById('btnSalvarObsAdmin');
+      const feedback = document.getElementById('feedbackObsAdmin');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Salvando...</span>';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Salvar Observação</span>';
+          if (res && res.sucesso) {
+            if (appState.chamadosAdmin) {
+              const ch = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
+              if (ch) ch.observacoesAdmin = obsTexto;
+              renderizarTabelaAdmin(appState.chamadosAdmin);
+            }
+            if (appState.chamadoSelecionado && appState.chamadoSelecionado.idChamado === idChamado) {
+              appState.chamadoSelecionado.observacoesAdmin = obsTexto;
+              const boxObs = document.getElementById('drawerChamadoObservacoes');
+              if (boxObs) {
+                boxObs.innerHTML = obsTexto ? formatarTextoComLinks(obsTexto) : '<span class="text-slate-400 italic">Sem notas cadastradas</span>';
+              }
+            }
+            fecharModalObservacaoAdmin();
+            exibirToastRapido('Observação do chamado ' + idChamado + ' atualizada!', 'sucesso');
+          } else {
+            if (feedback) {
+              feedback.className = 'text-xs p-2.5 rounded-lg bg-red-50 text-red-700 border border-red-200';
+              feedback.textContent = res ? res.erro : 'Erro ao salvar observação.';
+            }
+          }
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Salvar Observação</span>';
+          if (feedback) {
+            feedback.className = 'text-xs p-2.5 rounded-lg bg-red-50 text-red-700 border border-red-200';
+            feedback.textContent = 'Erro ao salvar: ' + err.message;
+          }
+        })
+        .salvarObservacaoAdminChamado(idChamado, obsTexto);
+    }
+
     function renderizarTabelaAdmin(chamados) {
       const tbody = document.getElementById('tbodyAdmin');
       if (chamados.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
         return;
       }
 
@@ -2100,6 +2312,7 @@
         html += '<td class="py-3 px-4">' + ch.categoria + '</td>';
         html += '<td class="py-3 px-4 whitespace-nowrap">' + renderBadgePrioridade(ch.prioridade) + '</td>';
         html += '<td class="py-3 px-4 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
+        html += '<td class="py-3 px-4 min-w-[200px] max-w-[280px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
         html += '<td class="py-3 px-4 text-slate-500 whitespace-nowrap">' + (ch.atendente ? ch.atendente.split('@')[0] : '<em>Sem atendente</em>') + '</td>';
         html += '<td class="py-3 px-4 text-right whitespace-nowrap"><button onclick="abrirDrawer(\'' + ch.idChamado + '\')" class="text-xs text-brisa-blue hover:underline font-semibold">Atender</button></td>';
         html += '</tr>';
@@ -2603,6 +2816,21 @@
       document.getElementById('drawerDescricao').textContent = chamado.descricao;
       document.getElementById('drawerBadgeStatus').innerHTML = renderBadgeStatus(chamado.status);
 
+      // Observações Administrativas
+      const secaoObs = document.getElementById('drawerSecaoObservacoesAdmin');
+      const boxObs = document.getElementById('drawerChamadoObservacoes');
+      const isAdminUser = (appState.usuario && appState.usuario.isAdmin);
+      if (secaoObs) {
+        if (isAdminUser) {
+          secaoObs.classList.remove('hidden');
+          if (boxObs) {
+            boxObs.innerHTML = chamado.observacoesAdmin ? formatarTextoComLinks(chamado.observacoesAdmin) : '<span class="text-slate-400 italic">Sem notas cadastradas</span>';
+          }
+        } else {
+          secaoObs.classList.add('hidden');
+        }
+      }
+
       // Reset de anexos dos drawers
       appState.arquivosAdmin = [];
       appState.arquivosSolicitante = [];
@@ -3000,7 +3228,42 @@
     // Modal de Solicitação Oficial de Visita e Tabelas Dinâmicas
     // =========================================================================
 
+    function extrairDataHoraIso(textoOuData, horaPadrao) {
+      let dataIso = '';
+      let hora = horaPadrao || '';
+      if (!textoOuData) return { data: dataIso, hora: hora };
+
+      const str = String(textoOuData).trim();
+      if (str.includes('às')) {
+        const partes = str.split('às');
+        const parteData = partes[0].trim();
+        if (partes[1]) hora = partes[1].trim();
+        const dParts = parteData.split('/');
+        if (dParts.length === 3) {
+          dataIso = dParts[2] + '-' + dParts[1].padStart(2, '0') + '-' + dParts[0].padStart(2, '0');
+        } else {
+          dataIso = parteData;
+        }
+      } else if (str.includes('/')) {
+        const dParts = str.split('/');
+        if (dParts.length === 3) {
+          dataIso = dParts[2].substring(0, 4) + '-' + dParts[1].padStart(2, '0') + '-' + dParts[0].padStart(2, '0');
+        }
+      } else if (str.includes('-')) {
+        dataIso = str.substring(0, 10);
+      }
+      return { data: dataIso, hora: hora };
+    }
+
     function abrirModalSolicitacaoVisita() {
+      appState.visitaEmEdicao = null;
+      const modalTitulo = document.getElementById('modalVisitaTitulo');
+      if (modalTitulo) modalTitulo.textContent = 'Solicitação Oficial de Visita Corporativa';
+      const btnSalvar = document.getElementById('btnSalvarVisita');
+      if (btnSalvar) {
+        btnSalvar.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+      }
+
       document.getElementById('formSolicitacaoVisita').reset();
       appState.arquivosVisita = [];
       const containerChips = document.getElementById('listaArquivosFormVisitaContainer');
@@ -3021,9 +3284,98 @@
       document.getElementById('modalVisitaOverlay').classList.remove('hidden');
     }
 
+    function abrirModalEdicaoVisitaAdmin() {
+      const visita = appState.visitaSelecionada;
+      if (!visita) {
+        alert('Nenhuma visita selecionada para edição.');
+        return;
+      }
+
+      appState.visitaEmEdicao = visita;
+      const modalTitulo = document.getElementById('modalVisitaTitulo');
+      if (modalTitulo) modalTitulo.textContent = 'Editar Proposta de Visita (' + visita.idVisita + ')';
+
+      const btnSalvar = document.getElementById('btnSalvarVisita');
+      if (btnSalvar) {
+        btnSalvar.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Salvar Alterações da Visita</span>';
+      }
+
+      // Preencher campos principais
+      document.getElementById('visitaEmpresa').value = visita.empresa || '';
+      document.getElementById('visitaResponsavelNome').value = visita.responsavelNome || '';
+      document.getElementById('visitaResponsavelEmail').value = visita.responsavelEmail || '';
+      document.getElementById('visitaResponsavelTelefone').value = visita.responsavelTelefone || '';
+
+      // Datas e horários
+      const dtIni = extrairDataHoraIso(visita.dataInicio || visita.periodoInicio, visita.horaInicio);
+      const dtFim = extrairDataHoraIso(visita.dataFim || visita.periodoFim, visita.horaFim);
+      if (document.getElementById('visitaDataInicio')) document.getElementById('visitaDataInicio').value = dtIni.data;
+      if (document.getElementById('visitaHoraInicio')) document.getElementById('visitaHoraInicio').value = dtIni.hora;
+      if (document.getElementById('visitaDataFim')) document.getElementById('visitaDataFim').value = dtFim.data;
+      if (document.getElementById('visitaHoraFim')) document.getElementById('visitaHoraFim').value = dtFim.hora;
+
+      // Participantes
+      const tbodyVis = document.getElementById('tbodyFormVisitantes');
+      tbodyVis.innerHTML = '';
+      const parts = Array.isArray(visita.participantes) ? visita.participantes : [];
+      if (parts.length > 0) {
+        parts.forEach(function(p) { adicionarLinhaVisitante(p.nome, p.cargo); });
+      } else {
+        adicionarLinhaVisitante();
+      }
+
+      // Anfitriões
+      const tbodyAnf = document.getElementById('tbodyFormAnfitrioes');
+      tbodyAnf.innerHTML = '';
+      const anfs = Array.isArray(visita.anfitrioes) ? visita.anfitrioes : [];
+      if (anfs.length > 0) {
+        anfs.forEach(function(a) { adicionarLinhaAnfitriao(a.nome, a.cargoArea || a.cargo); });
+      } else {
+        adicionarLinhaAnfitriao();
+      }
+
+      // Cronograma
+      const tbodyCro = document.getElementById('tbodyFormCronograma');
+      tbodyCro.innerHTML = '';
+      const cros = Array.isArray(visita.cronograma) ? visita.cronograma : [];
+      if (cros.length > 0) {
+        cros.forEach(function(c) { adicionarLinhaCronograma(c.data, c.horario, c.atividade); });
+      } else {
+        adicionarLinhaCronograma();
+      }
+
+      // Itinerário
+      const tbodyItin = document.getElementById('tbodyFormItinerario');
+      tbodyItin.innerHTML = '';
+      const itins = Array.isArray(visita.itinerario) ? visita.itinerario : [];
+      if (itins.length > 0) {
+        itins.forEach(function(i) { adicionarLinhaItinerario(i.data, i.turno, i.sala); });
+      } else {
+        adicionarLinhaItinerario();
+      }
+
+      // Tour
+      const campoTour = document.getElementById('visitaAreasTour');
+      if (campoTour) {
+        if (Array.isArray(visita.tour)) {
+          campoTour.value = visita.tour.join('\n');
+        } else {
+          campoTour.value = visita.tour || '';
+        }
+      }
+
+      // Observações
+      document.getElementById('visitaObservacoes').value = visita.observacoes || '';
+      document.getElementById('visitaTermoConformidade').checked = true;
+
+      // Abrir modal
+      document.getElementById('modalVisitaOverlay').classList.remove('hidden');
+    }
+
     function fecharModalSolicitacaoVisita(e) {
       if (e && e.target && e.target.id !== 'modalVisitaOverlay' && e.type === 'click') return;
       document.getElementById('modalVisitaOverlay').classList.add('hidden');
+      appState.visitaEmEdicao = null;
     }
 
     function adicionarLinhaVisitante(nome, cargo) {
@@ -3361,6 +3713,41 @@
         observacoes: observacoes
       };
 
+      if (appState.visitaEmEdicao) {
+        dados.idVisita = appState.visitaEmEdicao.idVisita;
+        google.script.run
+          .withSuccessHandler(function(res) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+            if (res.sucesso) {
+              alert('Visita ' + dados.idVisita + ' atualizada com sucesso!\n\nAs alterações foram registradas no log de auditoria.');
+              document.getElementById('modalVisitaOverlay').classList.add('hidden');
+              appState.visitaEmEdicao = null;
+
+              if (appState.visitaSelecionada && appState.visitaSelecionada.idVisita === dados.idVisita) {
+                Object.assign(appState.visitaSelecionada, dados);
+                popularDrawerVisita(appState.visitaSelecionada);
+              }
+
+              if (appState.abaAtiva === 'visitas') {
+                carregarVisitas();
+              } else if (appState.abaAtiva === 'meus') {
+                carregarMeusChamados();
+              }
+              carregarHistoricoVisita(dados.idVisita, appState.visitaTokenAtual);
+            } else {
+              alert('Erro ao salvar alterações da visita: ' + res.erro);
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg><span>Submeter Solicitação de Visita</span>';
+            alert('Erro de comunicação: ' + err.message);
+          })
+          .salvarEdicaoVisita(dados, '');
+        return;
+      }
+
       google.script.run
         .withSuccessHandler(function(res) {
           btn.disabled = false;
@@ -3394,6 +3781,223 @@
           alert('Erro de comunicação: ' + err.message);
         })
         .criarSolicitacaoVisita(dados, arquivosBase64);
+    }
+
+    // =========================================================================
+    // Funções de Exportação e Download de Formulário de Visita (DOC e PDF)
+    // =========================================================================
+
+    function baixarFormularioVisitaAtual(formato) {
+      const visita = appState.visitaSelecionada;
+      if (!visita) {
+        alert('Nenhuma visita selecionada para exportação.');
+        return;
+      }
+      exportarFormularioVisita(visita, formato);
+    }
+
+    function exportarFormularioVisita(visita, formato) {
+      if (!visita) return;
+      if (formato === 'doc') {
+        const html = gerarHtmlFormularioVisita(visita, 'doc');
+        const blob = new Blob(['\ufeff', html], { type: 'application/msword;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Formulario_Visita_' + visita.idVisita + '.doc';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        exibirToastRapido('Download do formulário DOC iniciado!', 'sucesso');
+      } else if (formato === 'pdf') {
+        const html = gerarHtmlFormularioVisita(visita, 'pdf');
+        const win = window.open('', '_blank', 'width=850,height=900');
+        if (!win) {
+          alert('Por favor, autorize os pop-ups no seu navegador para visualizar e salvar o PDF.');
+          return;
+        }
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        win.focus();
+        setTimeout(function() {
+          win.print();
+        }, 400);
+      }
+    }
+
+    function gerarHtmlFormularioVisita(visita, formato) {
+      if (!visita) return '';
+
+      const participantes = Array.isArray(visita.participantes) ? visita.participantes : [];
+      let participantesHtml = '';
+      if (participantes.length > 0) {
+        participantes.forEach(function(p, i) {
+          participantesHtml += '<tr><td style="width:35px; text-align:center;">' + (i + 1) + '</td><td style="font-weight:bold;">' + (p.nome || '') + '</td><td>' + (p.cargo || '') + '</td></tr>';
+        });
+      } else {
+        participantesHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum participante listado.</td></tr>';
+      }
+
+      const anfitrioes = Array.isArray(visita.anfitrioes) ? visita.anfitrioes : [];
+      let anfitrioesHtml = '';
+      if (anfitrioes.length > 0) {
+        anfitrioes.forEach(function(a, i) {
+          anfitrioesHtml += '<tr><td style="width:35px; text-align:center;">' + (i + 1) + '</td><td style="font-weight:bold;">' + (a.nome || '') + '</td><td>' + (a.cargoArea || a.cargo || '') + '</td></tr>';
+        });
+      } else {
+        anfitrioesHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum anfitrião listado.</td></tr>';
+      }
+
+      const cronograma = Array.isArray(visita.cronograma) ? visita.cronograma : [];
+      let cronogramaHtml = '';
+      if (cronograma.length > 0) {
+        cronograma.forEach(function(c) {
+          cronogramaHtml += '<tr><td style="width:110px; font-weight:bold;">' + (c.data || '') + '</td><td style="width:120px;">' + (c.horario || '') + '</td><td>' + (c.atividade || '') + '</td></tr>';
+        });
+      } else {
+        cronogramaHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum cronograma informado.</td></tr>';
+      }
+
+      const itinerario = Array.isArray(visita.itinerario) ? visita.itinerario : [];
+      let itinerarioHtml = '';
+      if (itinerario.length > 0) {
+        itinerario.forEach(function(item) {
+          itinerarioHtml += '<tr><td style="width:110px; font-weight:bold;">' + (item.data || '') + '</td><td style="width:120px;">' + (item.turno || '') + '</td><td>' + (item.sala || '') + '</td></tr>';
+        });
+      } else {
+        itinerarioHtml = '<tr><td colspan="3" style="text-align:center; color:#64748b;">Nenhum itinerário de salas informado.</td></tr>';
+      }
+
+      let tourTexto = '';
+      if (Array.isArray(visita.tour) && visita.tour.length > 0) {
+        tourTexto = visita.tour.join(', ');
+      } else if (typeof visita.tour === 'string' && visita.tour.trim()) {
+        tourTexto = visita.tour;
+      } else {
+        tourTexto = 'Nenhum setor de tour solicitado.';
+      }
+
+      const agoraFormatada = new Date().toLocaleString('pt-BR');
+
+      return [
+        '<!DOCTYPE html>',
+        '<html>',
+        '<head>',
+        '  <meta charset="utf-8">',
+        '  <title>Formulário de Visita - ' + visita.idVisita + '</title>',
+        '  <style>',
+        '    @page { size: A4; margin: 12mm 15mm; }',
+        '    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #1e293b; font-size: 10pt; line-height: 1.45; margin: 0; padding: ' + (formato === 'doc' ? '0' : '15px') + '; background: #fff; }',
+        '    .topo { border-bottom: 3px solid #ff5500; padding-bottom: 10px; margin-bottom: 16px; }',
+        '    .logo { font-size: 20pt; font-weight: 800; color: #002244; letter-spacing: -0.5px; }',
+        '    .sublogo { font-size: 8pt; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 1px; }',
+        '    .titulo-doc { font-size: 13pt; font-weight: 700; color: #0f172a; text-transform: uppercase; margin-top: 4px; }',
+        '    .secao-titulo { background-color: #f1f5f9; color: #002244; font-size: 9.5pt; font-weight: 700; padding: 6px 10px; border-left: 4px solid #ff5500; margin-top: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }',
+        '    table.tabela { width: 100%; border-collapse: collapse; margin-bottom: 12px; }',
+        '    table.tabela th, table.tabela td { border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 9pt; vertical-align: top; }',
+        '    table.tabela th { background-color: #f8fafc; color: #334155; font-weight: 700; text-align: left; }',
+        '    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: 700; font-size: 8.5pt; background-color: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }',
+        '    .box-info { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px; margin-bottom: 12px; font-size: 9pt; }',
+        '    .termo-legal { background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px; padding: 10px; font-size: 8pt; color: #92400e; margin-top: 14px; line-height: 1.4; }',
+        '    .rodape { margin-top: 24px; border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 8pt; color: #64748b; }',
+        '    @media print { body { padding: 0; } button { display: none !important; } }',
+        '  </style>',
+        '</head>',
+        '<body>',
+        '  <div class="topo">',
+        '    <table style="width:100%;">',
+        '      <tr>',
+        '        <td>',
+        '          <div class="logo">brisanet</div>',
+        '          <div class="sublogo">Gerência de Telefonia &bull; Visitação Corporativa</div>',
+        '        </td>',
+        '        <td style="text-align:right;">',
+        '          <div class="titulo-doc">Solicitação de Visita Técnica</div>',
+        '          <div style="font-size:11pt; font-weight:bold; color:#ff5500;">' + visita.idVisita + '</div>',
+        '          <div style="font-size:8.5pt; color:#64748b;">Emitido em: ' + agoraFormatada + '</div>',
+        '        </td>',
+        '      </tr>',
+        '    </table>',
+        '  </div>',
+        '',
+        '  <div class="secao-titulo">1. Dados Cadastrais & Contato da Empresa Solicitante</div>',
+        '  <table class="tabela">',
+        '    <tr>',
+        '      <th style="width:25%;">Empresa Solicitante:</th>',
+        '      <td style="width:25%; font-weight:bold;">' + (visita.empresa || '-') + '</td>',
+        '      <th style="width:25%;">Status Atual:</th>',
+        '      <td style="width:25%;"><span class="badge">' + (visita.status || '-') + '</span></td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>Responsável pelo Contato:</th>',
+        '      <td>' + (visita.responsavelNome || '-') + '</td>',
+        '      <th>Telefone / WhatsApp:</th>',
+        '      <td>' + (visita.responsavelTelefone || '-') + '</td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>E-mail Corporativo:</th>',
+        '      <td>' + (visita.responsavelEmail || '-') + '</td>',
+        '      <th>Data da Solicitação:</th>',
+        '      <td>' + (visita.dataCriacao || '-') + '</td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>Período Solicitado:</th>',
+        '      <td colspan="3" style="font-weight:bold; color:#002244;">' + (visita.periodoInicio || '-') + ' até ' + (visita.periodoFim || '-') + '</td>',
+        '    </tr>',
+        '    <tr>',
+        '      <th>Analista Responsável (Brisanet):</th>',
+        '      <td colspan="3">' + (visita.atendente ? visita.atendente : 'Em deliberação pela gerência') + '</td>',
+        '    </tr>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">2. Comitiva de Visitantes Credenciados</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:35px; text-align:center;">#</th><th>Nome Completo</th><th>Cargo / Especialidade</th></tr></thead>',
+        '    <tbody>' + participantesHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">3. Anfitriões Responsáveis (Brisanet)</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:35px; text-align:center;">#</th><th>Colaborador Brisanet</th><th>Cargo / Área</th></tr></thead>',
+        '    <tbody>' + anfitrioesHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">4. Cronograma de Atividades e Pautas Propostas</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:110px;">Data</th><th style="width:120px;">Horário</th><th>Pauta / Atividade</th></tr></thead>',
+        '    <tbody>' + cronogramaHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">5. Itinerário Físico & Salas Reservadas</div>',
+        '  <table class="tabela">',
+        '    <thead><tr><th style="width:110px;">Data</th><th style="width:120px;">Turno</th><th>Ambiente / Sala Solicitada</th></tr></thead>',
+        '    <tbody>' + itinerarioHtml + '</tbody>',
+        '  </table>',
+        '',
+        '  <div class="secao-titulo">6. Tour Técnico & Setores de Interesse</div>',
+        '  <div class="box-info">' + tourTexto + '</div>',
+        '',
+        '  <div class="secao-titulo">7. Observações e Necessidades Especiais</div>',
+        '  <div class="box-info">' + (visita.observacoes ? visita.observacoes.replace(/\n/g, '<br>') : 'Nenhuma observação informada.') + '</div>',
+        '',
+        '  <div class="termo-legal">',
+        '    <strong>Declaração de Conformidade e Confidencialidade:</strong><br>',
+        '    O solicitante declarou formalmente no ato da submissão que todos os membros da comitiva cumprirão as normas internas de segurança, uso de EPIs nas dependências técnicas e sigilo absoluto sobre segredos industriais e infraestruturas visitadas, conforme os padrões corporativos da Brisanet Telecomunicações S.A.',
+        '  </div>',
+        '',
+        '  <div class="rodape">',
+        '    <table style="width:100%;">',
+        '      <tr>',
+        '        <td>Sistema Integrado de Gestão de Chamados e Visitas &bull; Brisanet Telecomunicações S.A.</td>',
+        '        <td style="text-align:right;">Protocolo Oficial: ' + visita.idVisita + '</td>',
+        '      </tr>',
+        '    </table>',
+        '  </div>',
+        '</body>',
+        '</html>'
+      ].join('\n');
     }
 
     // =========================================================================

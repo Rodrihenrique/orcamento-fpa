@@ -309,6 +309,260 @@ function obterMeusChamados(emailFallback, tokenFallback) {
 }
 
 /**
+ * Garante a criação dos cabeçalhos das colunas de observações e pendências na aba CHAMADOS.
+ * Coluna 17: OBSERVACOES_ADMIN
+ * Coluna 18: DATA_STATUS_AGUARDANDO
+ * Coluna 19: AVISO_4_DIAS_ENVIADO
+ */
+function garantirCabecalhosChamados(abaChamados) {
+  if (!abaChamados) return;
+  try {
+    const cabecalhosDesejados = [
+      { col: 17, nome: 'OBSERVACOES_ADMIN' },
+      { col: 18, nome: 'DATA_STATUS_AGUARDANDO' },
+      { col: 19, nome: 'AVISO_4_DIAS_ENVIADO' }
+    ];
+    cabecalhosDesejados.forEach(function(item) {
+      const valAtual = abaChamados.getRange(1, item.col).getValue();
+      if (!valAtual || String(valAtual).trim() === '') {
+        abaChamados.getRange(1, item.col).setValue(item.nome)
+          .setBackground('#0B316D')
+          .setFontColor('#FFFFFF')
+          .setFontWeight('bold');
+      }
+    });
+  } catch (eH) {
+    Logger.log('Aviso em garantirCabecalhosChamados: ' + eH.message);
+  }
+}
+
+/**
+ * Salva notas e links clicáveis inseridos pelo administrador na Fila Geral de Atendimentos.
+ */
+function salvarObservacaoAdminChamado(idChamado, observacao) {
+  try {
+    const config = obterConfiguracoesIniciais();
+    if (!config.usuario.isAdmin) {
+      return { sucesso: false, erro: 'Acesso restrito aos administradores.' };
+    }
+
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const abaChamados = ss.getSheetByName('CHAMADOS');
+    const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+    garantirCabecalhosChamados(abaChamados);
+
+    const dados = abaChamados.getDataRange().getValues();
+    let linhaAlvo = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]).trim().toUpperCase() === String(idChamado).trim().toUpperCase()) {
+        linhaAlvo = i + 1;
+        break;
+      }
+    }
+
+    if (linhaAlvo === -1) {
+      return { sucesso: false, erro: 'Chamado ' + idChamado + ' não encontrado.' };
+    }
+
+    const textoObs = String(observacao || '').trim();
+    abaChamados.getRange(linhaAlvo, 17).setValue(textoObs);
+
+    // Gravar log de auditoria interno
+    if (abaLog) {
+      const agora = new Date();
+      const adminEmail = Session.getActiveUser().getEmail() || 'admin@brisanet.com.br';
+      abaLog.appendRow([
+        Utilities.getUuid(),
+        idChamado,
+        agora,
+        adminEmail,
+        'Nota Interna / Observação',
+        '',
+        '',
+        'Observação administrativa atualizada:\n' + (textoObs || '(Observação removida)'),
+        'NÃO' // Visível apenas para administradores
+      ]);
+    }
+
+    return {
+      sucesso: true,
+      idChamado: idChamado,
+      observacoesAdmin: textoObs,
+      mensagem: 'Observação salva com sucesso.'
+    };
+  } catch (err) {
+    Logger.log('Erro ao salvar observação admin: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Busca no log a última data em que o chamado foi alterado para o status 'Aguardando Retorno'.
+ */
+function buscarDataUltimaMudancaAguardando(abaLog, idChamado) {
+  if (!abaLog) return null;
+  try {
+    const dados = abaLog.getDataRange().getValues();
+    for (let i = dados.length - 1; i >= 1; i--) {
+      if (String(dados[i][1]).trim().toUpperCase() === String(idChamado).trim().toUpperCase()) {
+        const novoStatus = String(dados[i][6] || '').trim();
+        if (novoStatus === 'Aguardando Retorno' && dados[i][2] instanceof Date) {
+          return dados[i][2];
+        }
+      }
+    }
+  } catch (eLog) {
+    Logger.log('Aviso ao buscar data de log: ' + eLog.message);
+  }
+  return null;
+}
+
+/**
+ * Rotina automática de controle de pendências para chamados com status "Aguardando Retorno".
+ * Regras (dias corridos):
+ * - No 4º dia corrido: envia notificação de alerta informando prazo restante de 3 dias para cancelamento.
+ * - No 7º dia corrido: cancela automaticamente o chamado por inatividade e notifica o solicitante.
+ */
+function processarPendenciasAguardandoRetorno(ss) {
+  try {
+    if (!ss) {
+      const props = PropertiesService.getScriptProperties();
+      const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+      if (!spreadsheetId) return;
+      ss = SpreadsheetApp.openById(spreadsheetId);
+    }
+    const abaChamados = ss.getSheetByName('CHAMADOS');
+    const abaLog = ss.getSheetByName('LOG_INTERACOES');
+    if (!abaChamados) return;
+
+    garantirCabecalhosChamados(abaChamados);
+
+    const dados = abaChamados.getDataRange().getValues();
+    const agora = new Date();
+
+    for (let i = 1; i < dados.length; i++) {
+      const status = String(dados[i][11] || '').trim();
+      if (status !== 'Aguardando Retorno') continue;
+
+      const linhaSheet = i + 1;
+      const idChamado = String(dados[i][0] || '').trim();
+      const emailSolicitante = String(dados[i][2] || '').trim();
+      const tituloChamado = String(dados[i][8] || '').trim();
+      let dataEntrada = dados[i][17]; // Coluna 18 (0-indexed 17)
+      const aviso4Dias = String(dados[i][18] || '').trim().toUpperCase(); // Coluna 19 (0-indexed 18)
+
+      // Fallback: se dataEntrada não estiver preenchida, buscar no log ou usar dataCriacao
+      if (!dataEntrada || !(dataEntrada instanceof Date)) {
+        dataEntrada = buscarDataUltimaMudancaAguardando(abaLog, idChamado);
+        if (!dataEntrada && dados[i][1] instanceof Date) {
+          dataEntrada = dados[i][1];
+        }
+        if (dataEntrada instanceof Date) {
+          abaChamados.getRange(linhaSheet, 18).setValue(dataEntrada);
+        } else {
+          dataEntrada = agora;
+          abaChamados.getRange(linhaSheet, 18).setValue(agora);
+        }
+      }
+
+      // Calcular diferença em dias corridos
+      const diffMs = agora.getTime() - dataEntrada.getTime();
+      const diffDias = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+      // Caso 1: 7 ou mais dias corridos -> Cancelar Chamado
+      if (diffDias >= 7) {
+        abaChamados.getRange(linhaSheet, 12).setValue('Cancelado');
+        abaChamados.getRange(linhaSheet, 15).setValue(agora); // DATA_CONCLUSAO
+        abaChamados.getRange(linhaSheet, 18).clearContent();
+        abaChamados.getRange(linhaSheet, 19).clearContent();
+
+        // Registrar no LOG_INTERACOES
+        if (abaLog) {
+          abaLog.appendRow([
+            Utilities.getUuid(),
+            idChamado,
+            agora,
+            'Sistema Brisanet',
+            'Cancelamento Automático por Inatividade',
+            'Aguardando Retorno',
+            'Cancelado',
+            'Chamado cancelado automaticamente após 7 dias corridos sem manifestação do solicitante.',
+            'SIM'
+          ]);
+        }
+
+        // Notificar Solicitante por E-mail
+        if (emailSolicitante && emailSolicitante.includes('@')) {
+          try {
+            enviarEmailNotificacao({
+              destinatario: emailSolicitante,
+              assunto: '[brisanet] Chamado Cancelado por Inatividade: ' + idChamado,
+              idChamado: idChamado,
+              titulo: tituloChamado,
+              mensagem: 'Informamos que o chamado ' + idChamado + ' permaneceu por 7 dias corridos no status "Aguardando Retorno" sem manifestação ou envio dos dados solicitados, e por isso foi cancelado automaticamente pelo sistema.\n\nCaso ainda necessite de atendimento da Telefonia Brisanet, por favor registre um novo chamado na plataforma.',
+              autor: 'telefonia@brisanet.com.br',
+              anexos: [],
+              aba: 'meus'
+            });
+          } catch (eMail) {
+            Logger.log('Erro ao enviar e-mail de cancelamento automático: ' + eMail.message);
+          }
+        }
+      } 
+      // Caso 2: Entre 4 e 6 dias corridos e ainda não notificado -> Enviar Aviso
+      else if (diffDias >= 4 && aviso4Dias !== 'SIM') {
+        abaChamados.getRange(linhaSheet, 19).setValue('SIM');
+
+        // Registrar no LOG_INTERACOES
+        if (abaLog) {
+          abaLog.appendRow([
+            Utilities.getUuid(),
+            idChamado,
+            agora,
+            'Sistema Brisanet',
+            'Aviso de Pendência (4 dias)',
+            'Aguardando Retorno',
+            'Aguardando Retorno',
+            'Notificação de pendência enviada ao solicitante informando prazo restante de 3 dias corridos antes do cancelamento automático.',
+            'SIM'
+          ]);
+        }
+
+        // Notificar Solicitante por E-mail
+        if (emailSolicitante && emailSolicitante.includes('@')) {
+          try {
+            enviarEmailNotificacao({
+              destinatario: emailSolicitante,
+              assunto: '[brisanet] Aviso de Pendência (4 dias): ' + idChamado,
+              idChamado: idChamado,
+              titulo: tituloChamado,
+              mensagem: 'Prezado(a) solicitante,\n\nIdentificamos que seu chamado encontra-se com o status "Aguardando Retorno" há 4 dias corridos.\n\nLembramos que, de acordo com as normas da Telefonia Brisanet, chamados sem manifestação por 7 dias corridos são cancelados automaticamente pelo sistema.\n\nRestam 3 dias corridos para o cancelamento automático desta solicitação. Caso ainda necessite de atendimento, acesse seu chamado pelo link abaixo e envie as informações ou documentos solicitados.',
+              autor: 'telefonia@brisanet.com.br',
+              anexos: [],
+              aba: 'meus'
+            });
+          } catch (eMail4) {
+            Logger.log('Erro ao enviar aviso de 4 dias: ' + eMail4.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    Logger.log('Erro em processarPendenciasAguardandoRetorno: ' + err.message);
+  }
+}
+
+/**
+ * Função executável via acionador diário do Google Apps Script (Time-driven trigger).
+ */
+function executarRotinaPendenciasDiarias() {
+  processarPendenciasAguardandoRetorno(null);
+}
+
+/**
  * Retorna a fila administrativa consolidada e indicadores executivos de KPI.
  */
 function obterFilaAdmin(filtroPeriodo) {
@@ -321,6 +575,13 @@ function obterFilaAdmin(filtroPeriodo) {
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const abaChamados = ss.getSheetByName('CHAMADOS');
+
+  // Executar rotina automática de pendências antes da leitura dos chamados
+  try {
+    processarPendenciasAguardandoRetorno(ss);
+  } catch (ePend) {
+    Logger.log('Aviso ao processar pendências em obterFilaAdmin: ' + ePend.message);
+  }
 
   const dados = abaChamados.getDataRange().getValues();
   const chamados = [];
@@ -478,14 +739,23 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
   const statusFinal = novoStatus || statusAnterior;
   abaChamados.getRange(linhaAlvo, 12).setValue(statusFinal);
 
-  // Se concluído, registrar término e calcular horas
-  if (statusFinal === 'Concluído') {
+  // Se concluído ou cancelado, registrar término e calcular horas
+  if (statusFinal === 'Concluído' || statusFinal === 'Cancelado') {
     abaChamados.getRange(linhaAlvo, 15).setValue(agora);
     if (dataInicio && dataInicio instanceof Date) {
       const diffMs = agora.getTime() - dataInicio.getTime();
       const diffHoras = (diffMs / (1000 * 60 * 60)).toFixed(2);
       abaChamados.getRange(linhaAlvo, 16).setValue(diffHoras);
     }
+  }
+
+  // Controle de pendências:
+  if (statusFinal === 'Aguardando Retorno' && statusAnterior !== 'Aguardando Retorno') {
+    abaChamados.getRange(linhaAlvo, 18).setValue(agora); // DATA_STATUS_AGUARDANDO
+    abaChamados.getRange(linhaAlvo, 19).setValue('NÃO'); // AVISO_4_DIAS_ENVIADO
+  } else if (statusFinal !== 'Aguardando Retorno') {
+    abaChamados.getRange(linhaAlvo, 18).clearContent();
+    abaChamados.getRange(linhaAlvo, 19).clearContent();
   }
 
   // Montar texto de log
@@ -539,7 +809,7 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
  */
 function alterarStatusChamadoDireto(idChamado, novoStatus) {
   try {
-    const statusValidos = ['Aberto', 'Em Atendimento', 'Aguardando Retorno', 'Concluído'];
+    const statusValidos = ['Aberto', 'Em Atendimento', 'Aguardando Retorno', 'Concluído', 'Cancelado'];
     if (!statusValidos.includes(novoStatus)) {
       return { sucesso: false, erro: 'Status inválido: ' + novoStatus };
     }
@@ -655,6 +925,8 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
     if (statusAtual === 'Aguardando Retorno') {
       novoStatus = 'Em Atendimento';
       abaChamados.getRange(linhaAlvo, 12).setValue(novoStatus);
+      abaChamados.getRange(linhaAlvo, 18).clearContent();
+      abaChamados.getRange(linhaAlvo, 19).clearContent();
     }
 
     // Montar texto de log
@@ -1196,7 +1468,10 @@ function montarObjetoChamado(linha) {
     atendente: linha[12],
     dataInicio: formatarData(linha[13]),
     dataConclusao: formatarData(linha[14]),
-    tempoTotalHoras: linha[15]
+    tempoTotalHoras: linha[15],
+    observacoesAdmin: String(linha[16] || ''),
+    dataStatusAguardando: formatarData(linha[17]),
+    aviso4DiasEnviado: linha[18] === 'SIM' || linha[18] === true
   };
 }
 
@@ -1886,6 +2161,211 @@ function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase
   }
 
   return { sucesso: true, mensagem: 'Resposta enviada com sucesso!' };
+}
+
+/**
+ * Salva as alterações de uma proposta de visita corporativa.
+ * Permissões e regras:
+ * - Administradores podem editar a qualquer momento.
+ * - Solicitantes externos podem editar APENAS se o status for "Ajuste Solicitado" e com token válido.
+ * - Todas as alterações são auditadas e registradas na aba LOG_INTERACOES.
+ * - Quando o solicitante salva os ajustes, o status retorna para "Em Análise" e notifica o atendente/admin.
+ */
+function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
+  try {
+    const idVisita = String(dadosVisita.idVisita || '').trim();
+    if (!idVisita) {
+      return { sucesso: false, erro: 'Protocolo da visita não informado.' };
+    }
+
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const abaVisitas = garantirAbaVisitas(ss);
+    const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+    let isAdmin = false;
+    let usuarioEmail = '';
+    try {
+      const config = obterConfiguracoesIniciais();
+      isAdmin = config.usuario.isAdmin;
+      usuarioEmail = (config.usuario.email || '').trim().toLowerCase();
+    } catch (e) {}
+
+    const dados = abaVisitas.getDataRange().getValues();
+    let linhaEncontrada = -1;
+    let visitaAntiga = null;
+
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]).trim().toUpperCase() === idVisita.toUpperCase()) {
+        linhaEncontrada = i + 1;
+        visitaAntiga = montarObjetoVisita(dados[i]);
+        break;
+      }
+    }
+
+    if (linhaEncontrada === -1 || !visitaAntiga) {
+      return { sucesso: false, erro: 'Visita ' + idVisita + ' não encontrada.' };
+    }
+
+    const tokenEsperado = String(visitaAntiga.tokenAcesso || '').trim();
+    const tokenFornecido = String(tokenAcesso || '').trim();
+    const isTokenValido = tokenFornecido && (tokenFornecido === tokenEsperado);
+
+    // Validação de Permissão:
+    // 1. Administrador: permitido a qualquer momento
+    // 2. Solicitante externo: permitido APENAS se status === 'Ajuste Solicitado' e com token/email válido
+    if (!isAdmin) {
+      const emailResp = (visitaAntiga.responsavelEmail || '').toLowerCase().trim();
+      const bateEmail = usuarioEmail && (usuarioEmail === emailResp);
+
+      if (!isTokenValido && !bateEmail) {
+        return { sucesso: false, erro: 'Acesso não autorizado para editar esta visita.' };
+      }
+
+      if (visitaAntiga.status !== 'Ajuste Solicitado') {
+        return {
+          sucesso: false,
+          erro: 'A proposta de visita só pode ser editada quando o status for "Ajuste Solicitado". O status atual é "' + visitaAntiga.status + '".'
+        };
+      }
+    }
+
+    // Identificar alterações realizadas (Diff para auditoria no LOG_INTERACOES)
+    const mudancas = [];
+    if (dadosVisita.empresa && dadosVisita.empresa !== visitaAntiga.empresa) {
+      mudancas.push('Empresa alterada de "' + visitaAntiga.empresa + '" para "' + dadosVisita.empresa + '"');
+    }
+    if (dadosVisita.responsavelNome && dadosVisita.responsavelNome !== visitaAntiga.responsavelNome) {
+      mudancas.push('Responsável alterado de "' + visitaAntiga.responsavelNome + '" para "' + dadosVisita.responsavelNome + '"');
+    }
+    if (dadosVisita.responsavelTelefone && dadosVisita.responsavelTelefone !== visitaAntiga.responsavelTelefone) {
+      mudancas.push('Telefone alterado de "' + visitaAntiga.responsavelTelefone + '" para "' + dadosVisita.responsavelTelefone + '"');
+    }
+    if (dadosVisita.periodoInicio && dadosVisita.periodoInicio !== visitaAntiga.periodoInicio) {
+      mudancas.push('Período Início alterado de "' + visitaAntiga.periodoInicio + '" para "' + dadosVisita.periodoInicio + '"');
+    }
+    if (dadosVisita.periodoFim && dadosVisita.periodoFim !== visitaAntiga.periodoFim) {
+      mudancas.push('Período Término alterado de "' + visitaAntiga.periodoFim + '" para "' + dadosVisita.periodoFim + '"');
+    }
+
+    const qtdPartAntiga = (visitaAntiga.participantes || []).length;
+    const qtdPartNova = (dadosVisita.participantes || []).length;
+    if (qtdPartAntiga !== qtdPartNova || JSON.stringify(dadosVisita.participantes) !== JSON.stringify(visitaAntiga.participantes)) {
+      mudancas.push('Comitiva de Visitantes atualizada (' + qtdPartNova + ' participante(s))');
+    }
+
+    const qtdAnfAntiga = (visitaAntiga.anfitrioes || []).length;
+    const qtdAnfNova = (dadosVisita.anfitrioes || []).length;
+    if (qtdAnfAntiga !== qtdAnfNova || JSON.stringify(dadosVisita.anfitrioes) !== JSON.stringify(visitaAntiga.anfitrioes)) {
+      mudancas.push('Anfitriões Brisanet atualizados (' + qtdAnfNova + ' anfitrião(ões))');
+    }
+
+    if (JSON.stringify(dadosVisita.cronograma) !== JSON.stringify(visitaAntiga.cronograma)) {
+      mudancas.push('Cronograma de atividades atualizado');
+    }
+
+    if (JSON.stringify(dadosVisita.itinerario) !== JSON.stringify(visitaAntiga.itinerario)) {
+      mudancas.push('Itinerário físico e salas reservadas atualizados');
+    }
+
+    if (JSON.stringify(dadosVisita.tour) !== JSON.stringify(visitaAntiga.tour)) {
+      mudancas.push('Setores do tour técnico atualizados');
+    }
+
+    if (dadosVisita.observacoes !== undefined && dadosVisita.observacoes !== visitaAntiga.observacoes) {
+      mudancas.push('Observações gerais atualizadas');
+    }
+
+    const textoMudancas = mudancas.length > 0 ? ('Alterações realizadas no formulário:\n• ' + mudancas.join('\n• ')) : 'Edição salva sem alterações nos campos estruturais.';
+
+    // Atualizar colunas na aba VISITAS:
+    // Col 3: EMPRESA_VISITANTE
+    if (dadosVisita.empresa) abaVisitas.getRange(linhaEncontrada, 3).setValue(dadosVisita.empresa);
+    // Col 4: RESPONSAVEL_NOME
+    if (dadosVisita.responsavelNome) abaVisitas.getRange(linhaEncontrada, 4).setValue(dadosVisita.responsavelNome);
+    // Col 5: RESPONSAVEL_EMAIL
+    if (dadosVisita.responsavelEmail) abaVisitas.getRange(linhaEncontrada, 5).setValue(dadosVisita.responsavelEmail);
+    // Col 6: RESPONSAVEL_TELEFONE
+    if (dadosVisita.responsavelTelefone) abaVisitas.getRange(linhaEncontrada, 6).setValue(dadosVisita.responsavelTelefone);
+    // Col 7: PERIODO_INICIO
+    if (dadosVisita.periodoInicio) abaVisitas.getRange(linhaEncontrada, 7).setValue(dadosVisita.periodoInicio);
+    // Col 8: PERIODO_FIM
+    if (dadosVisita.periodoFim) abaVisitas.getRange(linhaEncontrada, 8).setValue(dadosVisita.periodoFim);
+    // Col 9: DADOS_PARTICIPANTES
+    if (dadosVisita.participantes) abaVisitas.getRange(linhaEncontrada, 9).setValue(JSON.stringify(dadosVisita.participantes));
+    // Col 10: DADOS_ANFITRIOES
+    if (dadosVisita.anfitrioes) abaVisitas.getRange(linhaEncontrada, 10).setValue(JSON.stringify(dadosVisita.anfitrioes));
+    // Col 11: DADOS_CRONOGRAMA
+    if (dadosVisita.cronograma) abaVisitas.getRange(linhaEncontrada, 11).setValue(JSON.stringify(dadosVisita.cronograma));
+    // Col 12: DADOS_ITINERARIO
+    if (dadosVisita.itinerario) abaVisitas.getRange(linhaEncontrada, 12).setValue(JSON.stringify(dadosVisita.itinerario));
+    // Col 13: DADOS_TOUR
+    if (dadosVisita.tour) abaVisitas.getRange(linhaEncontrada, 13).setValue(JSON.stringify(dadosVisita.tour));
+    // Col 14: OBSERVACOES
+    if (dadosVisita.observacoes !== undefined) abaVisitas.getRange(linhaEncontrada, 14).setValue(dadosVisita.observacoes);
+
+    let statusFinal = visitaAntiga.status;
+    const agora = new Date();
+
+    // Se o solicitante editou em "Ajuste Solicitado", retorna para "Em Análise"
+    if (!isAdmin && visitaAntiga.status === 'Ajuste Solicitado') {
+      statusFinal = 'Em Análise';
+      abaVisitas.getRange(linhaEncontrada, 16).setValue(statusFinal);
+    }
+
+    const autorAcao = usuarioEmail || (isAdmin ? 'Administrador Brisanet' : visitaAntiga.responsavelEmail);
+    const tipoAcao = isAdmin ? 'Edição de Visita (Administrador)' : 'Ajuste de Proposta (Solicitante)';
+
+    // Gravar no LOG_INTERACOES (Auditoria obrigatória de alterações)
+    if (abaLog) {
+      abaLog.appendRow([
+        Utilities.getUuid(),
+        idVisita,
+        agora,
+        autorAcao,
+        tipoAcao,
+        visitaAntiga.status,
+        statusFinal,
+        textoMudancas,
+        'SIM'
+      ]);
+    }
+
+    // Se o solicitante ajustou a proposta, notificar o atendente e a equipe administrativa
+    if (!isAdmin && visitaAntiga.status === 'Ajuste Solicitado') {
+      try {
+        const urlWeb = obterUrlWebApp();
+        const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
+        const destinatarioAdmin = visitaAntiga.atendente || 'telefonia@brisanet.com.br';
+
+        enviarEmailNotificacaoVisita({
+          destinatario: destinatarioAdmin,
+          assunto: '[brisanet] Proposta de Visita Ajustada pelo Solicitante: ' + idVisita,
+          idVisita: idVisita,
+          empresa: dadosVisita.empresa || visitaAntiga.empresa,
+          periodo: (dadosVisita.periodoInicio || visitaAntiga.periodoInicio) + ' a ' + (dadosVisita.periodoFim || visitaAntiga.periodoFim),
+          status: 'Em Análise',
+          mensagem: 'O solicitante ' + (dadosVisita.responsavelNome || visitaAntiga.responsavelNome) + ' realizou os ajustes solicitados na proposta de visita:\n\n' + textoMudancas + '\n\nAcesse a aba Gestão de Visitas para deliberar sobre a nova proposta.',
+          linkAcompanhamento: linkAdmin,
+          anexos: []
+        });
+      } catch (eMail) {
+        Logger.log('Erro ao notificar admin sobre ajuste de visita: ' + eMail.message);
+      }
+    }
+
+    return {
+      sucesso: true,
+      idVisita: idVisita,
+      novoStatus: statusFinal,
+      mudancas: mudancas,
+      mensagem: 'Proposta de visita atualizada com sucesso!'
+    };
+  } catch (err) {
+    Logger.log('Erro em salvarEdicaoVisita: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
 }
 
 /**
