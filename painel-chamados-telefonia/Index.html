@@ -460,20 +460,19 @@
           <table class="w-full text-left border-collapse table-auto">
             <thead>
               <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th class="py-3 px-3.5 whitespace-nowrap">Protocolo</th>
-                <th class="py-3 px-2.5 whitespace-nowrap">Abertura</th>
-                <th class="py-3 px-3">Solicitante</th>
-                <th class="py-3 px-3">Gerência</th>
-                <th class="py-3 px-3">Categoria</th>
-                <th class="py-3 px-2.5 text-center whitespace-nowrap">Prioridade</th>
-                <th class="py-3 px-2.5 whitespace-nowrap">Status</th>
-                <th class="py-3 px-3">Observações</th>
+                <th class="py-3 px-3 whitespace-nowrap">Protocolo</th>
+                <th class="py-3 px-2 whitespace-nowrap">Abertura</th>
+                <th class="py-3 px-2.5 max-w-[140px]">Solicitante</th>
+                <th class="py-3 px-2.5 max-w-[190px]">Gerência</th>
+                <th class="py-3 px-2.5 max-w-[190px]">Categoria</th>
+                <th class="py-3 px-2 whitespace-nowrap">Status</th>
+                <th class="py-3 px-2.5 max-w-[180px]">Observações</th>
                 <th class="py-3 px-3 whitespace-nowrap">Atendente</th>
               </tr>
             </thead>
             <tbody id="tbodyAdmin" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
               <tr>
-                <td colspan="9" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
+                <td colspan="8" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
               </tr>
             </tbody>
           </table>
@@ -2198,7 +2197,7 @@
 
       return [
         '<div class="flex items-center justify-between gap-1 group">',
-        '  <div class="text-[11px] text-slate-700 leading-snug break-words flex-1 max-w-[220px] max-h-12 overflow-y-auto custom-scrollbar" title="' + (temObs ? ch.observacoesAdmin.replace(/"/g, '&quot;') : 'Clique no lápis para adicionar observação') + '">',
+        '  <div class="text-[11px] text-slate-700 leading-snug break-words flex-1 max-w-[180px] max-h-12 overflow-y-auto custom-scrollbar" title="' + (temObs ? ch.observacoesAdmin.replace(/"/g, '&quot;') : 'Clique no lápis para adicionar observação') + '">',
         '    ' + conteudoHtml,
         '  </div>',
         '  <button type="button" onclick="abrirModalObservacaoAdmin(\'' + ch.idChamado + '\')" title="Editar anotação ou links" class="text-slate-400 hover:text-brisa-blue p-1 rounded hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100 shrink-0">',
@@ -2336,7 +2335,7 @@
       if (appState.paginaAdminAtual > totalPaginas) appState.paginaAdminAtual = totalPaginas;
 
       if (total === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
         if (pagContainer) pagContainer.classList.add('hidden');
         return;
       }
@@ -2362,15 +2361,14 @@
                          '</button>';
 
         html += '<tr id="row-admin-' + ch.idChamado + '" class="hover:bg-slate-50/80 transition-colors' + classeDestaque + '">';
-        html += '<td class="py-3 px-3.5 font-bold font-rubik whitespace-nowrap text-xs">' + protoBtn + '</td>';
-        html += '<td class="py-3 px-2.5 text-slate-500 whitespace-nowrap text-[11px]">' + (ch.dataCriacao ? ch.dataCriacao.split(' ')[0] : '') + '</td>';
-        html += '<td class="py-3 px-3 max-w-[160px] truncate text-slate-800 text-xs font-medium" title="' + solText.replace(/"/g, '&quot;') + '">' + solText + '</td>';
-        html += '<td class="py-3 px-3 max-w-[220px] truncate text-slate-600 text-xs" title="' + gerText.replace(/"/g, '&quot;') + '">' + gerText + '</td>';
-        html += '<td class="py-3 px-3 max-w-[220px] truncate text-slate-600 text-xs" title="' + catText.replace(/"/g, '&quot;') + '">' + catText + '</td>';
-        html += '<td class="py-3 px-2.5 text-center whitespace-nowrap">' + renderBadgePrioridade(ch.prioridade) + '</td>';
-        html += '<td class="py-3 px-2.5 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
-        html += '<td class="py-3 px-3 max-w-[220px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
-        html += '<td class="py-3 px-3 text-slate-500 whitespace-nowrap text-xs truncate max-w-[130px]" title="' + (ch.atendente || '') + '">' + atendenteDisplay + '</td>';
+        html += '<td class="py-3 px-3 font-bold font-rubik whitespace-nowrap text-xs">' + protoBtn + '</td>';
+        html += '<td class="py-3 px-2 text-slate-500 whitespace-nowrap text-[11px]">' + (ch.dataCriacao ? ch.dataCriacao.split(' ')[0] : '') + '</td>';
+        html += '<td class="py-3 px-2.5 max-w-[140px] truncate text-slate-800 text-xs font-medium" title="' + solText.replace(/"/g, '&quot;') + '">' + solText + '</td>';
+        html += '<td class="py-3 px-2.5 max-w-[190px] truncate text-slate-600 text-xs" title="' + gerText.replace(/"/g, '&quot;') + '">' + gerText + '</td>';
+        html += '<td class="py-3 px-2.5 max-w-[190px] truncate text-slate-600 text-xs" title="' + catText.replace(/"/g, '&quot;') + '">' + catText + '</td>';
+        html += '<td class="py-3 px-2 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
+        html += '<td class="py-3 px-2.5 max-w-[180px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
+        html += '<td class="py-3 px-3 text-slate-600 whitespace-nowrap text-xs font-medium" title="' + (ch.atendente || '') + '">' + atendenteDisplay + '</td>';
         html += '</tr>';
       });
       tbody.innerHTML = html;
