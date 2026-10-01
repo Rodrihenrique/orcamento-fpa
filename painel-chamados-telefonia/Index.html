@@ -457,19 +457,19 @@
       <!-- Grid de Dados Executivo -->
       <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div class="overflow-x-auto custom-scrollbar">
-          <table class="w-full text-left border-collapse">
+          <table class="w-full text-left border-collapse table-auto">
             <thead>
-              <tr class="bg-slate-50/75 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th class="py-3.5 px-4 whitespace-nowrap">Protocolo</th>
-                <th class="py-3.5 px-4 whitespace-nowrap">Abertura</th>
-                <th class="py-3.5 px-4">Solicitante</th>
-                <th class="py-3.5 px-4">Gerência</th>
-                <th class="py-3.5 px-4">Categoria</th>
-                <th class="py-3.5 px-4 whitespace-nowrap">Prioridade</th>
-                <th class="py-3.5 px-4 min-w-[170px] whitespace-nowrap">Status</th>
-                <th class="py-3.5 px-4 min-w-[200px]">Observações</th>
-                <th class="py-3.5 px-4">Atendente</th>
-                <th class="py-3.5 px-4 text-right whitespace-nowrap">Ação</th>
+              <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th class="py-3 px-3 whitespace-nowrap">Protocolo</th>
+                <th class="py-3 px-2 whitespace-nowrap">Abertura</th>
+                <th class="py-3 px-2.5 max-w-[120px]">Solicitante</th>
+                <th class="py-3 px-2.5 max-w-[130px]">Gerência</th>
+                <th class="py-3 px-2.5 max-w-[130px]">Categoria</th>
+                <th class="py-3 px-2 text-center whitespace-nowrap">Prioridade</th>
+                <th class="py-3 px-2 whitespace-nowrap">Status</th>
+                <th class="py-3 px-2.5 max-w-[160px]">Observações</th>
+                <th class="py-3 px-2 whitespace-nowrap">Atendente</th>
+                <th class="py-3 px-3 text-right whitespace-nowrap">Ação</th>
               </tr>
             </thead>
             <tbody id="tbodyAdmin" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
@@ -478,6 +478,24 @@
               </tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Barra de Paginação da Fila Geral -->
+        <div id="paginacaoAdminContainer" class="px-4 py-3 border-t border-slate-200/80 bg-slate-50/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
+          <div id="paginacaoAdminInfo" class="font-medium text-slate-500">
+            Carregando paginação...
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btnPaginaAnterior" onclick="mudarPaginaAdmin(-1)" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-brisa-blue font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+              <span>Anterior</span>
+            </button>
+            <div id="paginacaoBotoesNumeros" class="flex items-center gap-1"></div>
+            <button type="button" id="btnPaginaProxima" onclick="mudarPaginaAdmin(1)" class="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 hover:text-brisa-blue font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1">
+              <span>Próximo</span>
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -1390,7 +1408,10 @@
       visitaTokenAtual: null,
       visitaUrlProcessada: false,
       emailUrlPendente: null,
-      modoFormVisita: false
+      modoFormVisita: false,
+      paginaAdminAtual: 1,
+      itensPorPaginaAdmin: 20,
+      chamadosAdminFiltrados: []
     };
 
     window.onload = function() {
@@ -2127,7 +2148,7 @@
           document.getElementById('kpiTempoMedio').textContent = res.kpis.tempoMedioHoras + ' h';
           document.getElementById('kpiTaxa').textContent = res.kpis.taxaResolucao;
 
-          renderizarTabelaAdmin(res.chamados);
+          filtrarTabelaAdmin(true);
         })
         .obterFilaAdmin(filtro);
     }
@@ -2153,7 +2174,7 @@
         .obterMeusChamados(emailFallback, tokenFallback);
     }
 
-    function formatarTextoComLinks(texto) {
+    function formatarTextoComLinks(texto, truncarLinks) {
       if (!texto || typeof texto !== 'string') return '';
       const escapado = texto
         .replace(/&/g, '&amp;')
@@ -2161,20 +2182,27 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
-      const comLinks = escapado.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-brisa-blue font-semibold underline hover:text-blue-800 break-all" onclick="event.stopPropagation();">$1</a>');
+      const comLinks = escapado.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+        let label = url;
+        if (truncarLinks) {
+          let limpa = url.replace(/^https?:\/\/(www\.)?/, '');
+          label = limpa.length > 20 ? (limpa.substring(0, 18) + '...') : limpa;
+        }
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" title="' + url + '" class="text-brisa-blue font-semibold underline hover:text-blue-800 break-all inline-flex items-center gap-0.5" onclick="event.stopPropagation();"><span>' + label + '</span><svg class="w-2.5 h-2.5 inline shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>';
+      });
       return comLinks.replace(/\n/g, '<br>');
     }
 
     function renderCelulaObservacoesAdmin(ch) {
       const temObs = ch.observacoesAdmin && ch.observacoesAdmin.trim().length > 0;
-      const conteudoHtml = temObs ? formatarTextoComLinks(ch.observacoesAdmin) : '<span class="text-slate-400 italic">Sem anotações</span>';
+      const conteudoHtml = temObs ? formatarTextoComLinks(ch.observacoesAdmin, true) : '<span class="text-slate-400 italic">Sem notas</span>';
 
       return [
-        '<div class="flex items-start justify-between gap-1.5 group">',
-        '  <div class="text-xs text-slate-700 leading-relaxed break-words flex-1 max-w-[240px] max-h-16 overflow-y-auto custom-scrollbar">',
+        '<div class="flex items-center justify-between gap-1 group">',
+        '  <div class="text-[11px] text-slate-700 leading-snug break-words flex-1 max-w-[140px] max-h-12 overflow-y-auto custom-scrollbar" title="' + (temObs ? ch.observacoesAdmin.replace(/"/g, '&quot;') : 'Clique no lápis para adicionar observação') + '">',
         '    ' + conteudoHtml,
         '  </div>',
-        '  <button type="button" onclick="abrirModalObservacaoAdmin(\'' + ch.idChamado + '\')" title="Editar anotação ou links" class="text-slate-400 hover:text-brisa-blue p-1 rounded-lg hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100 flex-shrink-0">',
+        '  <button type="button" onclick="abrirModalObservacaoAdmin(\'' + ch.idChamado + '\')" title="Editar anotação ou links" class="text-slate-400 hover:text-brisa-blue p-1 rounded hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100 shrink-0">',
         '    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>',
         '  </button>',
         '</div>'
@@ -2204,7 +2232,7 @@
           document.getElementById('kpiTempoMedio').textContent = res.kpis.tempoMedioHoras + ' h';
           document.getElementById('kpiTaxa').textContent = res.kpis.taxaResolucao;
 
-          renderizarTabelaAdmin(res.chamados);
+          filtrarTabelaAdmin(false);
           exibirToastRapido('Lista de atendimentos atualizada com sucesso!', 'sucesso');
         })
         .withFailureHandler(function(err) {
@@ -2263,7 +2291,7 @@
             if (appState.chamadosAdmin) {
               const ch = appState.chamadosAdmin.find(function(c) { return c.idChamado === idChamado; });
               if (ch) ch.observacoesAdmin = obsTexto;
-              renderizarTabelaAdmin(appState.chamadosAdmin);
+              filtrarTabelaAdmin(false);
             }
             if (appState.chamadoSelecionado && appState.chamadoSelecionado.idChamado === idChamado) {
               appState.chamadoSelecionado.observacoesAdmin = obsTexto;
@@ -2293,34 +2321,140 @@
     }
 
     function renderizarTabelaAdmin(chamados) {
+      if (Array.isArray(chamados)) {
+        appState.chamadosAdminFiltrados = chamados;
+      }
+      const lista = appState.chamadosAdminFiltrados || [];
       const tbody = document.getElementById('tbodyAdmin');
-      if (chamados.length === 0) {
+      const pagContainer = document.getElementById('paginacaoAdminContainer');
+      if (!tbody) return;
+
+      const total = lista.length;
+      const porPagina = appState.itensPorPaginaAdmin || 20;
+      const totalPaginas = Math.ceil(total / porPagina) || 1;
+
+      if (appState.paginaAdminAtual < 1) appState.paginaAdminAtual = 1;
+      if (appState.paginaAdminAtual > totalPaginas) appState.paginaAdminAtual = totalPaginas;
+
+      if (total === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
+        if (pagContainer) pagContainer.classList.add('hidden');
         return;
       }
 
+      if (pagContainer) pagContainer.classList.remove('hidden');
+
+      const inicio = (appState.paginaAdminAtual - 1) * porPagina;
+      const fim = Math.min(inicio + porPagina, total);
+      const itensPagina = lista.slice(inicio, fim);
+
       let html = '';
-      chamados.forEach(function(ch) {
+      itensPagina.forEach(function(ch) {
         const isHighlight = appState.chamadoUrlPendente && (ch.idChamado === appState.chamadoUrlPendente);
         const classeDestaque = isHighlight ? ' bg-amber-50 ring-2 ring-brisa-orange ring-inset font-medium' : '';
+        const solTruncado = (ch.solicitanteNome && ch.solicitanteNome.length > 18) ? (ch.solicitanteNome.substring(0, 16) + '…') : (ch.solicitanteNome || '');
+        const gerTruncado = (ch.gerencia && ch.gerencia.length > 18) ? (ch.gerencia.substring(0, 16) + '…') : (ch.gerencia || '');
+        const catTruncada = (ch.categoria && ch.categoria.length > 18) ? (ch.categoria.substring(0, 16) + '…') : (ch.categoria || '');
+        const atendenteDisplay = ch.atendente ? ch.atendente.split('@')[0] : '<span class="text-slate-400 italic">Sem atendente</span>';
 
         html += '<tr id="row-admin-' + ch.idChamado + '" class="hover:bg-slate-50/80 transition-colors' + classeDestaque + '">';
-        html += '<td class="py-3 px-4 font-bold text-brisa-blue font-rubik whitespace-nowrap">' + ch.idChamado + '</td>';
-        html += '<td class="py-3 px-4 text-slate-500 whitespace-nowrap">' + ch.dataCriacao.split(' ')[0] + '</td>';
-        html += '<td class="py-3 px-4">' + ch.solicitanteNome + '</td>';
-        html += '<td class="py-3 px-4 text-slate-600">' + ch.gerencia + '</td>';
-        html += '<td class="py-3 px-4">' + ch.categoria + '</td>';
-        html += '<td class="py-3 px-4 whitespace-nowrap">' + renderBadgePrioridade(ch.prioridade) + '</td>';
-        html += '<td class="py-3 px-4 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
-        html += '<td class="py-3 px-4 min-w-[200px] max-w-[280px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
-        html += '<td class="py-3 px-4 text-slate-500 whitespace-nowrap">' + (ch.atendente ? ch.atendente.split('@')[0] : '<em>Sem atendente</em>') + '</td>';
-        html += '<td class="py-3 px-4 text-right whitespace-nowrap"><button onclick="abrirDrawer(\'' + ch.idChamado + '\')" class="text-xs text-brisa-blue hover:underline font-semibold">Atender</button></td>';
+        html += '<td class="py-2.5 px-3 font-bold text-brisa-blue font-rubik whitespace-nowrap text-xs">' + ch.idChamado + '</td>';
+        html += '<td class="py-2.5 px-2 text-slate-500 whitespace-nowrap text-[11px]">' + (ch.dataCriacao ? ch.dataCriacao.split(' ')[0] : '') + '</td>';
+        html += '<td class="py-2.5 px-2.5 max-w-[120px] truncate text-slate-800 text-xs" title="' + (ch.solicitanteNome || '').replace(/"/g, '&quot;') + '">' + solTruncado + '</td>';
+        html += '<td class="py-2.5 px-2.5 max-w-[130px] truncate text-slate-600 text-xs" title="' + (ch.gerencia || '').replace(/"/g, '&quot;') + '">' + gerTruncado + '</td>';
+        html += '<td class="py-2.5 px-2.5 max-w-[130px] truncate text-slate-600 text-xs" title="' + (ch.categoria || '').replace(/"/g, '&quot;') + '">' + catTruncada + '</td>';
+        html += '<td class="py-2.5 px-2 text-center whitespace-nowrap">' + renderBadgePrioridade(ch.prioridade) + '</td>';
+        html += '<td class="py-2.5 px-2 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
+        html += '<td class="py-2.5 px-2.5 max-w-[160px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
+        html += '<td class="py-2.5 px-2 text-slate-500 whitespace-nowrap text-[11px] truncate max-w-[110px]" title="' + (ch.atendente || '') + '">' + atendenteDisplay + '</td>';
+        html += '<td class="py-2.5 px-3 text-right whitespace-nowrap">';
+        html += '  <button onclick="abrirDrawer(\'' + ch.idChamado + '\')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-brisa-blue hover:bg-blue-700 active:scale-95 transition-all shadow-xs">';
+        html += '    <span>Atender</span>';
+        html += '    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>';
+        html += '  </button>';
+        html += '</td>';
         html += '</tr>';
       });
       tbody.innerHTML = html;
 
+      renderizarBarraPaginacaoAdmin(inicio + 1, fim, total, totalPaginas);
+
       if (appState.chamadoUrlPendente) {
         destacarLinhaChamado(appState.chamadoUrlPendente);
+      }
+    }
+
+    function renderizarBarraPaginacaoAdmin(inicio, fim, total, totalPaginas) {
+      const infoEl = document.getElementById('paginacaoAdminInfo');
+      const containerBotoes = document.getElementById('paginacaoBotoesNumeros');
+      const btnAnt = document.getElementById('btnPaginaAnterior');
+      const btnProx = document.getElementById('btnPaginaProxima');
+
+      if (infoEl) {
+        if (total === 0) {
+          infoEl.textContent = 'Nenhum chamado';
+        } else {
+          infoEl.innerHTML = 'Mostrando <span class="font-bold text-slate-700">' + inicio + '</span> a <span class="font-bold text-slate-700">' + fim + '</span> de <span class="font-bold text-slate-700">' + total + '</span> chamados';
+        }
+      }
+
+      if (btnAnt) btnAnt.disabled = (appState.paginaAdminAtual <= 1);
+      if (btnProx) btnProx.disabled = (appState.paginaAdminAtual >= totalPaginas);
+
+      if (containerBotoes) {
+        let btnsHtml = '';
+        let startPage = Math.max(1, appState.paginaAdminAtual - 2);
+        let endPage = Math.min(totalPaginas, startPage + 4);
+        if (endPage - startPage < 4) {
+          startPage = Math.max(1, endPage - 4);
+        }
+
+        if (startPage > 1) {
+          btnsHtml += '<button type="button" onclick="irParaPaginaAdmin(1)" class="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 font-semibold text-xs transition-colors">1</button>';
+          if (startPage > 2) {
+            btnsHtml += '<span class="px-1 text-slate-400 text-xs">...</span>';
+          }
+        }
+
+        for (let p = startPage; p <= endPage; p++) {
+          const isAtiva = (p === appState.paginaAdminAtual);
+          if (isAtiva) {
+            btnsHtml += '<button type="button" class="w-8 h-8 rounded-lg bg-brisa-blue text-white font-bold text-xs shadow-xs pointer-events-none">' + p + '</button>';
+          } else {
+            btnsHtml += '<button type="button" onclick="irParaPaginaAdmin(' + p + ')" class="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 font-semibold text-xs transition-colors">' + p + '</button>';
+          }
+        }
+
+        if (endPage < totalPaginas) {
+          if (endPage < totalPaginas - 1) {
+            btnsHtml += '<span class="px-1 text-slate-400 text-xs">...</span>';
+          }
+          btnsHtml += '<button type="button" onclick="irParaPaginaAdmin(' + totalPaginas + ')" class="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 font-semibold text-xs transition-colors">' + totalPaginas + '</button>';
+        }
+
+        containerBotoes.innerHTML = btnsHtml;
+      }
+    }
+
+    function mudarPaginaAdmin(delta) {
+      const novaPagina = (appState.paginaAdminAtual || 1) + delta;
+      irParaPaginaAdmin(novaPagina);
+    }
+
+    function irParaPaginaAdmin(pagina) {
+      const total = (appState.chamadosAdminFiltrados || []).length;
+      const porPagina = appState.itensPorPaginaAdmin || 20;
+      const totalPaginas = Math.ceil(total / porPagina) || 1;
+
+      if (pagina < 1) pagina = 1;
+      if (pagina > totalPaginas) pagina = totalPaginas;
+
+      appState.paginaAdminAtual = pagina;
+      renderizarTabelaAdmin();
+
+      const tabEl = document.getElementById('viewFilaGeral');
+      if (tabEl) {
+        tabEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
 
@@ -2370,10 +2504,11 @@
     }
 
     function obterClassesCorStatus(status) {
-      if (status === 'Aberto') return 'bg-blue-50 text-brisa-navy border-blue-200/90 hover:bg-blue-100/70 focus:ring-blue-300';
+      if (status === 'Aberto') return 'bg-blue-50 text-brisa-navy border-blue-200 hover:bg-blue-100/70 focus:ring-blue-300';
       if (status === 'Em Atendimento') return 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100/70 focus:ring-amber-300';
       if (status === 'Aguardando Retorno') return 'bg-orange-50 text-orange-900 border-orange-300 hover:bg-orange-100/70 focus:ring-orange-300';
       if (status === 'Concluído') return 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100/70 focus:ring-emerald-300';
+      if (status === 'Cancelado') return 'bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100/70 focus:ring-rose-300';
       return 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 focus:ring-slate-300';
     }
 
@@ -2384,14 +2519,15 @@
         '  <select onchange="alterarStatusChamadoPelaLista(\'' + idChamado + '\', this.value, this)" ',
         '          data-status-anterior="' + statusAtual + '"',
         '          title="Clique para alterar o status diretamente"',
-        '          class="status-select-admin appearance-none cursor-pointer pl-3 pr-7 py-1.5 rounded-full text-xs font-bold border transition-all outline-none shadow-xs ' + classesCor + '">',
+        '          class="status-select-admin appearance-none cursor-pointer pl-2.5 pr-6 py-1 rounded-full text-[11px] font-bold border transition-all outline-none shadow-xs ' + classesCor + '">',
         '    <option value="Aberto"' + (statusAtual === 'Aberto' ? ' selected' : '') + '>Aberto</option>',
         '    <option value="Em Atendimento"' + (statusAtual === 'Em Atendimento' ? ' selected' : '') + '>Em Atendimento</option>',
         '    <option value="Aguardando Retorno"' + (statusAtual === 'Aguardando Retorno' ? ' selected' : '') + '>Aguardando Retorno</option>',
         '    <option value="Concluído"' + (statusAtual === 'Concluído' ? ' selected' : '') + '>Concluído</option>',
+        '    <option value="Cancelado"' + (statusAtual === 'Cancelado' ? ' selected' : '') + '>Cancelado</option>',
         '  </select>',
-        '  <div class="pointer-events-none absolute right-2 flex items-center text-current opacity-60">',
-        '    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>',
+        '  <div class="pointer-events-none absolute right-1.5 flex items-center text-current opacity-60">',
+        '    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>',
         '  </div>',
         '</div>'
       ].join('');
@@ -2402,14 +2538,14 @@
       if (statusAnterior === novoStatus) return;
 
       // Feedback visual imediato durante requisição
-      selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-3 pr-7 py-1.5 rounded-full text-xs font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(novoStatus) + ' opacity-50 pointer-events-none';
+      selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-2.5 pr-6 py-1 rounded-full text-[11px] font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(novoStatus) + ' opacity-50 pointer-events-none';
 
       google.script.run
         .withSuccessHandler(function(res) {
           selectEl.classList.remove('opacity-50', 'pointer-events-none');
           if (res && res.sucesso) {
             selectEl.setAttribute('data-status-anterior', novoStatus);
-            selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-3 pr-7 py-1.5 rounded-full text-xs font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(novoStatus);
+            selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-2.5 pr-6 py-1 rounded-full text-[11px] font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(novoStatus);
             
             // Atualiza estado local em memória
             const ch = (appState.chamadosAdmin || []).find(function(c) { return c.idChamado === idChamado; });
@@ -2425,14 +2561,14 @@
             exibirToastRapido('Status do chamado ' + idChamado + ' alterado para "' + novoStatus + '".', 'sucesso');
           } else {
             selectEl.value = statusAnterior;
-            selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-3 pr-7 py-1.5 rounded-full text-xs font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(statusAnterior);
+            selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-2.5 pr-6 py-1 rounded-full text-[11px] font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(statusAnterior);
             alert('Não foi possível alterar o status: ' + (res ? res.erro : 'Erro desconhecido.'));
           }
         })
         .withFailureHandler(function(err) {
           selectEl.classList.remove('opacity-50', 'pointer-events-none');
           selectEl.value = statusAnterior;
-          selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-3 pr-7 py-1.5 rounded-full text-xs font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(statusAnterior);
+          selectEl.className = 'status-select-admin appearance-none cursor-pointer pl-2.5 pr-6 py-1 rounded-full text-[11px] font-bold border transition-all outline-none shadow-xs ' + obterClassesCorStatus(statusAnterior);
           alert('Erro de comunicação ao alterar status: ' + err.message);
         })
         .alterarStatusChamadoDireto(idChamado, novoStatus);
@@ -2466,38 +2602,44 @@
       else if (status === 'Em Atendimento') cor = 'bg-amber-50 text-amber-900 border-amber-300';
       else if (status === 'Aguardando Retorno') cor = 'bg-orange-50 text-orange-900 border-orange-300';
       else if (status === 'Concluído') cor = 'bg-emerald-50 text-emerald-800 border-emerald-300';
+      else if (status === 'Cancelado') cor = 'bg-rose-50 text-rose-800 border-rose-300';
 
-      return '<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap border shadow-xs ' + cor + '">' + status + '</span>';
+      return '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap border shadow-xs ' + cor + '">' + status + '</span>';
     }
 
     function renderBadgePrioridade(prioridade) {
-      if (prioridade === 'Urgente') return '<span class="inline-block whitespace-nowrap text-xs font-bold text-brisa-magenta">Urgente</span>';
-      if (prioridade === 'Alta') return '<span class="inline-block whitespace-nowrap text-xs font-bold text-brisa-orange">Alta</span>';
-      return '<span class="inline-block whitespace-nowrap text-xs font-medium text-slate-600">' + prioridade + '</span>';
+      if (prioridade === 'Urgente') return '<span class="inline-block whitespace-nowrap text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">Urgente</span>';
+      if (prioridade === 'Alta') return '<span class="inline-block whitespace-nowrap text-[11px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Alta</span>';
+      return '<span class="inline-block whitespace-nowrap text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">' + prioridade + '</span>';
     }
 
-    function filtrarTabelaAdmin() {
-      const texto = document.getElementById('buscaTexto').value.toLowerCase();
+    function filtrarTabelaAdmin(resetarPagina) {
+      if (resetarPagina !== false) {
+        appState.paginaAdminAtual = 1;
+      }
+      const texto = (document.getElementById('buscaTexto').value || '').toLowerCase().trim();
       const status = document.getElementById('filtroStatus').value;
       const gerencia = document.getElementById('filtroGerencia').value;
 
-      const filtrados = appState.chamadosAdmin.filter(function(ch) {
-        const bateTexto = ch.idChamado.toLowerCase().includes(texto) ||
-                         ch.titulo.toLowerCase().includes(texto) ||
-                         ch.solicitanteNome.toLowerCase().includes(texto);
+      appState.chamadosAdminFiltrados = (appState.chamadosAdmin || []).filter(function(ch) {
+        const bateTexto = !texto ||
+                         (ch.idChamado && ch.idChamado.toLowerCase().includes(texto)) ||
+                         (ch.titulo && ch.titulo.toLowerCase().includes(texto)) ||
+                         (ch.solicitanteNome && ch.solicitanteNome.toLowerCase().includes(texto)) ||
+                         (ch.observacoesAdmin && ch.observacoesAdmin.toLowerCase().includes(texto));
         const bateStatus = (status === 'TODOS') || (ch.status === status);
         const bateGerencia = (gerencia === 'TODAS') || (ch.gerencia === gerencia);
         return bateTexto && bateStatus && bateGerencia;
       });
 
-      renderizarTabelaAdmin(filtrados);
+      renderizarTabelaAdmin();
     }
 
     function limparFiltrosTabela() {
       document.getElementById('buscaTexto').value = '';
       document.getElementById('filtroStatus').value = 'TODOS';
       document.getElementById('filtroGerencia').value = 'TODAS';
-      filtrarTabelaAdmin();
+      filtrarTabelaAdmin(true);
     }
 
     // =========================================================================
