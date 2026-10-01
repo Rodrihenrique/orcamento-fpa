@@ -460,21 +460,20 @@
           <table class="w-full text-left border-collapse table-auto">
             <thead>
               <tr class="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th class="py-3 px-3 whitespace-nowrap">Protocolo</th>
-                <th class="py-3 px-2 whitespace-nowrap">Abertura</th>
-                <th class="py-3 px-2.5 max-w-[120px]">Solicitante</th>
-                <th class="py-3 px-2.5 max-w-[130px]">Gerência</th>
-                <th class="py-3 px-2.5 max-w-[130px]">Categoria</th>
-                <th class="py-3 px-2 text-center whitespace-nowrap">Prioridade</th>
-                <th class="py-3 px-2 whitespace-nowrap">Status</th>
-                <th class="py-3 px-2.5 max-w-[160px]">Observações</th>
-                <th class="py-3 px-2 whitespace-nowrap">Atendente</th>
-                <th class="py-3 px-3 text-right whitespace-nowrap">Ação</th>
+                <th class="py-3 px-3.5 whitespace-nowrap">Protocolo</th>
+                <th class="py-3 px-2.5 whitespace-nowrap">Abertura</th>
+                <th class="py-3 px-3">Solicitante</th>
+                <th class="py-3 px-3">Gerência</th>
+                <th class="py-3 px-3">Categoria</th>
+                <th class="py-3 px-2.5 text-center whitespace-nowrap">Prioridade</th>
+                <th class="py-3 px-2.5 whitespace-nowrap">Status</th>
+                <th class="py-3 px-3">Observações</th>
+                <th class="py-3 px-3 whitespace-nowrap">Atendente</th>
               </tr>
             </thead>
             <tbody id="tbodyAdmin" class="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
               <tr>
-                <td colspan="10" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
+                <td colspan="9" class="py-8 text-center text-slate-400">Carregando dados da fila...</td>
               </tr>
             </tbody>
           </table>
@@ -2199,7 +2198,7 @@
 
       return [
         '<div class="flex items-center justify-between gap-1 group">',
-        '  <div class="text-[11px] text-slate-700 leading-snug break-words flex-1 max-w-[140px] max-h-12 overflow-y-auto custom-scrollbar" title="' + (temObs ? ch.observacoesAdmin.replace(/"/g, '&quot;') : 'Clique no lápis para adicionar observação') + '">',
+        '  <div class="text-[11px] text-slate-700 leading-snug break-words flex-1 max-w-[220px] max-h-12 overflow-y-auto custom-scrollbar" title="' + (temObs ? ch.observacoesAdmin.replace(/"/g, '&quot;') : 'Clique no lápis para adicionar observação') + '">',
         '    ' + conteudoHtml,
         '  </div>',
         '  <button type="button" onclick="abrirModalObservacaoAdmin(\'' + ch.idChamado + '\')" title="Editar anotação ou links" class="text-slate-400 hover:text-brisa-blue p-1 rounded hover:bg-slate-100 transition-colors opacity-70 group-hover:opacity-100 shrink-0">',
@@ -2337,7 +2336,7 @@
       if (appState.paginaAdminAtual > totalPaginas) appState.paginaAdminAtual = totalPaginas;
 
       if (total === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="py-8 text-center text-slate-400">Nenhum chamado encontrado para este período ou filtro.</td></tr>';
         if (pagContainer) pagContainer.classList.add('hidden');
         return;
       }
@@ -2352,27 +2351,26 @@
       itensPagina.forEach(function(ch) {
         const isHighlight = appState.chamadoUrlPendente && (ch.idChamado === appState.chamadoUrlPendente);
         const classeDestaque = isHighlight ? ' bg-amber-50 ring-2 ring-brisa-orange ring-inset font-medium' : '';
-        const solTruncado = (ch.solicitanteNome && ch.solicitanteNome.length > 18) ? (ch.solicitanteNome.substring(0, 16) + '…') : (ch.solicitanteNome || '');
-        const gerTruncado = (ch.gerencia && ch.gerencia.length > 18) ? (ch.gerencia.substring(0, 16) + '…') : (ch.gerencia || '');
-        const catTruncada = (ch.categoria && ch.categoria.length > 18) ? (ch.categoria.substring(0, 16) + '…') : (ch.categoria || '');
+        const solText = ch.solicitanteNome || '';
+        const gerText = ch.gerencia || '';
+        const catText = ch.categoria || '';
         const atendenteDisplay = ch.atendente ? ch.atendente.split('@')[0] : '<span class="text-slate-400 italic">Sem atendente</span>';
 
+        const protoBtn = '<button type="button" onclick="abrirDrawer(\'' + ch.idChamado + '\')" title="Clique para abrir atendimento do chamado ' + ch.idChamado + '" class="group/proto inline-flex items-center gap-1.5 text-brisa-blue hover:text-blue-800 font-bold font-rubik text-xs transition-colors hover:underline text-left cursor-pointer">' +
+                         '  <span>' + ch.idChamado + '</span>' +
+                         '  <svg class="w-3.5 h-3.5 opacity-60 group-hover/proto:opacity-100 group-hover/proto:translate-x-0.5 transition-all shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>' +
+                         '</button>';
+
         html += '<tr id="row-admin-' + ch.idChamado + '" class="hover:bg-slate-50/80 transition-colors' + classeDestaque + '">';
-        html += '<td class="py-2.5 px-3 font-bold text-brisa-blue font-rubik whitespace-nowrap text-xs">' + ch.idChamado + '</td>';
-        html += '<td class="py-2.5 px-2 text-slate-500 whitespace-nowrap text-[11px]">' + (ch.dataCriacao ? ch.dataCriacao.split(' ')[0] : '') + '</td>';
-        html += '<td class="py-2.5 px-2.5 max-w-[120px] truncate text-slate-800 text-xs" title="' + (ch.solicitanteNome || '').replace(/"/g, '&quot;') + '">' + solTruncado + '</td>';
-        html += '<td class="py-2.5 px-2.5 max-w-[130px] truncate text-slate-600 text-xs" title="' + (ch.gerencia || '').replace(/"/g, '&quot;') + '">' + gerTruncado + '</td>';
-        html += '<td class="py-2.5 px-2.5 max-w-[130px] truncate text-slate-600 text-xs" title="' + (ch.categoria || '').replace(/"/g, '&quot;') + '">' + catTruncada + '</td>';
-        html += '<td class="py-2.5 px-2 text-center whitespace-nowrap">' + renderBadgePrioridade(ch.prioridade) + '</td>';
-        html += '<td class="py-2.5 px-2 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
-        html += '<td class="py-2.5 px-2.5 max-w-[160px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
-        html += '<td class="py-2.5 px-2 text-slate-500 whitespace-nowrap text-[11px] truncate max-w-[110px]" title="' + (ch.atendente || '') + '">' + atendenteDisplay + '</td>';
-        html += '<td class="py-2.5 px-3 text-right whitespace-nowrap">';
-        html += '  <button onclick="abrirDrawer(\'' + ch.idChamado + '\')" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-brisa-blue hover:bg-blue-700 active:scale-95 transition-all shadow-xs">';
-        html += '    <span>Atender</span>';
-        html += '    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>';
-        html += '  </button>';
-        html += '</td>';
+        html += '<td class="py-3 px-3.5 font-bold font-rubik whitespace-nowrap text-xs">' + protoBtn + '</td>';
+        html += '<td class="py-3 px-2.5 text-slate-500 whitespace-nowrap text-[11px]">' + (ch.dataCriacao ? ch.dataCriacao.split(' ')[0] : '') + '</td>';
+        html += '<td class="py-3 px-3 max-w-[160px] truncate text-slate-800 text-xs font-medium" title="' + solText.replace(/"/g, '&quot;') + '">' + solText + '</td>';
+        html += '<td class="py-3 px-3 max-w-[220px] truncate text-slate-600 text-xs" title="' + gerText.replace(/"/g, '&quot;') + '">' + gerText + '</td>';
+        html += '<td class="py-3 px-3 max-w-[220px] truncate text-slate-600 text-xs" title="' + catText.replace(/"/g, '&quot;') + '">' + catText + '</td>';
+        html += '<td class="py-3 px-2.5 text-center whitespace-nowrap">' + renderBadgePrioridade(ch.prioridade) + '</td>';
+        html += '<td class="py-3 px-2.5 whitespace-nowrap">' + renderSelectStatusAdmin(ch.idChamado, ch.status) + '</td>';
+        html += '<td class="py-3 px-3 max-w-[220px]">' + renderCelulaObservacoesAdmin(ch) + '</td>';
+        html += '<td class="py-3 px-3 text-slate-500 whitespace-nowrap text-xs truncate max-w-[130px]" title="' + (ch.atendente || '') + '">' + atendenteDisplay + '</td>';
         html += '</tr>';
       });
       tbody.innerHTML = html;
