@@ -911,6 +911,248 @@
       word-break: break-word;
     }
 
+    /* ==========================================================================
+       CÉLULA DE NOTAS EDITÁVEIS NA TABELA
+       ========================================================================== */
+    .notes-cell-wrapper {
+      min-width: 250px;
+      max-width: 320px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .notes-inline-textarea {
+      width: 100%;
+      min-height: 52px;
+      max-height: 120px;
+      resize: vertical;
+      font-family: var(--font-family);
+      font-size: 12px;
+      color: var(--text-main);
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      line-height: 1.4;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      box-sizing: border-box;
+    }
+
+    .notes-inline-textarea:focus {
+      outline: none;
+      border-color: var(--brisa-blue);
+      box-shadow: 0 0 0 2px rgba(34, 66, 212, 0.15);
+      background: #ffffff;
+    }
+
+    .notes-actions-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .btn-table-note {
+      font-family: var(--font-family);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      line-height: 1.2;
+    }
+
+    .btn-note-save {
+      background-color: var(--brisa-blue);
+      color: #ffffff;
+      border-color: var(--brisa-blue);
+    }
+
+    .btn-note-save:hover {
+      background-color: var(--brisa-dark-blue);
+      border-color: var(--brisa-dark-blue);
+    }
+
+    .btn-note-save.saved {
+      background-color: #16a34a;
+      border-color: #16a34a;
+    }
+
+    .btn-note-email {
+      background-color: #ffffff;
+      color: var(--brisa-blue);
+      border-color: #c7d2fe;
+    }
+
+    .btn-note-email:hover {
+      background-color: #f0f3ff;
+      border-color: var(--brisa-blue);
+    }
+
+    /* ==========================================================================
+       HISTÓRICO DE ALTERAÇÕES NO MODAL DE DETALHES
+       ========================================================================== */
+    .history-section-wrapper {
+      grid-column: 1 / -1;
+      margin-top: 16px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .history-header-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--brisa-dark-blue);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 240px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .history-card {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-left: 3px solid var(--brisa-blue);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 12px;
+    }
+
+    .history-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .history-card-user {
+      font-weight: 700;
+      color: var(--brisa-dark-blue);
+    }
+
+    .history-card-date {
+      font-family: monospace;
+      color: #64748b;
+    }
+
+    .history-card-body {
+      color: var(--text-label);
+      line-height: 1.4;
+    }
+
+    .history-card-diff {
+      margin-top: 6px;
+      font-size: 11px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 6px 10px;
+      color: #334155;
+    }
+
+    .history-card-diff strong {
+      color: var(--brisa-orange);
+    }
+
+    .history-empty-msg {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      text-align: center;
+      padding: 16px;
+      background: #f8fafc;
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--border-color);
+    }
+
+    /* ==========================================================================
+       MODAL DE ENVIO DE E-MAIL DE REGISTRO
+       ========================================================================== */
+    .email-modal-card {
+      max-width: 600px;
+    }
+
+    .email-summary-box {
+      background: #f0f3ff;
+      border: 1px solid #c7d2fe;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+
+    .email-summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      gap: 12px;
+    }
+
+    .email-summary-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .email-summary-label {
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    .email-summary-val {
+      color: var(--brisa-dark-blue);
+      font-weight: 700;
+      text-align: right;
+      word-break: break-word;
+    }
+
+    .email-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .email-chip {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-label);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      user-select: none;
+    }
+
+    .email-chip:hover {
+      background: var(--primary-light);
+      border-color: var(--brisa-blue);
+      color: var(--brisa-blue);
+    }
+
     /* TOAST NOTIFICAÇÃO */
     .toast-container {
       position: fixed;
@@ -1497,10 +1739,91 @@
     </div>
     <div class="modal-body">
       <div class="detail-grid" id="modalDetalhesCorpo"></div>
+
+      <!-- HISTÓRICO DE ALTERAÇÕES -->
+      <div class="history-section-wrapper">
+        <div class="history-header-title">
+          <span>Histórico de Alterações e Registros</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);" id="historyCounterBadge"></span>
+        </div>
+        <div id="modalDetalhesHistorico" class="history-list">
+          <div class="history-empty-msg">Nenhuma alteração registrada ainda para este contrato.</div>
+        </div>
+      </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhes()">Fechar</button>
     </div>
+  </div>
+</div>
+
+<!-- ========================================================================
+     MODAL DE ENVIO DE E-MAIL DE REGISTRO
+     ======================================================================== -->
+<div class="modal-overlay" id="modalEmail">
+  <div class="modal-card email-modal-card">
+    <div class="modal-header">
+      <div class="modal-title" id="modalEmailTitulo">Enviar E-mail de Registro</div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalEmail()">×</button>
+    </div>
+    <form id="formEmailRegistro" onsubmit="enviarEmailNotificacao(event)">
+      <div class="modal-body">
+        <div class="email-summary-box">
+          <div class="email-summary-row">
+            <span class="email-summary-label">Contrato:</span>
+            <span class="email-summary-val" id="emailResumoContrato">-</span>
+          </div>
+          <div class="email-summary-row">
+            <span class="email-summary-label">Fornecedor:</span>
+            <span class="email-summary-val" id="emailResumoFornecedor">-</span>
+          </div>
+          <div class="email-summary-row">
+            <span class="email-summary-label">Objeto:</span>
+            <span class="email-summary-val" id="emailResumoObjeto">-</span>
+          </div>
+        </div>
+
+        <input type="hidden" id="emailContratoId" value="">
+        <input type="hidden" id="emailContratoProtocol" value="">
+        <input type="hidden" id="emailContratoStatus" value="">
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" for="campoEmailDestinatarios">
+            Destinatários <span class="required">*</span>
+          </label>
+          <input type="text" id="campoEmailDestinatarios" class="form-control" 
+                 placeholder="exemplo@grupobrisanet.com.br, gestao@grupobrisanet.com.br" required>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">
+            Separe múltiplos e-mails por vírgula ou ponto e vírgula.
+          </div>
+          <div class="email-chips-container">
+            <span class="email-chip" onclick="adicionarDestinatarioEmail('compras@grupobrisanet.com.br')">+ compras</span>
+            <span class="email-chip" onclick="adicionarDestinatarioEmail('controladoria@grupobrisanet.com.br')">+ controladoria</span>
+            <span class="email-chip" onclick="adicionarDestinatarioEmail('financeiro@grupobrisanet.com.br')">+ financeiro</span>
+            <span class="email-chip" onclick="adicionarDestinatarioEmail('juridico@grupobrisanet.com.br')">+ jurídico</span>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label" for="campoEmailAssunto">
+            Assunto do E-mail <span class="required">*</span>
+          </label>
+          <input type="text" id="campoEmailAssunto" class="form-control" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="campoEmailMensagem">
+            Nota / Acordo a Registrar no E-mail <span class="required">*</span>
+          </label>
+          <textarea id="campoEmailMensagem" class="form-control" rows="4" 
+                    placeholder="Descreva o acordo, ajuste ou alteração efetuada neste contrato..." required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="fecharModalEmail()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnConfirmarEnvioEmail">Enviar Registro por E-mail</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -1667,9 +1990,6 @@
       if (riscoLower === 'alto') riscoClass = 'badge-risco-alto';
       else if (riscoLower === 'médio' || riscoLower === 'medio') riscoClass = 'badge-risco-medio';
 
-      var notasPreview = c.observacoes || c.descricaoRisco || 'Sem observações';
-      if (notasPreview.length > 32) notasPreview = notasPreview.substring(0, 32) + '...';
-
       tr.innerHTML = 
         '<td class="protocol-col">' +
           escapeHtml(c.protocol || ('ID ' + c.id)) +
@@ -1681,11 +2001,195 @@
         '<td class="value-col">' + formatarMoedaBRL(c.valorLancamento) + '</td>' +
         '<td><span class="badge ' + statusClass + '">' + escapeHtml(c.status || 'Ativo') + '</span></td>' +
         '<td><span class="badge ' + riscoClass + '">' + escapeHtml(c.risco || 'Baixo') + '</span></td>' +
-        '<td style="color:#64748b;font-size:12px;" title="' + escapeHtml(c.observacoes || '') + '">' + escapeHtml(notasPreview) + '</td>' +
+        '<td>' +
+          '<div class="notes-cell-wrapper">' +
+            '<textarea class="notes-inline-textarea" id="noteInput_' + index + '" placeholder="Adicionar notas, acordos ou informações extras...">' + escapeHtml(c.observacoes || '') + '</textarea>' +
+            '<div class="notes-actions-row">' +
+              '<button type="button" class="btn-table-note btn-note-save" id="btnSaveNote_' + index + '" onclick="salvarNotaLinha(' + index + ')" title="Salvar nota na planilha e registrar histórico">Salvar</button>' +
+              '<button type="button" class="btn-table-note btn-note-email" onclick="abrirModalEmail(' + index + ')" title="Enviar e-mail de registro sobre este contrato">E-mail</button>' +
+            '</div>' +
+          '</div>' +
+        '</td>' +
         '<td><button type="button" class="table-action-btn" onclick="abrirModalDetalhes(' + index + ')">Detalhes</button></td>';
 
       tbody.appendChild(tr);
     });
+  }
+
+  // Salvar nota editada diretamente na tabela
+  function salvarNotaLinha(index) {
+    var c = appState.contracts[index];
+    if (!c) return;
+
+    var inputEl = document.getElementById('noteInput_' + index);
+    var btnSave = document.getElementById('btnSaveNote_' + index);
+    if (!inputEl) return;
+
+    var novaNota = inputEl.value.trim();
+
+    if (btnSave) {
+      btnSave.disabled = true;
+      btnSave.textContent = 'Salvando...';
+    }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Salvo!';
+            btnSave.classList.add('saved');
+            setTimeout(function() {
+              btnSave.textContent = 'Salvar';
+              btnSave.classList.remove('saved');
+            }, 2500);
+          }
+
+          if (response && response.success) {
+            c.observacoes = novaNota;
+            mostrarToast('Notas do contrato ' + (c.protocol || ('ID ' + c.id)) + ' salvas na planilha e histórico registrado!', 'success');
+          } else {
+            mostrarToast('Aviso: ' + (response ? response.error : 'Não foi possível salvar a nota.'), 'warning');
+          }
+        })
+        .withFailureHandler(function(err) {
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Salvar';
+          }
+          mostrarToast('Erro ao salvar nota: ' + (err.message || err), 'error');
+        })
+        .atualizarNotasContrato(c.id, c.rowNumber, novaNota, 'Atualização direta pela tabela');
+    } else {
+      // Demonstração local
+      c.observacoes = novaNota;
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.textContent = 'Salvo!';
+        btnSave.classList.add('saved');
+        setTimeout(function() {
+          btnSave.textContent = 'Salvar';
+          btnSave.classList.remove('saved');
+        }, 2000);
+      }
+      mostrarToast('Modo demonstração: Nota atualizada localmente!', 'info');
+    }
+  }
+
+  // Modal de Envio de E-mail de Registro
+  function abrirModalEmail(index) {
+    var c = appState.contracts[index];
+    if (!c) return;
+
+    var inputEl = document.getElementById('noteInput_' + index);
+    var notaAtual = inputEl ? inputEl.value.trim() : (c.observacoes || '');
+
+    document.getElementById('emailContratoId').value = c.id;
+    document.getElementById('emailContratoProtocol').value = c.protocol || ('ID ' + c.id);
+    document.getElementById('emailContratoStatus').value = c.status || 'Ativo';
+    
+    document.getElementById('emailResumoContrato').textContent = (c.protocol || ('ID ' + c.id)) + ' (ID ' + c.id + ')';
+    document.getElementById('emailResumoFornecedor').textContent = c.fornecedor || '-';
+    document.getElementById('emailResumoObjeto').textContent = c.objeto || '-';
+
+    document.getElementById('campoEmailAssunto').value = '[a brisanet] Registro de Alteração Contratual - ' + (c.protocol || ('ID ' + c.id)) + ' (' + (c.fornecedor || '') + ')';
+    document.getElementById('campoEmailMensagem').value = notaAtual;
+    document.getElementById('campoEmailDestinatarios').value = '';
+
+    document.getElementById('modalEmail').classList.add('active');
+  }
+
+  function fecharModalEmail() {
+    document.getElementById('modalEmail').classList.remove('active');
+  }
+
+  function adicionarDestinatarioEmail(email) {
+    var campo = document.getElementById('campoEmailDestinatarios');
+    var atual = campo.value.trim();
+    if (!atual) {
+      campo.value = email;
+    } else {
+      var lista = atual.split(/[,;]/).map(function(e) { return e.trim(); });
+      if (lista.indexOf(email) === -1) {
+        campo.value = atual + ', ' + email;
+      }
+    }
+    campo.focus();
+  }
+
+  function enviarEmailNotificacao(event) {
+    if (event) event.preventDefault();
+
+    var contractId = document.getElementById('emailContratoId').value;
+    var protocol = document.getElementById('emailContratoProtocol').value;
+    var status = document.getElementById('emailContratoStatus').value;
+    var fornecedor = document.getElementById('emailResumoFornecedor').textContent;
+    var objeto = document.getElementById('emailResumoObjeto').textContent;
+    var destinatarios = document.getElementById('campoEmailDestinatarios').value.trim();
+    var assunto = document.getElementById('campoEmailAssunto').value.trim();
+    var mensagem = document.getElementById('campoEmailMensagem').value.trim();
+
+    if (!destinatarios) {
+      mostrarToast('Por favor, informe ao menos um e-mail de destinatário.', 'warning');
+      return;
+    }
+
+    if (!mensagem) {
+      mostrarToast('Por favor, descreva a nota ou acordo a ser enviado.', 'warning');
+      return;
+    }
+
+    var btn = document.getElementById('btnConfirmarEnvioEmail');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Enviando e-mail...';
+    }
+
+    var payload = {
+      id: contractId,
+      contractId: contractId,
+      protocol: protocol,
+      fornecedor: fornecedor,
+      objeto: objeto,
+      status: status,
+      destinatarios: destinatarios,
+      assunto: assunto,
+      mensagem: mensagem,
+      novaNota: mensagem
+    };
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Enviar Registro por E-mail';
+          }
+          if (response && response.success) {
+            fecharModalEmail();
+            mostrarToast('E-mail de registro enviado com sucesso para ' + response.recipientsCount + ' destinatário(s)!', 'success');
+          } else {
+            mostrarToast('Erro ao enviar e-mail: ' + (response ? response.error : 'Falha desconhecida.'), 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Enviar Registro por E-mail';
+          }
+          mostrarToast('Erro na comunicação: ' + (err.message || err), 'error');
+        })
+        .enviarEmailRegistro(payload);
+    } else {
+      setTimeout(function() {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Enviar Registro por E-mail';
+        }
+        fecharModalEmail();
+        mostrarToast('Modo demonstração: E-mail simulado com sucesso para ' + destinatarios, 'info');
+      }, 800);
+    }
   }
 
   // Filtros de Tabela
@@ -1774,6 +2278,66 @@
         '<div class="detail-value">' + (item.val ? formatarTextoComLinks(item.val) : '-') + '</div>';
       container.appendChild(div);
     });
+
+    // Carregar histórico de alterações
+    var historyContainer = document.getElementById('modalDetalhesHistorico');
+    var historyBadge = document.getElementById('historyCounterBadge');
+    if (historyBadge) historyBadge.textContent = '';
+    
+    if (historyContainer) {
+      historyContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;text-align:center;">Consultando histórico de alterações na planilha...</div>';
+    }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (!historyContainer) return;
+          if (res && res.success && res.history && res.history.length > 0) {
+            if (historyBadge) historyBadge.textContent = '(' + res.history.length + ' registro' + (res.history.length > 1 ? 's' : '') + ')';
+            historyContainer.innerHTML = '';
+            res.history.forEach(function(item) {
+              var card = document.createElement('div');
+              card.className = 'history-card';
+              var notifInfo = item.notificacao && item.notificacao !== 'Não' ? 
+                '<div style="margin-top:4px;font-size:11px;color:#2242D4;font-weight:600;">E-mail enviado para: ' + escapeHtml(item.notificacao) + '</div>' : '';
+              
+              var diffHtml = '';
+              if (item.campo === 'Notas / Observações') {
+                diffHtml = '<div class="history-card-diff">' +
+                  (item.valorAnterior ? '<div style="color:#64748b;margin-bottom:2px;"><strike>' + escapeHtml(item.valorAnterior) + '</strike></div>' : '') +
+                  '<div><strong>Nova Nota:</strong> ' + escapeHtml(item.novoValor || '-') + '</div>' +
+                '</div>';
+              } else {
+                diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(item.novoValor || '-') + '</div>';
+              }
+
+              card.innerHTML = 
+                '<div class="history-card-header">' +
+                  '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
+                  '<span class="history-card-date">' + escapeHtml(item.dataHora || '-') + '</span>' +
+                '</div>' +
+                '<div class="history-card-body">' +
+                  '<strong>' + escapeHtml(item.campo || 'Alteração') + '</strong>' +
+                  diffHtml +
+                  notifInfo +
+                '</div>';
+              historyContainer.appendChild(card);
+            });
+          } else {
+            historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+          }
+        })
+        .withFailureHandler(function() {
+          if (historyContainer) {
+            historyContainer.innerHTML = '<div class="history-empty-msg">Não foi possível carregar o histórico de alterações no momento.</div>';
+          }
+        })
+        .obterHistoricoContrato(c.id);
+    } else {
+      if (historyContainer) {
+        historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+      }
+    }
 
     document.getElementById('modalDetalhes').classList.add('active');
   }

@@ -9,14 +9,19 @@
 var CONFIG = {
   // ID da Planilha Principal
   SPREADSHEET_ID: '1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I',
+  // Linha inicial obrigatória para inserção de novos contratos
+  MIN_DATA_ROW: 18,
   // GID da aba de Cadastro (padrão)
   SHEET_GID: '531593901',
-  // Nomes possíveis para a aba de cadastro
+  // Nomes possíveis para a aba de cadastro (com prioridade)
   TARGET_SHEET_NAMES: [
-    'Cadastro e memória de cálculo dos contratos',
     'Cadastro Contratos',
+    'Cadastro e memória de cálculo dos contratos',
+    'Cadastro de Contratos',
     'Cadastro'
   ],
+  // Nome da aba de logs de alterações
+  LOG_SHEET_NAME: 'Histórico de Alterações',
   // Nome da pasta raiz no Google Drive para os arquivos anexados
   DRIVE_FOLDER_NAME: 'Contratos - Anexos',
   // Prefixo para protocolo formatado
@@ -618,25 +623,28 @@ function salvarContrato(data, files) {
       data.observacoes || ''                      // AF (32) Observações
     ];
 
-    // Localizar a linha exata de inserção no cadastro:
+    // Localizar a linha exata de inserção no cadastro (ESTRITAMENTE A PARTIR DA LINHA 18):
+    var minRow = CONFIG.MIN_DATA_ROW || 18;
     var targetRow = -1;
-    var scanCount = Math.max(1, lastRow - headerRow);
+    var maxCheckRows = Math.max(lastRow, minRow);
 
-    // Ler colunas A (ID) e D (Fornecedor) para identificar primeiro slot livre
-    var checkRange = sheet.getRange(headerRow + 1, 1, scanCount, 4).getValues();
-    for (var r = 0; r < checkRange.length; r++) {
-      var idCell = String(checkRange[r][0] || '').trim();
-      var fornCell = String(checkRange[r][3] || '').trim();
-      // Primeira linha vazia encontrada logo abaixo dos contratos existentes
-      if (idCell === '' && fornCell === '') {
-        targetRow = headerRow + 1 + r;
-        break;
+    if (maxCheckRows >= minRow) {
+      var numRowsToCheck = maxCheckRows - minRow + 1;
+      var checkRange = sheet.getRange(minRow, 1, numRowsToCheck, 4).getValues();
+      for (var r = 0; r < checkRange.length; r++) {
+        var idCell = String(checkRange[r][0] || '').trim();
+        var fornCell = String(checkRange[r][3] || '').trim();
+        // Primeiro slot livre encontrado a partir da linha 18
+        if (idCell === '' && fornCell === '') {
+          targetRow = minRow + r;
+          break;
+        }
       }
     }
 
-    // Se todas as linhas existentes estiverem preenchidas, adiciona na próxima linha
+    // Se todas as linhas até lastRow estiverem ocupadas, insere na próxima linha disponível após minRow
     if (targetRow === -1) {
-      targetRow = lastRow + 1;
+      targetRow = Math.max(minRow, lastRow + 1);
     }
 
     // Garantir que a linha existe na planilha (expandir se necessário)
@@ -801,4 +809,324 @@ function formatarDataExibicao_(val) {
     return p[2] + '/' + p[1] + '/' + p[0];
   }
   return s;
+}
+
+function formatarDataHoraExibicao_(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+  }
+  return String(val);
+}
+
+/**
+ * Obtém ou cria a aba de histórico de alterações de contratos
+ */
+function obterAbaLogs_() {
+  var ss = obterPlanilha_();
+  var sheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.getSheetByName('Histórico de alterações do orçamento');
+  }
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.LOG_SHEET_NAME);
+    var headers = [
+      'Data/Hora',
+      'ID Contrato',
+      'Protocolo',
+      'Fornecedor',
+      'Campo Alterado',
+      'Valor Anterior',
+      'Novo Valor',
+      'Usuário',
+      'Notificação Enviada'
+    ];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#E8E8E8');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * Registra uma alteração no log
+ */
+function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAnterior, novoValor, usuario, notificacao) {
+  try {
+    var logSheet = obterAbaLogs_();
+    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    var rowData = [
+      nowStr,
+      contractId || '',
+      protocol || '',
+      fornecedor || '',
+      campo || '',
+      String(valorAnterior || ''),
+      String(novoValor || ''),
+      usuario || '',
+      notificacao || 'Não'
+    ];
+    logSheet.appendRow(rowData);
+    SpreadsheetApp.flush();
+  } catch (e) {
+    Logger.log('Erro ao registrar log: ' + e.message);
+  }
+}
+
+/**
+ * Atualiza o campo de notas/observações de um contrato diretamente na planilha
+ * @param {string|number} contractId - ID do contrato
+ * @param {number} rowNumber - Linha sugerida da planilha (opcional)
+ * @param {string} novaNota - Novo texto da nota/acordo
+ * @param {string} motivo - Motivo opcional da alteração
+ */
+function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
+  try {
+    if (!contractId && !rowNumber) {
+      throw new Error('Identificador do contrato não informado.');
+    }
+
+    var sheet = obterAbaContratos_();
+    var headerRow = obterLinhaCabecalho_(sheet);
+    var targetRow = -1;
+
+    // 1. Validar se rowNumber fornecido corresponde ao ID
+    if (rowNumber && rowNumber > headerRow) {
+      var idNaLinha = String(sheet.getRange(rowNumber, 1).getValue()).trim();
+      if (idNaLinha === String(contractId).trim()) {
+        targetRow = rowNumber;
+      }
+    }
+
+    // 2. Se não bateu ou não informado, procurar a linha pelo ID
+    if (targetRow === -1) {
+      var lastRow = sheet.getLastRow();
+      if (lastRow > headerRow) {
+        var ids = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, 1).getValues();
+        for (var i = 0; i < ids.length; i++) {
+          if (String(ids[i][0]).trim() === String(contractId).trim()) {
+            targetRow = headerRow + 1 + i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetRow === -1) {
+      throw new Error('Contrato com ID ' + contractId + ' não foi localizado na planilha.');
+    }
+
+    // Coluna AF (32) é Observações / Notas
+    var rangeNota = sheet.getRange(targetRow, 32);
+    var valorAnterior = String(rangeNota.getValue() || '');
+
+    // Atualizar valor
+    rangeNota.setValue(novaNota);
+    SpreadsheetApp.flush();
+
+    // Dados do contrato para o log
+    var fornecedor = String(sheet.getRange(targetRow, 4).getValue() || '');
+    var protocol = formatarProtocolo_(contractId);
+    var usuario = '';
+    try {
+      usuario = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (ue) {
+      usuario = 'usuario.compras@grupobrisanet.com.br';
+    }
+    if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
+
+    // Registrar no histórico
+    registrarLogAlteracao_(contractId, protocol, fornecedor, 'Notas / Observações', valorAnterior, novaNota, usuario, 'Não');
+
+    return {
+      success: true,
+      contractId: contractId,
+      protocol: protocol,
+      rowNumber: targetRow,
+      valorAnterior: valorAnterior,
+      novoValor: novaNota,
+      usuario: usuario,
+      dataHora: Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss')
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Retorna todo o histórico de alterações registradas para um determinado contrato
+ * @param {string|number} contractId - ID do contrato
+ */
+function obterHistoricoContrato(contractId) {
+  try {
+    var logSheet = obterAbaLogs_();
+    var lastRow = logSheet.getLastRow();
+    var history = [];
+
+    if (lastRow > 1) {
+      var numCols = Math.min(logSheet.getLastColumn(), 9);
+      var values = logSheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+      for (var i = 0; i < values.length; i++) {
+        var rowId = String(values[i][1] || '').trim();
+        if (rowId === String(contractId).trim()) {
+          history.push({
+            dataHora: formatarDataHoraExibicao_(values[i][0]),
+            id: values[i][1],
+            protocol: values[i][2],
+            fornecedor: values[i][3],
+            campo: values[i][4],
+            valorAnterior: values[i][5],
+            novoValor: values[i][6],
+            usuario: values[i][7],
+            notificacao: values[i][8]
+          });
+        }
+      }
+    }
+
+    // Mais recente primeiro
+    history.reverse();
+
+    return {
+      success: true,
+      contractId: contractId,
+      history: history
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+      history: []
+    };
+  }
+}
+
+/**
+ * Envia notificação por e-mail sobre alterações / novos registros no contrato
+ * @param {Object} dados - Informações de contrato, destinatários e mensagem
+ */
+function enviarEmailRegistro(dados) {
+  try {
+    if (!dados || !dados.destinatarios) {
+      throw new Error('Informe ao menos um endereço de e-mail de destinatário.');
+    }
+
+    // Tratar destinatários
+    var rawList = String(dados.destinatarios).split(/[,;]/);
+    var validEmails = [];
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    for (var i = 0; i < rawList.length; i++) {
+      var email = rawList[i].trim();
+      if (email && emailRegex.test(email)) {
+        validEmails.push(email);
+      }
+    }
+
+    if (validEmails.length === 0) {
+      throw new Error('Nenhum e-mail de destinatário válido foi informado.');
+    }
+
+    var usuario = '';
+    try {
+      usuario = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (e) {
+      usuario = 'usuario.compras@grupobrisanet.com.br';
+    }
+    if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
+
+    var protocol = dados.protocol || formatarProtocolo_(dados.id);
+    var fornecedor = dados.fornecedor || 'Fornecedor';
+    var objeto = dados.objeto || 'Contrato de Fornecimento';
+    var notaAlteracao = dados.mensagem || dados.novaNota || dados.observacoes || 'Atualização cadastral realizada.';
+    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm');
+
+    var ssUrl = obterPlanilha_().getUrl();
+    var folderUrl = obterOuCriarPastaAnexos_().getUrl();
+
+    var assunto = dados.assunto || ('[a brisanet] Registro de Alteração Contratual - ' + protocol + ' (' + fornecedor + ')');
+
+    // Corpo HTML do e-mail com a identidade visual oficial da brisanet
+    var htmlBody = 
+      '<div style="font-family:\'Figtree\',Arial,sans-serif;background-color:#f8fafc;padding:24px;color:#0B316D;">' +
+        '<div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #E8E8E8;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(11,49,109,0.06);">' +
+          
+          '<div style="background:#2242D4;padding:20px 24px;">' +
+            '<span style="background:#FF5022;color:#ffffff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;text-transform:lowercase;">brisanet</span>' +
+            '<h2 style="color:#ffffff;margin:8px 0 0 0;font-size:18px;font-weight:700;">Registro de Alteração Contratual</h2>' +
+            '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;text-transform:lowercase;">suporte técnico · brisanet</p>' +
+          '</div>' +
+
+          '<div style="padding:24px;">' +
+            '<p style="font-size:14px;line-height:1.6;color:#334155;margin-top:0;">' +
+              'Olá,<br><br>' +
+              'Informamos que foi registrado um novo acordo ou atualização no contrato corporativo detalhado abaixo:' +
+            '</p>' +
+
+            '<div style="background:#f0f3ff;border-left:4px solid #2242D4;border-radius:6px;padding:16px;margin:20px 0;">' +
+              '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
+                '<tr>' +
+                  '<td style="padding:4px 0;color:#64748b;font-weight:600;width:110px;">Protocolo:</td>' +
+                  '<td style="padding:4px 0;color:#0B316D;font-weight:700;">' + protocol + ' (ID ' + (dados.id || dados.contractId || '-') + ')</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:4px 0;color:#64748b;font-weight:600;">Fornecedor:</td>' +
+                  '<td style="padding:4px 0;color:#0B316D;font-weight:700;">' + fornecedor + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:4px 0;color:#64748b;font-weight:600;">Objeto:</td>' +
+                  '<td style="padding:4px 0;color:#334155;">' + objeto + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:4px 0;color:#64748b;font-weight:600;">Status:</td>' +
+                  '<td style="padding:4px 0;"><span style="background:#D0FF60;color:#0B316D;font-weight:700;padding:2px 8px;border-radius:999px;font-size:11px;">' + (dados.status || 'Ativo') + '</span></td>' +
+                '</tr>' +
+              '</table>' +
+            '</div>' +
+
+            '<div style="background:#ffffff;border:1px solid #E8E8E8;border-radius:8px;padding:16px;margin:20px 0;">' +
+              '<h4 style="margin:0 0 8px 0;font-size:12px;font-weight:800;color:#FF5022;text-transform:uppercase;letter-spacing:0.5px;">Nota / Acordo Registrado:</h4>' +
+              '<p style="margin:0;font-size:13px;color:#0B316D;white-space:pre-wrap;line-height:1.6;">' + notaAlteracao + '</p>' +
+            '</div>' +
+
+            '<p style="font-size:12px;color:#64748b;margin:16px 0 24px 0;">' +
+              '<strong>Registrado por:</strong> ' + usuario + '<br>' +
+              '<strong>Data e hora:</strong> ' + nowStr +
+            '</p>' +
+
+            '<div style="text-align:center;margin-top:24px;">' +
+              '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;margin-right:10px;">Abrir Planilha de Contratos</a>' +
+              '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;">Acessar Pasta no Drive</a>' +
+            '</div>' +
+
+          '</div>' +
+
+          '<div style="background:#f8fafc;border-top:1px solid #E8E8E8;padding:14px 24px;text-align:center;font-size:11px;color:#94a3b8;">' +
+            'Este é um comunicado automático gerado pelo Sistema de Gestão de Contratos · a brisanet' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+
+    MailApp.sendEmail({
+      to: validEmails.join(','),
+      subject: assunto,
+      htmlBody: htmlBody
+    });
+
+    registrarLogAlteracao_(dados.id || dados.contractId, protocol, fornecedor, 'Notificação por E-mail', '', notaAlteracao, usuario, validEmails.join(', '));
+
+    return {
+      success: true,
+      recipientsCount: validEmails.length,
+      recipients: validEmails
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message
+    };
+  }
 }

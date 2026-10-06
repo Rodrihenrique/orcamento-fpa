@@ -96,9 +96,14 @@ O formulário preenche rigorosamente as 32 colunas da aba de contratos da planil
 
 ---
 
-## 5. Recursos Adicionais
+## 5. Recursos Adicionais e Novas Funcionalidades
 
-1. **Protocolo Automático Padronizado**: Exibição no formato corporativo `BRISA-CON-AAAA-XXXX` (ex: `BRISA-CON-2026-0015`).
-2. **Preservação de Fórmulas**: Herda automaticamente as fórmulas de colunas calculadas (taxas, conversões e percentuais) da linha anterior.
-3. **Filtros e Busca Instantânea**: Na aba *Lista de Contratos*, filtre por fornecedor, objeto, ID, status ou nível de risco em tempo real.
-4. **Sem Emojis**: Design limpo e estritamente profissional baseado em tipografia padrão e ícones vetoriais discretos.
+1. **Inserção Obrigatória a partir da Linha 18**: O sistema respeita as linhas históricas 1 a 17 e começa o preenchimento de novos contratos a partir da linha 18 da aba `Cadastro Contratos`.
+2. **Coluna de Notas Editável na Tabela**: Na página "Lista de Contratos", o campo de notas pode ser alterado diretamente na linha e salvo com o botão "Salvar", atualizando em tempo real a coluna 32 (AF) da planilha.
+3. **Log de Alterações e Histórico Completo**: Todas as alterações de notas ou notificações geram registros automáticos na aba `Histórico de Alterações` da planilha (com data/hora, ID, protocolo, fornecedor, campo, valores anterior/novo e e-mail do usuário). O histórico é consultado e exibido diretamente no modal de detalhes do contrato.
+4. **Envio de E-mail de Registro Corporativo**: Botão dedicado para disparar comunicados formais por e-mail para destinatários específicos (com atalhos rápidos para compras, controladoria, financeiro e jurídico), formatado no padrão corporativo a brisanet.
+5. **Identidade Visual Oficial Brisanet**: Tipografia Figtree e Rubik, paleta de cores oficial (`#FF5022`, `#2242D4`, `#0B316D`, `#D0FF60`), grafia em minúsculas e estritamente **sem emojis**.
+6. **Protocolo Automático Padronizado**: Exibição no formato corporativo `BRISA-CON-AAAA-XXXX` (ex: `BRISA-CON-2026-0015`).
+7. **Preservação de Fórmulas**: Herda automaticamente as fórmulas de colunas calculadas (taxas, conversões e percentuais) da linha anterior.
+8. **Filtros e Busca Instantânea**: Na aba *Lista de Contratos*, filtre por fornecedor, objeto, ID, status ou nível de risco em tempo real.
+
