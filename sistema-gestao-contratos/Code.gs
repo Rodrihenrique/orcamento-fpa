@@ -49,10 +49,48 @@ function onOpen() {
     .addItem('Abrir Formulário (Modal)', 'abrirModalContratos')
     .addItem('Abrir Painel Lateral (Sidebar)', 'abrirSidebarContratos')
     .addSeparator()
+    .addItem('Autorizar Permissões de E-mail / Sistema', 'autorizarPermissoes')
     .addItem('Verificar Aba de Contratos Detectada', 'verificarAbaDetectada')
     .addItem('Abrir Pasta de Anexos no Drive', 'abrirPastaAnexosDrive')
     .addItem('Configurar / Verificar Pasta do Drive', 'configurarPastaDrive')
     .addToUi();
+}
+
+/**
+ * Função para forçar a autorização de permissões de envio de e-mail e acesso do sistema.
+ * Execute-a diretamente no editor do Apps Script (botão Executar) ou pelo menu da planilha.
+ */
+function autorizarPermissoes() {
+  var quota = MailApp.getRemainingDailyQuota();
+  var user = '';
+  try {
+    user = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  } catch (e) {
+    user = 'Usuário autenticado';
+  }
+
+  Logger.log('Autorização concluída com sucesso!');
+  Logger.log('Usuário: ' + user);
+  Logger.log('Cota diária restante de e-mails: ' + quota);
+
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.alert(
+      'Permissões Autorizadas com Sucesso',
+      'Conta autorizada: ' + user + '\n' +
+      'Cota restante de envio: ' + quota + ' e-mails/dia.\n\n' +
+      'As permissões de Planilha, Drive e Envio de E-mails foram concedidas com sucesso!',
+      ui.ButtonSet.OK
+    );
+  } catch (err) {
+    // Caso executado direto pelo editor de scripts
+  }
+
+  return {
+    success: true,
+    user: user,
+    remainingQuota: quota
+  };
 }
 
 /**
