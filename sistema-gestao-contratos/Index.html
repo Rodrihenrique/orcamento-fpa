@@ -3,44 +3,69 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Contratos | Gestão de Fornecedores</title>
+  <title>Painel de Contratos | Gestão de Fornecedores - a brisanet</title>
+  <!-- Tipografia Oficial: Figtree (primária) e Rubik (secundária) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
   <style>
     /* ==========================================================================
-       RESET & VARIÁVEIS DE ESTILO - TEMA CORPORATIVO PROFISSIONAL (SEM EMOJIS)
+       PALETA OFICIAL BRISANET & VARIÁVEIS DE ESTILO (SEM EMOJIS)
        ========================================================================== */
     :root {
-      --primary: #1d4ed8;
-      --primary-hover: #1e40af;
-      --primary-light: #eff6ff;
-      --primary-border: #bfdbfe;
-      --brand-orange: #f97316;
+      /* Cores Primárias Oficiais */
+      --brisa-orange: #FF5022;       /* Laranja vibrante principal */
+      --brisa-blue: #2242D4;         /* Azul brisanet principal */
+      --brisa-gray-light: #E8E8E8;   /* Cinza claro neutro */
+
+      /* Cores Secundárias Oficiais */
+      --brisa-terracotta: #9F4016;   /* Terracota */
+      --brisa-orange-sec: #E47D20;   /* Laranja secundário */
+      --brisa-peach: #E89650;        /* Pêssego */
+      --brisa-lime: #D0FF60;         /* Verde-lima */
+      --brisa-pink: #DA2468;         /* Magenta / Rosa */
+      --brisa-dark-blue: #0B316D;    /* Azul marinho profundo */
+
+      /* Mapeamento Semântico da Aplicação */
+      --primary: var(--brisa-blue);
+      --primary-hover: var(--brisa-dark-blue);
+      --primary-light: #f0f3ff;
+      --primary-border: #c7d2fe;
+
+      --brand-orange: var(--brisa-orange);
       --bg-body: #f8fafc;
       --bg-card: #ffffff;
-      --border-color: #e2e8f0;
-      --border-focus: #3b82f6;
-      --text-main: #0f172a;
+      --border-color: var(--brisa-gray-light);
+      --border-focus: var(--brisa-blue);
+      --text-main: var(--brisa-dark-blue);
       --text-muted: #64748b;
-      --text-label: #334155;
-      --badge-active-bg: #dcfce7;
-      --badge-active-text: #166534;
-      --badge-active-border: #bbf7d0;
-      --badge-warning-bg: #fef9c3;
-      --badge-warning-text: #854d0e;
-      --badge-warning-border: #fef08a;
+      --text-label: #1e293b;
+
+      /* Badges de Status e Risco */
+      --badge-active-bg: var(--brisa-lime);
+      --badge-active-text: var(--brisa-dark-blue);
+      --badge-active-border: #bbf750;
+
+      --badge-warning-bg: var(--brisa-peach);
+      --badge-warning-text: #78350f;
+      --badge-warning-border: #fcd34d;
+
       --badge-danger-bg: #fee2e2;
-      --badge-danger-text: #991b1b;
-      --badge-danger-border: #fecaca;
-      --badge-neutral-bg: #f1f5f9;
-      --badge-neutral-text: #475569;
-      --badge-neutral-border: #e2e8f0;
+      --badge-danger-text: var(--brisa-pink);
+      --badge-danger-border: #fecdd3;
+
+      --badge-neutral-bg: var(--brisa-gray-light);
+      --badge-neutral-text: var(--brisa-dark-blue);
+      --badge-neutral-border: #cbd5e1;
+
       --radius-sm: 6px;
       --radius-md: 8px;
       --radius-lg: 12px;
       --radius-xl: 16px;
-      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.08);
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --shadow-sm: 0 1px 3px 0 rgba(11, 49, 109, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(11, 49, 109, 0.08), 0 2px 4px -2px rgba(11, 49, 109, 0.05);
+      --shadow-lg: 0 10px 15px -3px rgba(11, 49, 109, 0.1), 0 4px 6px -4px rgba(11, 49, 109, 0.08);
+      --font-family: 'Figtree', 'Rubik', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     * {
@@ -87,24 +112,25 @@
     }
 
     .brand-logo-pill {
-      background: linear-gradient(135deg, #ea580c 0%, #f97316 100%);
+      background: var(--brisa-orange);
       color: #ffffff;
+      font-family: 'Figtree', sans-serif;
       font-weight: 800;
-      font-size: 15px;
-      letter-spacing: 0.5px;
-      width: 48px;
-      height: 48px;
-      border-radius: 10px;
+      font-size: 14px;
+      letter-spacing: -0.2px;
+      padding: 8px 16px;
+      border-radius: var(--radius-md);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 2px 4px rgba(234, 88, 12, 0.25);
+      box-shadow: 0 2px 8px rgba(255, 80, 34, 0.25);
+      text-transform: lowercase;
     }
 
     .brand-titles h1 {
       font-size: 18px;
-      font-weight: 700;
-      color: var(--text-main);
+      font-weight: 800;
+      color: var(--brisa-dark-blue);
       display: flex;
       align-items: center;
       gap: 8px;
@@ -119,8 +145,8 @@
       font-size: 11px;
       font-weight: 700;
       color: var(--text-muted);
-      letter-spacing: 1px;
-      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      text-transform: lowercase;
       margin-top: 2px;
     }
 
@@ -150,6 +176,19 @@
       background-color: #22c55e;
       border-radius: 50%;
       box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+    }
+
+    .sheet-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--primary-light);
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      color: var(--brisa-dark-blue);
+      font-weight: 600;
     }
 
     .header-link-btn {
@@ -966,27 +1005,31 @@
 <div class="container">
 
   <!-- ========================================================================
-       CABEÇALHO CORPORATIVO
+       CABEÇALHO CORPORATIVO - A BRISANET
        ======================================================================== -->
   <header class="header-card">
     <div class="brand-section">
-      <div class="brand-logo-pill">CON</div>
+      <div class="brand-logo-pill">brisanet</div>
       <div class="brand-titles">
         <h1>
           Painel de Contratos
           <span class="brand-divider">|</span>
           Gestão de Fornecedores
         </h1>
-        <div class="brand-subtitle">SUPORTE TÉCNICO · BRISANET</div>
+        <div class="brand-subtitle">suporte técnico · brisanet</div>
       </div>
     </div>
     
     <div class="header-meta">
+      <div class="sheet-status-pill" id="sheetStatusDisplay" title="Aba da Planilha Conectada">
+        <span class="status-dot"></span>
+        <span id="sheetNameDisplay">Conectando à planilha...</span>
+      </div>
       <div class="user-pill" title="Usuário autenticado">
         <span class="status-dot"></span>
         <span id="userEmailDisplay">usuario.compras@grupobrisanet.com.br</span>
       </div>
-      <a href="https://docs.google.com/spreadsheets/d/1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I/edit?gid=531593901" target="_blank" class="header-link-btn" title="Abrir Planilha de Contratos">
+      <a id="spreadsheetHeaderLink" href="https://docs.google.com/spreadsheets/d/1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I/edit?gid=531593901" target="_blank" class="header-link-btn" title="Abrir Planilha de Contratos">
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
@@ -1544,6 +1587,14 @@
       document.getElementById('userEmailDisplay').textContent = res.userEmail;
     }
 
+    // Atualizar indicador de aba conectada e link da planilha
+    if (res.sheetName) {
+      document.getElementById('sheetNameDisplay').textContent = 'aba: ' + res.sheetName;
+    }
+    if (res.spreadsheetUrl) {
+      document.getElementById('spreadsheetHeaderLink').href = res.spreadsheetUrl;
+    }
+
     // Atualizar link da pasta
     if (res.folderUrl) {
       var folderBtn = document.getElementById('driveFolderHeaderLink');
@@ -1881,7 +1932,11 @@
           btnTexto.textContent = 'Salvar Contrato';
 
           if (response && response.success) {
-            mostrarToast('Contrato ' + response.protocol + ' registrado com sucesso na planilha.', 'success');
+            var localizacao = '';
+            if (response.sheetName && response.rowNumber) {
+              localizacao = ' na aba "' + response.sheetName + '" (linha ' + response.rowNumber + ')';
+            }
+            mostrarToast('Contrato ' + response.protocol + ' salvo com sucesso' + localizacao + ' da planilha.', 'success');
             limparFormulario();
             carregarDadosServidor(false);
             // Trocar para a visualização da lista

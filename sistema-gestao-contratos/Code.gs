@@ -44,9 +44,31 @@ function onOpen() {
     .addItem('Abrir Formulário (Modal)', 'abrirModalContratos')
     .addItem('Abrir Painel Lateral (Sidebar)', 'abrirSidebarContratos')
     .addSeparator()
+    .addItem('Verificar Aba de Contratos Detectada', 'verificarAbaDetectada')
     .addItem('Abrir Pasta de Anexos no Drive', 'abrirPastaAnexosDrive')
     .addItem('Configurar / Verificar Pasta do Drive', 'configurarPastaDrive')
     .addToUi();
+}
+
+/**
+ * Diagnóstico para o usuário conferir qual aba e linha estão ativas na planilha
+ */
+function verificarAbaDetectada() {
+  var ss = obterPlanilha_();
+  var sheet = obterAbaContratos_();
+  var headerRow = obterLinhaCabecalho_(sheet);
+  var lastRow = sheet.getLastRow();
+  var ui = SpreadsheetApp.getUi();
+
+  ui.alert(
+    'Diagnóstico da Planilha',
+    'Planilha: ' + ss.getName() + '\n' +
+    'Aba de Contratos: "' + sheet.getName() + '" (GID: ' + sheet.getSheetId() + ')\n' +
+    'Linha de Cabeçalho: ' + headerRow + '\n' +
+    'Última Linha: ' + lastRow + '\n\n' +
+    'Os novos contratos serão inseridos diretamente nesta aba.',
+    ui.ButtonSet.OK
+  );
 }
 
 /**
@@ -126,49 +148,71 @@ function configurarPastaDrive() {
 function obterPlanilha_() {
   try {
     var activeSs = SpreadsheetApp.getActiveSpreadsheet();
-    if (activeSs) return activeSs;
+    if (activeSs) {
+      // Salvar ID da planilha ativa para uso no Web App independente
+      try {
+        PropertiesService.getScriptProperties().setProperty('ACTIVE_SPREADSHEET_ID', activeSs.getId());
+      } catch (pe) {}
+      return activeSs;
+    }
   } catch (e) {
     // Caso executado fora do contexto da planilha
   }
+
+  var props = PropertiesService.getScriptProperties();
+  var savedId = props.getProperty('ACTIVE_SPREADSHEET_ID');
+  if (savedId) {
+    try {
+      return SpreadsheetApp.openById(savedId);
+    } catch (e) {}
+  }
+
   return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
 }
 
 /**
- * Localiza a aba correta de cadastro de contratos
+ * Localiza a aba correta de cadastro de contratos através de validação rigorosa de cabeçalhos
  */
 function obterAbaContratos_() {
   var ss = obterPlanilha_();
   var sheets = ss.getSheets();
 
-  // 1. Tentar por GID se coincidir
-  for (var i = 0; i < sheets.length; i++) {
-    if (String(sheets[i].getSheetId()) === CONFIG.SHEET_GID) {
-      return sheets[i];
-    }
-  }
-
-  // 2. Tentar pelos nomes conhecidos
-  for (var k = 0; k < CONFIG.TARGET_SHEET_NAMES.length; k++) {
-    var sheet = ss.getSheetByName(CONFIG.TARGET_SHEET_NAMES[k]);
-    if (sheet) return sheet;
-  }
-
-  // 3. Procurar por cabeçalho com coluna "Objeto do contrato" ou "Fornecedor"
+  // 1. Prioridade Máxima: Procurar aba pelo cabeçalho oficial que contém "fornecedor" e ("objeto" ou "cnpj" ou "id")
   for (var j = 0; j < sheets.length; j++) {
     var s = sheets[j];
-    var lastRow = Math.min(s.getLastRow(), 10);
-    if (lastRow >= 1) {
-      var headerValues = s.getRange(1, 1, lastRow, Math.min(s.getLastColumn(), 35)).getValues();
+    var maxRowsToCheck = Math.min(s.getLastRow(), 20);
+    if (maxRowsToCheck >= 1) {
+      var headerValues = s.getRange(1, 1, maxRowsToCheck, Math.min(s.getLastColumn(), 35)).getValues();
       for (var r = 0; r < headerValues.length; r++) {
-        var rowText = headerValues[r].join(' ').toLowerCase();
-        if (rowText.indexOf('objeto do contrato') !== -1 || rowText.indexOf('fornecedor') !== -1) {
+        var rowText = headerValues[r].map(function(cell) { return String(cell).toLowerCase().trim(); });
+        var hasFornecedor = rowText.some(function(col) { return col.indexOf('fornecedor') !== -1; });
+        var hasObjeto = rowText.some(function(col) { return col.indexOf('objeto') !== -1; });
+        var hasCnpj = rowText.some(function(col) { return col.indexOf('cnpj') !== -1; });
+        var hasCentroCusto = rowText.some(function(col) { return col.indexOf('centro de custo') !== -1; });
+
+        // A aba de contratos possui obrigatoriamente Fornecedor e (Objeto ou CNPJ ou Centro de Custo)
+        if (hasFornecedor && (hasObjeto || hasCnpj || hasCentroCusto)) {
           return s;
         }
       }
     }
   }
 
-  // Fallback: primeira aba
+  // 2. Procurar pelos nomes conhecidos da aba de cadastro
+  for (var k = 0; k < CONFIG.TARGET_SHEET_NAMES.length; k++) {
+    var sheet = ss.getSheetByName(CONFIG.TARGET_SHEET_NAMES[k]);
+    if (sheet) return sheet;
+  }
+
+  // 3. Procurar por qualquer aba cujo nome contenha "cadastro"
+  for (var m = 0; m < sheets.length; m++) {
+    var nameLower = sheets[m].getName().toLowerCase();
+    if (nameLower.indexOf('cadastro') !== -1) {
+      return sheets[m];
+    }
+  }
+
+  // 4. Fallback seguro
   return sheets[0];
 }
 
@@ -176,13 +220,16 @@ function obterAbaContratos_() {
  * Localiza a linha do cabeçalho na aba de cadastro
  */
 function obterLinhaCabecalho_(sheet) {
-  var maxCheck = Math.min(sheet.getLastRow(), 15);
+  var maxCheck = Math.min(sheet.getLastRow(), 20);
   if (maxCheck < 1) return 1;
 
   var values = sheet.getRange(1, 1, maxCheck, Math.min(sheet.getLastColumn(), 32)).getValues();
   for (var r = 0; r < values.length; r++) {
     var rowText = values[r].map(function(c) { return String(c).toLowerCase().trim(); });
-    if (rowText.indexOf('id') !== -1 && rowText.indexOf('fornecedor') !== -1) {
+    var hasId = rowText.some(function(c) { return c === 'id' || c.indexOf('id') !== -1; });
+    var hasFornecedor = rowText.some(function(c) { return c.indexOf('fornecedor') !== -1; });
+    var hasObjeto = rowText.some(function(c) { return c.indexOf('objeto') !== -1; });
+    if (hasFornecedor && (hasObjeto || hasId)) {
       return r + 1; // 1-indexado
     }
   }
@@ -350,6 +397,9 @@ function getInitialData() {
       nextId: nextId,
       nextProtocol: nextProtocol,
       userEmail: userEmail,
+      spreadsheetName: sheet.getParent().getName(),
+      sheetName: sheet.getName(),
+      headerRow: headerRow,
       folderUrl: folder.getUrl(),
       spreadsheetUrl: obterPlanilha_().getUrl(),
       summary: {
@@ -568,13 +618,37 @@ function salvarContrato(data, files) {
       data.observacoes || ''                      // AF (32) Observações
     ];
 
-    // Localizar a próxima linha disponível
-    var targetRow = lastRow + 1;
+    // Localizar a linha exata de inserção no cadastro:
+    var targetRow = -1;
+    var scanCount = Math.max(1, lastRow - headerRow);
+
+    // Ler colunas A (ID) e D (Fornecedor) para identificar primeiro slot livre
+    var checkRange = sheet.getRange(headerRow + 1, 1, scanCount, 4).getValues();
+    for (var r = 0; r < checkRange.length; r++) {
+      var idCell = String(checkRange[r][0] || '').trim();
+      var fornCell = String(checkRange[r][3] || '').trim();
+      // Primeira linha vazia encontrada logo abaixo dos contratos existentes
+      if (idCell === '' && fornCell === '') {
+        targetRow = headerRow + 1 + r;
+        break;
+      }
+    }
+
+    // Se todas as linhas existentes estiverem preenchidas, adiciona na próxima linha
+    if (targetRow === -1) {
+      targetRow = lastRow + 1;
+    }
+
+    // Garantir que a linha existe na planilha (expandir se necessário)
+    if (targetRow > sheet.getMaxRows()) {
+      sheet.insertRowsAfter(sheet.getMaxRows(), 5);
+    }
 
     // Se houver linha anterior com fórmulas, replicar fórmulas e formatos
-    if (lastRow > headerRow) {
+    var refRow = targetRow > (headerRow + 1) ? (targetRow - 1) : (headerRow + 1);
+    if (refRow !== targetRow && refRow <= lastRow) {
       try {
-        var prevRange = sheet.getRange(lastRow, 1, 1, 32);
+        var prevRange = sheet.getRange(refRow, 1, 1, 32);
         var targetRange = sheet.getRange(targetRow, 1, 1, 32);
 
         // Copiar formatação
@@ -595,8 +669,11 @@ function salvarContrato(data, files) {
       }
     }
 
-    // Inserir os dados na planilha
+    // Inserir os dados na planilha na linha exata
     sheet.getRange(targetRow, 1, 1, 32).setValues([novaLinha]);
+
+    // Forçar atualização do Google Sheets imediatamente
+    SpreadsheetApp.flush();
 
     // Garantir formatação consistente das células numéricas e de texto
     try {
@@ -614,6 +691,8 @@ function salvarContrato(data, files) {
       success: true,
       id: idFinal,
       protocol: protocol,
+      spreadsheetName: sheet.getParent().getName(),
+      sheetName: sheet.getName(),
       rowNumber: targetRow,
       filesUploaded: fileUrls.length,
       fileUrls: fileUrls,
