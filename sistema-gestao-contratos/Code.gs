@@ -1084,7 +1084,8 @@ function enviarEmailRegistro(dados) {
     var ssUrl = obterPlanilha_().getUrl();
     var folderUrl = obterOuCriarPastaAnexos_().getUrl();
 
-    var assunto = dados.assunto || ('[a brisanet] Registro de Alteração Contratual - ' + protocol + ' (' + fornecedor + ')');
+    var idDisplay = 'Contrato #' + (dados.id || dados.contractId || '-');
+    var assunto = dados.assunto || ('[a brisanet] Registro Contratual - ' + idDisplay + ' (' + fornecedor + ')');
 
     // Corpo HTML do e-mail com a identidade visual oficial da brisanet
     var htmlBody = 
@@ -1106,8 +1107,8 @@ function enviarEmailRegistro(dados) {
             '<div style="background:#f0f3ff;border-left:4px solid #2242D4;border-radius:6px;padding:16px;margin:20px 0;">' +
               '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
                 '<tr>' +
-                  '<td style="padding:4px 0;color:#64748b;font-weight:600;width:110px;">Protocolo:</td>' +
-                  '<td style="padding:4px 0;color:#0B316D;font-weight:700;">' + protocol + ' (ID ' + (dados.id || dados.contractId || '-') + ')</td>' +
+                  '<td style="padding:4px 0;color:#64748b;font-weight:600;width:110px;">Contrato:</td>' +
+                  '<td style="padding:4px 0;color:#0B316D;font-weight:700;">' + idDisplay + '</td>' +
                 '</tr>' +
                 '<tr>' +
                   '<td style="padding:4px 0;color:#64748b;font-weight:600;">Fornecedor:</td>' +
