@@ -1950,17 +1950,6 @@
       <!-- MODO DE VISUALIZAÇÃO -->
       <div id="modalDetalhesView">
         <div class="detail-grid" id="modalDetalhesCorpo"></div>
-
-        <!-- HISTÓRICO DE ALTERAÇÕES -->
-        <div class="history-section-wrapper">
-          <div class="history-header-title">
-            <span>Histórico de Alterações e Registros</span>
-            <span style="font-size:11px;font-weight:600;color:var(--text-muted);" id="historyCounterBadge"></span>
-          </div>
-          <div id="modalDetalhesHistorico" class="history-list">
-            <div class="history-empty-msg">Nenhuma alteração registrada ainda para este contrato.</div>
-          </div>
-        </div>
       </div>
 
       <!-- MODO DE EDIÇÃO -->
@@ -2130,6 +2119,17 @@
             </div>
           </div>
         </form>
+      </div>
+
+      <!-- HISTÓRICO DE ALTERAÇÕES E AUDITORIA (Sempre visível no modal de detalhes) -->
+      <div class="history-section-wrapper">
+        <div class="history-header-title">
+          <span>Histórico de Alterações e Registros</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);" id="historyCounterBadge"></span>
+        </div>
+        <div id="modalDetalhesHistorico" class="history-list">
+          <div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -2529,6 +2529,18 @@
           if (response && response.success) {
             c.observacoes = novaNota;
             inputEl.title = novaNota;
+            if (!Array.isArray(c.history)) c.history = [];
+            c.history.unshift({
+              dataHora: response.dataHora || formatarDataHoraAgora(),
+              id: c.id,
+              protocol: c.protocol,
+              fornecedor: c.fornecedor,
+              campo: 'Notas / Observações',
+              valorAnterior: response.valorAnterior || '',
+              novoValor: novaNota,
+              usuario: response.usuario || 'Você',
+              notificacao: 'Não'
+            });
             mostrarToast('Nota do contrato #' + c.id + ' salva na planilha e histórico registrado!', 'success');
           } else {
             mostrarToast('Aviso: ' + (response ? response.error : 'Não foi possível salvar a nota.'), 'warning');
@@ -2546,6 +2558,18 @@
       // Demonstração local
       c.observacoes = novaNota;
       inputEl.title = novaNota;
+      if (!Array.isArray(c.history)) c.history = [];
+      c.history.unshift({
+        dataHora: formatarDataHoraAgora(),
+        id: c.id,
+        protocol: c.protocol,
+        fornecedor: c.fornecedor,
+        campo: 'Notas / Observações',
+        valorAnterior: '',
+        novoValor: novaNota,
+        usuario: 'Você',
+        notificacao: 'Não'
+      });
       if (btnSave) {
         btnSave.disabled = false;
         btnSave.textContent = 'Salvo!';
@@ -2724,6 +2748,26 @@
           }
           if (response && response.success) {
             fecharModalEmail();
+            var targetContract = null;
+            if (appState.contracts) {
+              targetContract = appState.contracts.find(function(item) {
+                return String(item.id).trim() === String(contractId).trim() || item.protocol === protocol;
+              });
+            }
+            if (targetContract) {
+              if (!Array.isArray(targetContract.history)) targetContract.history = [];
+              targetContract.history.unshift({
+                dataHora: formatarDataHoraAgora(),
+                id: targetContract.id,
+                protocol: targetContract.protocol,
+                fornecedor: targetContract.fornecedor,
+                campo: 'Notificação por E-mail',
+                valorAnterior: '',
+                novoValor: mensagem,
+                usuario: 'Você',
+                notificacao: destinatarios
+              });
+            }
             mostrarToast('E-mail de registro enviado com sucesso para ' + response.recipientsCount + ' destinatário(s)!', 'success');
           } else {
             mostrarToast('Erro ao enviar e-mail: ' + (response ? response.error : 'Falha desconhecida.'), 'error');
@@ -2744,6 +2788,26 @@
           btn.textContent = 'Enviar Registro por E-mail';
         }
         fecharModalEmail();
+        var targetContractDemo = null;
+        if (appState.contracts) {
+          targetContractDemo = appState.contracts.find(function(item) {
+            return String(item.id).trim() === String(contractId).trim() || item.protocol === protocol;
+          });
+        }
+        if (targetContractDemo) {
+          if (!Array.isArray(targetContractDemo.history)) targetContractDemo.history = [];
+          targetContractDemo.history.unshift({
+            dataHora: formatarDataHoraAgora(),
+            id: targetContractDemo.id,
+            protocol: targetContractDemo.protocol,
+            fornecedor: targetContractDemo.fornecedor,
+            campo: 'Notificação por E-mail',
+            valorAnterior: '',
+            novoValor: mensagem,
+            usuario: 'Você',
+            notificacao: destinatarios
+          });
+        }
         mostrarToast('Modo demonstração: E-mail simulado com sucesso para ' + destinatarios, 'info');
       }, 800);
     }
@@ -2886,7 +2950,7 @@
     alternarModoEdicaoDetalhes('view');
 
     // Carregar histórico de alterações da planilha
-    carregarHistoricoModalDetalhes(c.id);
+    carregarHistoricoModalDetalhes(c.id, c.protocol);
 
     document.getElementById('modalDetalhes').classList.add('active');
   }
@@ -2976,64 +3040,115 @@
     alternarModoEdicaoDetalhes('view');
   }
 
-  // Carrega histórico de alterações no modal
-  function carregarHistoricoModalDetalhes(contractId) {
+  // Formata data e hora atual no padrao dd/MM/yyyy HH:mm:ss
+  function formatarDataHoraAgora() {
+    var d = new Date();
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
+           pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  // Renderiza a lista de historico no container do modal de detalhes
+  function renderizarHistoricoModalDetalhes(history) {
     var historyContainer = document.getElementById('modalDetalhesHistorico');
     var historyBadge = document.getElementById('historyCounterBadge');
-    if (historyBadge) historyBadge.textContent = '';
-    
-    if (historyContainer) {
-      historyContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:12px;text-align:center;">Consultando histórico de alterações na planilha...</div>';
+    if (!historyContainer) return;
+
+    if (!history || !Array.isArray(history) || history.length === 0) {
+      if (historyBadge) historyBadge.textContent = '(0 registros)';
+      historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+      return;
+    }
+
+    if (historyBadge) {
+      historyBadge.textContent = '(' + history.length + ' registro' + (history.length > 1 ? 's' : '') + ')';
+    }
+
+    historyContainer.innerHTML = '';
+    history.forEach(function(item) {
+      var card = document.createElement('div');
+      card.className = 'history-card';
+      var notifInfo = item.notificacao && item.notificacao !== 'Não' ? 
+        '<div style="margin-top:4px;font-size:11px;color:#2242D4;font-weight:600;">Registro / E-mail: ' + escapeHtml(item.notificacao) + '</div>' : '';
+      
+      var diffHtml = '';
+      if (item.valorAnterior && String(item.valorAnterior).trim() !== '') {
+        diffHtml = '<div class="history-card-diff">' +
+          '<div style="color:#64748b;margin-bottom:2px;"><strike>' + escapeHtml(String(item.valorAnterior)) + '</strike></div>' +
+          '<div><strong>Novo Valor:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>' +
+        '</div>';
+      } else {
+        diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>';
+      }
+
+      card.innerHTML = 
+        '<div class="history-card-header">' +
+          '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
+          '<span class="history-card-date">' + escapeHtml(item.dataHora || '-') + '</span>' +
+        '</div>' +
+        '<div class="history-card-body">' +
+          '<strong>' + escapeHtml(item.campo || 'Alteração') + '</strong>' +
+          diffHtml +
+          notifInfo +
+        '</div>';
+      historyContainer.appendChild(card);
+    });
+  }
+
+  // Carrega historico de alteracoes no modal com sincronizacao resiliente
+  function carregarHistoricoModalDetalhes(contractId, protocol) {
+    var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ? 
+      appState.contracts[appState.detalhesIndexAtual] : null;
+
+    var historyContainer = document.getElementById('modalDetalhesHistorico');
+    var historyBadge = document.getElementById('historyCounterBadge');
+
+    var idParaBuscar = contractId !== undefined && contractId !== null ? contractId : (c ? c.id : '');
+    var protoParaBuscar = protocol || (c ? (c.protocol || '') : '');
+
+    // Se o contrato ja possui historico em cache na memoria, exibir imediatamente
+    if (c && Array.isArray(c.history) && c.history.length > 0) {
+      renderizarHistoricoModalDetalhes(c.history);
+      if (historyBadge) {
+        historyBadge.innerHTML = '(' + c.history.length + ' registro' + (c.history.length > 1 ? 's' : '') + ' <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">• sincronizando...</span>)';
+      }
+    } else {
+      if (historyContainer) {
+        historyContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;">Consultando histórico de alterações na planilha...</div>';
+      }
+      if (historyBadge) historyBadge.textContent = '';
     }
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(res) {
-          if (!historyContainer) return;
-          if (res && res.success && res.history && res.history.length > 0) {
-            if (historyBadge) historyBadge.textContent = '(' + res.history.length + ' registro' + (res.history.length > 1 ? 's' : '') + ')';
-            historyContainer.innerHTML = '';
-            res.history.forEach(function(item) {
-              var card = document.createElement('div');
-              card.className = 'history-card';
-              var notifInfo = item.notificacao && item.notificacao !== 'Não' ? 
-                '<div style="margin-top:4px;font-size:11px;color:#2242D4;font-weight:600;">Registro / E-mail: ' + escapeHtml(item.notificacao) + '</div>' : '';
-              
-              var diffHtml = '';
-              if (item.valorAnterior) {
-                diffHtml = '<div class="history-card-diff">' +
-                  '<div style="color:#64748b;margin-bottom:2px;"><strike>' + escapeHtml(item.valorAnterior) + '</strike></div>' +
-                  '<div><strong>Novo Valor:</strong> ' + escapeHtml(item.novoValor || '-') + '</div>' +
-                '</div>';
-              } else {
-                diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(item.novoValor || '-') + '</div>';
-              }
-
-              card.innerHTML = 
-                '<div class="history-card-header">' +
-                  '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
-                  '<span class="history-card-date">' + escapeHtml(item.dataHora || '-') + '</span>' +
-                '</div>' +
-                '<div class="history-card-body">' +
-                  '<strong>' + escapeHtml(item.campo || 'Alteração') + '</strong>' +
-                  diffHtml +
-                  notifInfo +
-                '</div>';
-              historyContainer.appendChild(card);
-            });
+          if (res && res.success && Array.isArray(res.history)) {
+            if (c) {
+              c.history = res.history;
+            }
+            renderizarHistoricoModalDetalhes(res.history);
           } else {
-            historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+            if (c && Array.isArray(c.history) && c.history.length > 0) {
+              renderizarHistoricoModalDetalhes(c.history);
+            } else {
+              renderizarHistoricoModalDetalhes([]);
+            }
           }
         })
-        .withFailureHandler(function() {
-          if (historyContainer) {
-            historyContainer.innerHTML = '<div class="history-empty-msg">Não foi possível carregar o histórico de alterações no momento.</div>';
+        .withFailureHandler(function(err) {
+          console.warn('Falha temporaria ao carregar historico da planilha:', err);
+          if (c && Array.isArray(c.history) && c.history.length > 0) {
+            renderizarHistoricoModalDetalhes(c.history);
+          } else if (historyContainer) {
+            historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração encontrada ou falha temporária ao consultar planilha.</div>';
           }
         })
-        .obterHistoricoContrato(contractId);
+        .obterHistoricoContrato(idParaBuscar, protoParaBuscar);
     } else {
-      if (historyContainer) {
-        historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+      if (c && Array.isArray(c.history) && c.history.length > 0) {
+        renderizarHistoricoModalDetalhes(c.history);
+      } else {
+        renderizarHistoricoModalDetalhes([]);
       }
     }
   }
@@ -3121,11 +3236,34 @@
             c.memoriaCalculo = payload.memoriaCalculo;
             c.observacoes = payload.observacoes;
 
-            // Recarregar resumo e tabela
+            // Se houver mudanças registradas, injetar imediatamente em c.history
+            if (!Array.isArray(c.history)) c.history = [];
+            var agoraStr = formatarDataHoraAgora();
+            if (res.changes && res.changes.length > 0) {
+              for (var i = res.changes.length - 1; i >= 0; i--) {
+                var ch = res.changes[i];
+                c.history.unshift({
+                  dataHora: agoraStr,
+                  id: c.id,
+                  protocol: c.protocol,
+                  fornecedor: c.fornecedor,
+                  campo: ch.campo,
+                  valorAnterior: ch.valorAnterior,
+                  novoValor: ch.novoValor,
+                  usuario: res.usuario || 'Você',
+                  notificacao: 'Edição no Painel de Detalhes'
+                });
+              }
+            }
+
+            // Recarregar resumo, tabela e modo de visualizacao
             atualizarVisualizacaoDetalhes(c);
             renderizarTabela(appState.contracts);
             alternarModoEdicaoDetalhes('view');
-            carregarHistoricoModalDetalhes(c.id);
+
+            // Renderizar historico atualizado no modal e sincronizar com a planilha
+            renderizarHistoricoModalDetalhes(c.history);
+            carregarHistoricoModalDetalhes(c.id, c.protocol);
 
             // Atualizar badge de risco no header do modal
             var badgeRiscoHeader = document.getElementById('modalDetalhesBadgeRisco');
@@ -3162,9 +3300,24 @@
       c.status = payload.status;
       c.risco = payload.risco;
       c.observacoes = payload.observacoes;
+
+      if (!Array.isArray(c.history)) c.history = [];
+      c.history.unshift({
+        dataHora: formatarDataHoraAgora(),
+        id: c.id,
+        protocol: c.protocol,
+        fornecedor: c.fornecedor,
+        campo: 'Alteração Geral',
+        valorAnterior: '-',
+        novoValor: 'Dados atualizados no modo demonstração',
+        usuario: 'Você',
+        notificacao: 'Não'
+      });
+
       atualizarVisualizacaoDetalhes(c);
       renderizarTabela(appState.contracts);
       alternarModoEdicaoDetalhes('view');
+      renderizarHistoricoModalDetalhes(c.history);
       mostrarToast('Modo demonstração: Contrato #' + c.id + ' atualizado localmente!', 'info');
     }
   }

@@ -752,6 +752,16 @@ function salvarContrato(data, files) {
       // Ignorar se formatação secundária falhar
     }
 
+    // Registrar log de cadastro inicial no histórico
+    var usuarioCad = '';
+    try {
+      usuarioCad = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (ue) {
+      usuarioCad = 'usuario.compras@grupobrisanet.com.br';
+    }
+    if (!usuarioCad) usuarioCad = 'usuario.compras@grupobrisanet.com.br';
+    registrarLogAlteracao_(idFinal, protocol, data.fornecedor || '', 'Cadastro Inicial', '', 'Contrato cadastrado no sistema', usuarioCad, 'Não');
+
     return {
       success: true,
       id: idFinal,
@@ -920,36 +930,116 @@ function calcularDiasParaVencer_(val) {
 }
 
 /**
- * Obtém ou cria a aba de histórico de alterações de contratos
+ * Converte data/hora para timestamp para ordenacao segura
+ */
+function converterParaDataHoraValida_(val) {
+  if (!val) return null;
+  if (val instanceof Date) return val;
+  var s = String(val).trim();
+  var m1 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+  if (m1) {
+    var d = parseInt(m1[1], 10);
+    var mo = parseInt(m1[2], 10) - 1;
+    var y = parseInt(m1[3], 10);
+    var h = m1[4] ? parseInt(m1[4], 10) : 0;
+    var mi = m1[5] ? parseInt(m1[5], 10) : 0;
+    var sec = m1[6] ? parseInt(m1[6], 10) : 0;
+    return new Date(y, mo, d, h, mi, sec);
+  }
+  var parsed = new Date(s);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * Normaliza ID para comparacao resiliente (lida com 1.0, 1, #1, espacos e numeros)
+ */
+function normalizarIdParaComparacao_(val) {
+  if (val === null || val === undefined) return '';
+  var s = String(val).trim();
+  s = s.replace(/^#\s*/, '').replace(/^id\s*:?\s*/i, '');
+  if (/^\d+\.0+$/.test(s)) {
+    s = s.split('.')[0];
+  }
+  if (/^\d+$/.test(s)) {
+    var n = parseInt(s, 10);
+    if (!isNaN(n)) return String(n);
+  }
+  return s.toLowerCase();
+}
+
+/**
+ * Extrai numero sequencial do protocolo (ex: BRISA-CON-2026-0001 -> 1)
+ */
+function extrairNumeroDoProtocolo_(proto) {
+  if (!proto) return null;
+  var s = String(proto).trim();
+  var m = s.match(/-(\d+)$/);
+  if (m) {
+    var n = parseInt(m[1], 10);
+    return isNaN(n) ? null : String(n);
+  }
+  var m2 = s.match(/\b(\d+)\b/);
+  if (m2) {
+    var n2 = parseInt(m2[1], 10);
+    return isNaN(n2) ? null : String(n2);
+  }
+  return null;
+}
+
+/**
+ * Obtem ou cria a aba de historico de alteracoes de contratos com busca ampla de nomes
  */
 function obterAbaLogs_() {
   var ss = obterPlanilha_();
-  var sheet = ss.getSheetByName(CONFIG.LOG_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.getSheetByName('Histórico de alterações do orçamento');
+  var candidateNames = [
+    CONFIG.LOG_SHEET_NAME,
+    'Histórico de Alterações',
+    'Historico de Alteracoes',
+    'Histórico de alterações',
+    'Historico de alteracoes',
+    'Alterações',
+    'Alteracoes',
+    'Histórico de alterações do orçamento',
+    'Historico de alteracoes do orcamento',
+    'Histórico',
+    'Historico',
+    'Logs'
+  ];
+
+  for (var i = 0; i < candidateNames.length; i++) {
+    var s = ss.getSheetByName(candidateNames[i]);
+    if (s) return s;
   }
-  if (!sheet) {
-    sheet = ss.insertSheet(CONFIG.LOG_SHEET_NAME);
-    var headers = [
-      'Data/Hora',
-      'ID Contrato',
-      'Protocolo',
-      'Fornecedor',
-      'Campo Alterado',
-      'Valor Anterior',
-      'Novo Valor',
-      'Usuário',
-      'Notificação Enviada'
-    ];
-    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#E8E8E8');
-    sheet.setFrozenRows(1);
+
+  // Se nao encontrou por nome exato, buscar por palavra-chave no nome da aba
+  var allSheets = ss.getSheets();
+  for (var j = 0; j < allSheets.length; j++) {
+    var nameLower = allSheets[j].getName().toLowerCase();
+    if (nameLower.indexOf('altera') !== -1 || nameLower.indexOf('hist') !== -1 || nameLower.indexOf('log') !== -1) {
+      return allSheets[j];
+    }
   }
+
+  var sheet = ss.insertSheet(CONFIG.LOG_SHEET_NAME);
+  var headers = [
+    'Data/Hora',
+    'ID Contrato',
+    'Protocolo',
+    'Fornecedor',
+    'Campo Alterado',
+    'Valor Anterior',
+    'Novo Valor',
+    'Usuário',
+    'Notificação Enviada'
+  ];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#E8E8E8');
+  sheet.setFrozenRows(1);
   return sheet;
 }
 
 /**
- * Registra uma alteração no log
+ * Registra uma alteracao no log da planilha
  */
 function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAnterior, novoValor, usuario, notificacao) {
   try {
@@ -957,16 +1047,62 @@ function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAn
     var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
     var rowData = [
       nowStr,
-      contractId || '',
-      protocol || '',
+      contractId !== undefined && contractId !== null ? String(contractId) : '',
+      protocol || (contractId ? formatarProtocolo_(contractId) : ''),
       fornecedor || '',
       campo || '',
-      String(valorAnterior || ''),
-      String(novoValor || ''),
+      String(valorAnterior !== null && valorAnterior !== undefined ? valorAnterior : ''),
+      String(novoValor !== null && novoValor !== undefined ? novoValor : ''),
       usuario || '',
       notificacao || 'Não'
     ];
-    logSheet.appendRow(rowData);
+
+    var lastRow = logSheet.getLastRow();
+    if (lastRow === 0) {
+      var headers = [
+        'Data/Hora',
+        'ID Contrato',
+        'Protocolo',
+        'Fornecedor',
+        'Campo Alterado',
+        'Valor Anterior',
+        'Novo Valor',
+        'Usuário',
+        'Notificação Enviada'
+      ];
+      logSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      logSheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
+    } else {
+      var headerRow = 1;
+      var valA1 = String(logSheet.getRange(1, 1).getValue() || '').trim().toLowerCase();
+      if (valA1 !== 'data/hora' && valA1 !== 'data') {
+        for (var r = 1; r <= Math.min(lastRow, 10); r++) {
+          var rText = String(logSheet.getRange(r, 1).getValue() || '').trim().toLowerCase();
+          if (rText === 'data/hora' || rText === 'data' || rText === 'versão' || rText === 'versao') {
+            headerRow = r;
+            break;
+          }
+        }
+      }
+
+      var targetRow = -1;
+      if (lastRow > headerRow) {
+        var numCheck = Math.min(lastRow - headerRow, 500);
+        var checkVals = logSheet.getRange(headerRow + 1, 1, numCheck, 2).getValues();
+        for (var k = 0; k < checkVals.length; k++) {
+          if (String(checkVals[k][0] || '').trim() === '' && String(checkVals[k][1] || '').trim() === '') {
+            targetRow = headerRow + 1 + k;
+            break;
+          }
+        }
+      }
+
+      if (targetRow === -1) {
+        targetRow = lastRow + 1;
+      }
+
+      logSheet.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
+    }
     SpreadsheetApp.flush();
   } catch (e) {
     Logger.log('Erro ao registrar log: ' + e.message);
@@ -1057,45 +1193,190 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
 }
 
 /**
- * Retorna todo o histórico de alterações registradas para um determinado contrato
- * @param {string|number} contractId - ID do contrato
+ * Extrai historico de alteracoes de uma aba especifica com mapeamento inteligente de colunas
  */
-function obterHistoricoContrato(contractId) {
+function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2 || lastCol < 2) return [];
+
+  var numCols = Math.min(lastCol, 15);
+  var values = sheet.getRange(1, 1, lastRow, numCols).getValues();
+  if (!values || values.length === 0) return [];
+
+  // Mapear cabecalhos dinamicamente
+  var headerRowIdx = -1;
+  var colMap = {
+    dataHora: 0,
+    id: 1,
+    protocol: 2,
+    fornecedor: 3,
+    campo: 4,
+    valorAnterior: 5,
+    novoValor: 6,
+    usuario: 7,
+    notificacao: 8
+  };
+
+  for (var r = 0; r < Math.min(values.length, 10); r++) {
+    var rowText = values[r].map(function(v) { return String(v || '').toLowerCase(); }).join(' | ');
+    if (rowText.indexOf('id') !== -1 || rowText.indexOf('campo alterado') !== -1 || rowText.indexOf('item alterado') !== -1 || rowText.indexOf('protocolo') !== -1) {
+      headerRowIdx = r;
+      var hRow = values[r];
+      for (var c = 0; c < hRow.length; c++) {
+        var hText = String(hRow[c] || '').toLowerCase().trim();
+        if (hText.indexOf('data') !== -1) colMap.dataHora = c;
+        else if (hText === 'id' || hText.indexOf('id contrato') !== -1 || hText === 'id do contrato') colMap.id = c;
+        else if (hText.indexOf('protocolo') !== -1) colMap.protocol = c;
+        else if (hText.indexOf('fornecedor') !== -1) colMap.fornecedor = c;
+        else if (hText.indexOf('campo') !== -1 || hText.indexOf('item alterado') !== -1) colMap.campo = c;
+        else if (hText.indexOf('anterior') !== -1) colMap.valorAnterior = c;
+        else if (hText.indexOf('novo') !== -1) colMap.novoValor = c;
+        else if (hText.indexOf('usu') !== -1 || hText.indexOf('respons') !== -1) colMap.usuario = c;
+        else if (hText.indexOf('notif') !== -1 || hText.indexOf('e-mail') !== -1 || hText.indexOf('email') !== -1) colMap.notificacao = c;
+      }
+      break;
+    }
+  }
+
+  var startRow = headerRowIdx !== -1 ? (headerRowIdx + 1) : 1;
+  var logs = [];
+
+  var targetIdNorm = normalizarIdParaComparacao_(targetId);
+  var targetProtoNorm = normalizarIdParaComparacao_(targetProtocol || (targetId ? formatarProtocolo_(targetId) : ''));
+  var targetProtoNum = extrairNumeroDoProtocolo_(targetProtocol) || extrairNumeroDoProtocolo_(targetId);
+
+  for (var i = startRow; i < values.length; i++) {
+    var row = values[i];
+    var valData = row[colMap.dataHora];
+    var valId = row[colMap.id];
+    var valProto = row[colMap.protocol];
+    var valForn = row[colMap.fornecedor];
+    var valCampo = row[colMap.campo];
+    var valAnt = row[colMap.valorAnterior];
+    var valNov = row[colMap.novoValor];
+    var valUser = row[colMap.usuario];
+    var valNotif = row[colMap.notificacao];
+
+    if (!valId && !valProto && !valCampo && !valNov) continue;
+
+    var rowIdNorm = normalizarIdParaComparacao_(valId);
+    var rowProtoNorm = normalizarIdParaComparacao_(valProto);
+    var rowProtoNum = extrairNumeroDoProtocolo_(valProto) || extrairNumeroDoProtocolo_(valId);
+
+    var match = false;
+
+    // 1. Comparacao direta de ID normalizado (ex: 1 vs 1, 1.0 vs 1, #1 vs 1)
+    if (rowIdNorm && targetIdNorm && rowIdNorm === targetIdNorm) {
+      match = true;
+    }
+    // 2. Comparacao de Protocolo normalizado
+    else if (targetProtoNorm && (rowProtoNorm === targetProtoNorm || rowIdNorm === targetProtoNorm)) {
+      match = true;
+    }
+    // 3. Comparacao de numero do protocolo com ID alvo
+    else if (targetIdNorm && (rowProtoNum === targetIdNorm || rowIdNorm === targetProtoNum)) {
+      match = true;
+    }
+    // 4. Comparacao de numero do protocolo do alvo com o ID da linha
+    else if (targetProtoNum && (rowIdNorm === targetProtoNum || rowProtoNum === targetProtoNum)) {
+      match = true;
+    }
+    // 5. Caso o ID alvo esteja contido no protocolo da linha
+    else if (rowProtoNorm && targetIdNorm && targetIdNorm !== '' && rowProtoNorm.indexOf(targetIdNorm) !== -1) {
+      match = true;
+    }
+
+    if (match) {
+      logs.push({
+        dataHora: formatarDataHoraExibicao_(valData),
+        id: valId !== undefined && valId !== null ? String(valId) : (targetId || ''),
+        protocol: valProto ? String(valProto) : (targetProtocol || (targetId ? formatarProtocolo_(targetId) : '')),
+        fornecedor: valForn ? String(valForn) : '',
+        campo: valCampo ? String(valCampo) : 'Alteração',
+        valorAnterior: valAnt !== null && valAnt !== undefined ? String(valAnt) : '',
+        novoValor: valNov !== null && valNov !== undefined ? String(valNov) : '',
+        usuario: valUser ? String(valUser) : 'Sistema',
+        notificacao: valNotif ? String(valNotif) : 'Não'
+      });
+    }
+  }
+
+  return logs;
+}
+
+/**
+ * Retorna todo o historico de alteracoes registradas para um determinado contrato
+ * @param {string|number} contractId - ID do contrato
+ * @param {string} [protocol] - Protocolo formatado opcional do contrato
+ */
+function obterHistoricoContrato(contractId, protocol) {
   try {
-    var logSheet = obterAbaLogs_();
-    var lastRow = logSheet.getLastRow();
+    var ss = obterPlanilha_();
     var history = [];
 
-    if (lastRow > 1) {
-      var numCols = Math.min(logSheet.getLastColumn(), 9);
-      var values = logSheet.getRange(2, 1, lastRow - 1, numCols).getValues();
-      for (var i = 0; i < values.length; i++) {
-        var rowId = String(values[i][1] || '').trim();
-        if (rowId === String(contractId).trim()) {
-          history.push({
-            dataHora: formatarDataHoraExibicao_(values[i][0]),
-            id: values[i][1],
-            protocol: values[i][2],
-            fornecedor: values[i][3],
-            campo: values[i][4],
-            valorAnterior: values[i][5],
-            novoValor: values[i][6],
-            usuario: values[i][7],
-            notificacao: values[i][8]
-          });
+    var candidateNames = [
+      CONFIG.LOG_SHEET_NAME,
+      'Histórico de Alterações',
+      'Historico de Alteracoes',
+      'Histórico de alterações',
+      'Historico de alteracoes',
+      'Alterações',
+      'Alteracoes',
+      'Histórico de alterações do orçamento',
+      'Historico de alteracoes do orcamento',
+      'Histórico',
+      'Historico',
+      'Logs'
+    ];
+
+    var visitedSheets = {};
+    for (var s = 0; s < candidateNames.length; s++) {
+      var sName = candidateNames[s];
+      var sheet = ss.getSheetByName(sName);
+      if (sheet && !visitedSheets[sheet.getName()]) {
+        visitedSheets[sheet.getName()] = true;
+        var sheetLogs = extrairLogsDaAba_(sheet, contractId, protocol);
+        if (sheetLogs && sheetLogs.length > 0) {
+          history = history.concat(sheetLogs);
         }
       }
     }
 
-    // Mais recente primeiro
-    history.reverse();
+    // Se ainda nao encontrou em nenhuma das candidatas, varrer todas as abas
+    if (history.length === 0) {
+      var allSheets = ss.getSheets();
+      for (var a = 0; a < allSheets.length; a++) {
+        var sh = allSheets[a];
+        if (!visitedSheets[sh.getName()]) {
+          var nLower = sh.getName().toLowerCase();
+          if (nLower.indexOf('altera') !== -1 || nLower.indexOf('hist') !== -1 || nLower.indexOf('log') !== -1) {
+            visitedSheets[sh.getName()] = true;
+            var logs = extrairLogsDaAba_(sh, contractId, protocol);
+            if (logs && logs.length > 0) {
+              history = history.concat(logs);
+            }
+          }
+        }
+      }
+    }
+
+    // Ordenar do mais recente para o mais antigo
+    history.sort(function(a, b) {
+      var dateA = converterParaDataHoraValida_(a.dataHora);
+      var dateB = converterParaDataHoraValida_(b.dataHora);
+      if (dateA && dateB) return dateB.getTime() - dateA.getTime();
+      return 0;
+    });
 
     return {
       success: true,
       contractId: contractId,
+      protocol: protocol || (contractId ? formatarProtocolo_(contractId) : ''),
       history: history
     };
   } catch (err) {
+    Logger.log('Erro ao obter histórico do contrato: ' + err.message);
     return {
       success: false,
       error: err.message,
