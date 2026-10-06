@@ -22,6 +22,8 @@ var CONFIG = {
   ],
   // Nome da aba de logs de alterações
   LOG_SHEET_NAME: 'Histórico de Alterações',
+  // Nome da aba de usuários com acesso
+  ACCESS_SHEET_NAME: 'Acessos',
   // Nome da pasta raiz no Google Drive para os arquivos anexados
   DRIVE_FOLDER_NAME: 'Contratos - Anexos',
   // Prefixo para protocolo formatado
@@ -48,6 +50,10 @@ function onOpen() {
     .addItem('Abrir Painel no Navegador (Web)', 'abrirLinkWebApp')
     .addItem('Abrir Formulário (Modal)', 'abrirModalContratos')
     .addItem('Abrir Painel Lateral (Sidebar)', 'abrirSidebarContratos')
+    .addSeparator()
+    .addItem('Verificar Vencimentos e Disparar Alertas Agora', 'verificarVencimentosManualmente')
+    .addItem('Configurar Verificação Diária Automática (08:00)', 'configurarGatilhoDiario')
+    .addItem('Verificar Usuários com Acesso (Aba Acessos)', 'verificarUsuariosAcessosMenu')
     .addSeparator()
     .addItem('Autorizar Permissões de E-mail / Sistema', 'autorizarPermissoes')
     .addItem('Verificar Aba de Contratos Detectada', 'verificarAbaDetectada')
@@ -348,6 +354,7 @@ function getInitialData() {
     var totalContratos = 0;
     var contratosAtivos = 0;
     var contratosRiscoAlto = 0;
+    var contratosVencendo90Dias = 0;
     var somaValorMensal = 0;
 
     if (lastRow > headerRow) {
@@ -374,12 +381,19 @@ function getInitialData() {
         var valorLancamento = parseFloat(row[14]) || 0;
         var valorOrçado = parseFloat(row[25]) || valorLancamento;
 
+        var diasParaVencer = calcularDiasParaVencer_(row[11]);
+        var riscoVencimento = (diasParaVencer !== null && diasParaVencer <= 90);
+
         totalContratos++;
-        if (status.toLowerCase() === 'ativo') {
+        var statusLower = status.toLowerCase();
+        if (statusLower === 'ativo') {
           contratosAtivos++;
         }
-        if (risco.toLowerCase() === 'alto') {
+        if (risco.toLowerCase() === 'alto' || (riscoVencimento && statusLower !== 'encerrado' && statusLower !== 'cancelado')) {
           contratosRiscoAlto++;
+        }
+        if (riscoVencimento && statusLower !== 'encerrado' && statusLower !== 'cancelado') {
+          contratosVencendo90Dias++;
         }
         somaValorMensal += valorLancamento;
 
@@ -408,6 +422,8 @@ function getInitialData() {
           status: status || 'Ativo',
           inicioVigencia: formatarDataExibicao_(row[10]),
           fimVigencia: formatarDataExibicao_(row[11]),
+          diasParaVencer: diasParaVencer,
+          riscoVencimento: riscoVencimento,
           renovacaoAutomatica: row[12] || 'Não',
           moeda: row[13] || 'BRL',
           valorLancamento: valorLancamento,
@@ -449,8 +465,11 @@ function getInitialData() {
         totalContratos: totalContratos,
         contratosAtivos: contratosAtivos,
         contratosRiscoAlto: contratosRiscoAlto,
+        contratosVencendo90Dias: contratosVencendo90Dias,
         somaValorMensal: somaValorMensal
       },
+      usuariosAcessos: obterUsuariosAcessos_(),
+      listaEmailsAcessos: obterListaEmailsAcessos_(),
       contracts: contracts,
       autocomplete: {
         centrosCusto: Object.keys(centrosCusto),
@@ -761,7 +780,9 @@ function listarContratos() {
     return {
       success: true,
       contracts: init.contracts,
-      summary: init.summary
+      summary: init.summary,
+      usuariosAcessos: init.usuariosAcessos,
+      listaEmailsAcessos: init.listaEmailsAcessos
     };
   }
   return init;
@@ -855,6 +876,47 @@ function formatarDataHoraExibicao_(val) {
     return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
   }
   return String(val);
+}
+
+/**
+ * Converte diferentes formatos de data (Date, AAAA-MM-DD, DD/MM/AAAA) em objeto Date zerado
+ */
+function converterParaData_(val) {
+  if (!val) return null;
+  if (val instanceof Date) {
+    return new Date(val.getFullYear(), val.getMonth(), val.getDate());
+  }
+  var s = String(val).trim();
+  if (s.toLowerCase().indexOf('não') !== -1 || s.toLowerCase().indexOf('nao') !== -1) return null;
+  // AAAA-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    var p = s.substring(0, 10).split('-');
+    return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  }
+  // DD/MM/AAAA
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+    var p = s.split('/');
+    return new Date(parseInt(p[2], 10), parseInt(p[1], 10) - 1, parseInt(p[0], 10));
+  }
+  var parsed = new Date(s);
+  if (!isNaN(parsed.getTime())) {
+    return new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  }
+  return null;
+}
+
+/**
+ * Calcula a quantidade de dias restantes para o vencimento em relação ao dia de hoje (00:00:00)
+ * Retorna número inteiro de dias (positivo = a vencer, 0 = vence hoje, negativo = vencido) ou null
+ */
+function calcularDiasParaVencer_(val) {
+  var d = converterParaData_(val);
+  if (!d) return null;
+  var hoje = new Date();
+  var hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  var diffTime = d.getTime() - hojeZerado.getTime();
+  var diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
 }
 
 /**
@@ -1163,6 +1225,652 @@ function enviarEmailRegistro(dados) {
       recipients: validEmails
     };
   } catch (err) {
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
+// ============================================================================
+// GESTÃO DE ACESSOS E DESTINATÁRIOS (ABA ACESSOS)
+// ============================================================================
+
+/**
+ * Obtém ou cria a aba "Acessos" onde ficam registrados os colaboradores e e-mails
+ */
+function obterAbaAcessos_() {
+  var ss = obterPlanilha_();
+  var sheet = ss.getSheetByName(CONFIG.ACCESS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.ACCESS_SHEET_NAME);
+    var headers = ['Colaborador', 'E-mail'];
+    sheet.getRange(1, 1, 1, 2).setValues([headers]);
+    sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#E8E8E8');
+    sheet.setFrozenRows(1);
+    sheet.setColumnWidth(1, 260);
+    sheet.setColumnWidth(2, 320);
+  }
+  return sheet;
+}
+
+/**
+ * Lê todos os colaboradores e e-mails válidos da aba "Acessos" a partir da linha 2
+ */
+function obterUsuariosAcessos_() {
+  try {
+    var sheet = obterAbaAcessos_();
+    var lastRow = sheet.getLastRow();
+    var usuarios = [];
+    if (lastRow >= 2) {
+      var values = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+      var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      for (var i = 0; i < values.length; i++) {
+        var nome = String(values[i][0] || '').trim();
+        var email = String(values[i][1] || '').trim();
+        if (email && emailRegex.test(email)) {
+          usuarios.push({
+            linha: i + 2,
+            nome: nome || 'Colaborador',
+            email: email
+          });
+        }
+      }
+    }
+    return usuarios;
+  } catch (e) {
+    Logger.log('Erro ao ler usuários de acesso: ' + e.message);
+    return [];
+  }
+}
+
+/**
+ * Retorna lista única de e-mails cadastrados na aba Acessos
+ */
+function obterListaEmailsAcessos_() {
+  var usuarios = obterUsuariosAcessos_();
+  var emails = [];
+  for (var i = 0; i < usuarios.length; i++) {
+    if (emails.indexOf(usuarios[i].email) === -1) {
+      emails.push(usuarios[i].email);
+    }
+  }
+  return emails;
+}
+
+/**
+ * Diagnóstico rápido pelo menu da planilha para conferir quem está cadastrado na aba Acessos
+ */
+function verificarUsuariosAcessosMenu() {
+  var usuarios = obterUsuariosAcessos_();
+  var ui = SpreadsheetApp.getUi();
+  if (usuarios.length === 0) {
+    ui.alert(
+      'Aba Acessos',
+      'Nenhum colaborador com e-mail válido foi encontrado na aba "' + CONFIG.ACCESS_SHEET_NAME + '".\n\n' +
+      'Preencha a aba a partir da linha 2:\nColuna A: Colaborador\nColuna B: E-mail',
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+  var listaTexto = usuarios.map(function(u) { return '• ' + u.nome + ' <' + u.email + '>'; }).join('\n');
+  ui.alert(
+    'Usuários Cadastrados na Aba Acessos (' + usuarios.length + ')',
+    'Estes e-mails receberão os alertas automáticos de vencimento de contratos (90, 60, 30 e 7 dias):\n\n' + listaTexto,
+    ui.ButtonSet.OK
+  );
+}
+
+// ============================================================================
+// MOTOR DE ALERTAS AUTOMÁTICOS DE RISCO DE VENCIMENTO (90, 60, 30 E 7 DIAS)
+// ============================================================================
+
+/**
+ * Verifica contratos próximos do vencimento e dispara alertas por e-mail para os usuários da aba Acessos
+ * Marcos de antecedência: 90 dias, 60 dias, 30 dias e 7 dias (alerta crítico).
+ */
+function verificarVencimentosEEnviarAlertas() {
+  try {
+    var sheet = obterAbaContratos_();
+    var headerRow = obterLinhaCabecalho_(sheet);
+    var lastRow = sheet.getLastRow();
+
+    // 1. Obter destinatários cadastrados na aba Acessos
+    var emailsDestino = obterListaEmailsAcessos_();
+    if (!emailsDestino || emailsDestino.length === 0) {
+      Logger.log('Nenhum e-mail de colaborador foi encontrado na aba ' + CONFIG.ACCESS_SHEET_NAME);
+      return {
+        success: false,
+        message: 'Nenhum e-mail de colaborador foi encontrado na aba "' + CONFIG.ACCESS_SHEET_NAME + '". Preencha a aba para ativar os envios.',
+        alertasEnviadosCount: 0,
+        totalContratosEmRisco: 0,
+        destinatarios: []
+      };
+    }
+
+    if (lastRow <= headerRow) {
+      return {
+        success: true,
+        message: 'Nenhum contrato encontrado para verificação.',
+        alertasEnviadosCount: 0,
+        totalContratosEmRisco: 0,
+        destinatarios: emailsDestino
+      };
+    }
+
+    // 2. Mapear alertas já enviados para evitar repetições indesejadas
+    var logSheet = obterAbaLogs_();
+    var lastLogRow = logSheet.getLastRow();
+    var alertasJaDisparados = {};
+    if (lastLogRow > 1) {
+      var logValues = logSheet.getRange(2, 1, lastLogRow - 1, 7).getValues();
+      for (var l = 0; l < logValues.length; l++) {
+        var logId = String(logValues[l][1] || '').trim();
+        var logCampo = String(logValues[l][4] || '').trim();
+        var logNovo = String(logValues[l][6] || '').trim();
+        if (logCampo.indexOf('Alerta de Vencimento') !== -1) {
+          var chave = logId + '::' + logCampo + '::' + logNovo;
+          alertasJaDisparados[chave] = true;
+        }
+      }
+    }
+
+    // 3. Ler contratos cadastrados
+    var numRows = lastRow - headerRow;
+    var values = sheet.getRange(headerRow + 1, 1, numRows, 32).getValues();
+    var alertasEnviados = [];
+    var contratosEmRiscoCount = 0;
+
+    for (var i = 0; i < values.length; i++) {
+      var row = values[i];
+      var rawId = row[0];
+      var fornecedor = String(row[3] || '').trim();
+      if (!rawId && !fornecedor) continue;
+
+      var status = String(row[9] || 'Ativo').trim();
+      var statusLower = status.toLowerCase();
+      // Não alertar contratos já encerrados ou cancelados
+      if (statusLower.indexOf('encerr') !== -1 || statusLower.indexOf('cancel') !== -1) {
+        continue;
+      }
+
+      var fimVigenciaRaw = row[11];
+      var diasRestantes = calcularDiasParaVencer_(fimVigenciaRaw);
+      if (diasRestantes === null) continue;
+
+      var fimVigenciaFormatado = formatarDataExibicao_(fimVigenciaRaw);
+
+      // Regra de Risco: contratos com <= 90 dias
+      if (diasRestantes <= 90) {
+        contratosEmRiscoCount++;
+      }
+
+      // Determinar o marco aplicável (90, 60, 30 ou 7 dias)
+      var marco = null;
+      if (diasRestantes <= 7 && diasRestantes >= 0) {
+        marco = 7;
+      } else if (diasRestantes <= 30 && diasRestantes > 7) {
+        marco = 30;
+      } else if (diasRestantes <= 60 && diasRestantes > 30) {
+        marco = 60;
+      } else if (diasRestantes <= 90 && diasRestantes > 60) {
+        marco = 90;
+      }
+
+      if (marco === null) continue;
+
+      var nomeCampoAlerta = 'Alerta de Vencimento (' + marco + ' dias)';
+      var valorReferencia = 'Vencimento: ' + fimVigenciaFormatado;
+      var chaveVerificacao = rawId + '::' + nomeCampoAlerta + '::' + valorReferencia;
+
+      // Se o alerta para este marco com esta data já foi enviado, não repete
+      if (alertasJaDisparados[chaveVerificacao]) {
+        continue;
+      }
+
+      // Preparar dados e disparar o e-mail de alerta
+      var dadosAlerta = {
+        id: rawId,
+        protocol: formatarProtocolo_(rawId),
+        fornecedor: fornecedor,
+        objeto: row[5] || '',
+        status: status,
+        fimVigencia: fimVigenciaFormatado,
+        diasRestantes: diasRestantes,
+        marco: marco,
+        valorLancamento: row[14] || 0,
+        moeda: row[13] || 'BRL',
+        gerente: row[6] || '',
+        administrativo: row[7] || '',
+        destinatarios: emailsDestino
+      };
+
+      var envioRes = enviarEmailAlertaVencimento_(dadosAlerta);
+      if (envioRes.success) {
+        registrarLogAlteracao_(
+          rawId,
+          dadosAlerta.protocol,
+          fornecedor,
+          nomeCampoAlerta,
+          '',
+          valorReferencia,
+          'Sistema Automático',
+          emailsDestino.join(', ')
+        );
+        alertasJaDisparados[chaveVerificacao] = true;
+        alertasEnviados.push('Contrato #' + rawId + ' (' + fornecedor + '): marco de ' + marco + ' dias (' + diasRestantes + 'd restantes)');
+      }
+    }
+
+    return {
+      success: true,
+      alertasEnviadosCount: alertasEnviados.length,
+      contratosAlertados: alertasEnviados,
+      totalContratosEmRisco: contratosEmRiscoCount,
+      destinatarios: emailsDestino
+    };
+  } catch (err) {
+    Logger.log('Erro na verificação de vencimentos: ' + err.message);
+    return {
+      success: false,
+      error: err.message,
+      alertasEnviadosCount: 0,
+      totalContratosEmRisco: 0,
+      destinatarios: []
+    };
+  }
+}
+
+/**
+ * Envia e-mail corporativo formatado de alerta de vencimento para a equipe
+ */
+function enviarEmailAlertaVencimento_(dados) {
+  try {
+    var validEmails = dados.destinatarios || [];
+    if (validEmails.length === 0) {
+      throw new Error('Nenhum e-mail de destinatário informado.');
+    }
+
+    var idDisplay = 'Contrato #' + dados.id;
+    var assunto = dados.marco === 7 ?
+      '[a brisanet] ALERTA CRÍTICO: Vencimento em 7 dias - ' + idDisplay + ' (' + dados.fornecedor + ')' :
+      '[a brisanet] Alerta de Vencimento (' + dados.marco + ' dias) - ' + idDisplay + ' (' + dados.fornecedor + ')';
+
+    var corMarco = '#2242D4'; // 90 dias (azul)
+    var textoMarco = 'Antecedência de 90 dias';
+    if (dados.marco === 60) {
+      corMarco = '#E47D20'; // 60 dias (laranja)
+      textoMarco = 'Antecedência de 60 dias';
+    } else if (dados.marco === 30) {
+      corMarco = '#9F4016'; // 30 dias (terracota)
+      textoMarco = 'Atenção: 30 dias para o vencimento';
+    } else if (dados.marco === 7) {
+      corMarco = '#DA2468'; // 7 dias (magenta/crítico)
+      textoMarco = 'Urgência Máxima: Últimos 7 dias de vigência';
+    }
+
+    var ssUrl = obterPlanilha_().getUrl();
+    var folderUrl = obterOuCriarPastaAnexos_().getUrl();
+    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm');
+
+    var htmlBody = 
+      '<div style="font-family:\'Figtree\',Arial,sans-serif;background-color:#f8fafc;padding:24px;color:#0B316D;">' +
+        '<div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #E8E8E8;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(11,49,109,0.06);">' +
+          
+          '<div style="background:#0B316D;padding:20px 24px;border-bottom:4px solid ' + corMarco + ';">' +
+            '<div style="display:flex;align-items:center;justify-content:space-between;">' +
+              '<span style="background:#FF5022;color:#ffffff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;text-transform:lowercase;">brisanet</span>' +
+              '<span style="background:' + corMarco + ';color:#ffffff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;">' + textoMarco + '</span>' +
+            '</div>' +
+            '<h2 style="color:#ffffff;margin:12px 0 0 0;font-size:18px;font-weight:700;">Alerta de Risco de Vencimento Contratual</h2>' +
+            '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;text-transform:lowercase;">gestão e governança de contratos · acompanhamento de vigência</p>' +
+          '</div>' +
+
+          '<div style="padding:24px;">' +
+            '<p style="font-size:14px;line-height:1.6;color:#334155;margin-top:0;">' +
+              'Prezados,<br><br>' +
+              'Identificamos que o contrato abaixo atingiu o marco de <strong>' + dados.marco + ' dias de antecedência</strong> para o término de sua vigência. ' +
+              'Favor avaliar com a equipe a necessidade de renovação, aditivo ou encerramento das atividades com o fornecedor.' +
+            '</p>' +
+
+            '<div style="background:#f0f3ff;border-left:4px solid ' + corMarco + ';border-radius:6px;padding:16px;margin:20px 0;">' +
+              '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
+                '<tr>' +
+                  '<td style="padding:5px 0;color:#64748b;font-weight:600;width:130px;">Contrato:</td>' +
+                  '<td style="padding:5px 0;color:#0B316D;font-weight:800;">' + idDisplay + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:5px 0;color:#64748b;font-weight:600;">Fornecedor:</td>' +
+                  '<td style="padding:5px 0;color:#0B316D;font-weight:700;">' + dados.fornecedor + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:5px 0;color:#64748b;font-weight:600;">Objeto:</td>' +
+                  '<td style="padding:5px 0;color:#334155;">' + (dados.objeto || '-') + '</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:5px 0;color:#64748b;font-weight:600;">Fim da Vigência:</td>' +
+                  '<td style="padding:5px 0;color:#b91c1c;font-weight:800;font-size:14px;">' + dados.fimVigencia + ' (' + dados.diasRestantes + ' dias restantes)</td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:5px 0;color:#64748b;font-weight:600;">Status Atual:</td>' +
+                  '<td style="padding:5px 0;"><span style="background:#D0FF60;color:#0B316D;font-weight:700;padding:2px 8px;border-radius:999px;font-size:11px;">' + (dados.status || 'Ativo') + '</span></td>' +
+                '</tr>' +
+                '<tr>' +
+                  '<td style="padding:5px 0;color:#64748b;font-weight:600;">Valor Lançamento:</td>' +
+                  '<td style="padding:5px 0;color:#0B316D;font-weight:600;">' + (dados.moeda || 'BRL') + ' ' + (parseFloat(dados.valorLancamento) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + '</td>' +
+                '</tr>' +
+                (dados.gerente ? '<tr><td style="padding:5px 0;color:#64748b;font-weight:600;">Gerente:</td><td style="padding:5px 0;color:#334155;">' + dados.gerente + '</td></tr>' : '') +
+                (dados.administrativo ? '<tr><td style="padding:5px 0;color:#64748b;font-weight:600;">Administrativo:</td><td style="padding:5px 0;color:#334155;">' + dados.administrativo + '</td></tr>' : '') +
+              '</table>' +
+            '</div>' +
+
+            '<div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:8px;padding:14px;margin:20px 0;">' +
+              '<h4 style="margin:0 0 6px 0;font-size:12px;font-weight:800;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;">Ação Recomendada:</h4>' +
+              '<p style="margin:0;font-size:13px;color:#92400e;line-height:1.5;">' +
+                '1. Alinhe com a liderança e o fornecedor a prorrogação ou encerramento deste contrato.<br>' +
+                '2. Caso o contrato seja renovado ou prorrogado, acesse os <strong>Detalhes do Contrato</strong> no sistema e atualize o campo <strong>Fim da Vigência</strong> para que novos alertas sejam redefinidos para a nova data.' +
+              '</p>' +
+            '</div>' +
+
+            '<div style="text-align:center;margin-top:24px;">' +
+              '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;margin-right:10px;">Abrir Planilha de Contratos</a>' +
+              '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;">Acessar Pasta no Drive</a>' +
+            '</div>' +
+
+          '</div>' +
+
+          '<div style="background:#f8fafc;border-top:1px solid #E8E8E8;padding:14px 24px;text-align:center;font-size:11px;color:#94a3b8;">' +
+            'Este alerta automático foi emitido com base nos colaboradores cadastrados na aba Acessos · a brisanet (' + nowStr + ')' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+
+    MailApp.sendEmail({
+      to: validEmails.join(','),
+      subject: assunto,
+      htmlBody: htmlBody
+    });
+
+    return {
+      success: true,
+      recipients: validEmails
+    };
+  } catch (err) {
+    Logger.log('Erro ao enviar e-mail de alerta de vencimento: ' + err.message);
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Configura gatilho diário automático (às 08:00) para verificação de vencimentos
+ */
+function configurarGatilhoDiario() {
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'verificarVencimentosEEnviarAlertas') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  ScriptApp.newTrigger('verificarVencimentosEEnviarAlertas')
+    .timeBased()
+    .atHour(8)
+    .everyDays(1)
+    .create();
+
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.alert(
+      'Gatilho Diário Configurado',
+      'O sistema verificará diariamente às 08:00 todos os contratos próximos do vencimento (90, 60, 30 e 7 dias) e disparará os alertas por e-mail para todos os colaboradores cadastrados na aba "' + CONFIG.ACCESS_SHEET_NAME + '".',
+      ui.ButtonSet.OK
+    );
+  } catch (e) {}
+
+  return {
+    success: true,
+    message: 'Gatilho diário automático configurado com sucesso para as 08:00.'
+  };
+}
+
+/**
+ * Executa verificação manual e exibe resultado ao usuário
+ */
+function verificarVencimentosManualmente() {
+  var res = verificarVencimentosEEnviarAlertas();
+  try {
+    var ui = SpreadsheetApp.getUi();
+    var msg = 'Diagnóstico de Vencimentos Concluído.\n\n';
+    if (res.alertasEnviadosCount > 0) {
+      msg += 'Alertas disparados agora: ' + res.alertasEnviadosCount + ' e-mail(s).\n' +
+             'Destinatários notificados: ' + res.destinatarios.join(', ') + '\n\n' +
+             'Contratos alertados:\n' + res.contratosAlertados.join('\n');
+    } else {
+      msg += 'Nenhum contrato atingiu novos marcos de alerta de vencimento hoje.\n' +
+             'Total de contratos com risco de vencimento (<= 90 dias): ' + res.totalContratosEmRisco + '\n' +
+             'Colaboradores cadastrados na aba Acessos: ' + res.destinatarios.length;
+    }
+    ui.alert('Alerta de Vencimentos', msg, ui.ButtonSet.OK);
+  } catch (e) {}
+  return res;
+}
+
+// ============================================================================
+// ATUALIZAÇÃO COMPLETA DE CONTRATO (MODAL DE DETALHES COM LOG DETALHADO)
+// ============================================================================
+
+/**
+ * Atualiza os dados completos de um contrato diretamente na planilha e registra alterações no log
+ * @param {Object} dados - Objeto com os campos atualizados do contrato
+ */
+function atualizarContratoCompleto(dados) {
+  try {
+    if (!dados || !dados.id) {
+      throw new Error('ID do contrato não informado para atualização.');
+    }
+
+    var sheet = obterAbaContratos_();
+    var headerRow = obterLinhaCabecalho_(sheet);
+    var targetRow = -1;
+
+    // 1. Validar rowNumber ou localizar por ID
+    if (dados.rowNumber && dados.rowNumber > headerRow) {
+      var idNaLinha = String(sheet.getRange(dados.rowNumber, 1).getValue()).trim();
+      if (idNaLinha === String(dados.id).trim()) {
+        targetRow = dados.rowNumber;
+      }
+    }
+
+    if (targetRow === -1) {
+      var lastRow = sheet.getLastRow();
+      if (lastRow > headerRow) {
+        var ids = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, 1).getValues();
+        for (var i = 0; i < ids.length; i++) {
+          if (String(ids[i][0]).trim() === String(dados.id).trim()) {
+            targetRow = headerRow + 1 + i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetRow === -1) {
+      throw new Error('Contrato #' + dados.id + ' não foi localizado na planilha.');
+    }
+
+    // 2. Ler valores atuais da linha
+    var valoresAtuais = sheet.getRange(targetRow, 1, 1, 32).getValues()[0];
+
+    // 3. Processar cálculos financeiros
+    var moeda = dados.moeda || valoresAtuais[13] || 'BRL';
+    var valorLancamento = dados.valorLancamento !== undefined ? normalizarNumero_(dados.valorLancamento) : (valoresAtuais[14] || 0);
+    var taxaCambio = 1;
+    if (moeda === 'USD') taxaCambio = 5.3;
+    else if (moeda === 'EUR') taxaCambio = 5.9;
+    else if (moeda === 'GBP') taxaCambio = 6.8;
+
+    var reajusteManual = dados.reajusteManual !== undefined ? normalizarPorcentagem_(dados.reajusteManual) : valoresAtuais[19];
+    var reajusteAplicado = '';
+    var indice = dados.indice || valoresAtuais[18] || 'Sem reajuste';
+    if (reajusteManual !== '') {
+      reajusteAplicado = reajusteManual;
+    } else if (indice === 'IPCA') {
+      reajusteAplicado = 0.0428;
+    } else if (indice === 'IGP-M') {
+      reajusteAplicado = 0.0411;
+    } else if (indice === 'Sem reajuste') {
+      reajusteAplicado = 0;
+    }
+
+    var contingencia = dados.contingencia !== undefined ? normalizarPorcentagem_(dados.contingencia) : valoresAtuais[24];
+    var valorBaseBRL = valorLancamento * taxaCambio;
+    var valorOrcado = valorBaseBRL;
+    if (contingencia !== '' && typeof contingencia === 'number') {
+      valorOrcado = valorBaseBRL * (1 + contingencia);
+    }
+
+    // 4. Montar nova linha com dados formatados
+    var dataInicioFormatada = dados.inicioVigencia !== undefined ? formatarDataParaPlanilha_(dados.inicioVigencia) : valoresAtuais[10];
+    var dataFimFormatada = dados.fimVigencia !== undefined ? formatarDataParaPlanilha_(dados.fimVigencia) : valoresAtuais[11];
+    var dataCompetenciaFormatada = dados.primeiraCompetencia !== undefined ? formatarDataParaPlanilha_(dados.primeiraCompetencia) : valoresAtuais[16];
+    var dataReajusteFormatada = dados.dataReajuste !== undefined ? formatarDataParaPlanilha_(dados.dataReajuste) : valoresAtuais[17];
+
+    var novaLinha = [
+      dados.id,                                              // A (1) ID
+      dados.centroCusto !== undefined ? (dados.centroCusto || '') : valoresAtuais[1],         // B (2)
+      dados.categoria !== undefined ? (dados.categoria || '') : valoresAtuais[2],             // C (3)
+      dados.fornecedor !== undefined ? (dados.fornecedor || '') : valoresAtuais[3],           // D (4)
+      dados.cnpj !== undefined ? formatarCnpjLimpo_(dados.cnpj) : valoresAtuais[4],          // E (5)
+      dados.objeto !== undefined ? (dados.objeto || '') : valoresAtuais[5],                   // F (6)
+      dados.gerente !== undefined ? (dados.gerente || '') : valoresAtuais[6],                 // G (7)
+      dados.administrativo !== undefined ? (dados.administrativo || '') : valoresAtuais[7],   // H (8)
+      dados.tipo !== undefined ? (dados.tipo || 'Vigente') : valoresAtuais[8],                // I (9)
+      dados.status !== undefined ? (dados.status || 'Ativo') : valoresAtuais[9],              // J (10)
+      dataInicioFormatada,                                   // K (11)
+      dataFimFormatada,                                      // L (12)
+      dados.renovacaoAutomatica !== undefined ? (dados.renovacaoAutomatica || 'Não') : valoresAtuais[12], // M (13)
+      moeda,                                                 // N (14)
+      valorLancamento,                                       // O (15)
+      dados.periodicidade !== undefined ? (dados.periodicidade || 'Mensal') : valoresAtuais[15], // P (16)
+      dataCompetenciaFormatada,                              // Q (17)
+      dataReajusteFormatada,                                 // R (18)
+      indice,                                                // S (19)
+      reajusteManual,                                        // T (20)
+      reajusteAplicado,                                      // U (21)
+      dados.impostos !== undefined ? normalizarPorcentagem_(dados.impostos) : valoresAtuais[21], // V (22)
+      taxaCambio,                                            // W (23)
+      valorBaseBRL,                                          // X (24)
+      contingencia,                                          // Y (25)
+      valorOrcado,                                           // Z (26)
+      dados.contaContabil !== undefined ? (dados.contaContabil || '') : valoresAtuais[26],    // AA (27)
+      dados.contratoPo !== undefined ? (dados.contratoPo || '') : valoresAtuais[27],         // AB (28)
+      dados.risco !== undefined ? (dados.risco || 'Baixo') : valoresAtuais[28],               // AC (29)
+      dados.descricaoRisco !== undefined ? (dados.descricaoRisco || '') : valoresAtuais[29], // AD (30)
+      dados.memoriaCalculo !== undefined ? (dados.memoriaCalculo || '') : valoresAtuais[30], // AE (31)
+      dados.observacoes !== undefined ? (dados.observacoes || '') : valoresAtuais[31]        // AF (32)
+    ];
+
+    // Preservar fórmulas pré-existentes na planilha
+    var formulas = sheet.getRange(targetRow, 1, 1, 32).getFormulasR1C1()[0];
+    for (var f = 0; f < formulas.length; f++) {
+      if (formulas[f] && formulas[f] !== '') {
+        if (f === 20 || f === 21 || f === 22 || f === 23 || f === 25) {
+          novaLinha[f] = formulas[f];
+        }
+      }
+    }
+
+    // 5. Comparar campos alterados para auditoria e logs
+    var nomesCampos = [
+      'ID', 'Centro de Custo', 'Categoria / Pacote', 'Fornecedor', 'CNPJ',
+      'Objeto do Contrato', 'Gerente / Coordenador', 'Apoio Administrativo', 'Tipo', 'Status',
+      'Início da Vigência', 'Fim da Vigência', 'Renovação Automática', 'Moeda', 'Valor por Lançamento',
+      'Periodicidade', '1ª Competência', 'Data do Reajuste', 'Índice', 'Reajuste Manual (%)',
+      'Reajuste Aplicado (%)', 'Impostos (%)', 'Taxa de Câmbio', 'Valor Base BRL', 'Contingência (%)',
+      'Valor Orçado', 'Conta Contábil', 'Contrato / PO', 'Risco', 'Descrição do Risco',
+      'Memória de Cálculo', 'Notas / Observações'
+    ];
+
+    var diffs = [];
+    for (var col = 1; col < 32; col++) {
+      var vAnt = valoresAtuais[col];
+      var vNov = novaLinha[col];
+
+      var strAnt = String(vAnt !== null && vAnt !== undefined ? vAnt : '').trim();
+      var strNov = String(vNov !== null && vNov !== undefined ? vNov : '').trim();
+
+      if (col === 10 || col === 11 || col === 16 || col === 17) {
+        strAnt = formatarDataExibicao_(vAnt);
+        strNov = formatarDataExibicao_(vNov);
+      } else if (col === 14 || col === 23 || col === 25) {
+        var numAnt = parseFloat(vAnt) || 0;
+        var numNov = parseFloat(vNov) || 0;
+        if (Math.abs(numAnt - numNov) > 0.009) {
+          strAnt = 'R$ ' + numAnt.toFixed(2);
+          strNov = 'R$ ' + numNov.toFixed(2);
+        } else {
+          continue;
+        }
+      }
+
+      if (strAnt !== strNov) {
+        diffs.push({
+          coluna: col + 1,
+          campo: nomesCampos[col] || ('Coluna ' + (col + 1)),
+          valorAnterior: strAnt,
+          novoValor: strNov
+        });
+      }
+    }
+
+    // 6. Gravar nova linha na planilha
+    sheet.getRange(targetRow, 1, 1, 32).setValues([novaLinha]);
+    SpreadsheetApp.flush();
+
+    // 7. Obter usuário ativo e registrar histórico
+    var usuario = '';
+    try {
+      usuario = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (ue) {
+      usuario = 'usuario.compras@grupobrisanet.com.br';
+    }
+    if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
+
+    var protocol = formatarProtocolo_(dados.id);
+    var fornecedorFinal = novaLinha[3] || 'Fornecedor';
+
+    for (var d = 0; d < diffs.length; d++) {
+      registrarLogAlteracao_(
+        dados.id,
+        protocol,
+        fornecedorFinal,
+        diffs[d].campo,
+        diffs[d].valorAnterior,
+        diffs[d].novoValor,
+        usuario,
+        'Edição no Painel de Detalhes'
+      );
+    }
+
+    var diasParaVencer = calcularDiasParaVencer_(novaLinha[11]);
+
+    return {
+      success: true,
+      contractId: dados.id,
+      protocol: protocol,
+      rowNumber: targetRow,
+      changesCount: diffs.length,
+      changes: diffs,
+      diasParaVencer: diasParaVencer,
+      novoFimVigencia: formatarDataExibicao_(novaLinha[11]),
+      usuario: usuario
+    };
+  } catch (err) {
+    Logger.log('Erro ao atualizar contrato: ' + err.message);
     return {
       success: false,
       error: err.message
