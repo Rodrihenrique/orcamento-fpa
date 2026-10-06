@@ -2429,7 +2429,7 @@
             '</div>' +
           '</div>' +
         '</td>' +
-        '<td class="actions-col"><button type="button" class="table-action-btn" onclick="abrirModalDetalhes(' + index + ')">Detalhes</button></td>';
+        '<td class="actions-col"><button type="button" class="table-action-btn" onclick="abrirModalDetalhes(\'' + escapeHtml(c.id) + '\')">Detalhes</button></td>';
 
       tbody.appendChild(tr);
     });
@@ -2809,11 +2809,53 @@
   // ========================================================================
   // MODAL DE DETALHES DO CONTRATO (VISUALIZAÇÃO E EDIÇÃO)
   // ========================================================================
-  function abrirModalDetalhes(index) {
-    var c = appState.contracts[index];
-    if (!c) return;
+  function abrirModalDetalhes(indexOuId) {
+    if (!appState.contracts || appState.contracts.length === 0) {
+      mostrarToast('Nenhum contrato carregado no sistema.', 'warning');
+      return;
+    }
 
-    appState.detalhesIndexAtual = index;
+    var c = null;
+    var indexReal = -1;
+
+    // 1. Procurar por ID ou Protocolo
+    if (indexOuId !== undefined && indexOuId !== null) {
+      var idStr = String(indexOuId).trim();
+      for (var i = 0; i < appState.contracts.length; i++) {
+        var item = appState.contracts[i];
+        if (String(item.id).trim() === idStr || String(item.protocol || '').trim() === idStr) {
+          c = item;
+          indexReal = i;
+          break;
+        }
+      }
+    }
+
+    // 2. Se não encontrou por ID, tentar por índice numérico
+    if (!c && typeof indexOuId === 'number' && appState.contracts[indexOuId]) {
+      c = appState.contracts[indexOuId];
+      indexReal = indexOuId;
+    } else if (!c && typeof indexOuId === 'string' && !isNaN(parseInt(indexOuId, 10))) {
+      var idx = parseInt(indexOuId, 10);
+      if (appState.contracts[idx]) {
+        c = appState.contracts[idx];
+        indexReal = idx;
+      }
+    }
+
+    if (!c) {
+      console.warn('Contrato não localizado para exibição de detalhes:', indexOuId);
+      mostrarToast('Contrato não localizado para exibição dos detalhes.', 'warning');
+      return;
+    }
+
+    appState.detalhesIndexAtual = indexReal >= 0 ? indexReal : 0;
+
+    // Abrir o modal imediatamente no início para resposta instantânea ao clique
+    var modalEl = document.getElementById('modalDetalhes');
+    if (modalEl) {
+      modalEl.classList.add('active');
+    }
 
     // Atualizar títulos, badges e alertas do topo
     atualizarHeaderEBannerDetalhes(c);
@@ -2821,10 +2863,14 @@
     // Preencher campos com ícones de edição
     atualizarVisualizacaoDetalhes(c);
 
-    // Carregar histórico de alterações da planilha
-    carregarHistoricoModalDetalhes(c.id, c.protocol);
-
-    document.getElementById('modalDetalhes').classList.add('active');
+    // Carregar histórico de alterações da planilha com proteção contra erro
+    try {
+      if (typeof carregarHistoricoModalDetalhes === 'function') {
+        carregarHistoricoModalDetalhes(c.id, c.protocol);
+      }
+    } catch (errHist) {
+      console.warn('Erro ao carregar histórico do contrato:', errHist);
+    }
   }
 
   function fecharModalDetalhes() {
@@ -3234,6 +3280,119 @@
       renderizarHistoricoModalDetalhes(c.history);
       renderizarTabela(appState.contracts);
       mostrarToast('Modo demonstração: Campo atualizado localmente!', 'info');
+    }
+  }
+
+  // Formata data e hora atual no padrão dd/MM/yyyy HH:mm:ss
+  function formatarDataHoraAgora() {
+    var d = new Date();
+    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
+    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
+           pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  // Renderiza a lista de histórico no container do modal de detalhes
+  function renderizarHistoricoModalDetalhes(history) {
+    var historyContainer = document.getElementById('modalDetalhesHistorico');
+    var historyBadge = document.getElementById('historyCounterBadge');
+    if (!historyContainer) return;
+
+    if (!history || !Array.isArray(history) || history.length === 0) {
+      if (historyBadge) historyBadge.textContent = '(0 registros)';
+      historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+      return;
+    }
+
+    if (historyBadge) {
+      historyBadge.textContent = '(' + history.length + ' registro' + (history.length > 1 ? 's' : '') + ')';
+    }
+
+    historyContainer.innerHTML = '';
+    history.forEach(function(item) {
+      var card = document.createElement('div');
+      card.className = 'history-card';
+      var notifInfo = item.notificacao && item.notificacao !== 'Não' ? 
+        '<div style="margin-top:4px;font-size:11px;color:#2242D4;font-weight:600;">Registro / E-mail: ' + escapeHtml(item.notificacao) + '</div>' : '';
+      
+      var diffHtml = '';
+      if (item.valorAnterior && String(item.valorAnterior).trim() !== '') {
+        diffHtml = '<div class="history-card-diff">' +
+          '<div style="color:#64748b;margin-bottom:2px;"><strike>' + escapeHtml(String(item.valorAnterior)) + '</strike></div>' +
+          '<div><strong>Novo Valor:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>' +
+        '</div>';
+      } else {
+        diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>';
+      }
+
+      card.innerHTML = 
+        '<div class="history-card-header">' +
+          '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
+          '<span class="history-card-date">' + escapeHtml(item.dataHora || '-') + '</span>' +
+        '</div>' +
+        '<div class="history-card-body">' +
+          '<strong>' + escapeHtml(item.campo || 'Alteração') + '</strong>' +
+          diffHtml +
+          notifInfo +
+        '</div>';
+      historyContainer.appendChild(card);
+    });
+  }
+
+  // Carrega histórico de alterações no modal com sincronização resiliente
+  function carregarHistoricoModalDetalhes(contractId, protocol) {
+    var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ? 
+      appState.contracts[appState.detalhesIndexAtual] : null;
+
+    var historyContainer = document.getElementById('modalDetalhesHistorico');
+    var historyBadge = document.getElementById('historyCounterBadge');
+
+    var idParaBuscar = contractId !== undefined && contractId !== null ? contractId : (c ? c.id : '');
+    var protoParaBuscar = protocol || (c ? (c.protocol || '') : '');
+
+    // Se o contrato já possui histórico em cache na memória, exibir imediatamente
+    if (c && Array.isArray(c.history) && c.history.length > 0) {
+      renderizarHistoricoModalDetalhes(c.history);
+      if (historyBadge) {
+        historyBadge.innerHTML = '(' + c.history.length + ' registro' + (history.length > 1 ? 's' : '') + ' <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">• sincronizando...</span>)';
+      }
+    } else {
+      if (historyContainer) {
+        historyContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;">Consultando histórico de alterações na planilha...</div>';
+      }
+      if (historyBadge) historyBadge.textContent = '';
+    }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success && Array.isArray(res.history)) {
+            if (c) {
+              c.history = res.history;
+            }
+            renderizarHistoricoModalDetalhes(res.history);
+          } else {
+            if (c && Array.isArray(c.history) && c.history.length > 0) {
+              renderizarHistoricoModalDetalhes(c.history);
+            } else {
+              renderizarHistoricoModalDetalhes([]);
+            }
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.warn('Falha temporária ao carregar histórico da planilha:', err);
+          if (c && Array.isArray(c.history) && c.history.length > 0) {
+            renderizarHistoricoModalDetalhes(c.history);
+          } else if (historyContainer) {
+            historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração encontrada ou falha temporária ao consultar planilha.</div>';
+          }
+        })
+        .obterHistoricoContrato(idParaBuscar, protoParaBuscar);
+    } else {
+      if (c && Array.isArray(c.history) && c.history.length > 0) {
+        renderizarHistoricoModalDetalhes(c.history);
+      } else {
+        renderizarHistoricoModalDetalhes([]);
+      }
     }
   }
 
