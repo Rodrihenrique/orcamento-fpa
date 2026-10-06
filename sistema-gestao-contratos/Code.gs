@@ -45,7 +45,7 @@ function obterTimezoneOficial_() {
 function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Index');
   return template.evaluate()
-    .setTitle('Painel de Contratos | Gestão de Fornecedores')
+    .setTitle('Painel de Contratos | Gestão Telefonia')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -136,7 +136,7 @@ function abrirModalContratos() {
   var html = HtmlService.createTemplateFromFile('Index').evaluate()
     .setWidth(1200)
     .setHeight(800)
-    .setTitle('Painel de Contratos | Gestão de Fornecedores');
+    .setTitle('Painel de Contratos | Gestão Telefonia');
   SpreadsheetApp.getUi().showModalDialog(html, 'Painel de Contratos');
 }
 
@@ -1449,7 +1449,7 @@ function enviarEmailRegistro(dados) {
           '<div style="background:#2242D4;padding:20px 24px;">' +
             '<span style="background:#FF5022;color:#ffffff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;text-transform:lowercase;">brisanet</span>' +
             '<h2 style="color:#ffffff;margin:8px 0 0 0;font-size:18px;font-weight:700;">Registro de Alteração Contratual</h2>' +
-            '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;text-transform:lowercase;">suporte técnico · brisanet</p>' +
+            '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;">GERÊNCIA EXECUTIVA DE TELEFONIA · a brisanet</p>' +
           '</div>' +
 
           '<div style="padding:24px;">' +
