@@ -898,13 +898,47 @@
     .detail-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 16px;
+      gap: 12px;
     }
 
     .detail-item {
       display: flex;
       flex-direction: column;
       gap: 4px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #edf2f7;
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      position: relative;
+    }
+
+    .detail-item:hover {
+      background: #f1f5f9;
+      border-color: #cbd5e1;
+      box-shadow: 0 2px 6px rgba(11, 49, 109, 0.04);
+    }
+
+    .detail-item-full {
+      grid-column: span 2;
+    }
+
+    .detail-item-destaque {
+      border-color: #fbd5c8;
+      background: #fff9f6;
+    }
+
+    .detail-item-destaque:hover {
+      border-color: var(--brisa-orange);
+      background: #fff4ed;
+    }
+
+    .detail-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 2px;
     }
 
     .detail-label {
@@ -920,6 +954,45 @@
       font-weight: 500;
       color: var(--text-main);
       word-break: break-word;
+      line-height: 1.4;
+    }
+
+    .detail-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      font-style: italic;
+    }
+
+    .btn-edit-field-icon {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 3px 6px;
+      cursor: pointer;
+      color: #94a3b8;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      line-height: 1;
+    }
+
+    .detail-item:hover .btn-edit-field-icon {
+      color: var(--brisa-blue);
+      border-color: #cbd5e1;
+      background: #ffffff;
+    }
+
+    .btn-edit-field-icon:hover {
+      color: #ffffff !important;
+      background: var(--brisa-blue) !important;
+      border-color: var(--brisa-blue) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(34, 66, 212, 0.2);
     }
 
     /* ==========================================================================
@@ -1926,6 +1999,9 @@
 <!-- ========================================================================
      MODAL DE DETALHES DO CONTRATO (VISUALIZAÇÃO E EDIÇÃO COMPLETA)
      ======================================================================== -->
+<!-- ========================================================================
+     MODAL DE DETALHES DO CONTRATO (VISUALIZAÇÃO COM EDIÇÃO VIA LÁPIS)
+     ======================================================================== -->
 <div class="modal-overlay" id="modalDetalhes">
   <div class="modal-card modal-card-lg">
     <div class="modal-header">
@@ -1934,12 +2010,6 @@
         <span id="modalDetalhesBadgeRisco"></span>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
-        <button type="button" class="btn btn-secondary" style="height:34px;padding:0 12px;font-size:12px;" id="btnAlternarModoDetalhes" onclick="alternarModoEdicaoDetalhes()">
-          <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-          </svg>
-          <span id="btnAlternarModoTexto">Editar Dados</span>
-        </button>
         <button type="button" class="modal-close-btn" onclick="fecharModalDetalhes()">×</button>
       </div>
     </div>
@@ -1947,181 +2017,12 @@
       <!-- BANNER DE ALERTA DE VENCIMENTO -->
       <div id="detalhesExpiryBanner" style="display:none;"></div>
 
-      <!-- MODO DE VISUALIZAÇÃO -->
+      <!-- GRADE DE CAMPOS DO CONTRATO (COM ÍCONE DE LÁPIS EM CADA RESPOSTA) -->
       <div id="modalDetalhesView">
         <div class="detail-grid" id="modalDetalhesCorpo"></div>
       </div>
 
-      <!-- MODO DE EDIÇÃO -->
-      <div id="modalDetalhesEdit" style="display:none;">
-        <form id="formEdicaoContrato" onsubmit="salvarEdicaoContratoDetalhes(event)">
-          <input type="hidden" id="editIndex" value="">
-          <input type="hidden" id="editId" value="">
-          <input type="hidden" id="editRowNumber" value="">
-
-          <div class="edit-section-title">1. Identificação & Fornecedor</div>
-          <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 16px;">
-            <div class="form-group">
-              <label class="form-label">Centro de Custo</label>
-              <input type="text" class="form-control" id="editCentroCusto" list="listCentrosCusto">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Categoria / Pacote</label>
-              <input type="text" class="form-control" id="editCategoria" list="listCategorias">
-            </div>
-            <div class="form-group">
-              <label class="form-label required">Fornecedor</label>
-              <input type="text" class="form-control" id="editFornecedor" required list="listFornecedores">
-            </div>
-            <div class="form-group">
-              <label class="form-label">CNPJ</label>
-              <input type="text" class="form-control" id="editCnpj" oninput="aplicarMascaraCnpj(this)">
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label required">Objeto do Contrato</label>
-              <textarea class="form-control" id="editObjeto" rows="2" required></textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Gerente / Coordenador</label>
-              <input type="text" class="form-control" id="editGerente" list="listGerentes">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Apoio Administrativo</label>
-              <input type="text" class="form-control" id="editAdministrativo" list="listAdministrativos">
-            </div>
-          </div>
-
-          <div class="edit-section-title">2. Vigência & Classificação</div>
-          <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 16px;">
-            <div class="form-group">
-              <label class="form-label">Status</label>
-              <select class="form-control" id="editStatus">
-                <option value="Ativo">Ativo</option>
-                <option value="Em Renovação">Em Renovação</option>
-                <option value="Encerrado">Encerrado</option>
-                <option value="Suspenso">Suspenso</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Tipo</label>
-              <select class="form-control" id="editTipo">
-                <option value="Vigente">Vigente</option>
-                <option value="Eventual">Eventual</option>
-                <option value="Recorrente">Recorrente</option>
-                <option value="Locação">Locação</option>
-                <option value="Licenciamento">Licenciamento</option>
-                <option value="Prestação de Serviços">Prestação de Serviços</option>
-                <option value="Em negociação">Em negociação</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Início da Vigência</label>
-              <input type="date" class="form-control" id="editInicioVigencia">
-            </div>
-            <div class="form-group">
-              <label class="form-label required" style="color:var(--brisa-orange);font-weight:700;">Fim da Vigência (Data de Vencimento)</label>
-              <input type="date" class="form-control" id="editFimVigencia" required style="border-color:var(--brisa-orange);">
-              <small style="font-size:11px;color:var(--text-muted);margin-top:2px;display:block;">
-                Ao prorrogar ou alterar o fim da vigência, o sistema redefinirá automaticamente o cronograma de alertas (90, 60, 30 e 7 dias).
-              </small>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Renovação Automática</label>
-              <select class="form-control" id="editRenovacaoAutomatica">
-                <option value="Não">Não</option>
-                <option value="Sim">Sim</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Periodicidade</label>
-              <select class="form-control" id="editPeriodicidade">
-                <option value="Mensal">Mensal</option>
-                <option value="Trimestral">Trimestral</option>
-                <option value="Semestral">Semestral</option>
-                <option value="Anual">Anual</option>
-                <option value="Pontual">Pontual</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="edit-section-title">3. Valores Financeiros & Reajustes</div>
-          <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 16px;">
-            <div class="form-group">
-              <label class="form-label">Moeda</label>
-              <select class="form-control" id="editMoeda">
-                <option value="BRL">BRL (R$)</option>
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="GBP">GBP (£)</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label required">Valor por Lançamento</label>
-              <input type="number" step="0.01" min="0" class="form-control" id="editValorLancamento" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label">1ª Competência</label>
-              <input type="date" class="form-control" id="editPrimeiraCompetencia">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Data do Reajuste</label>
-              <input type="date" class="form-control" id="editDataReajuste">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Índice</label>
-              <select class="form-control" id="editIndice">
-                <option value="Sem reajuste">Sem reajuste</option>
-                <option value="IPCA">IPCA</option>
-                <option value="IGP-M">IGP-M</option>
-                <option value="INPC">INPC</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Reajuste Manual (%)</label>
-              <input type="number" step="0.01" class="form-control" id="editReajusteManual" placeholder="Ex: 4.5">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Contingência (%)</label>
-              <input type="number" step="0.01" class="form-control" id="editContingencia" placeholder="Ex: 5">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Conta Contábil</label>
-              <input type="text" class="form-control" id="editContaContabil" list="listContasContabeis">
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">Contrato / PO</label>
-              <input type="text" class="form-control" id="editContratoPo">
-            </div>
-          </div>
-
-          <div class="edit-section-title">4. Riscos, Cálculos & Observações</div>
-          <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 16px;">
-            <div class="form-group">
-              <label class="form-label">Nível de Risco</label>
-              <select class="form-control" id="editRisco">
-                <option value="Baixo">Baixo</option>
-                <option value="Médio">Médio</option>
-                <option value="Alto">Alto</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Descrição do Risco / Contingência</label>
-              <input type="text" class="form-control" id="editDescricaoRisco">
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">Fonte / Memória de Cálculo</label>
-              <textarea class="form-control" id="editMemoriaCalculo" rows="2"></textarea>
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label class="form-label">Notas / Observações Gerais</label>
-              <textarea class="form-control" id="editObservacoes" rows="2"></textarea>
-            </div>
-          </div>
-        </form>
-      </div>
-
-      <!-- HISTÓRICO DE ALTERAÇÕES E AUDITORIA (Sempre visível no modal de detalhes) -->
+      <!-- HISTÓRICO DE ALTERAÇÕES E AUDITORIA (SEMPRE VISÍVEL NO MODAL) -->
       <div class="history-section-wrapper">
         <div class="history-header-title">
           <span>Histórico de Alterações e Registros</span>
@@ -2133,17 +2034,54 @@
       </div>
     </div>
     <div class="modal-footer">
-      <div id="footerBotoesView" style="display:flex;gap:10px;">
-        <button type="button" class="btn btn-primary" onclick="ativarModoEdicaoDetalhes()">Editar Dados do Contrato</button>
+      <div style="display:flex;justify-content:flex-end;gap:10px;width:100%;">
         <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhes()">Fechar</button>
       </div>
-      <div id="footerBotoesEdit" style="display:none;gap:10px;">
-        <button type="button" class="btn btn-secondary" onclick="cancelarEdicaoDetalhes()">Cancelar Edição</button>
-        <button type="button" class="btn btn-primary" id="btnSalvarEdicaoContrato" onclick="document.getElementById('formEdicaoContrato').requestSubmit()">
-          <span id="btnSalvarEdicaoTexto">Salvar Alterações</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================
+     MODAL DE EDIÇÃO DE CAMPO INDIVIDUAL (LÁPIS)
+     ======================================================================== -->
+<div class="modal-overlay" id="modalEditarCampo" style="z-index: 1050;">
+  <div class="modal-card" style="max-width: 500px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="modalEditarCampoTitulo">Editar Campo</div>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;" id="modalEditarCampoSubtitulo"></div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalEditarCampo()">×</button>
+    </div>
+    <form id="formEditarCampoIndividual" onsubmit="salvarEdicaoCampoIndividual(event)">
+      <input type="hidden" id="editCampoChave" value="">
+      <input type="hidden" id="editCampoContratoId" value="">
+      <input type="hidden" id="editCampoRowNumber" value="">
+
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Valor Atual</div>
+          <div id="modalEditarCampoValorAtual" style="font-size:14px;font-weight:600;color:var(--text-main);margin-top:4px;word-break:break-word;">-</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label required" id="modalEditarCampoLabelNovo">Novo Valor</label>
+          <div id="modalEditarCampoContainerInput">
+            <!-- Renderizado dinamicamente pelo JS de acordo com o tipo do campo -->
+          </div>
+          <small id="modalEditarCampoDica" style="font-size:11px;color:var(--text-muted);margin-top:6px;display:block;">
+            A alteração será gravada diretamente na planilha e registrada no histórico de auditoria.
+          </small>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
+        <button type="button" class="btn btn-secondary" onclick="fecharModalEditarCampo()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnSalvarCampoIndividual">
+          <span id="btnSalvarCampoTexto">Salvar Alteração</span>
         </button>
       </div>
-    </div>
+    </form>
   </div>
 </div>
 
@@ -2877,77 +2815,11 @@
 
     appState.detalhesIndexAtual = index;
 
-    document.getElementById('modalDetalhesTitulo').textContent = 'Contrato #' + c.id + ' - ' + (c.fornecedor || '');
-    
-    // Badge de risco ou vencimento no cabeçalho do modal
-    var badgeRiscoHeader = document.getElementById('modalDetalhesBadgeRisco');
-    if (badgeRiscoHeader) {
-      if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && (c.status || '').toLowerCase().indexOf('encerr') === -1) {
-        badgeRiscoHeader.innerHTML = '<span class="badge badge-risco-vencimento">Risco de Vencimento (' + (c.diasParaVencer < 0 ? 'Vencido' : c.diasParaVencer + 'd restantes') + ')</span>';
-      } else {
-        var rClass = (c.risco || '').toLowerCase() === 'alto' ? 'badge-risco-alto' : ((c.risco || '').toLowerCase() === 'médio' ? 'badge-risco-medio' : 'badge-risco-baixo');
-        badgeRiscoHeader.innerHTML = '<span class="badge ' + rClass + '">' + escapeHtml(c.risco || 'Baixo') + '</span>';
-      }
-    }
+    // Atualizar títulos, badges e alertas do topo
+    atualizarHeaderEBannerDetalhes(c);
 
-    // Banner de alerta se faltar <= 90 dias
-    var banner = document.getElementById('detalhesExpiryBanner');
-    if (banner) {
-      if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && (c.status || '').toLowerCase().indexOf('encerr') === -1) {
-        var textoPrazo = c.diasParaVencer < 0 ? 'Vigência encerrada há ' + Math.abs(c.diasParaVencer) + ' dia(s)' : 'Faltam ' + c.diasParaVencer + ' dia(s) para o término da vigência';
-        banner.innerHTML = 
-          '<div class="expiry-alert-callout">' +
-            '<div class="expiry-alert-callout-text">' +
-              '<strong>Alerta de Risco de Vencimento:</strong> ' + textoPrazo + ' (' + escapeHtml(c.fimVigencia || '-') + '). ' +
-              'Alertas automáticos por e-mail são enviados nos marcos de 90, 60, 30 e 7 dias para a equipe cadastrada na aba Acessos.' +
-            '</div>' +
-            '<button type="button" class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 12px;" onclick="ativarModoEdicaoDetalhes()">' +
-              'Alterar Vigência / Renovar' +
-            '</button>' +
-          '</div>';
-        banner.style.display = 'block';
-      } else {
-        banner.style.display = 'none';
-        banner.innerHTML = '';
-      }
-    }
-
-    // Preencher campos de visualização
+    // Preencher campos com ícones de edição
     atualizarVisualizacaoDetalhes(c);
-
-    // Preencher campos do formulário de edição
-    document.getElementById('editIndex').value = index;
-    document.getElementById('editId').value = c.id;
-    document.getElementById('editRowNumber').value = c.rowNumber || '';
-    document.getElementById('editCentroCusto').value = c.centroCusto || '';
-    document.getElementById('editCategoria').value = c.categoria || '';
-    document.getElementById('editFornecedor').value = c.fornecedor || '';
-    document.getElementById('editCnpj').value = c.cnpj || '';
-    document.getElementById('editObjeto').value = c.objeto || '';
-    document.getElementById('editGerente').value = c.gerente || '';
-    document.getElementById('editAdministrativo').value = c.administrativo || '';
-    document.getElementById('editStatus').value = c.status || 'Ativo';
-    document.getElementById('editTipo').value = c.tipo || 'Vigente';
-    document.getElementById('editInicioVigencia').value = formatarDataParaInputDate(c.inicioVigencia);
-    document.getElementById('editFimVigencia').value = formatarDataParaInputDate(c.fimVigencia);
-    document.getElementById('editRenovacaoAutomatica').value = c.renovacaoAutomatica || 'Não';
-    document.getElementById('editPeriodicidade').value = c.periodicidade || 'Mensal';
-    document.getElementById('editMoeda').value = c.moeda || 'BRL';
-    document.getElementById('editValorLancamento').value = c.valorLancamento || 0;
-    document.getElementById('editPrimeiraCompetencia').value = formatarDataParaInputDate(c.primeiraCompetencia);
-    document.getElementById('editDataReajuste').value = formatarDataParaInputDate(c.dataReajuste);
-    document.getElementById('editIndice').value = c.indice || 'Sem reajuste';
-    document.getElementById('editReajusteManual').value = c.reajusteManual ? (c.reajusteManual * 100).toFixed(2) : '';
-    document.getElementById('editContingencia').value = c.contingencia ? (c.contingencia * 100).toFixed(2) : '';
-    document.getElementById('editContaContabil').value = c.contaContabil || '';
-    document.getElementById('editContratoPo').value = c.contratoPo || '';
-    document.getElementById('editRisco').value = c.risco || 'Baixo';
-    document.getElementById('editDescricaoRisco').value = c.descricaoRisco || '';
-    document.getElementById('editMemoriaCalculo').value = c.memoriaCalculo || '';
-    document.getElementById('editObservacoes').value = c.observacoes || '';
-
-    // Iniciar em modo visualização
-    alternarModoEdicaoDetalhes('view');
 
     // Carregar histórico de alterações da planilha
     carregarHistoricoModalDetalhes(c.id, c.protocol);
@@ -2959,347 +2831,390 @@
     document.getElementById('modalDetalhes').classList.remove('active');
   }
 
-  // Preenche a grade de campos em modo visualização
+  // Atualiza o cabeçalho e banner de vencimento do modal de detalhes
+  function atualizarHeaderEBannerDetalhes(c) {
+    var tituloEl = document.getElementById('modalDetalhesTitulo');
+    if (tituloEl) {
+      tituloEl.textContent = 'Contrato #' + c.id + ' - ' + (c.fornecedor || '');
+    }
+
+    var badgeRiscoHeader = document.getElementById('modalDetalhesBadgeRisco');
+    if (badgeRiscoHeader) {
+      if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && (c.status || '').toLowerCase().indexOf('encerr') === -1) {
+        badgeRiscoHeader.innerHTML = '<span class="badge badge-risco-vencimento">Risco de Vencimento (' + (c.diasParaVencer < 0 ? 'Vencido' : c.diasParaVencer + 'd restantes') + ')</span>';
+      } else {
+        var rClass = (c.risco || '').toLowerCase() === 'alto' ? 'badge-risco-alto' : ((c.risco || '').toLowerCase() === 'médio' ? 'badge-risco-medio' : 'badge-risco-baixo');
+        badgeRiscoHeader.innerHTML = '<span class="badge ' + rClass + '">' + escapeHtml(c.risco || 'Baixo') + '</span>';
+      }
+    }
+
+    var banner = document.getElementById('detalhesExpiryBanner');
+    if (banner) {
+      if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && (c.status || '').toLowerCase().indexOf('encerr') === -1) {
+        var textoPrazo = c.diasParaVencer < 0 ? 'Vigência encerrada há ' + Math.abs(c.diasParaVencer) + ' dia(s)' : 'Faltam ' + c.diasParaVencer + ' dia(s) para o término da vigência';
+        banner.innerHTML = 
+          '<div class="expiry-alert-callout">' +
+            '<div class="expiry-alert-callout-text">' +
+              '<strong>Alerta de Risco de Vencimento:</strong> ' + textoPrazo + ' (' + escapeHtml(c.fimVigencia || '-') + '). ' +
+              'Alertas automáticos por e-mail são enviados nos marcos de 90, 60, 30 e 7 dias para a equipe cadastrada na aba Acessos.' +
+            '</div>' +
+            '<button type="button" class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 12px;" onclick="abrirModalEditarCampo(\'fimVigencia\', \'Fim da Vigência\')">' +
+              'Alterar Vigência / Renovar' +
+            '</button>' +
+          '</div>';
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
+        banner.innerHTML = '';
+      }
+    }
+  }
+
+  // Preenche a grade de campos em modo visualização com botão de lápis em cada item editável
   function atualizarVisualizacaoDetalhes(c) {
     var container = document.getElementById('modalDetalhesCorpo');
     if (!container) return;
     container.innerHTML = '';
 
     var campos = [
-      { label: 'ID do Contrato', val: '#' + c.id },
-      { label: 'Fornecedor', val: c.fornecedor },
-      { label: 'CNPJ', val: c.cnpj },
-      { label: 'Objeto', val: c.objeto },
-      { label: 'Centro de Custo', val: c.centroCusto },
-      { label: 'Categoria / Pacote', val: c.categoria },
-      { label: 'Contrato / PO', val: c.contratoPo },
-      { label: 'Conta Contábil', val: c.contaContabil },
-      { label: 'Gerente / Coordenador', val: c.gerente },
-      { label: 'Apoio Administrativo', val: c.administrativo },
-      { label: 'Tipo / Status', val: (c.tipo || '-') + ' / ' + (c.status || '-') },
-      { label: 'Início da Vigência', val: c.inicioVigencia },
-      { label: 'Fim da Vigência', val: c.fimVigencia + (c.diasParaVencer !== null ? ' (' + (c.diasParaVencer < 0 ? 'Expirado' : c.diasParaVencer + ' dias restantes') + ')' : '') },
-      { label: 'Renovação Automática', val: c.renovacaoAutomatica },
-      { label: 'Moeda e Valor Lançamento', val: (c.moeda || 'BRL') + ' ' + formatarMoedaBRL(c.valorLancamento) },
-      { label: 'Periodicidade', val: c.periodicidade },
-      { label: '1ª Competência', val: c.primeiraCompetencia },
-      { label: 'Data do Reajuste', val: c.dataReajuste },
-      { label: 'Índice de Reajuste', val: c.indice },
-      { label: 'Reajuste Manual (%)', val: c.reajusteManual ? (c.reajusteManual * 100).toFixed(2) + '%' : '-' },
-      { label: 'Reajuste Aplicado (%)', val: c.reajusteAplicado ? (c.reajusteAplicado * 100).toFixed(2) + '%' : '-' },
-      { label: 'Valor Base em BRL', val: formatarMoedaBRL(c.valorBaseBRL) },
-      { label: 'Contingência (%)', val: c.contingencia ? (c.contingencia * 100).toFixed(2) + '%' : '-' },
-      { label: 'Valor Orçado por Lançamento', val: formatarMoedaBRL(c.valorOrcado) },
-      { label: 'Nível de Risco', val: c.risco },
-      { label: 'Descrição do Risco', val: c.descricaoRisco || '-' },
-      { label: 'Fonte / Memória de Cálculo', val: c.memoriaCalculo || '-' },
-      { label: 'Observações Gerais', val: c.observacoes || '-' }
+      { label: 'ID do Contrato', val: '#' + c.id, chave: null },
+      { label: 'Fornecedor', val: c.fornecedor, chave: 'fornecedor' },
+      { label: 'CNPJ', val: c.cnpj, chave: 'cnpj' },
+      { label: 'Objeto do Contrato', val: c.objeto, chave: 'objeto', fullWidth: true },
+      { label: 'Centro de Custo', val: c.centroCusto, chave: 'centroCusto' },
+      { label: 'Categoria / Pacote', val: c.categoria, chave: 'categoria' },
+      { label: 'Contrato / PO', val: c.contratoPo, chave: 'contratoPo' },
+      { label: 'Conta Contábil', val: c.contaContabil, chave: 'contaContabil' },
+      { label: 'Gerente / Coordenador', val: c.gerente, chave: 'gerente' },
+      { label: 'Apoio Administrativo', val: c.administrativo, chave: 'administrativo' },
+      { label: 'Tipo', val: c.tipo, chave: 'tipo' },
+      { label: 'Status', val: c.status, chave: 'status' },
+      { label: 'Início da Vigência', val: c.inicioVigencia, chave: 'inicioVigencia' },
+      { 
+        label: 'Fim da Vigência', 
+        val: (c.fimVigencia || '-') + (c.diasParaVencer !== null ? ' (' + (c.diasParaVencer < 0 ? 'Expirado' : c.diasParaVencer + ' dias restantes') + ')' : ''), 
+        chave: 'fimVigencia', 
+        destaque: true 
+      },
+      { label: 'Renovação Automática', val: c.renovacaoAutomatica, chave: 'renovacaoAutomatica' },
+      { label: 'Moeda', val: c.moeda || 'BRL', chave: 'moeda' },
+      { label: 'Valor por Lançamento', val: (c.moeda || 'BRL') + ' ' + formatarMoedaBRL(c.valorLancamento), chave: 'valorLancamento' },
+      { label: 'Periodicidade', val: c.periodicidade, chave: 'periodicidade' },
+      { label: '1ª Competência', val: c.primeiraCompetencia, chave: 'primeiraCompetencia' },
+      { label: 'Data do Reajuste', val: c.dataReajuste, chave: 'dataReajuste' },
+      { label: 'Índice de Reajuste', val: c.indice, chave: 'indice' },
+      { label: 'Reajuste Manual (%)', val: c.reajusteManual ? (c.reajusteManual * 100).toFixed(2) + '%' : '-', chave: 'reajusteManual' },
+      { label: 'Reajuste Aplicado (%)', val: c.reajusteAplicado ? (c.reajusteAplicado * 100).toFixed(2) + '%' : '-', chave: null, info: 'Calculado automaticamente' },
+      { label: 'Impostos / Encargos (%)', val: c.impostos ? (c.impostos * 100).toFixed(2) + '%' : '-', chave: 'impostos' },
+      { label: 'Valor Base em BRL', val: formatarMoedaBRL(c.valorBaseBRL), chave: null, info: 'Calculado com base no câmbio' },
+      { label: 'Contingência (%)', val: c.contingencia ? (c.contingencia * 100).toFixed(2) + '%' : '-', chave: 'contingencia' },
+      { label: 'Valor Orçado por Lançamento', val: formatarMoedaBRL(c.valorOrcado), chave: null, info: 'Calculado com base na contingência' },
+      { label: 'Nível de Risco', val: c.risco, chave: 'risco' },
+      { label: 'Descrição do Risco / Contingência', val: c.descricaoRisco, chave: 'descricaoRisco', fullWidth: true },
+      { label: 'Fonte / Memória de Cálculo', val: c.memoriaCalculo, chave: 'memoriaCalculo', fullWidth: true },
+      { label: 'Notas / Observações Gerais', val: c.observacoes, chave: 'observacoes', fullWidth: true }
     ];
 
     campos.forEach(function(item) {
       var div = document.createElement('div');
-      div.className = 'detail-item';
+      var classes = ['detail-item'];
+      if (item.fullWidth) classes.push('detail-item-full');
+      if (item.destaque) classes.push('detail-item-destaque');
+      div.className = classes.join(' ');
+
+      var editBtnHtml = '';
+      if (item.chave) {
+        editBtnHtml = 
+          '<button type="button" class="btn-edit-field-icon" title="Editar ' + escapeHtml(item.label) + '" ' +
+            'onclick="abrirModalEditarCampo(\'' + item.chave + '\', \'' + escapeHtml(item.label) + '\')">' +
+            '<svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />' +
+            '</svg>' +
+            '<span>Editar</span>' +
+          '</button>';
+      }
+
+      var infoHtml = item.info ? '<div class="detail-hint">' + escapeHtml(item.info) + '</div>' : '';
+
       div.innerHTML = 
-        '<div class="detail-label">' + escapeHtml(item.label) + '</div>' +
-        '<div class="detail-value">' + (item.val ? formatarTextoComLinks(item.val) : '-') + '</div>';
+        '<div class="detail-label-row">' +
+          '<span class="detail-label">' + escapeHtml(item.label) + '</span>' +
+          editBtnHtml +
+        '</div>' +
+        '<div class="detail-value">' + (item.val ? formatarTextoComLinks(item.val) : '-') + '</div>' +
+        infoHtml;
+
       container.appendChild(div);
     });
   }
 
-  // Alterna entre visualização e formulário de edição
-  function alternarModoEdicaoDetalhes(forcarModo) {
-    var viewDiv = document.getElementById('modalDetalhesView');
-    var editDiv = document.getElementById('modalDetalhesEdit');
-    var footerView = document.getElementById('footerBotoesView');
-    var footerEdit = document.getElementById('footerBotoesEdit');
-    var btnTexto = document.getElementById('btnAlternarModoTexto');
-
-    var modoAtual = viewDiv.style.display === 'none' ? 'edit' : 'view';
-    var novoModo = forcarModo || (modoAtual === 'view' ? 'edit' : 'view');
-
-    if (novoModo === 'edit') {
-      viewDiv.style.display = 'none';
-      editDiv.style.display = 'block';
-      footerView.style.display = 'none';
-      footerEdit.style.display = 'flex';
-      if (btnTexto) btnTexto.textContent = 'Ver Detalhes';
-    } else {
-      viewDiv.style.display = 'block';
-      editDiv.style.display = 'none';
-      footerView.style.display = 'flex';
-      footerEdit.style.display = 'none';
-      if (btnTexto) btnTexto.textContent = 'Editar Dados';
-    }
-  }
-
-  function ativarModoEdicaoDetalhes() {
-    alternarModoEdicaoDetalhes('edit');
-  }
-
-  function cancelarEdicaoDetalhes() {
-    alternarModoEdicaoDetalhes('view');
-  }
-
-  // Formata data e hora atual no padrao dd/MM/yyyy HH:mm:ss
-  function formatarDataHoraAgora() {
-    var d = new Date();
-    var pad = function(n) { return (n < 10 ? '0' : '') + n; };
-    return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' +
-           pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
-  }
-
-  // Renderiza a lista de historico no container do modal de detalhes
-  function renderizarHistoricoModalDetalhes(history) {
-    var historyContainer = document.getElementById('modalDetalhesHistorico');
-    var historyBadge = document.getElementById('historyCounterBadge');
-    if (!historyContainer) return;
-
-    if (!history || !Array.isArray(history) || history.length === 0) {
-      if (historyBadge) historyBadge.textContent = '(0 registros)';
-      historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+  // Abre o modal de edição exclusivo para um único campo clicado pelo usuário
+  function abrirModalEditarCampo(chaveCampo, labelCampo) {
+    var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ?
+      appState.contracts[appState.detalhesIndexAtual] : null;
+    if (!c) {
+      mostrarToast('Contrato não selecionado.', 'error');
       return;
     }
 
-    if (historyBadge) {
-      historyBadge.textContent = '(' + history.length + ' registro' + (history.length > 1 ? 's' : '') + ')';
+    document.getElementById('editCampoChave').value = chaveCampo;
+    document.getElementById('editCampoContratoId').value = c.id;
+    document.getElementById('editCampoRowNumber').value = c.rowNumber || '';
+
+    document.getElementById('modalEditarCampoTitulo').textContent = 'Editar ' + labelCampo;
+    document.getElementById('modalEditarCampoSubtitulo').textContent = 'Contrato #' + c.id + ' · ' + (c.fornecedor || 'Fornecedor');
+    document.getElementById('modalEditarCampoLabelNovo').textContent = 'Novo(a) ' + labelCampo;
+
+    // Exibir valor atual formatado
+    var valAtualStr = '-';
+    var rawVal = c[chaveCampo];
+    if (rawVal !== undefined && rawVal !== null && String(rawVal).trim() !== '') {
+      if (chaveCampo === 'valorLancamento') {
+        valAtualStr = (c.moeda || 'BRL') + ' ' + formatarMoedaBRL(rawVal);
+      } else if (chaveCampo === 'reajusteManual' || chaveCampo === 'contingencia' || chaveCampo === 'impostos') {
+        valAtualStr = typeof rawVal === 'number' ? (rawVal * 100).toFixed(2) + '%' : (parseFloat(rawVal) ? (parseFloat(rawVal) * 100).toFixed(2) + '%' : String(rawVal));
+      } else {
+        valAtualStr = String(rawVal);
+      }
+    }
+    document.getElementById('modalEditarCampoValorAtual').textContent = valAtualStr;
+
+    // Renderizar o controle de input adequado
+    var containerInput = document.getElementById('modalEditarCampoContainerInput');
+    containerInput.innerHTML = '';
+
+    var dicaEl = document.getElementById('modalEditarCampoDica');
+    dicaEl.textContent = 'Apenas este campo será alterado e registrado no histórico de auditoria do contrato.';
+
+    // Datas
+    if (chaveCampo === 'inicioVigencia' || chaveCampo === 'fimVigencia' || chaveCampo === 'primeiraCompetencia' || chaveCampo === 'dataReajuste') {
+      var dateInput = document.createElement('input');
+      dateInput.type = 'date';
+      dateInput.className = 'form-control';
+      dateInput.id = 'inputEditCampoValor';
+      dateInput.value = formatarDataParaInputDate(c[chaveCampo]);
+      if (chaveCampo === 'fimVigencia') {
+        dateInput.required = true;
+        dicaEl.textContent = 'Ao alterar o fim da vigência, o cronograma de alertas automáticos por e-mail (90, 60, 30 e 7 dias) será recalculado imediatamente.';
+      }
+      containerInput.appendChild(dateInput);
+    }
+    // Selects
+    else if (chaveCampo === 'status') {
+      var sel = criarSelectParaCampo(['Ativo', 'Em Renovação', 'Encerrado', 'Suspenso'], c.status || 'Ativo');
+      containerInput.appendChild(sel);
+    } else if (chaveCampo === 'tipo') {
+      var sel = criarSelectParaCampo(['Vigente', 'Eventual', 'Recorrente', 'Locação', 'Licenciamento', 'Prestação de Serviços', 'Em negociação'], c.tipo || 'Vigente');
+      containerInput.appendChild(sel);
+    } else if (chaveCampo === 'renovacaoAutomatica') {
+      var sel = criarSelectParaCampo(['Não', 'Sim'], c.renovacaoAutomatica || 'Não');
+      containerInput.appendChild(sel);
+    } else if (chaveCampo === 'moeda') {
+      var sel = criarSelectParaCampo(['BRL', 'USD', 'EUR', 'GBP'], c.moeda || 'BRL');
+      containerInput.appendChild(sel);
+    } else if (chaveCampo === 'periodicidade') {
+      var sel = criarSelectParaCampo(['Mensal', 'Trimestral', 'Semestral', 'Anual', 'Pontual'], c.periodicidade || 'Mensal');
+      containerInput.appendChild(sel);
+    } else if (chaveCampo === 'indice') {
+      var sel = criarSelectParaCampo(['Sem reajuste', 'IPCA', 'IGP-M', 'INPC', 'Outro'], c.indice || 'Sem reajuste');
+      containerInput.appendChild(sel);
+    } else if (chaveCampo === 'risco') {
+      var sel = criarSelectParaCampo(['Baixo', 'Médio', 'Alto'], c.risco || 'Baixo');
+      containerInput.appendChild(sel);
+    }
+    // Números e Porcentagens
+    else if (chaveCampo === 'valorLancamento') {
+      var numInput = document.createElement('input');
+      numInput.type = 'number';
+      numInput.step = '0.01';
+      numInput.min = '0';
+      numInput.className = 'form-control';
+      numInput.id = 'inputEditCampoValor';
+      numInput.value = c.valorLancamento || '';
+      numInput.required = true;
+      containerInput.appendChild(numInput);
+    } else if (chaveCampo === 'reajusteManual' || chaveCampo === 'contingencia' || chaveCampo === 'impostos') {
+      var pctInput = document.createElement('input');
+      pctInput.type = 'number';
+      pctInput.step = '0.01';
+      pctInput.className = 'form-control';
+      pctInput.id = 'inputEditCampoValor';
+      pctInput.placeholder = 'Ex: 5 para 5%';
+      var valPct = c[chaveCampo] ? (typeof c[chaveCampo] === 'number' ? (c[chaveCampo] * 100).toFixed(2) : c[chaveCampo]) : '';
+      pctInput.value = valPct;
+      containerInput.appendChild(pctInput);
+    }
+    // Textareas
+    else if (chaveCampo === 'objeto' || chaveCampo === 'memoriaCalculo' || chaveCampo === 'observacoes') {
+      var txtArea = document.createElement('textarea');
+      txtArea.className = 'form-control';
+      txtArea.rows = 4;
+      txtArea.id = 'inputEditCampoValor';
+      txtArea.value = c[chaveCampo] || '';
+      if (chaveCampo === 'objeto') txtArea.required = true;
+      containerInput.appendChild(txtArea);
+    }
+    // CNPJ
+    else if (chaveCampo === 'cnpj') {
+      var cnpjInput = document.createElement('input');
+      cnpjInput.type = 'text';
+      cnpjInput.className = 'form-control';
+      cnpjInput.id = 'inputEditCampoValor';
+      cnpjInput.value = c.cnpj || '';
+      cnpjInput.oninput = function() { aplicarMascaraCnpj(this); };
+      containerInput.appendChild(cnpjInput);
+    }
+    // Campos com datalist existente
+    else {
+      var textInput = document.createElement('input');
+      textInput.type = 'text';
+      textInput.className = 'form-control';
+      textInput.id = 'inputEditCampoValor';
+      textInput.value = c[chaveCampo] || '';
+
+      if (chaveCampo === 'centroCusto') textInput.setAttribute('list', 'listCentrosCusto');
+      else if (chaveCampo === 'categoria') textInput.setAttribute('list', 'listCategorias');
+      else if (chaveCampo === 'fornecedor') {
+        textInput.setAttribute('list', 'listFornecedores');
+        textInput.required = true;
+      }
+      else if (chaveCampo === 'gerente') textInput.setAttribute('list', 'listGerentes');
+      else if (chaveCampo === 'administrativo') textInput.setAttribute('list', 'listAdministrativos');
+      else if (chaveCampo === 'contaContabil') textInput.setAttribute('list', 'listContasContabeis');
+
+      containerInput.appendChild(textInput);
     }
 
-    historyContainer.innerHTML = '';
-    history.forEach(function(item) {
-      var card = document.createElement('div');
-      card.className = 'history-card';
-      var notifInfo = item.notificacao && item.notificacao !== 'Não' ? 
-        '<div style="margin-top:4px;font-size:11px;color:#2242D4;font-weight:600;">Registro / E-mail: ' + escapeHtml(item.notificacao) + '</div>' : '';
-      
-      var diffHtml = '';
-      if (item.valorAnterior && String(item.valorAnterior).trim() !== '') {
-        diffHtml = '<div class="history-card-diff">' +
-          '<div style="color:#64748b;margin-bottom:2px;"><strike>' + escapeHtml(String(item.valorAnterior)) + '</strike></div>' +
-          '<div><strong>Novo Valor:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>' +
-        '</div>';
-      } else {
-        diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>';
-      }
+    document.getElementById('modalEditarCampo').classList.add('active');
 
-      card.innerHTML = 
-        '<div class="history-card-header">' +
-          '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
-          '<span class="history-card-date">' + escapeHtml(item.dataHora || '-') + '</span>' +
-        '</div>' +
-        '<div class="history-card-body">' +
-          '<strong>' + escapeHtml(item.campo || 'Alteração') + '</strong>' +
-          diffHtml +
-          notifInfo +
-        '</div>';
-      historyContainer.appendChild(card);
+    // Focar no campo de entrada
+    setTimeout(function() {
+      var el = document.getElementById('inputEditCampoValor');
+      if (el) {
+        el.focus();
+        if (el.select) el.select();
+      }
+    }, 100);
+  }
+
+  function fecharModalEditarCampo() {
+    document.getElementById('modalEditarCampo').classList.remove('active');
+  }
+
+  function criarSelectParaCampo(opcoes, valorAtual) {
+    var sel = document.createElement('select');
+    sel.className = 'form-control';
+    sel.id = 'inputEditCampoValor';
+    opcoes.forEach(function(opt) {
+      var o = document.createElement('option');
+      o.value = opt;
+      o.textContent = opt;
+      if (opt === valorAtual) o.selected = true;
+      sel.appendChild(o);
     });
+    return sel;
   }
 
-  // Carrega historico de alteracoes no modal com sincronizacao resiliente
-  function carregarHistoricoModalDetalhes(contractId, protocol) {
-    var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ? 
-      appState.contracts[appState.detalhesIndexAtual] : null;
-
-    var historyContainer = document.getElementById('modalDetalhesHistorico');
-    var historyBadge = document.getElementById('historyCounterBadge');
-
-    var idParaBuscar = contractId !== undefined && contractId !== null ? contractId : (c ? c.id : '');
-    var protoParaBuscar = protocol || (c ? (c.protocol || '') : '');
-
-    // Se o contrato ja possui historico em cache na memoria, exibir imediatamente
-    if (c && Array.isArray(c.history) && c.history.length > 0) {
-      renderizarHistoricoModalDetalhes(c.history);
-      if (historyBadge) {
-        historyBadge.innerHTML = '(' + c.history.length + ' registro' + (c.history.length > 1 ? 's' : '') + ' <span style="font-size:10px;color:var(--text-muted);font-weight:normal;">• sincronizando...</span>)';
-      }
-    } else {
-      if (historyContainer) {
-        historyContainer.innerHTML = '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;">Consultando histórico de alterações na planilha...</div>';
-      }
-      if (historyBadge) historyBadge.textContent = '';
-    }
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      google.script.run
-        .withSuccessHandler(function(res) {
-          if (res && res.success && Array.isArray(res.history)) {
-            if (c) {
-              c.history = res.history;
-            }
-            renderizarHistoricoModalDetalhes(res.history);
-          } else {
-            if (c && Array.isArray(c.history) && c.history.length > 0) {
-              renderizarHistoricoModalDetalhes(c.history);
-            } else {
-              renderizarHistoricoModalDetalhes([]);
-            }
-          }
-        })
-        .withFailureHandler(function(err) {
-          console.warn('Falha temporaria ao carregar historico da planilha:', err);
-          if (c && Array.isArray(c.history) && c.history.length > 0) {
-            renderizarHistoricoModalDetalhes(c.history);
-          } else if (historyContainer) {
-            historyContainer.innerHTML = '<div class="history-empty-msg">Nenhuma alteração encontrada ou falha temporária ao consultar planilha.</div>';
-          }
-        })
-        .obterHistoricoContrato(idParaBuscar, protoParaBuscar);
-    } else {
-      if (c && Array.isArray(c.history) && c.history.length > 0) {
-        renderizarHistoricoModalDetalhes(c.history);
-      } else {
-        renderizarHistoricoModalDetalhes([]);
-      }
-    }
-  }
-
-  // Salva edições completas do contrato direto na planilha
-  function salvarEdicaoContratoDetalhes(event) {
+  // Salva a alteração exclusiva do campo individual na planilha e registra o log
+  function salvarEdicaoCampoIndividual(event) {
     if (event) event.preventDefault();
 
-    var index = parseInt(document.getElementById('editIndex').value, 10);
-    var c = appState.contracts[index];
+    var chaveCampo = document.getElementById('editCampoChave').value;
+    var contractId = document.getElementById('editCampoContratoId').value;
+    var rowNumber = parseInt(document.getElementById('editCampoRowNumber').value, 10);
+
+    var inputEl = document.getElementById('inputEditCampoValor');
+    if (!inputEl) return;
+    var novoValor = inputEl.value;
+
+    var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ?
+      appState.contracts[appState.detalhesIndexAtual] : null;
     if (!c) {
-      mostrarToast('Contrato não localizado para alteração.', 'error');
+      mostrarToast('Contrato não selecionado para alteração.', 'error');
       return;
     }
 
-    var btnSalvar = document.getElementById('btnSalvarEdicaoContrato');
-    var btnTexto = document.getElementById('btnSalvarEdicaoTexto');
+    var btnSalvar = document.getElementById('btnSalvarCampoIndividual');
+    var btnTexto = document.getElementById('btnSalvarCampoTexto');
     if (btnSalvar) {
       btnSalvar.disabled = true;
-      if (btnTexto) btnTexto.textContent = 'Salvando e Registrando Logs...';
+      if (btnTexto) btnTexto.textContent = 'Gravando...';
     }
-
-    var payload = {
-      id: document.getElementById('editId').value,
-      rowNumber: parseInt(document.getElementById('editRowNumber').value, 10) || c.rowNumber,
-      centroCusto: document.getElementById('editCentroCusto').value.trim(),
-      categoria: document.getElementById('editCategoria').value.trim(),
-      fornecedor: document.getElementById('editFornecedor').value.trim(),
-      cnpj: document.getElementById('editCnpj').value.trim(),
-      objeto: document.getElementById('editObjeto').value.trim(),
-      gerente: document.getElementById('editGerente').value.trim(),
-      administrativo: document.getElementById('editAdministrativo').value.trim(),
-      status: document.getElementById('editStatus').value,
-      tipo: document.getElementById('editTipo').value,
-      inicioVigencia: document.getElementById('editInicioVigencia').value,
-      fimVigencia: document.getElementById('editFimVigencia').value,
-      renovacaoAutomatica: document.getElementById('editRenovacaoAutomatica').value,
-      periodicidade: document.getElementById('editPeriodicidade').value,
-      moeda: document.getElementById('editMoeda').value,
-      valorLancamento: parseFloat(document.getElementById('editValorLancamento').value) || 0,
-      primeiraCompetencia: document.getElementById('editPrimeiraCompetencia').value,
-      dataReajuste: document.getElementById('editDataReajuste').value,
-      indice: document.getElementById('editIndice').value,
-      reajusteManual: document.getElementById('editReajusteManual').value,
-      contingencia: document.getElementById('editContingencia').value,
-      contaContabil: document.getElementById('editContaContabil').value.trim(),
-      contratoPo: document.getElementById('editContratoPo').value.trim(),
-      risco: document.getElementById('editRisco').value,
-      descricaoRisco: document.getElementById('editDescricaoRisco').value.trim(),
-      memoriaCalculo: document.getElementById('editMemoriaCalculo').value.trim(),
-      observacoes: document.getElementById('editObservacoes').value.trim()
-    };
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(res) {
           if (btnSalvar) {
             btnSalvar.disabled = false;
-            if (btnTexto) btnTexto.textContent = 'Salvar Alterações';
+            if (btnTexto) btnTexto.textContent = 'Salvar Alteração';
           }
 
           if (res && res.success) {
-            // Atualizar objeto local
-            c.centroCusto = payload.centroCusto;
-            c.categoria = payload.categoria;
-            c.fornecedor = payload.fornecedor;
-            c.cnpj = payload.cnpj;
-            c.objeto = payload.objeto;
-            c.gerente = payload.gerente;
-            c.administrativo = payload.administrativo;
-            c.status = payload.status;
-            c.tipo = payload.tipo;
-            c.fimVigencia = res.novoFimVigencia || c.fimVigencia;
-            c.diasParaVencer = res.diasParaVencer;
-            c.riscoVencimento = (res.diasParaVencer !== null && res.diasParaVencer <= 90);
-            c.renovacaoAutomatica = payload.renovacaoAutomatica;
-            c.periodicidade = payload.periodicidade;
-            c.moeda = payload.moeda;
-            c.valorLancamento = payload.valorLancamento;
-            c.indice = payload.indice;
-            c.contaContabil = payload.contaContabil;
-            c.contratoPo = payload.contratoPo;
-            c.risco = payload.risco;
-            c.descricaoRisco = payload.descricaoRisco;
-            c.memoriaCalculo = payload.memoriaCalculo;
-            c.observacoes = payload.observacoes;
+            fecharModalEditarCampo();
+            mostrarToast('Campo ' + res.campoFormatado + ' atualizado com sucesso!', 'success');
 
-            // Se houver mudanças registradas, injetar imediatamente em c.history
+            // Atualizar o objeto local do contrato
+            if (res.novoValorRaw !== undefined) {
+              c[chaveCampo] = res.novoValorRaw;
+            } else {
+              c[chaveCampo] = novoValor;
+            }
+
+            if (chaveCampo === 'fimVigencia') {
+              c.fimVigencia = res.novoValor;
+              c.diasParaVencer = res.diasParaVencer;
+              c.riscoVencimento = (res.diasParaVencer !== null && res.diasParaVencer <= 90);
+            }
+            if (res.valorBaseBRL !== undefined) c.valorBaseBRL = res.valorBaseBRL;
+            if (res.valorOrcado !== undefined) c.valorOrcado = res.valorOrcado;
+            if (res.reajusteAplicado !== undefined) c.reajusteAplicado = res.reajusteAplicado;
+
+            // Injetar estritamente o log DESTA alteração única
             if (!Array.isArray(c.history)) c.history = [];
-            var agoraStr = formatarDataHoraAgora();
-            if (res.changes && res.changes.length > 0) {
-              for (var i = res.changes.length - 1; i >= 0; i--) {
-                var ch = res.changes[i];
-                c.history.unshift({
-                  dataHora: agoraStr,
-                  id: c.id,
-                  protocol: c.protocol,
-                  fornecedor: c.fornecedor,
-                  campo: ch.campo,
-                  valorAnterior: ch.valorAnterior,
-                  novoValor: ch.novoValor,
-                  usuario: res.usuario || 'Você',
-                  notificacao: 'Edição no Painel de Detalhes'
-                });
-              }
-            }
+            c.history.unshift({
+              dataHora: res.dataHora || formatarDataHoraAgora(),
+              id: c.id,
+              protocol: c.protocol,
+              fornecedor: c.fornecedor,
+              campo: res.campoFormatado,
+              valorAnterior: res.valorAnterior,
+              novoValor: res.novoValor,
+              usuario: res.usuario || 'Você',
+              notificacao: 'Não'
+            });
 
-            // Recarregar resumo, tabela e modo de visualizacao
+            // Atualizar visualização dos detalhes e histórico
+            atualizarHeaderEBannerDetalhes(c);
             atualizarVisualizacaoDetalhes(c);
-            renderizarTabela(appState.contracts);
-            alternarModoEdicaoDetalhes('view');
-
-            // Renderizar historico atualizado no modal e sincronizar com a planilha
             renderizarHistoricoModalDetalhes(c.history);
-            carregarHistoricoModalDetalhes(c.id, c.protocol);
 
-            // Atualizar badge de risco no header do modal
-            var badgeRiscoHeader = document.getElementById('modalDetalhesBadgeRisco');
-            if (badgeRiscoHeader) {
-              if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && (c.status || '').toLowerCase().indexOf('encerr') === -1) {
-                badgeRiscoHeader.innerHTML = '<span class="badge badge-risco-vencimento">Risco de Vencimento (' + (c.diasParaVencer < 0 ? 'Vencido' : c.diasParaVencer + 'd restantes') + ')</span>';
-              } else {
-                var rClass = (c.risco || '').toLowerCase() === 'alto' ? 'badge-risco-alto' : ((c.risco || '').toLowerCase() === 'médio' ? 'badge-risco-medio' : 'badge-risco-baixo');
-                badgeRiscoHeader.innerHTML = '<span class="badge ' + rClass + '">' + escapeHtml(c.risco || 'Baixo') + '</span>';
-              }
-            }
-
-            mostrarToast('Contrato #' + c.id + ' atualizado com sucesso (' + (res.changesCount || 0) + ' alterações registradas nos logs)!', 'success');
+            // Atualizar tabela de contratos
+            renderizarTabela(appState.contracts);
           } else {
-            mostrarToast('Erro ao atualizar contrato: ' + (res ? res.error : 'Falha desconhecida'), 'error');
+            mostrarToast('Erro ao atualizar: ' + (res ? res.error : 'Falha desconhecida'), 'error');
           }
         })
         .withFailureHandler(function(err) {
           if (btnSalvar) {
             btnSalvar.disabled = false;
-            if (btnTexto) btnTexto.textContent = 'Salvar Alterações';
+            if (btnTexto) btnTexto.textContent = 'Salvar Alteração';
           }
-          mostrarToast('Erro na comunicação com o servidor: ' + (err.message || err), 'error');
+          mostrarToast('Erro de comunicação: ' + (err.message || err), 'error');
         })
-        .atualizarContratoCompleto(payload);
+        .atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor);
     } else {
-      // Demonstração local
+      // Modo demonstração local
       if (btnSalvar) {
         btnSalvar.disabled = false;
-        if (btnTexto) btnTexto.textContent = 'Salvar Alterações';
+        if (btnTexto) btnTexto.textContent = 'Salvar Alteração';
       }
-      c.fornecedor = payload.fornecedor;
-      c.objeto = payload.objeto;
-      c.status = payload.status;
-      c.risco = payload.risco;
-      c.observacoes = payload.observacoes;
+      fecharModalEditarCampo();
+
+      var valAntDemo = String(c[chaveCampo] || '-');
+      c[chaveCampo] = novoValor;
+      if (chaveCampo === 'fimVigencia') {
+        c.fimVigencia = novoValor;
+      }
 
       if (!Array.isArray(c.history)) c.history = [];
       c.history.unshift({
@@ -3307,18 +3222,18 @@
         id: c.id,
         protocol: c.protocol,
         fornecedor: c.fornecedor,
-        campo: 'Alteração Geral',
-        valorAnterior: '-',
-        novoValor: 'Dados atualizados no modo demonstração',
+        campo: chaveCampo,
+        valorAnterior: valAntDemo,
+        novoValor: String(novoValor),
         usuario: 'Você',
         notificacao: 'Não'
       });
 
+      atualizarHeaderEBannerDetalhes(c);
       atualizarVisualizacaoDetalhes(c);
-      renderizarTabela(appState.contracts);
-      alternarModoEdicaoDetalhes('view');
       renderizarHistoricoModalDetalhes(c.history);
-      mostrarToast('Modo demonstração: Contrato #' + c.id + ' atualizado localmente!', 'info');
+      renderizarTabela(appState.contracts);
+      mostrarToast('Modo demonstração: Campo atualizado localmente!', 'info');
     }
   }
 

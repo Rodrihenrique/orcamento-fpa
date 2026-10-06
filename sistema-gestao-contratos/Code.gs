@@ -27,8 +27,17 @@ var CONFIG = {
   // Nome da pasta raiz no Google Drive para os arquivos anexados
   DRIVE_FOLDER_NAME: 'Contratos - Anexos',
   // Prefixo para protocolo formatado
-  PROTOCOL_PREFIX: 'BRISA-CON'
+  PROTOCOL_PREFIX: 'BRISA-CON',
+  // Fuso horário oficial para registro e exibição de datas e logs (Horário de Brasília/Nordeste UTC-3)
+  TIMEZONE: 'America/Fortaleza'
 };
+
+/**
+ * Retorna o fuso horário oficial adotado no sistema
+ */
+function obterTimezoneOficial_() {
+  return CONFIG.TIMEZONE || 'America/Fortaleza';
+}
 
 /**
  * Ponto de entrada do Web App
@@ -855,7 +864,7 @@ function formatarCnpjLimpo_(cnpj) {
 function formatarDataParaPlanilha_(dataStr) {
   if (!dataStr) return '';
   if (dataStr instanceof Date) {
-    return Utilities.formatDate(dataStr, Session.getScriptTimeZone() || 'America/Fortaleza', 'yyyy-MM-dd');
+    return Utilities.formatDate(dataStr, obterTimezoneOficial_(), 'yyyy-MM-dd');
   }
   var s = String(dataStr).trim();
   if (s.toLowerCase() === 'não tem' || s.toLowerCase() === 'nao tem') return 'Não tem ';
@@ -870,7 +879,7 @@ function formatarDataParaPlanilha_(dataStr) {
 function formatarDataExibicao_(val) {
   if (!val) return '';
   if (val instanceof Date) {
-    return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy');
+    return Utilities.formatDate(val, obterTimezoneOficial_(), 'dd/MM/yyyy');
   }
   var s = String(val).trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
@@ -883,7 +892,7 @@ function formatarDataExibicao_(val) {
 function formatarDataHoraExibicao_(val) {
   if (!val) return '';
   if (val instanceof Date) {
-    return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    return Utilities.formatDate(val, obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
   }
   return String(val);
 }
@@ -1044,7 +1053,7 @@ function obterAbaLogs_() {
 function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAnterior, novoValor, usuario, notificacao) {
   try {
     var logSheet = obterAbaLogs_();
-    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
     var rowData = [
       nowStr,
       contractId !== undefined && contractId !== null ? String(contractId) : '',
@@ -1071,6 +1080,7 @@ function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAn
         'Notificação Enviada'
       ];
       logSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      logSheet.getRange(2, 1).setNumberFormat('@');
       logSheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
     } else {
       var headerRow = 1;
@@ -1101,6 +1111,7 @@ function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAn
         targetRow = lastRow + 1;
       }
 
+      logSheet.getRange(targetRow, 1).setNumberFormat('@');
       logSheet.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
     }
     SpreadsheetApp.flush();
@@ -1182,7 +1193,7 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
       valorAnterior: valorAnterior,
       novoValor: novaNota,
       usuario: usuario,
-      dataHora: Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss')
+      dataHora: Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss')
     };
   } catch (err) {
     return {
@@ -1422,7 +1433,7 @@ function enviarEmailRegistro(dados) {
     var fornecedor = dados.fornecedor || 'Fornecedor';
     var objeto = dados.objeto || 'Contrato de Fornecimento';
     var notaAlteracao = dados.mensagem || dados.novaNota || dados.observacoes || 'Atualização cadastral realizada.';
-    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm');
+    var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm');
 
     var ssUrl = obterPlanilha_().getUrl();
     var folderUrl = obterOuCriarPastaAnexos_().getUrl();
@@ -1792,7 +1803,7 @@ function enviarEmailAlertaVencimento_(dados) {
 
     var ssUrl = obterPlanilha_().getUrl();
     var folderUrl = obterOuCriarPastaAnexos_().getUrl();
-    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone() || 'America/Fortaleza', 'dd/MM/yyyy HH:mm');
+    var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm');
 
     var htmlBody = 
       '<div style="font-family:\'Figtree\',Arial,sans-serif;background-color:#f8fafc;padding:24px;color:#0B316D;">' +
@@ -1938,6 +1949,226 @@ function verificarVencimentosManualmente() {
     ui.alert('Alerta de Vencimentos', msg, ui.ButtonSet.OK);
   } catch (e) {}
   return res;
+}
+
+// ============================================================================
+// ATUALIZAÇÃO DE CAMPO INDIVIDUAL (EDIÇÃO VIA LÁPIS COM LOG EXCLUSIVO DO CAMPO)
+// ============================================================================
+
+/**
+ * Atualiza um único campo específico do contrato diretamente na célula da planilha
+ * e registra no histórico de auditoria estritamente a alteração desse campo.
+ * @param {string|number} contractId - ID do contrato
+ * @param {number} [rowNumber] - Linha sugerida na planilha
+ * @param {string} chaveCampo - Identificador do campo alterado
+ * @param {*} novoValor - Novo valor informado pelo usuário
+ */
+function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) {
+  try {
+    if (!contractId && !rowNumber) {
+      throw new Error('Identificador do contrato não informado.');
+    }
+    if (!chaveCampo) {
+      throw new Error('Campo para alteração não informado.');
+    }
+
+    var sheet = obterAbaContratos_();
+    var headerRow = obterLinhaCabecalho_(sheet);
+    var targetRow = -1;
+
+    // 1. Validar se rowNumber fornecido corresponde ao ID
+    if (rowNumber && rowNumber > headerRow) {
+      var idNaLinha = String(sheet.getRange(rowNumber, 1).getValue()).trim();
+      if (idNaLinha === String(contractId).trim()) {
+        targetRow = rowNumber;
+      }
+    }
+
+    // 2. Se não bateu ou não informado, procurar a linha pelo ID
+    if (targetRow === -1) {
+      var lastRow = sheet.getLastRow();
+      if (lastRow > headerRow) {
+        var ids = sheet.getRange(headerRow + 1, 1, lastRow - headerRow, 1).getValues();
+        for (var i = 0; i < ids.length; i++) {
+          if (String(ids[i][0]).trim() === String(contractId).trim()) {
+            targetRow = headerRow + 1 + i;
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetRow === -1) {
+      throw new Error('Contrato #' + contractId + ' não foi localizado na planilha.');
+    }
+
+    // Mapa de campos para coluna da planilha (1-indexed, 1 a 32) e nome amigável
+    var mapaCampos = {
+      centroCusto: { col: 2, nome: 'Centro de Custo', tipo: 'text' },
+      categoria: { col: 3, nome: 'Categoria / Pacote', tipo: 'text' },
+      fornecedor: { col: 4, nome: 'Fornecedor', tipo: 'text' },
+      cnpj: { col: 5, nome: 'CNPJ', tipo: 'cnpj' },
+      objeto: { col: 6, nome: 'Objeto do Contrato', tipo: 'text' },
+      gerente: { col: 7, nome: 'Gerente / Coordenador', tipo: 'text' },
+      administrativo: { col: 8, nome: 'Apoio Administrativo', tipo: 'text' },
+      tipo: { col: 9, nome: 'Tipo', tipo: 'select' },
+      status: { col: 10, nome: 'Status', tipo: 'select' },
+      inicioVigencia: { col: 11, nome: 'Início da Vigência', tipo: 'date' },
+      fimVigencia: { col: 12, nome: 'Fim da Vigência', tipo: 'date' },
+      renovacaoAutomatica: { col: 13, nome: 'Renovação Automática', tipo: 'select' },
+      moeda: { col: 14, nome: 'Moeda', tipo: 'select' },
+      valorLancamento: { col: 15, nome: 'Valor por Lançamento', tipo: 'number' },
+      periodicidade: { col: 16, nome: 'Periodicidade', tipo: 'select' },
+      primeiraCompetencia: { col: 17, nome: '1ª Competência', tipo: 'date' },
+      dataReajuste: { col: 18, nome: 'Data do Reajuste', tipo: 'date' },
+      indice: { col: 19, nome: 'Índice de Reajuste', tipo: 'select' },
+      reajusteManual: { col: 20, nome: 'Reajuste Manual (%)', tipo: 'percent' },
+      impostos: { col: 22, nome: 'Impostos (%)', tipo: 'percent' },
+      contingencia: { col: 25, nome: 'Contingência (%)', tipo: 'percent' },
+      contaContabil: { col: 27, nome: 'Conta Contábil', tipo: 'text' },
+      contratoPo: { col: 28, nome: 'Contrato / PO', tipo: 'text' },
+      risco: { col: 29, nome: 'Nível de Risco', tipo: 'select' },
+      descricaoRisco: { col: 30, nome: 'Descrição do Risco', tipo: 'text' },
+      memoriaCalculo: { col: 31, nome: 'Fonte / Memória de Cálculo', tipo: 'textarea' },
+      observacoes: { col: 32, nome: 'Notas / Observações', tipo: 'textarea' }
+    };
+
+    var configCampo = mapaCampos[chaveCampo];
+    if (!configCampo) {
+      throw new Error('Campo "' + chaveCampo + '" não é reconhecido para edição.');
+    }
+
+    var colIndex = configCampo.col;
+    var range = sheet.getRange(targetRow, colIndex);
+    var valorAnteriorRaw = range.getValue();
+
+    // Formatar valor anterior e novo valor
+    var valorAnteriorFormatado = '';
+    var novoValorFormatado = '';
+    var valorParaGravar = novoValor;
+
+    if (configCampo.tipo === 'date') {
+      valorAnteriorFormatado = formatarDataExibicao_(valorAnteriorRaw);
+      valorParaGravar = formatarDataParaPlanilha_(novoValor);
+      novoValorFormatado = formatarDataExibicao_(valorParaGravar);
+    } else if (configCampo.tipo === 'cnpj') {
+      valorAnteriorFormatado = formatarCnpjLimpo_(valorAnteriorRaw);
+      valorParaGravar = formatarCnpjLimpo_(novoValor);
+      novoValorFormatado = valorParaGravar;
+    } else if (configCampo.tipo === 'number') {
+      var numAnt = parseFloat(valorAnteriorRaw) || 0;
+      valorAnteriorFormatado = numAnt.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      valorParaGravar = normalizarNumero_(novoValor);
+      novoValorFormatado = (parseFloat(valorParaGravar) || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else if (configCampo.tipo === 'percent') {
+      var pctAnt = normalizarPorcentagem_(valorAnteriorRaw);
+      valorAnteriorFormatado = pctAnt !== '' ? (pctAnt * 100).toFixed(2) + '%' : '-';
+      valorParaGravar = normalizarPorcentagem_(novoValor);
+      novoValorFormatado = valorParaGravar !== '' ? (valorParaGravar * 100).toFixed(2) + '%' : '-';
+    } else {
+      valorAnteriorFormatado = String(valorAnteriorRaw !== null && valorAnteriorRaw !== undefined ? valorAnteriorRaw : '').trim();
+      valorParaGravar = String(novoValor !== null && novoValor !== undefined ? novoValor : '').trim();
+      novoValorFormatado = valorParaGravar;
+    }
+
+    // Gravar o novo valor na célula
+    range.setValue(valorParaGravar);
+
+    // Se for campo financeiro, recalcular colunas dependentes caso não contenham fórmulas
+    var moeda = String(sheet.getRange(targetRow, 14).getValue() || 'BRL');
+    var valorLanc = parseFloat(sheet.getRange(targetRow, 15).getValue()) || 0;
+    var indice = String(sheet.getRange(targetRow, 19).getValue() || 'Sem reajuste');
+    var reajusteMan = normalizarPorcentagem_(sheet.getRange(targetRow, 20).getValue());
+    var conting = normalizarPorcentagem_(sheet.getRange(targetRow, 25).getValue());
+
+    var taxaCambio = 1;
+    if (moeda === 'USD') taxaCambio = 5.3;
+    else if (moeda === 'EUR') taxaCambio = 5.9;
+    else if (moeda === 'GBP') taxaCambio = 6.8;
+
+    var reajusteAplicado = '';
+    if (reajusteMan !== '') {
+      reajusteAplicado = reajusteMan;
+    } else if (indice === 'IPCA') {
+      reajusteAplicado = 0.0428;
+    } else if (indice === 'IGP-M') {
+      reajusteAplicado = 0.0411;
+    } else if (indice === 'Sem reajuste') {
+      reajusteAplicado = 0;
+    }
+
+    var valorBaseBRL = valorLanc * taxaCambio;
+    var valorOrcado = valorBaseBRL;
+    if (conting !== '' && typeof conting === 'number') {
+      valorOrcado = valorBaseBRL * (1 + conting);
+    }
+
+    // Verificar se as células têm fórmulas antes de sobrepor
+    var formulas = sheet.getRange(targetRow, 21, 1, 6).getFormulasR1C1()[0];
+    // Col 21 (U): reajusteAplicado
+    if (!formulas[0] && reajusteAplicado !== '') sheet.getRange(targetRow, 21).setValue(reajusteAplicado);
+    // Col 23 (W): taxaCambio
+    if (!formulas[2]) sheet.getRange(targetRow, 23).setValue(taxaCambio);
+    // Col 24 (X): valorBaseBRL
+    if (!formulas[3]) sheet.getRange(targetRow, 24).setValue(valorBaseBRL);
+    // Col 26 (Z): valorOrcado
+    if (!formulas[5]) sheet.getRange(targetRow, 26).setValue(valorOrcado);
+
+    SpreadsheetApp.flush();
+
+    // Obter usuário e dados adicionais para o log
+    var usuario = '';
+    try {
+      usuario = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (ue) {
+      usuario = 'usuario.compras@grupobrisanet.com.br';
+    }
+    if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
+
+    var fornecedor = String(sheet.getRange(targetRow, 4).getValue() || '');
+    var protocol = formatarProtocolo_(contractId);
+
+    // Registrar EXCLUSIVAMENTE o log desta alteração única
+    registrarLogAlteracao_(
+      contractId,
+      protocol,
+      fornecedor,
+      configCampo.nome,
+      valorAnteriorFormatado,
+      novoValorFormatado,
+      usuario,
+      'Não'
+    );
+
+    var dataFimRow = sheet.getRange(targetRow, 12).getValue();
+    var diasParaVencer = calcularDiasParaVencer_(dataFimRow);
+    var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
+
+    return {
+      success: true,
+      contractId: contractId,
+      protocol: protocol,
+      rowNumber: targetRow,
+      chaveCampo: chaveCampo,
+      campoFormatado: configCampo.nome,
+      valorAnterior: valorAnteriorFormatado,
+      novoValor: novoValorFormatado,
+      novoValorRaw: valorParaGravar,
+      diasParaVencer: diasParaVencer,
+      fimVigenciaFormatado: formatarDataExibicao_(dataFimRow),
+      valorBaseBRL: valorBaseBRL,
+      valorOrcado: valorOrcado,
+      reajusteAplicado: reajusteAplicado,
+      usuario: usuario,
+      dataHora: nowStr
+    };
+  } catch (err) {
+    Logger.log('Erro ao atualizar campo individual: ' + err.message);
+    return {
+      success: false,
+      error: err.message
+    };
+  }
 }
 
 // ============================================================================
