@@ -247,6 +247,107 @@
     }
 
     /* ==========================================================================
+       SUB-NAVEGAÇÃO INTERNA DA LISTA DE CONTRATOS (CONTRATOS vs LINKS OFF-NET)
+       ========================================================================== */
+    .subpage-nav-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 20px;
+      background: #f1f5f9;
+      padding: 5px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-color);
+    }
+
+    .subpage-nav-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-md);
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .subpage-nav-btn:hover {
+      color: var(--text-main);
+      background: #e2e8f0;
+    }
+
+    .subpage-nav-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      box-shadow: 0 2px 4px rgba(34, 66, 212, 0.2);
+    }
+
+    .subpage-count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 22px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--text-main);
+      transition: all 0.2s ease;
+    }
+
+    .subpage-nav-btn.active .subpage-count-badge {
+      background: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+    }
+
+    .badge-implantacao {
+      background-color: #dbeafe;
+      color: #1e40af;
+      border-color: #bfdbfe;
+    }
+
+    .badge-analise {
+      background-color: #f3e8ff;
+      color: #6b21a8;
+      border-color: #e9d5ff;
+    }
+
+    .badge-uf {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      border-radius: 4px;
+      background-color: #0f172a;
+      color: #ffffff;
+      margin-left: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .badge-banda {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 6px;
+      background-color: #eff6ff;
+      color: #1d4ed8;
+      border: 1px solid #bfdbfe;
+    }
+
+    /* ==========================================================================
        CARDS E SEÇÕES DO FORMULÁRIO
        ========================================================================== */
     .form-card {
@@ -1892,103 +1993,245 @@
        ======================================================================== -->
   <div id="viewListaContratos" style="display: none;">
     
-    <div class="list-section-header">
-      <div class="list-section-label">BASE GERAL DE CONTRATOS ATIVOS E INATIVOS</div>
-    </div>
-
-    <!-- CARDS DE ESTATÍSTICAS -->
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-card-title">Total Cadastrado</div>
-        <div class="stat-card-value" id="statTotalContratos">--</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-title">Contratos Ativos</div>
-        <div class="stat-card-value" id="statContratosAtivos">--</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-title">Orçamento Mensal</div>
-        <div class="stat-card-value" id="statValorMensal">--</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-card-title">Risco Alto</div>
-        <div class="stat-card-value" id="statRiscoAlto">--</div>
-      </div>
-      <div class="stat-card" style="border-left: 3px solid var(--brisa-orange);">
-        <div class="stat-card-title" style="color:var(--brisa-orange);">A Vencer (&le; 90 dias)</div>
-        <div class="stat-card-value" id="statContratosVencendo" style="color:var(--brisa-orange);">--</div>
-      </div>
-    </div>
-
-    <!-- BARRA DE PESQUISA E FILTROS -->
-    <div class="search-filter-card">
-      <div class="search-input-wrapper">
-        <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        <input type="text" id="filtroTexto" class="search-input" placeholder="Buscar por ID, Fornecedor ou Objeto..." oninput="filtrarTabela()">
-      </div>
-
-      <div class="filter-group">
-        <select id="filtroStatus" class="filter-select" onchange="filtrarTabela()">
-          <option value="">Status: Todos</option>
-          <option value="Ativo">Ativo</option>
-          <option value="Em Renovação">Em Renovação</option>
-          <option value="Encerrado">Encerrado</option>
-          <option value="Suspenso">Suspenso</option>
-        </select>
-
-        <select id="filtroRisco" class="filter-select" onchange="filtrarTabela()">
-          <option value="">Risco: Todos</option>
-          <option value="Baixo">Baixo</option>
-          <option value="Médio">Médio</option>
-          <option value="Alto">Alto</option>
-          <option value="vencimento90">A Vencer (&le; 90 dias)</option>
-        </select>
-
-        <button type="button" class="btn btn-secondary" style="height: 42px; padding: 0 14px;" onclick="dispararVerificacaoVencimentos()" title="Verificar prazos de vencimento e enviar alertas por e-mail para a equipe da aba Acessos">
+    <!-- SUB-NAVEGAÇÃO: CONTRATOS DE TELEFONIA vs LINKS CONTRATADOS (OFF-NET) -->
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
+      <div class="subpage-nav-bar">
+        <button type="button" class="subpage-nav-btn active" id="btnSubpageContratos" onclick="mudarSubpaginaLista('contratos')">
           <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
-          Verificar Vencimentos
+          <span>Contratos de Telefonia</span>
+          <span class="subpage-count-badge" id="badgeQtdContratos">0</span>
         </button>
-
-        <button type="button" class="btn btn-primary" style="height: 42px; padding: 0 18px;" onclick="carregarDadosServidor(true)">
+        <button type="button" class="subpage-nav-btn" id="btnSubpageLinks" onclick="mudarSubpaginaLista('links')">
           <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
           </svg>
-          Atualizar
+          <span>Links Contratados (Off-Net / Provedores)</span>
+          <span class="subpage-count-badge" id="badgeQtdLinks">0</span>
         </button>
       </div>
+
+      <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--primary);"></span>
+        <span>Gerência Executiva de Telefonia · Operação Off-Net</span>
+      </div>
     </div>
 
-    <!-- TABELA -->
-    <div class="table-container">
-      <table class="contracts-table">
-        <thead>
-          <tr>
-            <th class="id-col">ID</th>
-            <th>FORNECEDOR</th>
-            <th>OBJETO DO CONTRATO</th>
-            <th>VENCIMENTO</th>
-            <th>VALOR / MÊS</th>
-            <th style="text-align:center;">STATUS</th>
-            <th style="text-align:center;">RISCO</th>
-            <th class="notes-cell-col">NOTAS</th>
-            <th class="actions-col">AÇÕES</th>
-          </tr>
-        </thead>
-        <tbody id="contractsTableBody">
-          <tr>
-            <td colspan="9">
-              <div class="loading-overlay">
-                <div class="spinner spinner-dark" style="width:24px;height:24px;"></div>
-                <span>Carregando contratos da planilha...</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- ====================================================================
+         SUBPÁGINA 1: CONTRATOS DE TELEFONIA (BASE GERAL)
+         ==================================================================== -->
+    <div id="subpageContratos">
+      <div class="list-section-header">
+        <div class="list-section-label">BASE GERAL DE CONTRATOS ATIVOS E INATIVOS</div>
+      </div>
+
+      <!-- CARDS DE ESTATÍSTICAS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-title">Total Cadastrado</div>
+          <div class="stat-card-value" id="statTotalContratos">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Contratos Ativos</div>
+          <div class="stat-card-value" id="statContratosAtivos">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Orçamento Mensal</div>
+          <div class="stat-card-value" id="statValorMensal">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Risco Alto</div>
+          <div class="stat-card-value" id="statRiscoAlto">--</div>
+        </div>
+        <div class="stat-card" style="border-left: 3px solid var(--brisa-orange);">
+          <div class="stat-card-title" style="color:var(--brisa-orange);">A Vencer (&le; 90 dias)</div>
+          <div class="stat-card-value" id="statContratosVencendo" style="color:var(--brisa-orange);">--</div>
+        </div>
+      </div>
+
+      <!-- BARRA DE PESQUISA E FILTROS -->
+      <div class="search-filter-card">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input type="text" id="filtroTexto" class="search-input" placeholder="Buscar por ID, Fornecedor ou Objeto..." oninput="filtrarTabela()">
+        </div>
+
+        <div class="filter-group">
+          <select id="filtroStatus" class="filter-select" onchange="filtrarTabela()">
+            <option value="">Status: Todos</option>
+            <option value="Ativo">Ativo</option>
+            <option value="Em Renovação">Em Renovação</option>
+            <option value="Encerrado">Encerrado</option>
+            <option value="Suspenso">Suspenso</option>
+          </select>
+
+          <select id="filtroRisco" class="filter-select" onchange="filtrarTabela()">
+            <option value="">Risco: Todos</option>
+            <option value="Baixo">Baixo</option>
+            <option value="Médio">Médio</option>
+            <option value="Alto">Alto</option>
+            <option value="vencimento90">A Vencer (&le; 90 dias)</option>
+          </select>
+
+          <button type="button" class="btn btn-secondary" style="height: 42px; padding: 0 14px;" onclick="dispararVerificacaoVencimentos()" title="Verificar prazos de vencimento e enviar alertas por e-mail para a equipe da aba Acessos">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            Verificar Vencimentos
+          </button>
+
+          <button type="button" class="btn btn-primary" style="height: 42px; padding: 0 18px;" onclick="carregarDadosServidor(true)">
+            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Atualizar
+          </button>
+        </div>
+      </div>
+
+      <!-- TABELA -->
+      <div class="table-container">
+        <table class="contracts-table">
+          <thead>
+            <tr>
+              <th class="id-col">ID</th>
+              <th>FORNECEDOR</th>
+              <th>OBJETO DO CONTRATO</th>
+              <th>VENCIMENTO</th>
+              <th>VALOR / MÊS</th>
+              <th style="text-align:center;">STATUS</th>
+              <th style="text-align:center;">RISCO</th>
+              <th class="notes-cell-col">NOTAS</th>
+              <th class="actions-col">AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody id="contractsTableBody">
+            <tr>
+              <td colspan="9">
+                <div class="loading-overlay">
+                  <div class="spinner spinner-dark" style="width:24px;height:24px;"></div>
+                  <span>Carregando contratos da planilha...</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         SUBPÁGINA 2: LINKS CONTRATADOS (CIRCUITOS OFF-NET DE OUTROS PROVEDORES)
+         ==================================================================== -->
+    <div id="subpageLinks" style="display: none;">
+      <div class="list-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+        <div>
+          <div class="list-section-label">CIRCUITOS E LINKS DE INTERNET (OFF-NET)</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Links contratados de provedores e operadoras parceiras para atender localidades onde a Brisanet ainda não possui rede própria
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" class="btn btn-secondary" style="height: 38px; padding: 0 14px; font-size: 12px;" onclick="abrirModalNovoLinkSimulado()">
+            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Novo Link Off-Net
+          </button>
+        </div>
+      </div>
+
+      <!-- CARDS DE ESTATÍSTICAS DOS LINKS -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-card-title">Total de Links</div>
+          <div class="stat-card-value" id="statTotalLinks">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Links Ativos</div>
+          <div class="stat-card-value" id="statLinksAtivos">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Custo Mensal Total</div>
+          <div class="stat-card-value" id="statValorMensalLinks">--</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-card-title">Provedores Parceiros</div>
+          <div class="stat-card-value" id="statProvedoresParceiros">--</div>
+        </div>
+        <div class="stat-card" style="border-left: 3px solid var(--brisa-orange);">
+          <div class="stat-card-title" style="color:var(--brisa-orange);">A Vencer (&le; 90 dias)</div>
+          <div class="stat-card-value" id="statLinksVencendo" style="color:var(--brisa-orange);">--</div>
+        </div>
+      </div>
+
+      <!-- BARRA DE PESQUISA E FILTROS DOS LINKS -->
+      <div class="search-filter-card">
+        <div class="search-input-wrapper">
+          <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input type="text" id="filtroTextoLinks" class="search-input" placeholder="Buscar por ID, Provedor, Cidade/UF, Cliente ou Designador..." oninput="filtrarTabelaLinks()">
+        </div>
+
+        <div class="filter-group">
+          <select id="filtroStatusLinks" class="filter-select" onchange="filtrarTabelaLinks()">
+            <option value="">Status: Todos</option>
+            <option value="Ativo">Ativo</option>
+            <option value="Em Implantação">Em Implantação</option>
+            <option value="Em Renovação">Em Renovação</option>
+            <option value="Em Análise">Em Análise</option>
+          </select>
+
+          <select id="filtroUfLinks" class="filter-select" onchange="filtrarTabelaLinks()">
+            <option value="">UF: Todas</option>
+            <option value="CE">Ceará (CE)</option>
+            <option value="RN">Rio Grande do Norte (RN)</option>
+            <option value="PB">Paraíba (PB)</option>
+            <option value="PE">Pernambuco (PE)</option>
+            <option value="AL">Alagoas (AL)</option>
+            <option value="SE">Sergipe (SE)</option>
+            <option value="BA">Bahia (BA)</option>
+            <option value="PI">Piauí (PI)</option>
+            <option value="MA">Maranhão (MA)</option>
+          </select>
+
+          <select id="filtroCapacidadeLinks" class="filter-select" onchange="filtrarTabelaLinks()">
+            <option value="">Banda: Todas</option>
+            <option value="Ate500M">Até 500 Mbps</option>
+            <option value="1G">1 Gbps</option>
+            <option value="2GouMais">2 Gbps ou mais</option>
+          </select>
+
+          <button type="button" class="btn btn-secondary" style="height: 42px; padding: 0 14px;" onclick="limparFiltrosLinks()" title="Limpar filtros da lista de links">
+            Limpar
+          </button>
+        </div>
+      </div>
+
+      <!-- TABELA DE LINKS CONTRATADOS -->
+      <div class="table-container">
+        <table class="contracts-table">
+          <thead>
+            <tr>
+              <th class="id-col" style="width: 140px;">ID / DESIGNADOR</th>
+              <th>PROVEDOR PARCEIRO</th>
+              <th>CLIENTE / PROJETO ATENDIDO</th>
+              <th>LOCALIDADE / UF</th>
+              <th>BANDA / MEIO</th>
+              <th>VALOR MENSAL</th>
+              <th>VENCIMENTO</th>
+              <th style="text-align:center;">STATUS</th>
+              <th class="actions-col" style="width: 110px;">AÇÕES</th>
+            </tr>
+          </thead>
+          <tbody id="linksTableBody">
+            <!-- Linhas de links off-net geradas dinamicamente -->
+          </tbody>
+        </table>
+      </div>
     </div>
 
   </div>
@@ -2201,6 +2444,142 @@
         </button>
       </div>
     </div>
+  <!-- ========================================================================
+     MODAL DE DETALHES DO LINK CONTRATADO (CIRCUITO OFF-NET)
+     ======================================================================== -->
+<div class="modal-overlay" id="modalDetalhesLink">
+  <div class="modal-card modal-card-lg">
+    <div class="modal-header">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div class="modal-title" id="modalLinkTitulo">Detalhes do Link Off-Net</div>
+        <span id="modalLinkBadgeStatus"></span>
+        <span id="modalLinkBadgeUf" class="badge-uf"></span>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalDetalhesLink()">×</button>
+    </div>
+    <div class="modal-body">
+      <!-- BANNER DE ALERTA DE VENCIMENTO DO LINK -->
+      <div id="modalLinkExpiryBanner" style="display:none;"></div>
+
+      <!-- GRADE DE DETALHES TÉCNICOS E CONTRATUAIS DO LINK -->
+      <div class="detail-grid" id="modalLinkCorpo"></div>
+
+      <!-- INFORMAÇÕES DE REDE E SUPORTE NOC -->
+      <div class="history-section-wrapper" style="margin-top:20px;">
+        <div class="history-header-title">
+          <span>Dados Técnicos de Engenharia e Operação NOC</span>
+          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">Suporte Operacional</span>
+        </div>
+        <div id="modalLinkDadosNoc" style="padding:14px;background:#f8fafc;border-radius:var(--radius-md);border:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:var(--text-main);">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+        <div style="font-size:11px;color:var(--text-muted);">
+          Circuito off-net fornecido por parceiro homologado Brisanet.
+        </div>
+        <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhesLink()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================
+     MODAL DE CADASTRO DE NOVO LINK CONTRATADO (SIMULADO / FICTÍCIO)
+     ======================================================================== -->
+<div class="modal-overlay" id="modalNovoLink">
+  <div class="modal-card" style="max-width: 650px;">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Cadastrar Novo Link Off-Net</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+          Adicionar novo circuito contratado de provedor parceiro
+        </div>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalNovoLinkSimulado()">×</button>
+    </div>
+    <form id="formNovoLinkSimulado" onsubmit="salvarNovoLinkSimulado(event)">
+      <div class="modal-body">
+        <div class="grid grid-cols-2" style="gap:12px;">
+          <div class="form-group">
+            <label class="form-label" for="novoLinkProvedor">Provedor Parceiro <span class="required">*</span></label>
+            <input type="text" id="novoLinkProvedor" class="form-control" required placeholder="Ex: V.tal, Embratel, Cirion, Provedor Regional">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="novoLinkCliente">Cliente / Projeto Atendido <span class="required">*</span></label>
+            <input type="text" id="novoLinkCliente" class="form-control" required placeholder="Ex: Cliente B2B Banco do Nordeste, POP Off-Net">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3" style="gap:12px;">
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label" for="novoLinkLocalidade">Cidade / Localidade <span class="required">*</span></label>
+            <input type="text" id="novoLinkLocalidade" class="form-control" required placeholder="Ex: Juazeiro do Norte, Mossoró, Sobral">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="novoLinkUf">UF <span class="required">*</span></label>
+            <select id="novoLinkUf" class="form-control" required>
+              <option value="CE">CE</option>
+              <option value="RN">RN</option>
+              <option value="PB">PB</option>
+              <option value="PE">PE</option>
+              <option value="AL">AL</option>
+              <option value="SE">SE</option>
+              <option value="BA">BA</option>
+              <option value="PI">PI</option>
+              <option value="MA">MA</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2" style="gap:12px;">
+          <div class="form-group">
+            <label class="form-label" for="novoLinkCapacidade">Capacidade / Banda <span class="required">*</span></label>
+            <input type="text" id="novoLinkCapacidade" class="form-control" required placeholder="Ex: 500 Mbps PTP, 1 Gbps Dedicado">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="novoLinkTecnologia">Meio / Tecnologia <span class="required">*</span></label>
+            <select id="novoLinkTecnologia" class="form-control" required>
+              <option value="Fibra Óptica Dedicada">Fibra Óptica Dedicada</option>
+              <option value="Lan-to-Lan DWDM">Lan-to-Lan DWDM</option>
+              <option value="Rádio Digital Micro-ondas">Rádio Digital Micro-ondas</option>
+              <option value="Trânsito IP BGP">Trânsito IP BGP</option>
+              <option value="MPLS IP-VPN">MPLS IP-VPN</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3" style="gap:12px;">
+          <div class="form-group">
+            <label class="form-label" for="novoLinkValor">Valor Mensal (R$) <span class="required">*</span></label>
+            <input type="number" step="0.01" id="novoLinkValor" class="form-control" required placeholder="Ex: 2500.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="novoLinkVencimento">Vencimento <span class="required">*</span></label>
+            <input type="date" id="novoLinkVencimento" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="novoLinkStatus">Status <span class="required">*</span></label>
+            <select id="novoLinkStatus" class="form-control" required>
+              <option value="Ativo">Ativo</option>
+              <option value="Em Implantação">Em Implantação</option>
+              <option value="Em Renovação">Em Renovação</option>
+              <option value="Em Análise">Em Análise</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="novoLinkObs">Observações Técnicas / Justificativa</label>
+          <textarea id="novoLinkObs" class="form-control" rows="2" placeholder="Ex: Atendimento off-net de urgência para licitação corporativa..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
+        <button type="button" class="btn btn-secondary" onclick="fecharModalNovoLinkSimulado()">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Cadastrar Link</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -2219,7 +2598,9 @@
     nextProtocol: '',
     folderUrl: '',
     spreadsheetUrl: '',
-    activeTab: 'novo'
+    activeTab: 'novo',
+    activeSubpage: 'contratos',
+    linksContratados: []
   };
 
   // Inicialização ao carregar página
@@ -2228,7 +2609,7 @@
     carregarDadosServidor(false);
   });
 
-  // Alternância de Abas
+  // Alternância de Abas Principais
   function trocarAba(aba) {
     appState.activeTab = aba;
     var btnNovo = document.getElementById('tabBtnNovo');
@@ -2246,6 +2627,33 @@
       btnNovo.classList.remove('active');
       viewLista.style.display = 'block';
       viewNovo.style.display = 'none';
+      if (appState.activeSubpage === 'links') {
+        mudarSubpaginaLista('links');
+      } else {
+        mudarSubpaginaLista('contratos');
+      }
+    }
+  }
+
+  // Alternância entre Subpáginas da Lista: Contratos vs Links Off-Net
+  function mudarSubpaginaLista(sub) {
+    appState.activeSubpage = sub;
+    var btnContratos = document.getElementById('btnSubpageContratos');
+    var btnLinks = document.getElementById('btnSubpageLinks');
+    var subContratos = document.getElementById('subpageContratos');
+    var subLinks = document.getElementById('subpageLinks');
+
+    if (sub === 'links') {
+      if (btnLinks) btnLinks.classList.add('active');
+      if (btnContratos) btnContratos.classList.remove('active');
+      if (subLinks) subLinks.style.display = 'block';
+      if (subContratos) subContratos.style.display = 'none';
+      filtrarTabelaLinks();
+    } else {
+      if (btnContratos) btnContratos.classList.add('active');
+      if (btnLinks) btnLinks.classList.remove('active');
+      if (subContratos) subContratos.style.display = 'block';
+      if (subLinks) subLinks.style.display = 'none';
       filtrarTabela();
     }
   }
@@ -2317,7 +2725,7 @@
       popularDatalist('listAdministrativos', res.autocomplete.administrativos);
     }
 
-    // Atualizar estatísticas
+    // Atualizar estatísticas dos contratos
     if (res.summary) {
       document.getElementById('statTotalContratos').textContent = res.summary.totalContratos;
       document.getElementById('statContratosAtivos').textContent = res.summary.contratosAtivos;
@@ -2329,11 +2737,26 @@
       document.getElementById('statValorMensal').textContent = formatarMoedaBRL(res.summary.somaValorMensal);
     }
 
+    // Atualizar contadores das subpáginas
+    var badgeContratos = document.getElementById('badgeQtdContratos');
+    if (badgeContratos) {
+      badgeContratos.textContent = appState.contracts.length;
+    }
+
     appState.usuariosAcessos = res.usuariosAcessos || [];
     appState.listaEmailsAcessos = res.listaEmailsAcessos || [];
 
-    // Renderizar tabela de contratos
+    // Carregar Links Contratados (do servidor ou do mock rico)
+    if (res.linksContratados && res.linksContratados.length > 0) {
+      appState.linksContratados = res.linksContratados;
+    } else if (!appState.linksContratados || appState.linksContratados.length === 0) {
+      appState.linksContratados = obterDadosMockLinks();
+    }
+
+    // Atualizar estatísticas e tabelas
+    atualizarEstatisticasLinks();
     renderizarTabela(appState.contracts);
+    renderizarTabelaLinks(appState.linksContratados);
   }
 
   function popularDatalist(elementId, items) {
@@ -2789,6 +3212,605 @@
     });
 
     renderizarTabela(filtrados);
+  }
+
+  // ========================================================================
+  // GESTÃO DE LINKS CONTRATADOS (CIRCUITOS OFF-NET DE PROVEDORES PARCEIROS)
+  // ========================================================================
+
+  // Atualizar Indicadores e Cards dos Links
+  function atualizarEstatisticasLinks() {
+    var links = appState.linksContratados || [];
+    var total = links.length;
+    var ativos = 0;
+    var somaValor = 0;
+    var parceiros = {};
+    var vencendo90 = 0;
+
+    links.forEach(function(l) {
+      var st = (l.status || '').toLowerCase();
+      if (st === 'ativo') {
+        ativos++;
+      }
+      somaValor += (parseFloat(l.valorMensal) || 0);
+      if (l.provedor && l.provedor.trim()) {
+        parceiros[l.provedor.trim()] = true;
+      }
+      if (l.diasParaVencer !== null && l.diasParaVencer !== undefined && l.diasParaVencer <= 90 && st !== 'encerrado' && st !== 'cancelado') {
+        vencendo90++;
+      }
+    });
+
+    var qtdParceiros = Object.keys(parceiros).length;
+
+    var elTotal = document.getElementById('statTotalLinks');
+    if (elTotal) elTotal.textContent = total;
+
+    var elAtivos = document.getElementById('statLinksAtivos');
+    if (elAtivos) elAtivos.textContent = ativos;
+
+    var elValor = document.getElementById('statValorMensalLinks');
+    if (elValor) elValor.textContent = formatarMoedaBRL(somaValor);
+
+    var elParceiros = document.getElementById('statProvedoresParceiros');
+    if (elParceiros) elParceiros.textContent = qtdParceiros;
+
+    var elVencendo = document.getElementById('statLinksVencendo');
+    if (elVencendo) elVencendo.textContent = vencendo90;
+
+    var badgeLinks = document.getElementById('badgeQtdLinks');
+    if (badgeLinks) badgeLinks.textContent = total;
+  }
+
+  // Renderizar Tabela de Links Contratados
+  function renderizarTabelaLinks(links) {
+    var tbody = document.getElementById('linksTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (!links || links.length === 0) {
+      var trVazio = document.createElement('tr');
+      trVazio.innerHTML = '<td colspan="9" style="text-align:center;padding:32px 16px;color:var(--text-muted);font-size:13px;">' +
+        'Nenhum link contratado encontrado para os filtros selecionados.' +
+        '</td>';
+      tbody.appendChild(trVazio);
+      return;
+    }
+
+    links.forEach(function(l) {
+      var tr = document.createElement('tr');
+
+      // Status Badge
+      var stLower = (l.status || '').toLowerCase();
+      var statusBadgeClass = 'badge-ativo';
+      if (stLower.indexOf('implant') !== -1) {
+        statusBadgeClass = 'badge-implantacao';
+      } else if (stLower.indexOf('renov') !== -1) {
+        statusBadgeClass = 'badge-renovacao';
+      } else if (stLower.indexOf('anális') !== -1 || stLower.indexOf('analis') !== -1) {
+        statusBadgeClass = 'badge-analise';
+      }
+
+      // Vencimento indicator
+      var vencHtml = '';
+      if (l.diasParaVencer !== null && l.diasParaVencer !== undefined) {
+        if (l.diasParaVencer < 0) {
+          vencHtml = '<div style="font-size:11px;font-weight:700;color:#991b1b;">Vencido (' + Math.abs(l.diasParaVencer) + 'd atrás)</div>';
+        } else if (l.diasParaVencer <= 90) {
+          vencHtml = '<div style="font-size:11px;font-weight:700;color:var(--brisa-orange);">' + l.diasParaVencer + ' dias restantes</div>';
+        } else {
+          vencHtml = '<div style="font-size:11px;color:var(--text-muted);">' + l.diasParaVencer + ' dias restantes</div>';
+        }
+      }
+
+      tr.innerHTML = 
+        '<td class="id-col">' +
+          '<div style="font-weight:700;color:var(--primary);font-family:var(--font-mono);font-size:12px;">' + escapeHtml(l.id) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;" title="Designador do Circuito">' + escapeHtml(l.designador || '') + '</div>' +
+        '</td>' +
+        '<td>' +
+          '<div style="font-weight:600;color:var(--text-main);font-size:13px;">' + escapeHtml(l.provedor) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">CNPJ: ' + escapeHtml(l.cnpjProvedor || '--') + '</div>' +
+        '</td>' +
+        '<td>' +
+          '<div style="font-weight:600;color:var(--text-main);font-size:13px;">' + escapeHtml(l.clienteProjeto) + '</div>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">' + escapeHtml(l.endereco || l.localidade) + '</div>' +
+        '</td>' +
+        '<td>' +
+          '<div style="display:flex;align-items:center;gap:4px;">' +
+            '<span style="font-weight:500;">' + escapeHtml(l.localidade) + '</span>' +
+            '<span class="badge-uf">' + escapeHtml(l.uf) + '</span>' +
+          '</div>' +
+        '</td>' +
+        '<td>' +
+          '<span class="badge-banda">' + escapeHtml(l.capacidade) + '</span>' +
+          '<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">' + escapeHtml(l.tecnologia) + '</div>' +
+        '</td>' +
+        '<td>' +
+          '<div style="font-weight:700;font-family:var(--font-mono);font-size:13px;color:var(--text-main);">' + formatarMoedaBRL(l.valorMensal) + '</div>' +
+        '</td>' +
+        '<td>' +
+          '<div style="font-size:12px;font-weight:600;color:var(--text-main);">' + escapeHtml(l.fimVigencia) + '</div>' +
+          vencHtml +
+        '</td>' +
+        '<td style="text-align:center;">' +
+          '<span class="badge ' + statusBadgeClass + '">' + escapeHtml(l.status) + '</span>' +
+        '</td>' +
+        '<td class="actions-col">' +
+          '<button type="button" class="table-action-btn" onclick="abrirModalDetalhesLink(\'' + escapeHtml(l.id) + '\')" title="Ver detalhes completos do link off-net">Detalhes</button>' +
+        '</td>';
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Filtragem dos Links Contratados
+  function filtrarTabelaLinks() {
+    var termo = (document.getElementById('filtroTextoLinks') ? document.getElementById('filtroTextoLinks').value : '').toLowerCase().trim();
+    var status = (document.getElementById('filtroStatusLinks') ? document.getElementById('filtroStatusLinks').value : '').toLowerCase().trim();
+    var uf = (document.getElementById('filtroUfLinks') ? document.getElementById('filtroUfLinks').value : '').toUpperCase().trim();
+    var cap = (document.getElementById('filtroCapacidadeLinks') ? document.getElementById('filtroCapacidadeLinks').value : '').trim();
+
+    var lista = appState.linksContratados || [];
+
+    var filtrados = lista.filter(function(l) {
+      var matchTermo = true;
+      if (termo) {
+        var textoConcatenado = (
+          (l.id || '') + ' ' +
+          (l.designador || '') + ' ' +
+          (l.provedor || '') + ' ' +
+          (l.clienteProjeto || '') + ' ' +
+          (l.localidade || '') + ' ' +
+          (l.uf || '') + ' ' +
+          (l.tecnologia || '') + ' ' +
+          (l.observacoes || '')
+        ).toLowerCase();
+        matchTermo = textoConcatenado.indexOf(termo) !== -1;
+      }
+
+      var matchStatus = true;
+      if (status) {
+        matchStatus = (l.status || '').toLowerCase().indexOf(status) !== -1;
+      }
+
+      var matchUf = true;
+      if (uf) {
+        matchUf = (l.uf || '').toUpperCase() === uf;
+      }
+
+      var matchCap = true;
+      if (cap) {
+        var cNum = l.capacidadeNum || 0;
+        if (cap === 'Ate500M') {
+          matchCap = cNum <= 500;
+        } else if (cap === '1G') {
+          matchCap = cNum === 1000;
+        } else if (cap === '2GouMais') {
+          matchCap = cNum >= 2000;
+        }
+      }
+
+      return matchTermo && matchStatus && matchUf && matchCap;
+    });
+
+    renderizarTabelaLinks(filtrados);
+  }
+
+  // Limpar Filtros dos Links
+  function limparFiltrosLinks() {
+    if (document.getElementById('filtroTextoLinks')) document.getElementById('filtroTextoLinks').value = '';
+    if (document.getElementById('filtroStatusLinks')) document.getElementById('filtroStatusLinks').value = '';
+    if (document.getElementById('filtroUfLinks')) document.getElementById('filtroUfLinks').value = '';
+    if (document.getElementById('filtroCapacidadeLinks')) document.getElementById('filtroCapacidadeLinks').value = '';
+    filtrarTabelaLinks();
+  }
+
+  // Abrir Modal de Detalhes do Link
+  function abrirModalDetalhesLink(id) {
+    var links = appState.linksContratados || [];
+    var link = null;
+    for (var i = 0; i < links.length; i++) {
+      if (String(links[i].id).trim() === String(id).trim()) {
+        link = links[i];
+        break;
+      }
+    }
+    if (!link) {
+      mostrarToast('Link não encontrado no sistema.', 'warning');
+      return;
+    }
+
+    document.getElementById('modalLinkTitulo').textContent = 'Link Off-Net · ' + link.id;
+
+    // Badges
+    var stLower = (link.status || '').toLowerCase();
+    var statusBadgeClass = 'badge-ativo';
+    if (stLower.indexOf('implant') !== -1) {
+      statusBadgeClass = 'badge-implantacao';
+    } else if (stLower.indexOf('renov') !== -1) {
+      statusBadgeClass = 'badge-renovacao';
+    } else if (stLower.indexOf('anális') !== -1 || stLower.indexOf('analis') !== -1) {
+      statusBadgeClass = 'badge-analise';
+    }
+    document.getElementById('modalLinkBadgeStatus').className = 'badge ' + statusBadgeClass;
+    document.getElementById('modalLinkBadgeStatus').textContent = link.status;
+
+    document.getElementById('modalLinkBadgeUf').textContent = link.uf;
+
+    // Banner de Vencimento
+    var banner = document.getElementById('modalLinkExpiryBanner');
+    if (link.diasParaVencer !== null && link.diasParaVencer !== undefined && link.diasParaVencer <= 90) {
+      banner.style.display = 'block';
+      banner.className = 'expiry-banner-container';
+      if (link.diasParaVencer < 0) {
+        banner.innerHTML = '<div style="font-weight:700;color:#991b1b;margin-bottom:2px;">Circuito com Vigência Vencida</div>' +
+          '<div style="font-size:12px;color:#7f1d1d;">Este circuito venceu há ' + Math.abs(link.diasParaVencer) + ' dias (' + link.fimVigencia + '). Providencie imediatamente a regularização contratual ou migração.</div>';
+      } else {
+        banner.innerHTML = '<div style="font-weight:700;color:var(--brisa-orange);margin-bottom:2px;">Aviso de Vencimento do Circuito (Restam ' + link.diasParaVencer + ' dias)</div>' +
+          '<div style="font-size:12px;color:#7c2d12;">O vencimento está previsto para <b>' + link.fimVigencia + '</b>. Avalie se haverá rede própria Brisanet na localidade ou se a renovação com o parceiro deve ser solicitada.</div>';
+      }
+    } else {
+      banner.style.display = 'none';
+      banner.innerHTML = '';
+    }
+
+    // Grid de Campos
+    var corpo = document.getElementById('modalLinkCorpo');
+    corpo.innerHTML = '';
+
+    var campos = [
+      { label: 'Designador do Circuito', val: link.designador, mono: true },
+      { label: 'Provedor / Operadora', val: link.provedor },
+      { label: 'CNPJ do Provedor', val: link.cnpjProvedor || '--', mono: true },
+      { label: 'Cliente / Projeto Atendido', val: link.clienteProjeto },
+      { label: 'Localidade / Cidade', val: link.localidade + ' (' + link.uf + ')' },
+      { label: 'Endereço de Instalação', val: link.endereco || '--' },
+      { label: 'Banda / Capacidade Contratada', val: link.capacidade, destaque: true },
+      { label: 'Tecnologia / Meio', val: link.tecnologia },
+      { label: 'Interface de Entrega', val: link.interface || '--' },
+      { label: 'VLAN / Configuração BGP', val: link.vlanBgp || '--', mono: true },
+      { label: 'SLA Garantido', val: link.sla || '--' },
+      { label: 'Início da Vigência', val: link.inicioVigencia || '--' },
+      { label: 'Fim da Vigência / Vencimento', val: link.fimVigencia || '--', destaque: true },
+      { label: 'Valor Mensal Contratado', val: formatarMoedaBRL(link.valorMensal), destaque: true, mono: true },
+      { label: 'Status Operacional', val: link.status },
+      { label: 'Observações / Justificativa', val: link.observacoes || 'Nenhuma observação informada.', full: true }
+    ];
+
+    campos.forEach(function(item) {
+      var col = document.createElement('div');
+      col.className = 'detail-item' + (item.full ? ' detail-full-width' : '');
+
+      var labelEl = document.createElement('div');
+      labelEl.className = 'detail-label';
+      labelEl.textContent = item.label;
+
+      var valEl = document.createElement('div');
+      valEl.className = 'detail-value';
+      if (item.mono) valEl.style.fontFamily = 'var(--font-mono)';
+      if (item.destaque) {
+        valEl.style.fontWeight = '700';
+        valEl.style.color = 'var(--primary)';
+      }
+      valEl.textContent = item.val || '--';
+
+      col.appendChild(labelEl);
+      col.appendChild(valEl);
+      corpo.appendChild(col);
+    });
+
+    // Dados NOC e Suporte Técnico
+    var dadosNoc = document.getElementById('modalLinkDadosNoc');
+    dadosNoc.innerHTML = 
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;">' +
+        '<div>' +
+          '<div style="font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;">Central NOC / Abertura de Chamados</div>' +
+          '<div style="font-weight:600;color:var(--primary);margin-top:2px;">' + escapeHtml(link.contatoNoc || 'NOC Geral Operadora') + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;">Tempo Médio de Reparo (MTTR)</div>' +
+          '<div style="font-weight:600;margin-top:2px;">' + escapeHtml(link.sla || '4 Horas') + '</div>' +
+        '</div>' +
+        '<div>' +
+          '<div style="font-weight:700;color:var(--text-muted);font-size:11px;text-transform:uppercase;">Interface / Conexão Física</div>' +
+          '<div style="font-weight:600;margin-top:2px;">' + escapeHtml(link.interface || 'Porta SFP / RJ45 Gigabit') + '</div>' +
+        '</div>' +
+      '</div>';
+
+    document.getElementById('modalDetalhesLink').classList.add('active');
+  }
+
+  function fecharModalDetalhesLink() {
+    var modal = document.getElementById('modalDetalhesLink');
+    if (modal) modal.classList.remove('active');
+  }
+
+  // Abrir Modal de Cadastro de Novo Link Simulado
+  function abrirModalNovoLinkSimulado() {
+    var form = document.getElementById('formNovoLinkSimulado');
+    if (form) form.reset();
+    document.getElementById('modalNovoLink').classList.add('active');
+  }
+
+  function fecharModalNovoLinkSimulado() {
+    var modal = document.getElementById('modalNovoLink');
+    if (modal) modal.classList.remove('active');
+  }
+
+  // Salvar Novo Link Simulado (Fictício)
+  function salvarNovoLinkSimulado(event) {
+    if (event) event.preventDefault();
+
+    var provedor = document.getElementById('novoLinkProvedor').value.trim();
+    var cliente = document.getElementById('novoLinkCliente').value.trim();
+    var localidade = document.getElementById('novoLinkLocalidade').value.trim();
+    var uf = document.getElementById('novoLinkUf').value.trim();
+    var capacidade = document.getElementById('novoLinkCapacidade').value.trim();
+    var tecnologia = document.getElementById('novoLinkTecnologia').value.trim();
+    var valor = parseFloat(document.getElementById('novoLinkValor').value) || 0;
+    var vencimentoInput = document.getElementById('novoLinkVencimento').value;
+    var status = document.getElementById('novoLinkStatus').value;
+    var obs = document.getElementById('novoLinkObs').value.trim();
+
+    if (!provedor || !cliente || !localidade || !vencimentoInput) {
+      mostrarToast('Por favor, preencha todos os campos obrigatórios.', 'warning');
+      return;
+    }
+
+    // Formatar data DD/MM/AAAA
+    var pData = vencimentoInput.split('-');
+    var vencimentoFormatado = pData[2] + '/' + pData[1] + '/' + pData[0];
+
+    // Calcular dias para vencer
+    var agora = new Date();
+    var dataFim = new Date(parseInt(pData[0], 10), parseInt(pData[1], 10) - 1, parseInt(pData[2], 10));
+    var diffMs = dataFim.getTime() - agora.getTime();
+    var diasParaVencer = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    var numSeq = (appState.linksContratados ? appState.linksContratados.length : 0) + 1;
+    var idNovo = 'LNK-' + uf + '-' + String(numSeq).padStart(3, '0');
+    var designadorNovo = provedor.substring(0, 4).toUpperCase() + '-' + uf + '-' + Math.floor(1000 + Math.random() * 9000);
+
+    // Extrair capacidade numérica
+    var capNum = parseInt(capacidade.replace(/\D/g, ''), 10) || 500;
+    if (capacidade.toLowerCase().indexOf('g') !== -1 && capNum < 100) {
+      capNum = capNum * 1000;
+    }
+
+    var novoLink = {
+      id: idNovo,
+      designador: designadorNovo,
+      provedor: provedor,
+      cnpjProvedor: '00.000.000/0001-00',
+      contatoNoc: '0800 NOC Parceiro',
+      clienteProjeto: cliente,
+      localidade: localidade,
+      uf: uf,
+      endereco: localidade + ' - ' + uf,
+      capacidade: capacidade,
+      capacidadeNum: capNum,
+      tecnologia: tecnologia,
+      interface: 'Porta SFP Gigabit',
+      sla: '99.7% (MTTR 4h)',
+      vlanBgp: 'VLAN ' + (2000 + numSeq),
+      inicioVigencia: formatarDataExibicaoLocal(new Date()),
+      fimVigencia: vencimentoFormatado,
+      diasParaVencer: diasParaVencer,
+      valorMensal: valor,
+      status: status,
+      observacoes: obs || 'Circuito cadastrado para atendimento em área off-net.'
+    };
+
+    if (!Array.isArray(appState.linksContratados)) {
+      appState.linksContratados = [];
+    }
+
+    appState.linksContratados.unshift(novoLink);
+
+    fecharModalNovoLinkSimulado();
+    atualizarEstatisticasLinks();
+    filtrarTabelaLinks();
+
+    mostrarToast('Link off-net ' + idNovo + ' adicionado com sucesso (modo fictício)!', 'success');
+  }
+
+  function formatarDataExibicaoLocal(d) {
+    if (!d) return '';
+    var dia = String(d.getDate()).padStart(2, '0');
+    var mes = String(d.getMonth() + 1).padStart(2, '0');
+    var ano = d.getFullYear();
+    return dia + '/' + mes + '/' + ano;
+  }
+
+  // Base Inicial de Dados Fictícios de Links Contratados
+  function obterDadosMockLinks() {
+    return [
+      {
+        id: 'LNK-CE-001',
+        designador: 'VTAL-CE-JZN-9842',
+        provedor: 'V.tal - Rede Neutra',
+        cnpjProvedor: '42.128.216/0001-44',
+        contatoNoc: '0800 021 8825 / noc@vtal.com',
+        clienteProjeto: 'Banco do Nordeste - Agência Juazeiro',
+        localidade: 'Juazeiro do Norte',
+        uf: 'CE',
+        endereco: 'Rua São Pedro, 1420 - Centro',
+        capacidade: '1 Gbps Dedicado',
+        capacidadeNum: 1000,
+        tecnologia: 'Fibra Óptica (DWDM)',
+        interface: '1x 1000Base-LX (SFP 1310nm)',
+        sla: '99.9% (MTTR 4h)',
+        vlanBgp: 'VLAN 3120 / ASN 28220',
+        inicioVigencia: '10/01/2026',
+        fimVigencia: '10/01/2027',
+        diasParaVencer: 94,
+        valorMensal: 2850.00,
+        status: 'Ativo',
+        observacoes: 'Circuito contratado para viabilizar atendimento B2B corporativo em endereço sem viabilidade de rede FTTH Brisanet no momento.'
+      },
+      {
+        id: 'LNK-RN-002',
+        designador: 'EMBR-RN-MOS-4512',
+        provedor: 'Embratel / Claro Empresas',
+        cnpjProvedor: '40.432.544/0001-47',
+        contatoNoc: '0800 701 2141 / suporte.b2b@claro.com.br',
+        clienteProjeto: 'Distrito Industrial B2B Mossoró - Polo Salineiro',
+        localidade: 'Mossoró',
+        uf: 'RN',
+        endereco: 'Av. Lauro Monte, 800 - Abolição',
+        capacidade: '500 Mbps PTP',
+        capacidadeNum: 500,
+        tecnologia: 'Lan-to-Lan Ethernet',
+        interface: '1x 1000Base-T RJ45',
+        sla: '99.7% (MTTR 4h)',
+        vlanBgp: 'VLAN 1845 / QinQ',
+        inicioVigencia: '05/03/2025',
+        fimVigencia: '05/11/2026',
+        diasParaVencer: 28,
+        valorMensal: 1920.00,
+        status: 'Em Renovação',
+        observacoes: 'Contrato com término iminente (28 dias). Negociação em andamento com gestor de contas Claro para redução de custo ou migração.'
+      },
+      {
+        id: 'LNK-PB-003',
+        designador: 'CIRION-PB-CPG-7719',
+        provedor: 'Cirion Technologies',
+        cnpjProvedor: '02.569.832/0001-19',
+        contatoNoc: '0800 725 0015 / noc.brasil@ciriontechnologies.com',
+        clienteProjeto: 'Complexo Industrial Alpargatas Campina Grande',
+        localidade: 'Campina Grande',
+        uf: 'PB',
+        endereco: 'Rua Severino Cabral, 250 - Bodocongó',
+        capacidade: '2 Gbps Dedicado',
+        capacidadeNum: 2000,
+        tecnologia: 'Fibra Óptica Dedicada PTP',
+        interface: '10G SFP+ LR',
+        sla: '99.95% (MTTR 2h)',
+        vlanBgp: 'BGP Dual Stack / IPv4+IPv6',
+        inicioVigencia: '15/05/2025',
+        fimVigencia: '15/05/2027',
+        diasParaVencer: 219,
+        valorMensal: 5400.00,
+        status: 'Ativo',
+        observacoes: 'Circuito de alta disponibilidade com redundância de rota para cliente enterprise industrial.'
+      },
+      {
+        id: 'LNK-PE-004',
+        designador: 'VIVO-PE-PET-3381',
+        provedor: 'Vivo / Telefônica Empresas',
+        cnpjProvedor: '02.558.157/0001-62',
+        contatoNoc: '0800 015 1500 / noc.empresas@telefonica.com',
+        clienteProjeto: 'Polo Fruticultura Irrigada Vale do São Francisco',
+        localidade: 'Petrolina',
+        uf: 'PE',
+        endereco: 'Rodovia BR-407, Km 12 - Zona Rural',
+        capacidade: '300 Mbps Dedicado',
+        capacidadeNum: 300,
+        tecnologia: 'Rádio Digital Licenciado (Micro-ondas)',
+        interface: 'Fast Ethernet RJ45',
+        sla: '99.5% (MTTR 6h)',
+        vlanBgp: 'VLAN 880 / PTP Roteado',
+        inicioVigencia: '01/02/2026',
+        fimVigencia: '01/12/2026',
+        diasParaVencer: 54,
+        valorMensal: 2150.00,
+        status: 'Ativo',
+        observacoes: 'Região rural de difícil acesso. A vencer em 54 dias. Avaliando se anel de fibra Brisanet cobrirá a localidade até o 1º trimestre.'
+      },
+      {
+        id: 'LNK-SE-005',
+        designador: 'MEGA-SE-AJU-0914',
+        provedor: 'Megatelecom Telecomunicações',
+        cnpjProvedor: '04.288.751/0001-38',
+        contatoNoc: '0800 770 0021 / suporte@megatelecom.com.br',
+        clienteProjeto: 'Hub B2B Shopping Jardins Aracaju',
+        localidade: 'Aracaju',
+        uf: 'SE',
+        endereco: 'Av. Ministro Geraldo Barreto Sobral, 215 - Jardins',
+        capacidade: '1 Gbps Dedicado',
+        capacidadeNum: 1000,
+        tecnologia: 'Fibra Óptica Urbana',
+        interface: '1x 1000Base-LX',
+        sla: '99.8% (MTTR 4h)',
+        vlanBgp: 'VLAN 2050 / Trânsito IP',
+        inicioVigencia: '10/06/2026',
+        fimVigencia: '10/06/2027',
+        diasParaVencer: 245,
+        valorMensal: 3100.00,
+        status: 'Ativo',
+        observacoes: 'Entregue em rack de telecom do condomínio comercial. Excelente estabilidade operacional.'
+      },
+      {
+        id: 'LNK-BA-006',
+        designador: 'REG-BA-FSA-6620',
+        provedor: 'Provedor Regional Conecta Bahia Fibra',
+        cnpjProvedor: '19.340.912/0001-80',
+        contatoNoc: '(75) 3602-9900 / noc@conectabahia.com.br',
+        clienteProjeto: 'Centro de Distribuição Logística Feira de Santana',
+        localidade: 'Feira de Santana',
+        uf: 'BA',
+        endereco: 'Av. Presidente Dutra, 3400 - Brasília',
+        capacidade: '400 Mbps PTP',
+        capacidadeNum: 400,
+        tecnologia: 'Fibra Óptica FTTO',
+        interface: '1000Base-T RJ45',
+        sla: '99.6% (MTTR 6h)',
+        vlanBgp: 'VLAN 410',
+        inicioVigencia: '20/07/2026',
+        fimVigencia: '20/07/2027',
+        diasParaVencer: 285,
+        valorMensal: 1450.00,
+        status: 'Ativo',
+        observacoes: 'Parceria com ISP local com interligação direta em caixa subterrânea de emenda.'
+      },
+      {
+        id: 'LNK-AL-007',
+        designador: 'VTAL-AL-PEN-1108',
+        provedor: 'V.tal - Rede Neutra',
+        cnpjProvedor: '42.128.216/0001-44',
+        contatoNoc: '0800 021 8825 / noc@vtal.com',
+        clienteProjeto: 'Posto Regional SEFAZ Alagoas - Penedo',
+        localidade: 'Penedo',
+        uf: 'AL',
+        endereco: 'Praça Barão de Penedo, 55 - Centro Histórico',
+        capacidade: '200 Mbps Dedicado',
+        capacidadeNum: 200,
+        tecnologia: 'Fibra Óptica Rede Neutra',
+        interface: 'Fast Ethernet RJ45',
+        sla: '99.8% (MTTR 4h)',
+        vlanBgp: 'VLAN 1102',
+        inicioVigencia: '01/10/2026',
+        fimVigencia: '01/10/2027',
+        diasParaVencer: 358,
+        valorMensal: 1150.00,
+        status: 'Em Implantação',
+        observacoes: 'Ordem de serviço aberta com V.tal. Prazo de entrega física previsto para 15 dias.'
+      },
+      {
+        id: 'LNK-PI-008',
+        designador: 'VERO-PI-PAR-5531',
+        provedor: 'Americanet / Vero Telecom',
+        cnpjProvedor: '05.104.912/0001-59',
+        contatoNoc: '0800 020 9000 / noc@verointernet.com.br',
+        clienteProjeto: 'Ponto de Presença POP Costeiro Parnaíba',
+        localidade: 'Parnaíba',
+        uf: 'PI',
+        endereco: 'Av. São Sebastião, 2010 - Nossa Sra. de Fátima',
+        capacidade: '1 Gbps Trânsito IP',
+        capacidadeNum: 1000,
+        tecnologia: 'Fibra Óptica Dedicada',
+        interface: '1x 1000Base-LX',
+        sla: '99.9% (MTTR 4h)',
+        vlanBgp: 'BGP AS 28220 / PTT PI',
+        inicioVigencia: '10/01/2025',
+        fimVigencia: '10/11/2026',
+        diasParaVencer: 33,
+        valorMensal: 3200.00,
+        status: 'Em Análise',
+        observacoes: 'Circuito para teste de redundância em trânsito IP no litoral piauiense. A vencer em 33 dias.'
+      }
+    ];
   }
 
   // Converte data DD/MM/AAAA para AAAA-MM-DD para preencher <input type="date">
@@ -3788,7 +4810,8 @@
           risco: 'Alto',
           observacoes: 'O contrato tem vigência até 30/12/2026 e, provavelmente, não será reativado.'
         }
-      ]
+      ],
+      linksContratados: obterDadosMockLinks()
     };
   }
 </script>

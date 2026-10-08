@@ -480,6 +480,7 @@ function getInitialData() {
       usuariosAcessos: obterUsuariosAcessos_(),
       listaEmailsAcessos: obterListaEmailsAcessos_(),
       contracts: contracts,
+      linksContratados: obterLinksContratados_(),
       autocomplete: {
         centrosCusto: Object.keys(centrosCusto),
         categorias: Object.keys(categorias),
@@ -2388,4 +2389,244 @@ function atualizarContratoCompleto(dados) {
       error: err.message
     };
   }
+}
+
+/**
+ * Obtém os Links Contratados (Circuitos de Internet Off-Net)
+ * Se existir uma aba chamada 'Links Contratados' na planilha, busca as linhas reais;
+ * Caso contrário, retorna a base fictícia completa para demonstração e homologação.
+ */
+function obterLinksContratados_() {
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName('Links Contratados');
+    if (sheet && sheet.getLastRow() > 1) {
+      var lastRow = sheet.getLastRow();
+      var range = sheet.getRange(2, 1, lastRow - 1, 17);
+      var values = range.getValues();
+      var links = [];
+      for (var i = 0; i < values.length; i++) {
+        var row = values[i];
+        if (!row[0] && !row[1] && !row[2]) continue;
+        var dias = calcularDiasParaVencer_(row[7]);
+        links.push({
+          id: String(row[0] || ('LNK-' + (i + 1))),
+          designador: String(row[1] || ''),
+          provedor: String(row[2] || ''),
+          cnpjProvedor: String(row[3] || ''),
+          clienteProjeto: String(row[4] || ''),
+          localidade: String(row[5] || ''),
+          uf: String(row[6] || ''),
+          fimVigencia: formatarDataExibicao_(row[7]),
+          diasParaVencer: dias,
+          valorMensal: parseFloat(row[8]) || 0,
+          capacidade: String(row[9] || ''),
+          capacidadeNum: parseInt(String(row[9] || '').replace(/\D/g, ''), 10) || 500,
+          tecnologia: String(row[10] || ''),
+          interface: String(row[11] || ''),
+          sla: String(row[12] || ''),
+          vlanBgp: String(row[13] || ''),
+          status: String(row[14] || 'Ativo'),
+          contatoNoc: String(row[15] || ''),
+          observacoes: String(row[16] || '')
+        });
+      }
+      if (links.length > 0) return links;
+    }
+  } catch (e) {
+    Logger.log('Aba Links Contratados não encontrada ou erro na leitura: ' + e.message);
+  }
+  return obterLinksContratadosFicticios_();
+}
+
+/**
+ * Retorna lista de links fictícios para demonstração e homologação
+ */
+function obterLinksContratadosFicticios_() {
+  return [
+    {
+      id: 'LNK-CE-001',
+      designador: 'VTAL-CE-JZN-9842',
+      provedor: 'V.tal - Rede Neutra',
+      cnpjProvedor: '42.128.216/0001-44',
+      contatoNoc: '0800 021 8825 / noc@vtal.com',
+      clienteProjeto: 'Banco do Nordeste - Agência Juazeiro',
+      localidade: 'Juazeiro do Norte',
+      uf: 'CE',
+      endereco: 'Rua São Pedro, 1420 - Centro',
+      capacidade: '1 Gbps Dedicado',
+      capacidadeNum: 1000,
+      tecnologia: 'Fibra Óptica (DWDM)',
+      interface: '1x 1000Base-LX (SFP 1310nm)',
+      sla: '99.9% (MTTR 4h)',
+      vlanBgp: 'VLAN 3120 / ASN 28220',
+      inicioVigencia: '10/01/2026',
+      fimVigencia: '10/01/2027',
+      diasParaVencer: 94,
+      valorMensal: 2850.00,
+      status: 'Ativo',
+      observacoes: 'Circuito contratado para viabilizar atendimento B2B corporativo em endereço sem viabilidade de rede FTTH Brisanet no momento.'
+    },
+    {
+      id: 'LNK-RN-002',
+      designador: 'EMBR-RN-MOS-4512',
+      provedor: 'Embratel / Claro Empresas',
+      cnpjProvedor: '40.432.544/0001-47',
+      contatoNoc: '0800 701 2141 / suporte.b2b@claro.com.br',
+      clienteProjeto: 'Distrito Industrial B2B Mossoró - Polo Salineiro',
+      localidade: 'Mossoró',
+      uf: 'RN',
+      endereco: 'Av. Lauro Monte, 800 - Abolição',
+      capacidade: '500 Mbps PTP',
+      capacidadeNum: 500,
+      tecnologia: 'Lan-to-Lan Ethernet',
+      interface: '1x 1000Base-T RJ45',
+      sla: '99.7% (MTTR 4h)',
+      vlanBgp: 'VLAN 1845 / QinQ',
+      inicioVigencia: '05/03/2025',
+      fimVigencia: '05/11/2026',
+      diasParaVencer: 28,
+      valorMensal: 1920.00,
+      status: 'Em Renovação',
+      observacoes: 'Contrato com término iminente (28 dias). Negociação em andamento com gestor de contas Claro para redução de custo ou migração.'
+    },
+    {
+      id: 'LNK-PB-003',
+      designador: 'CIRION-PB-CPG-7719',
+      provedor: 'Cirion Technologies',
+      cnpjProvedor: '02.569.832/0001-19',
+      contatoNoc: '0800 725 0015 / noc.brasil@ciriontechnologies.com',
+      clienteProjeto: 'Complexo Industrial Alpargatas Campina Grande',
+      localidade: 'Campina Grande',
+      uf: 'PB',
+      endereco: 'Rua Severino Cabral, 250 - Bodocongó',
+      capacidade: '2 Gbps Dedicado',
+      capacidadeNum: 2000,
+      tecnologia: 'Fibra Óptica Dedicada PTP',
+      interface: '10G SFP+ LR',
+      sla: '99.95% (MTTR 2h)',
+      vlanBgp: 'BGP Dual Stack / IPv4+IPv6',
+      inicioVigencia: '15/05/2025',
+      fimVigencia: '15/05/2027',
+      diasParaVencer: 219,
+      valorMensal: 5400.00,
+      status: 'Ativo',
+      observacoes: 'Circuito de alta disponibilidade com redundância de rota para cliente enterprise industrial.'
+    },
+    {
+      id: 'LNK-PE-004',
+      designador: 'VIVO-PE-PET-3381',
+      provedor: 'Vivo / Telefônica Empresas',
+      cnpjProvedor: '02.558.157/0001-62',
+      contatoNoc: '0800 015 1500 / noc.empresas@telefonica.com',
+      clienteProjeto: 'Polo Fruticultura Irrigada Vale do São Francisco',
+      localidade: 'Petrolina',
+      uf: 'PE',
+      endereco: 'Rodovia BR-407, Km 12 - Zona Rural',
+      capacidade: '300 Mbps Dedicado',
+      capacidadeNum: 300,
+      tecnologia: 'Rádio Digital Licenciado (Micro-ondas)',
+      interface: 'Fast Ethernet RJ45',
+      sla: '99.5% (MTTR 6h)',
+      vlanBgp: 'VLAN 880 / PTP Roteado',
+      inicioVigencia: '01/02/2026',
+      fimVigencia: '01/12/2026',
+      diasParaVencer: 54,
+      valorMensal: 2150.00,
+      status: 'Ativo',
+      observacoes: 'Região rural de difícil acesso. A vencer em 54 dias. Avaliando se anel de fibra Brisanet cobrirá a localidade até o 1º trimestre.'
+    },
+    {
+      id: 'LNK-SE-005',
+      designador: 'MEGA-SE-AJU-0914',
+      provedor: 'Megatelecom Telecomunicações',
+      cnpjProvedor: '04.288.751/0001-38',
+      contatoNoc: '0800 770 0021 / suporte@megatelecom.com.br',
+      clienteProjeto: 'Hub B2B Shopping Jardins Aracaju',
+      localidade: 'Aracaju',
+      uf: 'SE',
+      endereco: 'Av. Ministro Geraldo Barreto Sobral, 215 - Jardins',
+      capacidade: '1 Gbps Dedicado',
+      capacidadeNum: 1000,
+      tecnologia: 'Fibra Óptica Urbana',
+      interface: '1x 1000Base-LX',
+      sla: '99.8% (MTTR 4h)',
+      vlanBgp: 'VLAN 2050 / Trânsito IP',
+      inicioVigencia: '10/06/2026',
+      fimVigencia: '10/06/2027',
+      diasParaVencer: 245,
+      valorMensal: 3100.00,
+      status: 'Ativo',
+      observacoes: 'Entregue em rack de telecom do condomínio comercial. Excelente estabilidade operacional.'
+    },
+    {
+      id: 'LNK-BA-006',
+      designador: 'REG-BA-FSA-6620',
+      provedor: 'Provedor Regional Conecta Bahia Fibra',
+      cnpjProvedor: '19.340.912/0001-80',
+      contatoNoc: '(75) 3602-9900 / noc@conectabahia.com.br',
+      clienteProjeto: 'Centro de Distribuição Logística Feira de Santana',
+      localidade: 'Feira de Santana',
+      uf: 'BA',
+      endereco: 'Av. Presidente Dutra, 3400 - Brasília',
+      capacidade: '400 Mbps PTP',
+      capacidadeNum: 400,
+      tecnologia: 'Fibra Óptica FTTO',
+      interface: '1000Base-T RJ45',
+      sla: '99.6% (MTTR 6h)',
+      vlanBgp: 'VLAN 410',
+      inicioVigencia: '20/07/2026',
+      fimVigencia: '20/07/2027',
+      diasParaVencer: 285,
+      valorMensal: 1450.00,
+      status: 'Ativo',
+      observacoes: 'Parceria com ISP local com interligação direta em caixa subterrânea de emenda.'
+    },
+    {
+      id: 'LNK-AL-007',
+      designador: 'VTAL-AL-PEN-1108',
+      provedor: 'V.tal - Rede Neutra',
+      cnpjProvedor: '42.128.216/0001-44',
+      contatoNoc: '0800 021 8825 / noc@vtal.com',
+      clienteProjeto: 'Posto Regional SEFAZ Alagoas - Penedo',
+      localidade: 'Penedo',
+      uf: 'AL',
+      endereco: 'Praça Barão de Penedo, 55 - Centro Histórico',
+      capacidade: '200 Mbps Dedicado',
+      capacidadeNum: 200,
+      tecnologia: 'Fibra Óptica Rede Neutra',
+      interface: 'Fast Ethernet RJ45',
+      sla: '99.8% (MTTR 4h)',
+      vlanBgp: 'VLAN 1102',
+      inicioVigencia: '01/10/2026',
+      fimVigencia: '01/10/2027',
+      diasParaVencer: 358,
+      valorMensal: 1150.00,
+      status: 'Em Implantação',
+      observacoes: 'Ordem de serviço aberta com V.tal. Prazo de entrega física previsto para 15 dias.'
+    },
+    {
+      id: 'LNK-PI-008',
+      designador: 'VERO-PI-PAR-5531',
+      provedor: 'Americanet / Vero Telecom',
+      cnpjProvedor: '05.104.912/0001-59',
+      contatoNoc: '0800 020 9000 / noc@verointernet.com.br',
+      clienteProjeto: 'Ponto de Presença POP Costeiro Parnaíba',
+      localidade: 'Parnaíba',
+      uf: 'PI',
+      endereco: 'Av. São Sebastião, 2010 - Nossa Sra. de Fátima',
+      capacidade: '1 Gbps Trânsito IP',
+      capacidadeNum: 1000,
+      tecnologia: 'Fibra Óptica Dedicada',
+      interface: '1x 1000Base-LX',
+      sla: '99.9% (MTTR 4h)',
+      vlanBgp: 'BGP AS 28220 / PTT PI',
+      inicioVigencia: '10/01/2025',
+      fimVigencia: '10/11/2026',
+      diasParaVencer: 33,
+      valorMensal: 3200.00,
+      status: 'Em Análise',
+      observacoes: 'Circuito para teste de redundância em trânsito IP no litoral piauiense. A vencer em 33 dias.'
+    }
+  ];
 }
