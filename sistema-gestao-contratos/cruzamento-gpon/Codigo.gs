@@ -28,7 +28,7 @@
 // ==========================================
 // 1. CONFIGURAÇÕES GERAIS
 // ==========================================
-const CONFIG = {
+const CONFIG_GPON = {
   PLANILHA_1: {
     ID: '1-f3NXFp4rCGhhBHgkf0hPq2e_93hFTNRHpM-f37Rra4',
     NOME_ABA: 'NEGOCIAÇÕES GPON',
@@ -72,7 +72,7 @@ const CONFIG = {
 // 2. DICIONÁRIO DE SINÔNIMOS (FUZZY MATCHER VIA REGEX)
 // Identifica colunas mesmo com pequenas variações de acentuação ou nomenclatura
 // ==========================================
-const CAMPOS_MAP = {
+const CAMPOS_MAP_GPON = {
   'SITES': [
     /^sites?$/i, /^id[\s_-]?site$/i, /^esta[cç][aã]o$/i, /^c[oó]digo[\s_-]?site$/i, /^nome[\s_-]?site$/i
   ],
@@ -142,8 +142,8 @@ function cruzarDadosPlanilhas() {
   // -------------------------------------------------------------
   // ETAPA 1: Carregar Planilha 01 e Extrair SITES ÚNICOS (Coluna C)
   // -------------------------------------------------------------
-  const ss1 = abrirPlanilhaSegura(CONFIG.PLANILHA_1.ID, 'Planilha 01 (DEMANDAS COMPRAS)');
-  const aba1 = obterAbaPorNomeOuIndice(ss1, CONFIG.PLANILHA_1.NOME_ABA, 0);
+  const ss1 = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_1.ID, 'Planilha 01 (DEMANDAS COMPRAS)');
+  const aba1 = obterAbaPorNomeOuIndice(ss1, CONFIG_GPON.PLANILHA_1.NOME_ABA, 0);
   const dados1 = aba1.getDataRange().getValues();
 
   if (dados1.length < 2) {
@@ -152,8 +152,8 @@ function cruzarDadosPlanilhas() {
 
   const infoHeader1 = detectarCabecalho(dados1);
   const mapaColunas1 = mapearIndicesColunas(infoHeader1.headers);
-  const colSiteIndexP1 = CONFIG.PLANILHA_1.COLUNA_SITE_INDEX !== undefined 
-    ? CONFIG.PLANILHA_1.COLUNA_SITE_INDEX 
+  const colSiteIndexP1 = CONFIG_GPON.PLANILHA_1.COLUNA_SITE_INDEX !== undefined 
+    ? CONFIG_GPON.PLANILHA_1.COLUNA_SITE_INDEX 
     : (mapaColunas1['SITES'] !== undefined ? mapaColunas1['SITES'] : 2);
 
   const sitesUnicosList = [];
@@ -184,8 +184,8 @@ function cruzarDadosPlanilhas() {
   // ETAPA 2: Cruzar com Planilha 02 (Operacional / Ativação)
   // -------------------------------------------------------------
   try {
-    const ss2 = abrirPlanilhaSegura(CONFIG.PLANILHA_2.ID, 'Planilha 02');
-    const aba2 = obterAbaPorGidOuNome(ss2, CONFIG.PLANILHA_2.GID, CONFIG.PLANILHA_2.NOME_ABA);
+    const ss2 = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_2.ID, 'Planilha 02');
+    const aba2 = obterAbaPorGidOuNome(ss2, CONFIG_GPON.PLANILHA_2.GID, CONFIG_GPON.PLANILHA_2.NOME_ABA);
     const dados2 = aba2.getDataRange().getValues();
 
     if (dados2.length >= 2) {
@@ -215,8 +215,8 @@ function cruzarDadosPlanilhas() {
   // ETAPA 3: Cruzar com Planilha 03 (Contratos / Finanças - GID 7198436)
   // -------------------------------------------------------------
   try {
-    const ss3 = abrirPlanilhaSegura(CONFIG.PLANILHA_3.ID, 'Planilha 03');
-    const aba3 = obterAbaPorGidOuNome(ss3, CONFIG.PLANILHA_3.GID, CONFIG.PLANILHA_3.NOME_ABA);
+    const ss3 = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_3.ID, 'Planilha 03');
+    const aba3 = obterAbaPorGidOuNome(ss3, CONFIG_GPON.PLANILHA_3.GID, CONFIG_GPON.PLANILHA_3.NOME_ABA);
     const dados3 = aba3.getDataRange().getValues();
 
     if (dados3.length >= 2) {
@@ -249,7 +249,7 @@ function cruzarDadosPlanilhas() {
 
   for (const siteKey of sitesUnicosList) {
     const reg = dadosConsolidados.get(siteKey);
-    const linhaTratada = CONFIG.COLUNAS_SOLICITADAS.map(nomeColuna => {
+    const linhaTratada = CONFIG_GPON.COLUNAS_SOLICITADAS.map(nomeColuna => {
       const valorBruto = reg[nomeColuna];
       return tratarValorPadronizado(nomeColuna, valorBruto);
     });
@@ -269,7 +269,7 @@ function cruzarDadosPlanilhas() {
                      `• Tempo de execução: ${tempoTotal} segundos\n` +
                      `• Regra de Fallback: "NÃO ENCONTRADO" aplicado nos campos ausentes\n` +
                      `• Padrão de texto: MAIÚSCULO em todas as colunas textuais\n` +
-                     `• Destino: Aba "${CONFIG.DESTINO.NOME_ABA}" atualizada.`;
+                     `• Destino: Aba "${CONFIG_GPON.DESTINO.NOME_ABA}" atualizada.`;
 
   Logger.log(msgSucesso);
   try {
@@ -283,7 +283,7 @@ function cruzarDadosPlanilhas() {
 function tratarValorPadronizado(nomeColuna, valor) {
   // Se estiver nulo, indefinido, vazio ou apenas espaços: aplica fallback padrão
   if (valor === null || valor === undefined || String(valor).trim() === '') {
-    return CONFIG.VALOR_PADRAO_NAO_ENCONTRADO;
+    return CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
   }
 
   switch (nomeColuna) {
@@ -293,9 +293,9 @@ function tratarValorPadronizado(nomeColuna, valor) {
     case 'POPULAÇÃO':
       if (typeof valor === 'number') return valor;
       const cleanPopStr = String(valor).replace(/[^\d]/g, '');
-      if (!cleanPopStr) return CONFIG.VALOR_PADRAO_NAO_ENCONTRADO;
+      if (!cleanPopStr) return CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
       const numPop = parseInt(cleanPopStr, 10);
-      return isNaN(numPop) ? CONFIG.VALOR_PADRAO_NAO_ENCONTRADO : numPop;
+      return isNaN(numPop) ? CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO : numPop;
 
     case 'VALOR DA CONTRATAÇÃO':
     case 'VALOR INSTALAÇÃO':
@@ -307,7 +307,7 @@ function tratarValorPadronizado(nomeColuna, valor) {
         cleanVal = cleanVal.replace(',', '.');
       }
       const numFloat = parseFloat(cleanVal);
-      return isNaN(numFloat) ? CONFIG.VALOR_PADRAO_NAO_ENCONTRADO : numFloat;
+      return isNaN(numFloat) ? CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO : numFloat;
 
     case 'DATA DE ATIVAÇÃO':
     case 'DATA ASSINATURA DO CONTRATO':
@@ -317,7 +317,7 @@ function tratarValorPadronizado(nomeColuna, valor) {
       const strTaxa = String(valor).trim().toUpperCase();
       if (/^(SIM|S|YES)$/i.test(strTaxa)) return 'SIM';
       if (/^(N[AÃ]O|N|NO|ISENTO)$/i.test(strTaxa)) return 'NÃO';
-      return strTaxa || CONFIG.VALOR_PADRAO_NAO_ENCONTRADO;
+      return strTaxa || CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
 
     case 'MÊS DE ATIVAÇÃO':
       if (valor instanceof Date) {
@@ -337,16 +337,16 @@ function tratarValorPadronizado(nomeColuna, valor) {
 }
 
 function formatarData(val) {
-  if (!val) return CONFIG.VALOR_PADRAO_NAO_ENCONTRADO;
+  if (!val) return CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
   
   if (val instanceof Date) {
-    if (isNaN(val.getTime())) return CONFIG.VALOR_PADRAO_NAO_ENCONTRADO;
+    if (isNaN(val.getTime())) return CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
     return Utilities.formatDate(val, Session.getScriptTimeZone() || 'America/Sao_Paulo', 'dd/MM/yyyy');
   }
 
   if (typeof val === 'string') {
     val = val.trim();
-    if (!val) return CONFIG.VALOR_PADRAO_NAO_ENCONTRADO;
+    if (!val) return CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
 
     const matchIso = val.match(/^(\d{4})[-/](\d{2})[-/](\d{2})/);
@@ -367,18 +367,18 @@ function formatarData(val) {
 // 6. GRAVAÇÃO NA PLANILHA DESTINO
 // ==========================================
 function gravarPlanilhaDestino(matrizDados) {
-  const ssDestino = abrirPlanilhaSegura(CONFIG.DESTINO.ID, 'Planilha Destino');
-  let abaDestino = obterAbaPorGidOuNome(ssDestino, CONFIG.DESTINO.GID, CONFIG.DESTINO.NOME_ABA);
+  const ssDestino = abrirPlanilhaSegura(CONFIG_GPON.DESTINO.ID, 'Planilha Destino');
+  let abaDestino = obterAbaPorGidOuNome(ssDestino, CONFIG_GPON.DESTINO.GID, CONFIG_GPON.DESTINO.NOME_ABA);
 
   if (!abaDestino) {
-    abaDestino = ssDestino.insertSheet(CONFIG.DESTINO.NOME_ABA);
+    abaDestino = ssDestino.insertSheet(CONFIG_GPON.DESTINO.NOME_ABA);
   }
 
   // Limpa completamente os dados e formatações anteriores
   abaDestino.clear();
 
   // 1. Cabeçalho estilizado
-  const cabecalhos = [CONFIG.COLUNAS_SOLICITADAS];
+  const cabecalhos = [CONFIG_GPON.COLUNAS_SOLICITADAS];
   const rangeHeader = abaDestino.getRange(1, 1, 1, cabecalhos[0].length);
   rangeHeader.setValues(cabecalhos)
     .setFontWeight('bold')
@@ -427,7 +427,7 @@ function gravarPlanilhaDestino(matrizDados) {
 // 7. FUNÇÕES AUXILIARES DE SUPORTE
 // ==========================================
 function preencherCamposDaLinha(objetoDestino, row, mapaColunas) {
-  for (const campo of CONFIG.COLUNAS_SOLICITADAS) {
+  for (const campo of CONFIG_GPON.COLUNAS_SOLICITADAS) {
     if (campo === 'SITES') continue;
     
     // Regra de Fallback em Cascata: Só preenche se o campo ainda estiver vazio no objeto
@@ -466,9 +466,9 @@ function mapearIndicesColunas(headers) {
     const headerStr = String(headers[c]).trim();
     if (!headerStr) continue;
 
-    for (const campo in CAMPOS_MAP) {
+    for (const campo in CAMPOS_MAP_GPON) {
       if (mapa[campo] !== undefined) continue;
-      const regexes = CAMPOS_MAP[campo];
+      const regexes = CAMPOS_MAP_GPON[campo];
       for (const rx of regexes) {
         if (rx.test(headerStr)) {
           mapa[campo] = c;
@@ -526,10 +526,10 @@ function obterAbaPorNomeOuIndice(spreadsheet, nomeAba, index) {
 function diagnosticarPlanilhas() {
   Logger.log('=== [AUDITORIA] INICIANDO DIAGNÓSTICO DAS 4 PLANILHAS ===');
   const planilhas = [
-    { nome: 'Planilha 01 (DEMANDAS COMPRAS)', config: CONFIG.PLANILHA_1 },
-    { nome: 'Planilha 02 (Operacional)', config: CONFIG.PLANILHA_2 },
-    { nome: 'Planilha 03 (Contratos/Finanças)', config: CONFIG.PLANILHA_3 },
-    { nome: 'Planilha Destino (Links - Tratados)', config: CONFIG.DESTINO }
+    { nome: 'Planilha 01 (DEMANDAS COMPRAS)', config: CONFIG_GPON.PLANILHA_1 },
+    { nome: 'Planilha 02 (Operacional)', config: CONFIG_GPON.PLANILHA_2 },
+    { nome: 'Planilha 03 (Contratos/Finanças)', config: CONFIG_GPON.PLANILHA_3 },
+    { nome: 'Planilha Destino (Links - Tratados)', config: CONFIG_GPON.DESTINO }
   ];
 
   for (const p of planilhas) {
