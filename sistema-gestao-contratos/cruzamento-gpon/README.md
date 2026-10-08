@@ -17,7 +17,7 @@ Planilha 02 (Operacional/Ativação)├─┘
 Planilha 03 (Contratos/Comercial) ┘
 ```
 
-1. **Unicidade de Sites:** Extrai os sites únicos a partir da **Coluna C** da Planilha 01 (DEMANDAS COMPRAS).
+1. **Unicidade de Sites e Divisão de Células:** Extrai os sites a partir da **Coluna C** da Planilha 01 (DEMANDAS COMPRAS). **Caso uma mesma célula contenha 2 ou mais sites** (separados por `/`, `,`, `;`, quebra de linha, `+` ou ` e `), o script divide a célula e gera uma linha individual para cada site.
 2. **Coluna STATUS:** Compara o Site (Coluna C da P1) com a **Coluna A** da planilha **VISTORIA DE SITES** (aba `DASH`). Em caso de correspondência, captura o `STATUS` da **Coluna C**. Se não constar, preenche com **`NÃO ENCONTRADO`**.
 3. **Busca em Cascata (Fallback):**
    - Para as demais colunas, se o dado estiver em branco na Planilha 01, busca na Planilha 02.

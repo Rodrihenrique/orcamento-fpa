@@ -6,20 +6,23 @@
  * 
  * Descrição:
  * Este script automatiza o cruzamento de dados de planilhas de origem, filtrando os sites únicos
- * a partir da Planilha 01 (DEMANDAS COMPRAS - NEGOCIAÇÕES GPON, Coluna C), buscando o STATUS na
- * planilha VISTORIA DE SITES (aba DASH) e as informações complementares nas Planilhas 02 e 03
- * com lógica de fallback em cascata.
+ * a partir da Planilha 01 (DEMANDAS COMPRAS - NEGOCIAÇÕES GPON, Coluna C), dividindo múltiplos
+ * sites em uma mesma célula para linhas individuais, buscando o STATUS na planilha VISTORIA
+ * DE SITES (aba DASH) e as informações complementares nas Planilhas 02 e 03 com fallback em cascata.
  * 
  * Regras de Negócio:
  * 1. Base Primária: Sites únicos extraídos da Planilha 01 (Coluna C).
- * 2. Coluna STATUS: Comparação entre o Site (Coluna C da P1) e a Coluna A da planilha VISTORIA
+ * 2. Divisão de Múltiplos Sites: Células com 2 ou mais sites (separados por barra, vírgula, ponto
+ *    e vírgula, quebra de linha, " + " ou " e ") são desmembradas, gerando uma linha individual
+ *    para cada site.
+ * 3. Coluna STATUS: Comparação entre o Site (Coluna C da P1) e a Coluna A da planilha VISTORIA
  *    DE SITES (aba DASH). Caso haja correspondência, obtém o STATUS da Coluna C. Se não constar,
  *    marca como "NÃO ENCONTRADO".
- * 3. Busca em Cascata: Se um dado operacional/financeiro estiver em branco na Planilha 01, busca
+ * 4. Busca em Cascata: Se um dado operacional/financeiro estiver em branco na Planilha 01, busca
  *    na Planilha 02. Se ainda estiver em branco, busca na Planilha 03.
- * 4. Fallback Geral: Qualquer campo não localizado após consulta recebe "NÃO ENCONTRADO".
- * 5. Padronização: Todos os textos gerados na planilha destino são convertidos para MAIÚSCULAS.
- * 6. Destino: Gravação formatada na aba "Links - Tratados" da Planilha de Destino.
+ * 5. Fallback Geral: Qualquer campo não localizado após consulta recebe "NÃO ENCONTRADO".
+ * 6. Padronização: Todos os textos gerados na planilha destino são convertidos para MAIÚSCULAS.
+ * 7. Destino: Gravação formatada na aba "Links - Tratados" da Planilha de Destino (13 colunas).
  * 
  * Planilhas Envolvidas:
  * - Planilha 01: 1-f3NXFp4rCGhhBHgkf0hPq2e_93hFTNRHpM-f37Rra4 (Aba: NEGOCIAÇÕES GPON)
@@ -162,6 +165,7 @@ function cruzarDadosPlanilhas() {
 
   // -------------------------------------------------------------
   // ETAPA 1: Planilha 01 - Extração dos SITES ÚNICOS (Coluna C)
+  // REGRA: Células com múltiplos sites são divididas em linhas individuais
   // -------------------------------------------------------------
   const ss1 = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_1.ID, 'Planilha 01 (DEMANDAS COMPRAS)');
   const aba1 = obterAbaPorNomeOuIndice(ss1, CONFIG_GPON.PLANILHA_1.NOME_ABA, 0);
@@ -180,23 +184,28 @@ function cruzarDadosPlanilhas() {
 
   for (let r = infoHeader1.rowIndex + 1; r < dados1.length; r++) {
     const row = dados1[r];
-    const rawSite = row[colSiteIndexP1];
-    const siteKey = normalizarChave(rawSite);
+    const rawSiteCell = row[colSiteIndexP1];
 
-    if (!siteKey) continue;
+    // Desmembra múltiplos sites em uma mesma célula (ex: SITE1 / SITE2)
+    const sitesExtraidos = extrairSitesDaCelula(rawSiteCell);
 
-    if (!dadosConsolidados.has(siteKey)) {
-      sitesUnicosList.push(siteKey);
-      dadosConsolidados.set(siteKey, {
-        SITES: String(rawSite).trim().toUpperCase()
-      });
+    for (const rawSite of sitesExtraidos) {
+      const siteKey = normalizarChave(rawSite);
+      if (!siteKey) continue;
+
+      if (!dadosConsolidados.has(siteKey)) {
+        sitesUnicosList.push(siteKey);
+        dadosConsolidados.set(siteKey, {
+          SITES: String(rawSite).trim().toUpperCase()
+        });
+      }
+
+      const reg = dadosConsolidados.get(siteKey);
+      preencherCamposDaLinha(reg, row, mapaColunas1);
     }
-
-    const reg = dadosConsolidados.get(siteKey);
-    preencherCamposDaLinha(reg, row, mapaColunas1);
   }
 
-  Logger.log(`[ETAPA 1] Sites únicos extraídos da Planilha 01: ${sitesUnicosList.length}`);
+  Logger.log(`[ETAPA 1] Sites únicos extraídos da Planilha 01 (após desmembramento): ${sitesUnicosList.length}`);
 
   // -------------------------------------------------------------
   // ETAPA 2: Planilha VISTORIA DE SITES - Busca da Coluna STATUS
@@ -216,16 +225,19 @@ function cruzarDadosPlanilhas() {
       let statusEncontrados = 0;
       for (let r = infoHeaderVistoria.rowIndex + 1; r < dadosVistoria.length; r++) {
         const row = dadosVistoria[r];
-        const siteKey = normalizarChave(row[colSiteVistoria]);
+        const sitesVistoria = extrairSitesDaCelula(row[colSiteVistoria]);
 
-        if (siteKey && dadosConsolidados.has(siteKey)) {
-          const rawStatus = row[colStatusVistoria];
-          if (rawStatus !== null && rawStatus !== undefined && String(rawStatus).trim() !== '') {
-            const reg = dadosConsolidados.get(siteKey);
-            // Preenche se ainda não tiver status definido
-            if (!reg.STATUS || reg.STATUS === CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO) {
-              reg.STATUS = String(rawStatus).trim().toUpperCase();
-              statusEncontrados++;
+        for (const siteVistoria of sitesVistoria) {
+          const siteKey = normalizarChave(siteVistoria);
+
+          if (siteKey && dadosConsolidados.has(siteKey)) {
+            const rawStatus = row[colStatusVistoria];
+            if (rawStatus !== null && rawStatus !== undefined && String(rawStatus).trim() !== '') {
+              const reg = dadosConsolidados.get(siteKey);
+              if (!reg.STATUS || reg.STATUS === CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO) {
+                reg.STATUS = String(rawStatus).trim().toUpperCase();
+                statusEncontrados++;
+              }
             }
           }
         }
@@ -252,10 +264,14 @@ function cruzarDadosPlanilhas() {
       if (colSiteIndexP2 !== undefined) {
         for (let r = infoHeader2.rowIndex + 1; r < dados2.length; r++) {
           const row = dados2[r];
-          const siteKey = normalizarChave(row[colSiteIndexP2]);
-          if (siteKey && dadosConsolidados.has(siteKey)) {
-            const reg = dadosConsolidados.get(siteKey);
-            preencherCamposDaLinha(reg, row, mapaColunas2);
+          const sitesP2 = extrairSitesDaCelula(row[colSiteIndexP2]);
+
+          for (const siteP2 of sitesP2) {
+            const siteKey = normalizarChave(siteP2);
+            if (siteKey && dadosConsolidados.has(siteKey)) {
+              const reg = dadosConsolidados.get(siteKey);
+              preencherCamposDaLinha(reg, row, mapaColunas2);
+            }
           }
         }
         Logger.log('[ETAPA 3] Cruzamento com Planilha 02 concluído.');
@@ -281,10 +297,14 @@ function cruzarDadosPlanilhas() {
       if (colSiteIndexP3 !== undefined) {
         for (let r = infoHeader3.rowIndex + 1; r < dados3.length; r++) {
           const row = dados3[r];
-          const siteKey = normalizarChave(row[colSiteIndexP3]);
-          if (siteKey && dadosConsolidados.has(siteKey)) {
-            const reg = dadosConsolidados.get(siteKey);
-            preencherCamposDaLinha(reg, row, mapaColunas3);
+          const sitesP3 = extrairSitesDaCelula(row[colSiteIndexP3]);
+
+          for (const siteP3 of sitesP3) {
+            const siteKey = normalizarChave(siteP3);
+            if (siteKey && dadosConsolidados.has(siteKey)) {
+              const reg = dadosConsolidados.get(siteKey);
+              preencherCamposDaLinha(reg, row, mapaColunas3);
+            }
           }
         }
         Logger.log('[ETAPA 4] Cruzamento com Planilha 03 concluído.');
@@ -308,7 +328,7 @@ function cruzarDadosPlanilhas() {
     matrizDestino.push(linhaTratada);
   }
 
-  Logger.log(`[ETAPA 5] Matriz final tratada montada com ${matrizDestino.length} registros e ${CONFIG_GPON.COLUNAS_SOLICITADAS.length} colunas.`);
+  Logger.log(`[ETAPA 5] Matriz tratada montada com ${matrizDestino.length} registros e ${CONFIG_GPON.COLUNAS_SOLICITADAS.length} colunas.`);
 
   // -------------------------------------------------------------
   // ETAPA 6: Gravação na Planilha Destino ("Links - Tratados")
@@ -317,11 +337,12 @@ function cruzarDadosPlanilhas() {
 
   const tempoTotal = ((new Date() - tempoInicio) / 1000).toFixed(1);
   const msgSucesso = `Cruzamento finalizado com sucesso!\n\n` +
-                     `• Total de Sites Únicos processados: ${matrizDestino.length}\n` +
+                     `• Total de Sites processados (individuais): ${matrizDestino.length}\n` +
                      `• Total de Colunas geradas: ${CONFIG_GPON.COLUNAS_SOLICITADAS.length}\n` +
-                     `• Coluna Nova: STATUS (obtida de VISTORIA DE SITES - DASH)\n` +
+                     `• Divisão de Múltiplos Sites: Cada site desmembrado em sua própria linha\n` +
+                     `• Coluna STATUS: Integrada com Vistoria de Sites (DASH)\n` +
                      `• Tempo de execução: ${tempoTotal} segundos\n` +
-                     `• Regra de Fallback: "NÃO ENCONTRADO" para campos ausentes\n` +
+                     `• Regra de Fallback: "NÃO ENCONTRADO" para dados ausentes\n` +
                      `• Padrão de texto: MAIÚSCULO em todas as colunas textuais\n` +
                      `• Destino: Aba "${CONFIG_GPON.DESTINO.NOME_ABA}" atualizada.`;
 
@@ -430,7 +451,7 @@ function gravarPlanilhaDestino(matrizDados) {
 
   abaDestino.clear();
 
-  // Cabeçalho estilizado
+  // Cabeçalho estilizado (13 colunas)
   const cabecalhos = [CONFIG_GPON.COLUNAS_SOLICITADAS];
   const rangeHeader = abaDestino.getRange(1, 1, 1, cabecalhos[0].length);
   rangeHeader.setValues(cabecalhos)
@@ -478,9 +499,29 @@ function gravarPlanilhaDestino(matrizDados) {
 // ==========================================
 // 7. FUNÇÕES AUXILIARES
 // ==========================================
+
+/**
+ * Extrai e divide múltiplos sites existentes em uma mesma célula.
+ * Suporta separadores comuns como: quebras de linha (\n, \r), barras (/ ou \),
+ * ponto e vírgula (;), vírgula (,), "+" e conjunção " e ".
+ * Preserva hífens internos de nomes de sites como "SP-SPO-001".
+ */
+function extrairSitesDaCelula(valorBruto) {
+  if (valorBruto === null || valorBruto === undefined) return [];
+  const texto = String(valorBruto).trim();
+  if (!texto) return [];
+
+  const partes = texto
+    .split(/[\r\n]+|[\/\\]|[;,]|\s+\+\s+|\s+(?:e|E)\s+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  return partes.length > 0 ? partes : [texto];
+}
+
 function preencherCamposDaLinha(objetoDestino, row, mapaColunas) {
   for (const campo of CONFIG_GPON.COLUNAS_SOLICITADAS) {
-    if (campo === 'SITES' || campo === 'STATUS') continue; // Tratados de forma específica
+    if (campo === 'SITES' || campo === 'STATUS') continue;
     
     const jaPossuiValor = objetoDestino[campo] !== undefined && 
                           objetoDestino[campo] !== null && 
