@@ -19,12 +19,13 @@ Planilha 03 (Contratos/Comercial) ┘
 
 1. **Unicidade de Sites e Divisão de Células:** Extrai os sites a partir da **Coluna C** da Planilha 01 (DEMANDAS COMPRAS). **Caso uma mesma célula contenha 2 ou mais sites** (separados por `/`, `,`, `;`, quebra de linha, `+` ou ` e `), o script divide a célula e gera uma linha individual para cada site.
 2. **Coluna STATUS:** Compara o Site (Coluna C da P1) com a **Coluna A** da planilha **VISTORIA DE SITES** (aba `DASH`). Em caso de correspondência, captura o `STATUS` da **Coluna C**. Se não constar, preenche com **`NÃO ENCONTRADO`**.
-3. **Busca em Cascata (Fallback):**
+3. **DATA DE ATIVAÇÃO (Fallback DASH):** Para todos os sites cuja Data de Ativação não for encontrada nas 3 primeiras planilhas (P1, P2 e P3), o script busca na **Coluna D** da aba `DASH` da planilha **VISTORIA DE SITES**.
+4. **Busca em Cascata (Fallback Geral):**
    - Para as demais colunas, se o dado estiver em branco na Planilha 01, busca na Planilha 02.
    - Se ainda estiver em branco, busca na Planilha 03.
-   - Caso não seja encontrado em nenhuma das planilhas, preenche com **`NÃO ENCONTRADO`**.
-4. **Padronização em Maiúsculas:** Todos os textos e indicadores (ex.: Status, Fornecedor, Atendimento, Plano, Sim/Não, Vigência) são padronizados em caixa alta (`MAIÚSCULO`).
-5. **Formatação Profissional:** Valores monetários em `R$ #,##0.00`, datas em `DD/MM/AAAA`, números inteiros com separador de milhar e cabeçalho estilizado.
+   - Caso não seja encontrado em nenhuma das fontes, preenche com **`NÃO ENCONTRADO`**.
+5. **Padronização em Maiúsculas:** Todos os textos e indicadores (ex.: Status, Fornecedor, Atendimento, Plano, Sim/Não, Vigência) são padronizados em caixa alta (`MAIÚSCULO`).
+6. **Formatação Profissional:** Valores monetários em `R$ #,##0.00`, datas em `DD/MM/AAAA`, números inteiros com separador de milhar e cabeçalho estilizado.
 
 ---
 
@@ -42,7 +43,7 @@ Planilha 03 (Contratos/Comercial) ┘
 | 8 | **VALOR DA CONTRATAÇÃO** | Moeda (`R$ #,##0.00`) | Valor mensal numérico ou `NÃO ENCONTRADO` |
 | 9 | **TAXA DE INSTALAÇÃO** | Texto | `SIM` / `NÃO` em maiúsculo ou `NÃO ENCONTRADO` |
 | 10 | **VALOR INSTALAÇÃO** | Moeda (`R$ #,##0.00`) | Valor de instalação numérico ou `NÃO ENCONTRADO` |
-| 11 | **DATA DE ATIVAÇÃO** | Data (`DD/MM/AAAA`) | Data formatada ou `NÃO ENCONTRADO` |
+| 11 | **DATA DE ATIVAÇÃO** | Data (`DD/MM/AAAA`) | P1 $\rightarrow$ P2 $\rightarrow$ P3 $\rightarrow$ **VISTORIA DASH (Col D)** ou `NÃO ENCONTRADO` |
 | 12 | **DATA ASSINATURA DO CONTRATO** | Data (`DD/MM/AAAA`) | Data formatada ou `NÃO ENCONTRADO` |
 | 13 | **VIGÊNCIA DO CONTRATO** | Texto | Período (ex.: `12 MESES`) ou `NÃO ENCONTRADO` |
 

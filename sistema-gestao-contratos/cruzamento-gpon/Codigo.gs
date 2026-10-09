@@ -7,8 +7,9 @@
  * Descrição:
  * Este script automatiza o cruzamento de dados de planilhas de origem, filtrando os sites únicos
  * a partir da Planilha 01 (DEMANDAS COMPRAS - NEGOCIAÇÕES GPON, Coluna C), dividindo múltiplos
- * sites em uma mesma célula para linhas individuais, buscando o STATUS na planilha VISTORIA
- * DE SITES (aba DASH) e as informações complementares nas Planilhas 02 e 03 com fallback em cascata.
+ * sites em uma mesma célula para linhas individuais, buscando dados complementares nas Planilhas
+ * 02 e 03, e consultando a planilha VISTORIA DE SITES (aba DASH) para recuperar o STATUS (Coluna C)
+ * e a DATA DE ATIVAÇÃO (Coluna D) caso esta última não tenha sido encontrada nas 3 primeiras planilhas.
  * 
  * Regras de Negócio:
  * 1. Base Primária: Sites únicos extraídos da Planilha 01 (Coluna C).
@@ -18,17 +19,18 @@
  * 3. Coluna STATUS: Comparação entre o Site (Coluna C da P1) e a Coluna A da planilha VISTORIA
  *    DE SITES (aba DASH). Caso haja correspondência, obtém o STATUS da Coluna C. Se não constar,
  *    marca como "NÃO ENCONTRADO".
- * 4. Busca em Cascata: Se um dado operacional/financeiro estiver em branco na Planilha 01, busca
- *    na Planilha 02. Se ainda estiver em branco, busca na Planilha 03.
- * 5. Fallback Geral: Qualquer campo não localizado após consulta recebe "NÃO ENCONTRADO".
- * 6. Padronização: Todos os textos gerados na planilha destino são convertidos para MAIÚSCULAS.
- * 7. Destino: Gravação formatada na aba "Links - Tratados" da Planilha de Destino (13 colunas).
+ * 4. DATA DE ATIVAÇÃO (Fallback DASH): Caso a Data de Ativação não seja encontrada nas 3 primeiras
+ *    planilhas (P1, P2 ou P3), busca na Coluna D da aba DASH da planilha VISTORIA DE SITES.
+ * 5. Busca em Cascata Geral: Planilha 01 -> Planilha 02 -> Planilha 03 -> Vistoria de Sites (DASH).
+ * 6. Fallback Geral: Qualquer campo não localizado após consulta recebe "NÃO ENCONTRADO".
+ * 7. Padronização: Todos os textos gerados na planilha destino são convertidos para MAIÚSCULAS.
+ * 8. Destino: Gravação formatada na aba "Links - Tratados" da Planilha de Destino (13 colunas).
  * 
  * Planilhas Envolvidas:
  * - Planilha 01: 1-f3NXFp4rCGhhBHgkf0hPq2e_93hFTNRHpM-f37Rra4 (Aba: NEGOCIAÇÕES GPON)
- * - VISTORIA DE SITES: 1CmuhQSiBPeYmMpi0hn2RfpCQRRjFBa8bs52v0Dt_vIc (Aba: DASH / GID: 1376772865)
  * - Planilha 02: 1uelDTBNV-cVVqTjBIK0BxfyGs4EPi-WzRL1Vh8ne56g (Filtro Operacional / GID 0)
  * - Planilha 03: 16VUOaCDOYX634ZzsIWGySGQZGciOeVdLLB3x6FOp1IQ (GID: 7198436)
+ * - VISTORIA DE SITES: 1CmuhQSiBPeYmMpi0hn2RfpCQRRjFBa8bs52v0Dt_vIc (Aba: DASH / GID: 1376772865)
  * - Planilha Destino: 1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I (Aba: Links - Tratados)
  * =========================================================================================
  */
@@ -42,13 +44,6 @@ const CONFIG_GPON = {
     NOME_ABA: 'NEGOCIAÇÕES GPON',
     COLUNA_SITE_INDEX: 2 // Coluna C (0=A, 1=B, 2=C)
   },
-  PLANILHA_VISTORIA: {
-    ID: '1CmuhQSiBPeYmMpi0hn2RfpCQRRjFBa8bs52v0Dt_vIc',
-    NOME_ABA: 'DASH',
-    GID: '1376772865',
-    COLUNA_SITE_INDEX: 0,   // Coluna A (0=A)
-    COLUNA_STATUS_INDEX: 2  // Coluna C (2=C)
-  },
   PLANILHA_2: {
     ID: '1uelDTBNV-cVVqTjBIK0BxfyGs4EPi-WzRL1Vh8ne56g',
     NOME_ABA: '', // Vazio = busca por GID ou 1ª aba
@@ -58,6 +53,14 @@ const CONFIG_GPON = {
     ID: '16VUOaCDOYX634ZzsIWGySGQZGciOeVdLLB3x6FOp1IQ',
     NOME_ABA: '',
     GID: '7198436' // GID informado
+  },
+  PLANILHA_VISTORIA: {
+    ID: '1CmuhQSiBPeYmMpi0hn2RfpCQRRjFBa8bs52v0Dt_vIc',
+    NOME_ABA: 'DASH',
+    GID: '1376772865',
+    COLUNA_SITE_INDEX: 0,          // Coluna A (0=A)
+    COLUNA_STATUS_INDEX: 2,        // Coluna C (2=C)
+    COLUNA_DATA_ATIVACAO_INDEX: 3  // Coluna D (3=D) - Data de Ativação
   },
   DESTINO: {
     ID: '1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I',
@@ -208,48 +211,7 @@ function cruzarDadosPlanilhas() {
   Logger.log(`[ETAPA 1] Sites únicos extraídos da Planilha 01 (após desmembramento): ${sitesUnicosList.length}`);
 
   // -------------------------------------------------------------
-  // ETAPA 2: Planilha VISTORIA DE SITES - Busca da Coluna STATUS
-  // Compara Coluna C de Demandas Compras com Coluna A da aba DASH,
-  // pegando o STATUS da Coluna C de Vistoria de Sites.
-  // -------------------------------------------------------------
-  try {
-    const ssVistoria = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_VISTORIA.ID, 'Planilha VISTORIA DE SITES');
-    const abaVistoria = obterAbaPorGidOuNome(ssVistoria, CONFIG_GPON.PLANILHA_VISTORIA.GID, CONFIG_GPON.PLANILHA_VISTORIA.NOME_ABA);
-    const dadosVistoria = abaVistoria.getDataRange().getValues();
-
-    if (dadosVistoria.length >= 2) {
-      const infoHeaderVistoria = detectarCabecalho(dadosVistoria);
-      const colSiteVistoria = CONFIG_GPON.PLANILHA_VISTORIA.COLUNA_SITE_INDEX;
-      const colStatusVistoria = CONFIG_GPON.PLANILHA_VISTORIA.COLUNA_STATUS_INDEX;
-
-      let statusEncontrados = 0;
-      for (let r = infoHeaderVistoria.rowIndex + 1; r < dadosVistoria.length; r++) {
-        const row = dadosVistoria[r];
-        const sitesVistoria = extrairSitesDaCelula(row[colSiteVistoria]);
-
-        for (const siteVistoria of sitesVistoria) {
-          const siteKey = normalizarChave(siteVistoria);
-
-          if (siteKey && dadosConsolidados.has(siteKey)) {
-            const rawStatus = row[colStatusVistoria];
-            if (rawStatus !== null && rawStatus !== undefined && String(rawStatus).trim() !== '') {
-              const reg = dadosConsolidados.get(siteKey);
-              if (!reg.STATUS || reg.STATUS === CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO) {
-                reg.STATUS = String(rawStatus).trim().toUpperCase();
-                statusEncontrados++;
-              }
-            }
-          }
-        }
-      }
-      Logger.log(`[ETAPA 2 - VISTORIA] STATUS vinculado para ${statusEncontrados} sites.`);
-    }
-  } catch (errVistoria) {
-    Logger.log(`[AVISO ETAPA 2 - VISTORIA] Erro na planilha VISTORIA DE SITES: ${errVistoria.message}`);
-  }
-
-  // -------------------------------------------------------------
-  // ETAPA 3: Cruzar com Planilha 02 (Operacional / Ativação)
+  // ETAPA 2: Cruzar com Planilha 02 (Operacional / Ativação)
   // -------------------------------------------------------------
   try {
     const ss2 = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_2.ID, 'Planilha 02');
@@ -274,15 +236,15 @@ function cruzarDadosPlanilhas() {
             }
           }
         }
-        Logger.log('[ETAPA 3] Cruzamento com Planilha 02 concluído.');
+        Logger.log('[ETAPA 2] Cruzamento com Planilha 02 concluído.');
       }
     }
   } catch (errP2) {
-    Logger.log(`[AVISO ETAPA 3] Erro na Planilha 02: ${errP2.message}`);
+    Logger.log(`[AVISO ETAPA 2] Erro na Planilha 02: ${errP2.message}`);
   }
 
   // -------------------------------------------------------------
-  // ETAPA 4: Cruzar com Planilha 03 (Contratos / Finanças - GID 7198436)
+  // ETAPA 3: Cruzar com Planilha 03 (Contratos / Finanças - GID 7198436)
   // -------------------------------------------------------------
   try {
     const ss3 = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_3.ID, 'Planilha 03');
@@ -307,11 +269,82 @@ function cruzarDadosPlanilhas() {
             }
           }
         }
-        Logger.log('[ETAPA 4] Cruzamento com Planilha 03 concluído.');
+        Logger.log('[ETAPA 3] Cruzamento com Planilha 03 concluído.');
       }
     }
   } catch (errP3) {
-    Logger.log(`[AVISO ETAPA 4] Erro na Planilha 03: ${errP3.message}`);
+    Logger.log(`[AVISO ETAPA 3] Erro na Planilha 03: ${errP3.message}`);
+  }
+
+  // -------------------------------------------------------------
+  // ETAPA 4: Planilha VISTORIA DE SITES (Aba DASH)
+  // 1) Busca STATUS na Coluna C (compara Site com Coluna A)
+  // 2) Busca DATA DE ATIVAÇÃO na Coluna D para os sites que não
+  //    tiveram a data encontrada nas 3 primeiras planilhas
+  // -------------------------------------------------------------
+  try {
+    const ssVistoria = abrirPlanilhaSegura(CONFIG_GPON.PLANILHA_VISTORIA.ID, 'Planilha VISTORIA DE SITES');
+    const abaVistoria = obterAbaPorGidOuNome(ssVistoria, CONFIG_GPON.PLANILHA_VISTORIA.GID, CONFIG_GPON.PLANILHA_VISTORIA.NOME_ABA);
+    const dadosVistoria = abaVistoria.getDataRange().getValues();
+
+    if (dadosVistoria.length >= 2) {
+      const infoHeaderVistoria = detectarCabecalho(dadosVistoria);
+      const colSiteVistoria = CONFIG_GPON.PLANILHA_VISTORIA.COLUNA_SITE_INDEX;
+      const colStatusVistoria = CONFIG_GPON.PLANILHA_VISTORIA.COLUNA_STATUS_INDEX;
+      const colDataAtivVistoria = CONFIG_GPON.PLANILHA_VISTORIA.COLUNA_DATA_ATIVACAO_INDEX;
+
+      let statusEncontrados = 0;
+      let datasAtivacaoDASH = 0;
+
+      for (let r = infoHeaderVistoria.rowIndex + 1; r < dadosVistoria.length; r++) {
+        const row = dadosVistoria[r];
+        const sitesVistoria = extrairSitesDaCelula(row[colSiteVistoria]);
+
+        for (const siteVistoria of sitesVistoria) {
+          const siteKey = normalizarChave(siteVistoria);
+
+          if (siteKey && dadosConsolidados.has(siteKey)) {
+            const reg = dadosConsolidados.get(siteKey);
+
+            // 1. Preenchimento do STATUS (Coluna C)
+            const rawStatus = row[colStatusVistoria];
+            if (rawStatus !== null && rawStatus !== undefined && String(rawStatus).trim() !== '') {
+              if (!reg.STATUS || reg.STATUS === CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO) {
+                reg.STATUS = String(rawStatus).trim().toUpperCase();
+                statusEncontrados++;
+              }
+            }
+
+            // 2. Preenchimento da DATA DE ATIVAÇÃO (Coluna D da DASH)
+            // Regra: Apenas se NÃO foi encontrada nas 3 primeiras planilhas
+            const semDataAtivacao = !reg['DATA DE ATIVAÇÃO'] || 
+                                    String(reg['DATA DE ATIVAÇÃO']).trim() === '' || 
+                                    reg['DATA DE ATIVAÇÃO'] === CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
+
+            if (semDataAtivacao && colDataAtivVistoria < row.length) {
+              const rawDataAtiv = row[colDataAtivVistoria];
+              if (rawDataAtiv !== null && rawDataAtiv !== undefined && String(rawDataAtiv).trim() !== '') {
+                reg['DATA DE ATIVAÇÃO'] = rawDataAtiv;
+                datasAtivacaoDASH++;
+
+                // Se o MÊS DE ATIVAÇÃO também estiver vazio, aproveita a data
+                const semMesAtivacao = !reg['MÊS DE ATIVAÇÃO'] || 
+                                       String(reg['MÊS DE ATIVAÇÃO']).trim() === '' || 
+                                       reg['MÊS DE ATIVAÇÃO'] === CONFIG_GPON.VALOR_PADRAO_NAO_ENCONTRADO;
+                if (semMesAtivacao) {
+                  if (rawDataAtiv instanceof Date && !isNaN(rawDataAtiv.getTime())) {
+                    reg['MÊS DE ATIVAÇÃO'] = Utilities.formatDate(rawDataAtiv, Session.getScriptTimeZone() || 'America/Sao_Paulo', 'MM/yyyy');
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      Logger.log(`[ETAPA 4 - VISTORIA DASH] STATUS vinculado para ${statusEncontrados} sites. DATA DE ATIVAÇÃO (Col D) recuperada para ${datasAtivacaoDASH} sites.`);
+    }
+  } catch (errVistoria) {
+    Logger.log(`[AVISO ETAPA 4 - VISTORIA DASH] Erro na planilha VISTORIA DE SITES: ${errVistoria.message}`);
   }
 
   // -------------------------------------------------------------
@@ -339,8 +372,9 @@ function cruzarDadosPlanilhas() {
   const msgSucesso = `Cruzamento finalizado com sucesso!\n\n` +
                      `• Total de Sites processados (individuais): ${matrizDestino.length}\n` +
                      `• Total de Colunas geradas: ${CONFIG_GPON.COLUNAS_SOLICITADAS.length}\n` +
-                     `• Divisão de Múltiplos Sites: Cada site desmembrado em sua própria linha\n` +
-                     `• Coluna STATUS: Integrada com Vistoria de Sites (DASH)\n` +
+                     `• Divisão de Células: Múltiplos sites desmembrados em linhas individuais\n` +
+                     `• Coluna STATUS: Integrada com Vistoria de Sites (DASH - Coluna C)\n` +
+                     `• DATA DE ATIVAÇÃO: Fallback integrado na aba DASH (Coluna D)\n` +
                      `• Tempo de execução: ${tempoTotal} segundos\n` +
                      `• Regra de Fallback: "NÃO ENCONTRADO" para dados ausentes\n` +
                      `• Padrão de texto: MAIÚSCULO em todas as colunas textuais\n` +
@@ -406,7 +440,6 @@ function tratarValorPadronizado(nomeColuna, valor) {
       return strVig;
 
     default:
-      // FORNECEDOR, TIPO DE ATENDIMENTO, PLANO CONTRATADO
       return String(valor).trim().toUpperCase();
   }
 }
@@ -619,9 +652,9 @@ function diagnosticarPlanilhas() {
   Logger.log('=== [AUDITORIA] INICIANDO DIAGNÓSTICO DAS PLANILHAS ===');
   const planilhas = [
     { nome: 'Planilha 01 (DEMANDAS COMPRAS)', config: CONFIG_GPON.PLANILHA_1 },
-    { nome: 'VISTORIA DE SITES (DASH)', config: CONFIG_GPON.PLANILHA_VISTORIA },
     { nome: 'Planilha 02 (Operacional)', config: CONFIG_GPON.PLANILHA_2 },
     { nome: 'Planilha 03 (Contratos/Finanças)', config: CONFIG_GPON.PLANILHA_3 },
+    { nome: 'VISTORIA DE SITES (DASH)', config: CONFIG_GPON.PLANILHA_VISTORIA },
     { nome: 'Planilha Destino (Links - Tratados)', config: CONFIG_GPON.DESTINO }
   ];
 
