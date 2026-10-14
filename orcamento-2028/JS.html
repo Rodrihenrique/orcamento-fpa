@@ -47,94 +47,460 @@
   // DADOS DA ESTRUTURA E CONTAS
   // =====================================
   var estruturaSetores = {
-    "Gestão Telefonia": ["Contratos", "Frotas", "Jurídico", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Tecnologia da Informação", "Viagens"],
-    "Operação e Manutenção de Redes": ["Compras", "Contratos", "Estoque", "Patrimonial", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Taxas e Licenças", "Tecnologia da Informação", "Viagens"],
-    "Telefonia": ["Compras", "Contratos", "Estoque", "Frotas", "Jurídico", "Patrimonial", "Pessoal", "Propaganda e Marketing", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "SESMT", "Taxas e Licenças", "Tecnologia da Informação", "Tributos", "Viagens"],
-    "Operações de Redes": ["Compras", "Contratos", "Estoque", "Patrimonial", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Taxas e Licenças", "Tecnologia da Informação", "Viagens"],
-    "Projetos de Implantação": ["Compras", "Contratos", "Estoque", "Frotas", "Jurídico", "Patrimonial", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Taxas e Licenças", "Tecnologia da Informação", "Viagens"]
-  };
+  "GESTAO TELEFONIA": [
+    "CONTRATOS",
+    "FROTAS",
+    "JURIDICO",
+    "PESSOAL",
+    "RESULTADOS FINANCEIROS",
+    "RESULTADOS OPERACIONAIS",
+    "SERVICOS TERCEIROS",
+    "TECNOLOGIA DA INFORMACAO",
+    "VIAGENS"
+  ],
+  "OPERACAO E MANUTENCAO DE REDES": [
+    "COMPRAS",
+    "CONTRATOS",
+    "ESTOQUE",
+    "PATRIMONIAL",
+    "PESSOAL",
+    "RESULTADOS FINANCEIROS",
+    "RESULTADOS OPERACIONAIS",
+    "SERVICOS TERCEIROS",
+    "TAXAS E LICENCAS",
+    "TECNOLOGIA DA INFORMACAO",
+    "VIAGENS"
+  ],
+  "TELEFONIA": [
+    "COMPRAS",
+    "CONTRATOS",
+    "ESTOQUE",
+    "FROTAS",
+    "JURIDICO",
+    "PATRIMONIAL",
+    "PESSOAL",
+    "PROPAGANDA E MARKETING",
+    "RESULTADOS FINANCEIROS",
+    "RESULTADOS OPERACIONAIS",
+    "SERVICOS TERCEIROS",
+    "SESMT",
+    "TAXAS E LICENCAS",
+    "TECNOLOGIA DA INFORMACAO",
+    "TRIBUTOS",
+    "VIAGENS"
+  ],
+  "OPERACOES DE REDES": [
+    "COMPRAS",
+    "CONTRATOS",
+    "ESTOQUE",
+    "PATRIMONIAL",
+    "PESSOAL",
+    "RESULTADOS FINANCEIROS",
+    "RESULTADOS OPERACIONAIS",
+    "SERVICOS TERCEIROS",
+    "TAXAS E LICENCAS",
+    "TECNOLOGIA DA INFORMACAO",
+    "VIAGENS"
+  ],
+  "PROJETOS DE IMPLANTACAO": [
+    "COMPRAS",
+    "CONTRATOS",
+    "ESTOQUE",
+    "FROTAS",
+    "JURIDICO",
+    "PATRIMONIAL",
+    "PESSOAL",
+    "RESULTADOS FINANCEIROS",
+    "RESULTADOS OPERACIONAIS",
+    "SERVICOS TERCEIROS",
+    "TAXAS E LICENCAS",
+    "TECNOLOGIA DA INFORMACAO",
+    "VIAGENS"
+  ]
+};
 
   var contasPreDefinidas = {
-    "Telefonia": {
-      "Compras": ["51100026 - CONS. ÁGUA GERAL", "63007000 - CORREIOS E MALOTES", "63015000 - SUPORTE TÉCNICO", "63016000 - ANUNIDADES E CONTRIBUIÇÕES DE CLASSE"],
-      "Contratos": ["56101300 - INTERCONEXÃO", "63001000 - ENERGIA ELÉTRICA", "63004000 - SEGURO PATRIMONIAL", "63005000 - ALUGUEL E CONDOMINIO", "63006000 - TELEFONES", "67000003 - INDENIZAÇÕES DE TERCEIROS", "75004020 - IPTU /ITR"],
-      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA.", "51100009 - CONS. MATERIAL P/ MANUTENÇÃO E REFORMA", "51100015 - CONS. MATERIAL DE EXPEDIENTE", "51100017 - CONSUMO DE FARDAMENTOS"],
-      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "51109012 - DESPESA C/ RASTREADORES DE VEÍCULOS", "56101600 - MANUTENÇÃO DE VEÍCULOS", "60010014 - SEGUROS OBRIGATÓRIOS E LICENCIAMENTOS", "67005001 - MULTAS DE TRANSITO", "75008020 - IPVA"],
-      "Jurídico": ["71010404 - DESPESAS JUDICIAIS CIVIL - CUSTOS"],
-      "Patrimonial": ["51109002 - DEPRECIAÇÃO DE IMOBILIZADO - DEDUTIVEL", "51109008 - DEPRECIAÇÃO DE ARRENDAMENTO - OPERACIONAL"],
-      "Pessoal": ["51000002 - 13 SALARIO", "51000007 - ADICIONAL DE PERICULOSIDADE", "51000014 - AVISO PREVIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "51100052 - AJUDA DE CUSTO AGUA", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000012 - VALE TRANSPORTE", "61000013 - PLANO DE SAUDE", "61000017 - FGTS MULTA RESCISORIA", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000027 - PRÊMIOS E BONIFICAÇÕES", "61000028 - PPR - COLABORADORES", "61000031 - BENEFICIOS COM COLABORADORES - PCD", "61000034 - AJUDAS DE CUSTOS", "61000037 - VALE ALIMENTAÇÃO", "61000040 - SOBREAVISO", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63018000 - ASSISTÊNCIA MÉDICA, CLINICA E SAÚDE OCUPACIONAL"],
-      "Propaganda e Marketing": ["51100028 - CONS. PROPAGANDA E MARKETING"],
-      "Resultados Financeiros": ["65000001 - JUROS MORATORIOS E MULTAS", "65000008 - DESPESA JUROS - ARRENDAMENTO - INDEDUTIVEL", "71050000 - DESCONTO CONCEDIDOS", "72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
-      "Resultados Operacionais": ["51109018 - (-) CRÉDITOS DE ICMS S/ ENERGIA", "71800000 - OUTRAS DESPESAS INDEDUTIVEIS"],
-      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA", "63010000 - ASSESSORIA E CONSULTORIA EMPRESARIAL"],
-      "SESMT": ["51100014 - CONSUMO DE EPIS"],
-      "Taxas e Licenças": ["63013100 - TAXAS E EMOLUMENTOS"],
-      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
-      "Tributos": ["63999001 - (-) CREDITOS COFINS S/DESPESAS ADMINISTRATIVAS", "63999002 - (-) CREDITOS PIS S/DESPESAS ADMINISTRATIVAS"],
-      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO", "61007000 - DESPESAS DE VIAGEM - COND., PASSAG. E TRANSPORTES"]
-    },
-    "Operações de Redes": {
-      "Compras": ["51100026 - CONS. ÁGUA GERAL"],
-      "Contratos": ["56101300 - INTERCONEXÃO", "63001000 - ENERGIA ELÉTRICA", "63004000 - SEGURO PATRIMONIAL", "63005000 - ALUGUEL E CONDOMINIO", "63006000 - TELEFONES"],
-      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA.", "51100010 - MATERIAIS E MANUTENÇÃO DE EQUIPAMENTOS DE INFORMÁT", "51100017 - CONSUMO DE FARDAMENTOS", "56101100 - MANUTENÇÃO E REPAROS"],
-      "Patrimonial": ["51109008 - DEPRECIAÇÃO DE ARRENDAMENTO - OPERACIONAL"],
-      "Pessoal": ["51000002 - 13 SALARIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000013 - PLANO DE SAUDE", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000027 - PRÊMIOS E BONIFICAÇÕES", "61000028 - PPR - COLABORADORES", "61000037 - VALE ALIMENTAÇÃO", "61000038 - AUXÍLIO CRECHE", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63018000 - ASSISTÊNCIA MÉDICA, CLINICA E SAÚDE OCUPACIONAL"],
-      "Resultados Financeiros": ["65000001 - JUROS MORATORIOS E MULTAS", "65000008 - DESPESA JUROS - ARRENDAMENTO - INDEDUTIVEL", "65000009 - JUROS MORATORIOS SOBRE TRIBUTOS", "65000010 - MULTAS MORATORIAS SOBRE TRIBUTOS", "72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
-      "Resultados Operacionais": ["51109018 - (-) CRÉDITOS DE ICMS S/ ENERGIA"],
-      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA", "63010000 - ASSESSORIA E CONSULTORIA EMPRESARIAL"],
-      "Taxas e Licenças": ["63013100 - TAXAS E EMOLUMENTOS"],
-      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
-      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO"]
-    },
-    "Operação e Manutenção de Redes": {
-      "Compras": ["51100012 - BENS DE REDUZIDO VALOR", "51100026 - CONS. ÁGUA GERAL", "63015000 - SUPORTE TÉCNICO"],
-      "Contratos": ["56101300 - INTERCONEXÃO", "63001000 - ENERGIA ELÉTRICA", "63005000 - ALUGUEL E CONDOMINIO", "63006000 - TELEFONES"],
-      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA.", "51100009 - CONS. MATERIAL P/ MANUTENÇÃO E REFORMA", "51100010 - MATERIAIS E MANUTENÇÃO DE EQUIPAMENTOS DE INFORMÁT", "51100015 - CONS. MATERIAL DE EXPEDIENTE", "51100017 - CONSUMO DE FARDAMENTOS", "56101400 - FRETE"],
-      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "51109012 - DESPESA C/ RASTREADORES DE VEÍCULOS", "56101600 - MANUTENÇÃO DE VEÍCULOS", "56101700 - LOCAÇÃO DE VEÍCULOS", "60010014 - SEGUROS OBRIGATÓRIOS E LICENCIAMENTOS", "63017000 - SERVIÇO DE DESPACHANTE", "67005001 - MULTAS DE TRANSITO", "75008020 - IPVA"],
-      "Jurídico": ["71010403 - DESPESAS JUDICIAIS TRABALHISTAS - CUSTOS"],
-      "Pessoal": ["51000002 - 13 SALARIO", "51000007 - ADICIONAL DE PERICULOSIDADE", "51000014 - AVISO PREVIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "51100052 - AJUDA DE CUSTO AGUA", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000012 - VALE TRANSPORTE", "61000013 - PLANO DE SAUDE", "61000017 - FGTS MULTA RESCISORIA", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000027 - PRÊMIOS E BONIFICAÇÕES", "61000028 - PPR - COLABORADORES", "61000034 - AJUDAS DE CUSTOS", "61000036 - GRATIFICAÇÕES", "61000037 - VALE ALIMENTAÇÃO", "61000040 - SOBREAVISO", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63018000 - ASSISTÊNCIA MÉDICA, CLINICA E SAÚDE OCUPACIONAL"],
-      "Propaganda e Marketing": ["51100028 - CONS. PROPAGANDA E MARKETING"],
-      "Resultados Financeiros": ["72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
-      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA"],
-      "SESMT": ["51100014 - CONSUMO DE EPIS"],
-      "Taxas e Licenças": ["63013100 - TAXAS E EMOLUMENTOS"],
-      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
-      "Tributos": ["63999001 - (-) CREDITOS COFINS S/DESPESAS ADMINISTRATIVAS", "63999002 - (-) CREDITOS PIS S/DESPESAS ADMINISTRATIVAS"],
-      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO", "61007000 - DESPESAS DE VIAGEM - COND., PASSAG. E TRANSPORTES"]
-    },
-    "Gestão Telefonia": {
-      "Contratos": ["56101300 - INTERCONEXÃO", "63006000 - TELEFONES"],
-      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "51109012 - DESPESA C/ RASTREADORES DE VEÍCULOS", "56101700 - LOCAÇÃO DE VEÍCULOS", "75008020 - IPVA"],
-      "Jurídico": ["71010404 - DESPESAS JUDICIAIS CIVIL - CUSTOS"],
-      "Pessoal": ["51000002 - 13 SALARIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000013 - PLANO DE SAUDE", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000028 - PPR - COLABORADORES", "61000037 - VALE ALIMENTAÇÃO", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63013103 - COMISSÃO DE COLABORADORES S/ VENDAS"],
-      "Resultados Financeiros": ["65000001 - JUROS MORATORIOS E MULTAS", "72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
-      "Resultados Operacionais": ["71800000 - OUTRAS DESPESAS INDEDUTIVEIS"],
-      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA"],
-      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
-      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO", "61007000 - DESPESAS DE VIAGEM - COND., PASSAG. E TRANSPORTES"]
-    },
-    "Projetos de Implantação": {
-      "Compras": ["51100012 - BENS DE REDUZIDO VALOR", "63015000 - SUPORTE TÉCNICO"],
-      "Contratos": ["63001000 - ENERGIA ELÉTRICA", "63005000 - ALUGUEL E CONDOMINIO"],
-      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA."],
-      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "56101600 - MANUTENÇÃO DE VEÍCULOS"],
-      "Pessoal": ["61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000037 - VALE ALIMENTAÇÃO"],
-      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA"],
-      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO"]
-    }
-  };
+  "TELEFONIA": {
+    "COMPRAS": [
+      "51100026 CONS AGUA GERAL",
+      "63007000 CORREIOS E MALOTES",
+      "63015000 SUPORTE TECNICO",
+      "63016000 ANUNIDADES E CONTRIBUICOES DE CLASSE"
+    ],
+    "CONTRATOS": [
+      "56101300 INTERCONEXAO",
+      "63001000 ENERGIA ELETRICA",
+      "63004000 SEGURO PATRIMONIAL",
+      "63005000 ALUGUEL E CONDOMINIO",
+      "63006000 TELEFONES",
+      "67000003 INDENIZACOES DE TERCEIROS",
+      "75004020 IPTU ITR"
+    ],
+    "ESTOQUE": [
+      "51100001 CONS MATERIAIS DE INSTALACAO",
+      "51100002 CONS MATERIAIS INFRA",
+      "51100009 CONS MATERIAL P MANUTENCAO E REFORMA",
+      "51100015 CONS MATERIAL DE EXPEDIENTE",
+      "51100017 CONSUMO DE FARDAMENTOS"
+    ],
+    "FROTAS": [
+      "51100020 CONS COMBUSTIVEIS",
+      "51109012 DESPESA C RASTREADORES DE VEICULOS",
+      "56101600 MANUTENCAO DE VEICULOS",
+      "60010014 SEGUROS OBRIGATORIOS E LICENCIAMENTOS",
+      "67005001 MULTAS DE TRANSITO",
+      "75008020 IPVA"
+    ],
+    "JURIDICO": [
+      "71010404 DESPESAS JUDICIAIS CIVIL CUSTOS"
+    ],
+    "PATRIMONIAL": [
+      "51109002 DEPRECIACAO DE IMOBILIZADO DEDUTIVEL",
+      "51109008 DEPRECIACAO DE ARRENDAMENTO OPERACIONAL"
+    ],
+    "PESSOAL": [
+      "51000002 13 SALARIO",
+      "51000007 ADICIONAL DE PERICULOSIDADE",
+      "51000014 AVISO PREVIO",
+      "51000021 ADICIONAL NOTURNO",
+      "51100018 BRISAFLEX",
+      "51100019 ALIMENTACAO REFEITORIO",
+      "51100052 AJUDA DE CUSTO AGUA",
+      "61000000 SALARIOS",
+      "61000004 FGTS",
+      "61000008 HORAS EXTRAS",
+      "61000012 VALE TRANSPORTE",
+      "61000013 PLANO DE SAUDE",
+      "61000017 FGTS MULTA RESCISORIA",
+      "61000019 PROV INSS S FERIAS",
+      "61000020 PROV FGTS S FERIAS",
+      "61000021 PROV INSS S 13 SALARIOS",
+      "61000022 PROV FGTS S 13 SALARIOS",
+      "61000026 ABONO ACT ANUAL",
+      "61000027 PREMIOS E BONIFICACOES",
+      "61000028 PPR COLABORADORES",
+      "61000031 BENEFICIOS COM COLABORADORES PCD",
+      "61000034 AJUDAS DE CUSTOS",
+      "61000037 VALE ALIMENTACAO",
+      "61000040 SOBREAVISO",
+      "61000041 DESPESAS COM BENEFICIOS DE BEM ESTAR",
+      "61022030 FERIAS",
+      "61310000 INSS PATRONAL",
+      "61402000 SEGURO DE VIDA",
+      "63018000 ASSISTENCIA MEDICA CLINICA E SAUDE OCUPACIONAL"
+    ],
+    "PROPAGANDA E MARKETING": [
+      "51100028 CONS PROPAGANDA E MARKETING"
+    ],
+    "RESULTADOS FINANCEIROS": [
+      "65000001 JUROS MORATORIOS E MULTAS",
+      "65000008 DESPESA JUROS ARRENDAMENTO INDEDUTIVEL",
+      "71050000 DESCONTO CONCEDIDOS",
+      "72010000 PERDA POR DIFERENCAS DA TAXA DE CAMBIO"
+    ],
+    "RESULTADOS OPERACIONAIS": [
+      "51109018 CREDITOS DE ICMS S ENERGIA",
+      "71800000 OUTRAS DESPESAS INDEDUTIVEIS"
+    ],
+    "SERVICOS TERCEIROS": [
+      "60050001 SERVICOS TOMADOS PESSOA JURIDICA",
+      "63010000 ASSESSORIA E CONSULTORIA EMPRESARIAL"
+    ],
+    "SESMT": [
+      "51100014 CONSUMO DE EPIS"
+    ],
+    "TAXAS E LICENCAS": [
+      "63013100 TAXAS E EMOLUMENTOS"
+    ],
+    "TECNOLOGIA DA INFORMACAO": [
+      "63008000 DESPESA COM LICENCA DE SOFTWARE E SISTEMAS"
+    ],
+    "TRIBUTOS": [
+      "63999001 CREDITOS COFINS S DESPESAS ADMINISTRATIVAS",
+      "63999002 CREDITOS PIS S DESPESAS ADMINISTRATIVAS"
+    ],
+    "VIAGENS": [
+      "61003000 DESPESAS DE VIAGEM HOTEL E HOSPEDAGEM",
+      "61004000 DESPESA DE VIAGEM ALIMENTACAO",
+      "61007000 DESPESAS DE VIAGEM COND PASSAG E TRANSPORTES"
+    ]
+  },
+  "OPERACOES DE REDES": {
+    "COMPRAS": [
+      "51100026 CONS AGUA GERAL"
+    ],
+    "CONTRATOS": [
+      "56101300 INTERCONEXAO",
+      "63001000 ENERGIA ELETRICA",
+      "63004000 SEGURO PATRIMONIAL",
+      "63005000 ALUGUEL E CONDOMINIO",
+      "63006000 TELEFONES"
+    ],
+    "ESTOQUE": [
+      "51100001 CONS MATERIAIS DE INSTALACAO",
+      "51100002 CONS MATERIAIS INFRA",
+      "51100010 MATERIAIS E MANUTENCAO DE EQUIPAMENTOS DE INFORMAT",
+      "51100017 CONSUMO DE FARDAMENTOS",
+      "56101100 MANUTENCAO E REPAROS"
+    ],
+    "PATRIMONIAL": [
+      "51109008 DEPRECIACAO DE ARRENDAMENTO OPERACIONAL"
+    ],
+    "PESSOAL": [
+      "51000002 13 SALARIO",
+      "51000021 ADICIONAL NOTURNO",
+      "51100018 BRISAFLEX",
+      "51100019 ALIMENTACAO REFEITORIO",
+      "61000000 SALARIOS",
+      "61000004 FGTS",
+      "61000008 HORAS EXTRAS",
+      "61000013 PLANO DE SAUDE",
+      "61000019 PROV INSS S FERIAS",
+      "61000020 PROV FGTS S FERIAS",
+      "61000021 PROV INSS S 13 SALARIOS",
+      "61000022 PROV FGTS S 13 SALARIOS",
+      "61000026 ABONO ACT ANUAL",
+      "61000027 PREMIOS E BONIFICACOES",
+      "61000028 PPR COLABORADORES",
+      "61000037 VALE ALIMENTACAO",
+      "61000038 AUXILIO CRECHE",
+      "61000041 DESPESAS COM BENEFICIOS DE BEM ESTAR",
+      "61022030 FERIAS",
+      "61310000 INSS PATRONAL",
+      "61402000 SEGURO DE VIDA",
+      "63018000 ASSISTENCIA MEDICA CLINICA E SAUDE OCUPACIONAL"
+    ],
+    "RESULTADOS FINANCEIROS": [
+      "65000001 JUROS MORATORIOS E MULTAS",
+      "65000008 DESPESA JUROS ARRENDAMENTO INDEDUTIVEL",
+      "65000009 JUROS MORATORIOS SOBRE TRIBUTOS",
+      "65000010 MULTAS MORATORIAS SOBRE TRIBUTOS",
+      "72010000 PERDA POR DIFERENCAS DA TAXA DE CAMBIO"
+    ],
+    "RESULTADOS OPERACIONAIS": [
+      "51109018 CREDITOS DE ICMS S ENERGIA"
+    ],
+    "SERVICOS TERCEIROS": [
+      "60050001 SERVICOS TOMADOS PESSOA JURIDICA",
+      "63010000 ASSESSORIA E CONSULTORIA EMPRESARIAL"
+    ],
+    "TAXAS E LICENCAS": [
+      "63013100 TAXAS E EMOLUMENTOS"
+    ],
+    "TECNOLOGIA DA INFORMACAO": [
+      "63008000 DESPESA COM LICENCA DE SOFTWARE E SISTEMAS"
+    ],
+    "VIAGENS": [
+      "61003000 DESPESAS DE VIAGEM HOTEL E HOSPEDAGEM",
+      "61004000 DESPESA DE VIAGEM ALIMENTACAO"
+    ]
+  },
+  "OPERACAO E MANUTENCAO DE REDES": {
+    "COMPRAS": [
+      "51100012 BENS DE REDUZIDO VALOR",
+      "51100026 CONS AGUA GERAL",
+      "63015000 SUPORTE TECNICO"
+    ],
+    "CONTRATOS": [
+      "56101300 INTERCONEXAO",
+      "63001000 ENERGIA ELETRICA",
+      "63005000 ALUGUEL E CONDOMINIO",
+      "63006000 TELEFONES"
+    ],
+    "ESTOQUE": [
+      "51100001 CONS MATERIAIS DE INSTALACAO",
+      "51100002 CONS MATERIAIS INFRA",
+      "51100009 CONS MATERIAL P MANUTENCAO E REFORMA",
+      "51100010 MATERIAIS E MANUTENCAO DE EQUIPAMENTOS DE INFORMAT",
+      "51100015 CONS MATERIAL DE EXPEDIENTE",
+      "51100017 CONSUMO DE FARDAMENTOS",
+      "56101400 FRETE"
+    ],
+    "FROTAS": [
+      "51100020 CONS COMBUSTIVEIS",
+      "51109012 DESPESA C RASTREADORES DE VEICULOS",
+      "56101600 MANUTENCAO DE VEICULOS",
+      "56101700 LOCACAO DE VEICULOS",
+      "60010014 SEGUROS OBRIGATORIOS E LICENCIAMENTOS",
+      "63017000 SERVICO DE DESPACHANTE",
+      "67005001 MULTAS DE TRANSITO",
+      "75008020 IPVA"
+    ],
+    "JURIDICO": [
+      "71010403 DESPESAS JUDICIAIS TRABALHISTAS CUSTOS"
+    ],
+    "PESSOAL": [
+      "51000002 13 SALARIO",
+      "51000007 ADICIONAL DE PERICULOSIDADE",
+      "51000014 AVISO PREVIO",
+      "51000021 ADICIONAL NOTURNO",
+      "51100018 BRISAFLEX",
+      "51100019 ALIMENTACAO REFEITORIO",
+      "51100052 AJUDA DE CUSTO AGUA",
+      "61000000 SALARIOS",
+      "61000004 FGTS",
+      "61000008 HORAS EXTRAS",
+      "61000012 VALE TRANSPORTE",
+      "61000013 PLANO DE SAUDE",
+      "61000017 FGTS MULTA RESCISORIA",
+      "61000019 PROV INSS S FERIAS",
+      "61000020 PROV FGTS S FERIAS",
+      "61000021 PROV INSS S 13 SALARIOS",
+      "61000022 PROV FGTS S 13 SALARIOS",
+      "61000026 ABONO ACT ANUAL",
+      "61000027 PREMIOS E BONIFICACOES",
+      "61000028 PPR COLABORADORES",
+      "61000034 AJUDAS DE CUSTOS",
+      "61000036 GRATIFICACOES",
+      "61000037 VALE ALIMENTACAO",
+      "61000040 SOBREAVISO",
+      "61000041 DESPESAS COM BENEFICIOS DE BEM ESTAR",
+      "61022030 FERIAS",
+      "61310000 INSS PATRONAL",
+      "61402000 SEGURO DE VIDA",
+      "63018000 ASSISTENCIA MEDICA CLINICA E SAUDE OCUPACIONAL"
+    ],
+    "PROPAGANDA E MARKETING": [
+      "51100028 CONS PROPAGANDA E MARKETING"
+    ],
+    "RESULTADOS FINANCEIROS": [
+      "72010000 PERDA POR DIFERENCAS DA TAXA DE CAMBIO"
+    ],
+    "SERVICOS TERCEIROS": [
+      "60050001 SERVICOS TOMADOS PESSOA JURIDICA"
+    ],
+    "SESMT": [
+      "51100014 CONSUMO DE EPIS"
+    ],
+    "TAXAS E LICENCAS": [
+      "63013100 TAXAS E EMOLUMENTOS"
+    ],
+    "TECNOLOGIA DA INFORMACAO": [
+      "63008000 DESPESA COM LICENCA DE SOFTWARE E SISTEMAS"
+    ],
+    "TRIBUTOS": [
+      "63999001 CREDITOS COFINS S DESPESAS ADMINISTRATIVAS",
+      "63999002 CREDITOS PIS S DESPESAS ADMINISTRATIVAS"
+    ],
+    "VIAGENS": [
+      "61003000 DESPESAS DE VIAGEM HOTEL E HOSPEDAGEM",
+      "61004000 DESPESA DE VIAGEM ALIMENTACAO",
+      "61007000 DESPESAS DE VIAGEM COND PASSAG E TRANSPORTES"
+    ]
+  },
+  "GESTAO TELEFONIA": {
+    "CONTRATOS": [
+      "56101300 INTERCONEXAO",
+      "63006000 TELEFONES"
+    ],
+    "FROTAS": [
+      "51100020 CONS COMBUSTIVEIS",
+      "51109012 DESPESA C RASTREADORES DE VEICULOS",
+      "56101700 LOCACAO DE VEICULOS",
+      "75008020 IPVA"
+    ],
+    "JURIDICO": [
+      "71010404 DESPESAS JUDICIAIS CIVIL CUSTOS"
+    ],
+    "PESSOAL": [
+      "51000002 13 SALARIO",
+      "51000021 ADICIONAL NOTURNO",
+      "51100018 BRISAFLEX",
+      "51100019 ALIMENTACAO REFEITORIO",
+      "61000000 SALARIOS",
+      "61000004 FGTS",
+      "61000008 HORAS EXTRAS",
+      "61000013 PLANO DE SAUDE",
+      "61000019 PROV INSS S FERIAS",
+      "61000020 PROV FGTS S FERIAS",
+      "61000021 PROV INSS S 13 SALARIOS",
+      "61000022 PROV FGTS S 13 SALARIOS",
+      "61000026 ABONO ACT ANUAL",
+      "61000028 PPR COLABORADORES",
+      "61000037 VALE ALIMENTACAO",
+      "61000041 DESPESAS COM BENEFICIOS DE BEM ESTAR",
+      "61022030 FERIAS",
+      "61310000 INSS PATRONAL",
+      "61402000 SEGURO DE VIDA",
+      "63013103 COMISSAO DE COLABORADORES S VENDAS"
+    ],
+    "RESULTADOS FINANCEIROS": [
+      "65000001 JUROS MORATORIOS E MULTAS",
+      "72010000 PERDA POR DIFERENCAS DA TAXA DE CAMBIO"
+    ],
+    "RESULTADOS OPERACIONAIS": [
+      "71800000 OUTRAS DESPESAS INDEDUTIVEIS"
+    ],
+    "SERVICOS TERCEIROS": [
+      "60050001 SERVICOS TOMADOS PESSOA JURIDICA"
+    ],
+    "TECNOLOGIA DA INFORMACAO": [
+      "63008000 DESPESA COM LICENCA DE SOFTWARE E SISTEMAS"
+    ],
+    "VIAGENS": [
+      "61003000 DESPESAS DE VIAGEM HOTEL E HOSPEDAGEM",
+      "61004000 DESPESA DE VIAGEM ALIMENTACAO",
+      "61007000 DESPESAS DE VIAGEM COND PASSAG E TRANSPORTES"
+    ]
+  },
+  "PROJETOS DE IMPLANTACAO": {
+    "COMPRAS": [
+      "51100012 BENS DE REDUZIDO VALOR",
+      "63015000 SUPORTE TECNICO"
+    ],
+    "CONTRATOS": [
+      "63001000 ENERGIA ELETRICA",
+      "63005000 ALUGUEL E CONDOMINIO"
+    ],
+    "ESTOQUE": [
+      "51100001 CONS MATERIAIS DE INSTALACAO",
+      "51100002 CONS MATERIAIS INFRA"
+    ],
+    "FROTAS": [
+      "51100020 CONS COMBUSTIVEIS",
+      "56101600 MANUTENCAO DE VEICULOS"
+    ],
+    "PESSOAL": [
+      "61000000 SALARIOS",
+      "61000004 FGTS",
+      "61000008 HORAS EXTRAS",
+      "61000037 VALE ALIMENTACAO"
+    ],
+    "SERVICOS TERCEIROS": [
+      "60050001 SERVICOS TOMADOS PESSOA JURIDICA"
+    ],
+    "VIAGENS": [
+      "61003000 DESPESAS DE VIAGEM HOTEL E HOSPEDAGEM",
+      "61004000 DESPESA DE VIAGEM ALIMENTACAO"
+    ]
+  }
+};
 
   var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   var iconeLixeira = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
-  function normalizarTexto(str) {
-    return String(str || '')
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^\w\s]/gi, '')
+    function padronizarTexto(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\u00C3\u00A1|\u00C3\u00A0/gi, 'A')
+      .replace(/\u00C3\u00A9|\u00C3\u00AA/gi, 'E')
+      .replace(/\u00C3\u00AD|\u00C3\u00AC/gi, 'I')
+      .replace(/\u00C3\u00B3|\u00C3\u00B4|\u00C3\u00B5/gi, 'O')
+      .replace(/\u00C3\u00BA|\u00C3\u00BC/gi, 'U')
+      .replace(/\u00C3\u00A7/gi, 'C')
+      .replace(/\u00C3\u00A3/gi, 'A')
+      .replace(/\u00C3\u0192/gi, 'A')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[,;–—−\-_]/g, ' ')
+      .replace(/[^\w\s]/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
+  }
+
+  function normalizarTexto(str) {
+    return padronizarTexto(str);
   }
 
   function extrairCodigoConta(str) {
@@ -528,6 +894,9 @@
   }
 
   function gerarHtmlPacote(setorId, setor, tipo, pacote, index, linhasInjetadas) {
+    setor = padronizarTexto(setor);
+    tipo = padronizarTexto(tipo);
+    pacote = padronizarTexto(pacote);
     var pacoteId = setorId + '-pacote-' + (index !== undefined ? index : (Date.now() + '-' + Math.random().toString(36).substr(2, 5)));
     var mesesTh = meses.map(function(m){ return '<th>' + m + '</th>'; }).join('');
     linhasInjetadas = linhasInjetadas || '';
@@ -578,7 +947,7 @@
     var nomePacote = prompt("Digite o nome do novo Pacote de Gastos para " + setor + " (" + tipo + "):");
     if (!nomePacote || !nomePacote.trim()) return;
 
-    nomePacote = nomePacote.trim();
+    nomePacote = padronizarTexto(nomePacote);
     var container = document.getElementById('container-pacotes-' + setorId);
     if (!container) return;
 
@@ -661,7 +1030,7 @@
   }
 
   function gerarLinhaHtml(nomePredefinido, paramMeses, isHist, valorFixo, isSaved, paramId, isSubline, parentId) {
-    nomePredefinido = nomePredefinido || '';
+    nomePredefinido = padronizarTexto(nomePredefinido || '');
     paramMeses = paramMeses || Array(12).fill('0.00');
     isHist = isHist || false;
     valorFixo = valorFixo || '';
@@ -691,7 +1060,7 @@
         '<td>' +
           '<div class="d-flex align-items-center gap-2 mb-2">' +
             '<button class="btn-validate-dot ' + dotClass + '" onclick="salvarLinhaIndividual(this)" title="Marcar/Desmarcar linha (Salva no Orçamento)">' + dotIcon + '</button>' +
-            '<input type="text" class="input-minimal desc nome-custo m-0" ' + valorDesc + ' style="text-transform: uppercase;" onkeydown="pularProximoCampo(event, this)" oninput="desbloquearLinhaEdicao(this)">' +
+            '<input type="text" class="input-minimal desc nome-custo m-0" ' + valorDesc + ' style="text-transform: uppercase;" onkeydown="pularProximoCampo(event, this)" oninput="this.value = this.value.toUpperCase(); desbloquearLinhaEdicao(this)" onblur="this.value = padronizarTexto(this.value); desbloquearLinhaEdicao(this)">' +
           '</div>' +
           '<div class="d-flex align-items-center gap-2 mt-1 ms-4 pl-2">' +
             '<label class="form-check-label text-muted d-flex align-items-center gap-1 m-0" style="font-size:11px; cursor:pointer; user-select:none;">' +
@@ -1256,16 +1625,16 @@
   function getNomeCustoCompleto(tr) {
     var nomeElement = tr.querySelector('.nome-custo');
     if(!nomeElement) return '';
-    var nome = nomeElement.value.toUpperCase();
+    var nome = padronizarTexto(nomeElement.value);
     if (tr.classList.contains('sub-linha')) {
       var parentId = tr.getAttribute('data-parent');
       var parentTr = document.querySelector('tr[data-id="' + parentId + '"]');
       if (parentTr) {
         var parentNomeElement = parentTr.querySelector('.nome-custo');
-        if(parentNomeElement) nome = parentNomeElement.value.toUpperCase() + " - " + nome;
+        if(parentNomeElement) nome = padronizarTexto(parentNomeElement.value) + " " + nome;
       }
     }
-    return nome;
+    return padronizarTexto(nome);
   }
 
   // =====================================
@@ -1273,15 +1642,21 @@
   // =====================================
   function exportarSetorCSV(setor, tipo) {
     try {
-      var tabelas = document.querySelectorAll('.table-clean[data-setor="' + setor + '"][data-tipo="' + tipo + '"]');
+      setor = padronizarTexto(setor);
+      tipo = padronizarTexto(tipo);
+
+      var tabelas = Array.from(document.querySelectorAll('.table-clean[data-setor][data-tipo]')).filter(function(tb) {
+        return padronizarTexto(tb.getAttribute('data-setor')) === setor && padronizarTexto(tb.getAttribute('data-tipo')) === tipo;
+      });
+
       if (tabelas.length === 0) {
         mostrarToast('Nenhum pacote encontrado para o setor ' + setor, 'warning');
         return;
       }
-      var csvContent = 'sep=;\nTipo;Setor;Pacote;Conta / Descricao;Jan;Fev;Mar;Abr;Mai;Jun;Jul;Ago;Set;Out;Nov;Dez\n';
+      var csvContent = 'sep=;\nTIPO;SETOR;PACOTE;CONTA DESCRICAO;JAN;FEV;MAR;ABR;MAI;JUN;JUL;AGO;SET;OUT;NOV;DEZ\n';
 
       tabelas.forEach(function(tb) {
-        var pacote = tb.getAttribute('data-pacote');
+        var pacote = padronizarTexto(tb.getAttribute('data-pacote'));
         var linhasTr = tb.querySelectorAll('tbody tr');
         var linhasComCusto = 0;
 
@@ -1292,7 +1667,7 @@
          
           if (temFilhos && !isSubline) return;
 
-          var nomeCusto = getNomeCustoCompleto(tr).replace(/;/g, '-').trim();
+          var nomeCusto = padronizarTexto(getNomeCustoCompleto(tr));
           if (nomeCusto) {
             linhasComCusto++;
             var mesesVals = Array.from(tr.querySelectorAll('.input-mes')).map(function(inp) { return inp.value.replace('.', ','); });
@@ -1300,8 +1675,6 @@
           }
         });
 
-        // Se o pacote não possuir nenhuma linha com custo preenchido (ex: pacote recém-adicionado),
-        // exporta uma linha modelo para que o pacote conste no template CSV atualizado
         if (linhasComCusto === 0) {
           csvContent += tipo + ';' + setor + ';' + pacote + ';EXEMPLO CUSTO;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00\n';
         }
@@ -1311,11 +1684,11 @@
       var url = URL.createObjectURL(blob);
       var link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", 'Template_' + tipo + '_' + setor.replace(/\s+/g, '_') + '.csv');
+      link.setAttribute("download", 'TEMPLATE_' + tipo + '_' + setor.replace(/\s+/g, '_') + '.csv');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      mostrarToast('Template CSV de ' + setor + ' exportado com os pacotes atualizados.', 'success');
+      mostrarToast('Template CSV de ' + setor + ' exportado com os textos padronizados.', 'success');
     } catch (error) {
       mostrarToast("Erro ao exportar o arquivo CSV. Tente novamente.", 'danger');
     }

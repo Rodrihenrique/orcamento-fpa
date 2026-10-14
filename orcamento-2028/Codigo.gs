@@ -74,14 +74,28 @@ function obterCustosSalvos() {
   const abaCapex = ss.getSheetByName('CAPEX_Dados');
   const dados = [];
 
-  function normalizarTexto(str) {
-    return String(str || '')
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^\w\s]/gi, '')
+    function padronizarTexto(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\u00C3\u00A1|\u00C3\u00A0/gi, 'A')
+      .replace(/\u00C3\u00A9|\u00C3\u00AA/gi, 'E')
+      .replace(/\u00C3\u00AD|\u00C3\u00AC/gi, 'I')
+      .replace(/\u00C3\u00B3|\u00C3\u00B4|\u00C3\u00B5/gi, 'O')
+      .replace(/\u00C3\u00BA|\u00C3\u00BC/gi, 'U')
+      .replace(/\u00C3\u00A7/gi, 'C')
+      .replace(/\u00C3\u00A3/gi, 'A')
+      .replace(/\u00C3\u0192/gi, 'A')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[,;–—−\-_]/g, ' ')
+      .replace(/[^\w\s]/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
+  }
+
+  function normalizarTexto(str) {
+    return padronizarTexto(str);
   }
 
   function extrairCodigoConta(str) {
@@ -181,14 +195,28 @@ function salvarCustos(dados) {
   const abaCapex = ss.getSheetByName('CAPEX_Dados');
   const dataAtual = new Date();
 
-  function normalizarTexto(str) {
-    return String(str || '')
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^\w\s]/gi, '')
+  function padronizarTexto(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\u00C3\u00A1|\u00C3\u00A0/gi, 'A')
+      .replace(/\u00C3\u00A9|\u00C3\u00AA/gi, 'E')
+      .replace(/\u00C3\u00AD|\u00C3\u00AC/gi, 'I')
+      .replace(/\u00C3\u00B3|\u00C3\u00B4|\u00C3\u00B5/gi, 'O')
+      .replace(/\u00C3\u00BA|\u00C3\u00BC/gi, 'U')
+      .replace(/\u00C3\u00A7/gi, 'C')
+      .replace(/\u00C3\u00A3/gi, 'A')
+      .replace(/\u00C3\u0192/gi, 'A')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[,;–—−\-_]/g, ' ')
+      .replace(/[^\w\s]/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
+  }
+
+  function normalizarTexto(str) {
+    return padronizarTexto(str);
   }
 
   function extrairCodigoConta(str) {
@@ -333,14 +361,28 @@ function salvarCustosSetor(tipo, setor, dadosSetor) {
 
   const dataAtual = new Date();
 
-  function normalizarTexto(str) {
-    return String(str || '')
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^\w\s]/gi, '')
+  function padronizarTexto(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\u00C3\u00A1|\u00C3\u00A0/gi, 'A')
+      .replace(/\u00C3\u00A9|\u00C3\u00AA/gi, 'E')
+      .replace(/\u00C3\u00AD|\u00C3\u00AC/gi, 'I')
+      .replace(/\u00C3\u00B3|\u00C3\u00B4|\u00C3\u00B5/gi, 'O')
+      .replace(/\u00C3\u00BA|\u00C3\u00BC/gi, 'U')
+      .replace(/\u00C3\u00A7/gi, 'C')
+      .replace(/\u00C3\u00A3/gi, 'A')
+      .replace(/\u00C3\u0192/gi, 'A')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[,;–—−\-_]/g, ' ')
+      .replace(/[^\w\s]/gi, ' ')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
+  }
+
+  function normalizarTexto(str) {
+    return padronizarTexto(str);
   }
 
   function extrairCodigoConta(str) {
