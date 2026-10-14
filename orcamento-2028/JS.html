@@ -1328,6 +1328,9 @@
     if (!valorStr) return '0.00';
     var limpo = String(valorStr).replace(/"/g, '').replace(/R\$/g, '').trim();
     if (limpo === '' || limpo === '-') return '0.00';
+    if (/^\(.*\)$/.test(limpo)) {
+      limpo = '-' + limpo.replace(/[()]/g, '');
+    }
     if (limpo.indexOf(',') > -1) {
       limpo = limpo.replace(/\./g, '').replace(',', '.');
     }
@@ -1442,25 +1445,30 @@
     var idxMeses = [];
 
     var mesesNomes = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+    var mesesIngles = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
     headers.forEach(function(h, idx) {
-      if (h === 'TIPO') idxTipo = idx;
-      else if (h === 'SETOR') idxSetor = idx;
-      else if (h === 'PACOTE') idxPacote = idx;
-      else if (h.indexOf('CONTA') > -1 || h.indexOf('DESCRICAO') > -1 || h.indexOf('CUSTO') > -1 || h.indexOf('NOME') > -1) idxConta = idx;
+      if (h === 'TIPO' || h.indexOf('TIPO') === 0) idxTipo = idx;
+      else if (h === 'SETOR' || h.indexOf('SETOR') > -1 || h.indexOf('DEPT') > -1) idxSetor = idx;
+      else if (h === 'PACOTE' || h.indexOf('PACOTE') > -1 || h.indexOf('GRUPO') > -1 || h.indexOf('MACRO') > -1) idxPacote = idx;
+      else if (h.indexOf('CONTA') > -1 || h.indexOf('DESCRICAO') > -1 || h.indexOf('CUSTO') > -1 || h.indexOf('NOME') > -1 || h.indexOf('ITEM') > -1 || h.indexOf('HISTORICO') > -1 || h.indexOf('RUBRICA') > -1) idxConta = idx;
     });
 
     // Mapeamento dos meses garantindo que 'SET' não dê match em 'SETOR'
-    mesesNomes.forEach(function(mNome) {
+    mesesNomes.forEach(function(mNome, mI) {
+      var mEng = mesesIngles[mI];
       var mIdx = headers.findIndex(function(h) { 
-        return h === mNome || (h.indexOf(mNome) === 0 && h !== 'SETOR'); 
+        if (h === 'SETOR' || h.indexOf('SETOR') > -1) return false;
+        return h === mNome || h === mEng || h.indexOf(mNome) === 0 || h.indexOf(mEng) === 0; 
       });
       idxMeses.push(mIdx);
     });
 
     if (idxMeses.some(function(i){ return i === -1; })) {
       idxMeses = [];
-      var startIdx = (idxConta > -1 ? idxConta + 1 : 4);
+      var startIdx = 4;
+      if (idxConta > -1) startIdx = idxConta + 1;
+      else if (idxPacote > -1) startIdx = idxPacote + 1;
       for (var m = 0; m < 12; m++) {
         idxMeses.push(startIdx + m);
       }
@@ -1468,6 +1476,7 @@
 
     var countAtualizadas = 0;
     var countInseridas = 0;
+    var countTemplates = 0;
     var tabelasModificadas = new Set();
     var todasTabelas = Array.from(document.querySelectorAll('.table-clean[data-tipo]'));
 
@@ -1478,10 +1487,16 @@
       var rawTipo = (idxTipo > -1 && colunas[idxTipo]) ? colunas[idxTipo].trim().toUpperCase() : '';
       var rawSetor = (idxSetor > -1 && colunas[idxSetor]) ? colunas[idxSetor].trim() : '';
       var rawPacote = (idxPacote > -1 && colunas[idxPacote]) ? colunas[idxPacote].trim() : '';
-      var rawConta = (idxConta > -1 && colunas[idxConta]) ? colunas[idxConta].trim() : (colunas[3] || '').trim();
+      var rawConta = '';
+      if (idxConta > -1 && colunas[idxConta]) {
+        rawConta = colunas[idxConta].trim();
+      } else {
+        var possivelContaIdx = idxPacote > -1 ? idxPacote + 1 : (idxSetor > -1 ? idxSetor + 1 : (idxTipo > -1 ? idxTipo + 1 : 0));
+        if (colunas[possivelContaIdx]) rawConta = colunas[possivelContaIdx].trim();
+      }
 
-      var tipoLinha = rawTipo || (tipoPadrao || 'OPEX').toUpperCase();
-      var setorLinha = rawSetor || (setorPadrao || '');
+      var tipoLinha = (rawTipo || (tipoPadrao || 'OPEX')).toUpperCase();
+      var setorLinha = setorPadrao || rawSetor || '';
       var pacoteLinha = rawPacote || '';
       var contaLinha = rawConta;
 
@@ -1494,42 +1509,80 @@
         valoresMeses.push(numStr);
       }
 
-      // Localiza a tabela correspondente no DOM
-      var tabela = todasTabelas.find(function(tb) {
-        var tTipo = normalizarTexto(tb.getAttribute('data-tipo'));
-        var tSetor = normalizarTexto(tb.getAttribute('data-setor'));
-        var tPacote = normalizarTexto(tb.getAttribute('data-pacote'));
-        var lTipo = normalizarTexto(tipoLinha);
-        var lSetor = normalizarTexto(setorLinha);
-        var lPacote = normalizarTexto(pacoteLinha);
-        
-        return tTipo === lTipo && 
-               (tSetor === lSetor || tSetor.indexOf(lSetor) > -1 || lSetor.indexOf(tSetor) > -1) &&
-               (tPacote === lPacote || tPacote.indexOf(lPacote) > -1 || lPacote.indexOf(tPacote) > -1);
-      });
+      var contaUpper = contaLinha.toUpperCase().trim();
+      var ehExemplo = (contaUpper === 'EXEMPLO CUSTO' || contaUpper === 'EXEMPLO_CUSTO');
+      var todosZeros = valoresMeses.every(function(v){ return parseFloat(v) === 0; });
 
-      // Se o pacote não existir na tela, cria o pacote dinamicamente!
-      if (!tabela && setorLinha && pacoteLinha) {
-        var setorIdAlvo = tipoLinha.toLowerCase() + '-' + setorLinha.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
-        var containerPacotes = document.getElementById('container-pacotes-' + setorIdAlvo);
-        if (containerPacotes) {
-          var novoIdx = 'import_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
-          var htmlNovoPacote = gerarHtmlPacote(setorIdAlvo, setorLinha, tipoLinha, pacoteLinha, novoIdx, '');
-          containerPacotes.insertAdjacentHTML('beforeend', htmlNovoPacote);
-          registrarPacoteAdicionado(tipoLinha, setorLinha, pacoteLinha);
-          tabela = containerPacotes.querySelector('#table-' + setorIdAlvo + '-pacote-' + novoIdx);
-          if (tabela) {
-            todasTabelas.push(tabela);
-            var tbodyNovo = tabela.querySelector('tbody');
-            if (tbodyNovo) tbodyNovo.innerHTML = '';
+      // Localiza o container do setor alvo de forma precisa para evitar colisões entre setores similares
+      var setorIdAlvo = tipoLinha.toLowerCase() + '-' + setorLinha.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
+      var containerPacotes = document.getElementById('container-pacotes-' + setorIdAlvo);
+      
+      if (!containerPacotes) {
+        var sNorm = normalizarTexto(setorLinha);
+        var tabPanes = document.querySelectorAll('.tab-pane');
+        for (var tp = 0; tp < tabPanes.length; tp++) {
+          var pTb = tabPanes[tp].querySelector('.table-clean[data-setor]');
+          if (pTb && normalizarTexto(pTb.getAttribute('data-setor')) === sNorm) {
+            containerPacotes = tabPanes[tp].querySelector('.packages-container');
+            if (containerPacotes) break;
           }
         }
       }
 
-      // Se for linha de exemplo do template CSV e todos os valores forem zero, apenas assegura a criação do pacote
-      var contaUpper = contaLinha.toUpperCase().trim();
-      if ((contaUpper === 'EXEMPLO CUSTO' || contaUpper === 'EXEMPLO_CUSTO') && valoresMeses.every(function(v){ return parseFloat(v) === 0; })) {
-        if (tabela) tabelasModificadas.add(tabela);
+      var tabela = null;
+      var pacoteNorm = normalizarTexto(pacoteLinha);
+
+      if (containerPacotes) {
+        var tabelasDoSetor = Array.from(containerPacotes.querySelectorAll('.table-clean[data-pacote]'));
+        
+        // 1. Busca exata de pacote pelo nome normalizado
+        if (pacoteNorm) {
+          tabela = tabelasDoSetor.find(function(tb) {
+            return normalizarTexto(tb.getAttribute('data-pacote')) === pacoteNorm;
+          });
+          // 2. Busca aproximada dentro deste setor
+          if (!tabela) {
+            tabela = tabelasDoSetor.find(function(tb) {
+              var tPac = normalizarTexto(tb.getAttribute('data-pacote'));
+              return tPac.indexOf(pacoteNorm) > -1 || pacoteNorm.indexOf(tPac) > -1;
+            });
+          }
+        } else {
+          // Se não veio pacote no CSV, localiza a tabela onde a conta já exista
+          tabela = tabelasDoSetor.find(function(tb) {
+            var trs = Array.from(tb.querySelectorAll('tbody tr:not(.sub-linha)'));
+            return trs.some(function(tr) {
+              var n = normalizarTexto(getNomeCustoCompleto(tr));
+              return n && (n === normalizarTexto(contaLinha) || (extrairCodigoConta(contaLinha) && extrairCodigoConta(contaLinha) === extrairCodigoConta(getNomeCustoCompleto(tr))));
+            });
+          });
+          if (!tabela && tabelasDoSetor.length > 0) {
+            tabela = tabelasDoSetor[0];
+          }
+        }
+      }
+
+      // Se o pacote não existir no setor, cria o pacote dinamicamente
+      if (!tabela && containerPacotes && pacoteLinha) {
+        var novoIdx = 'import_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+        var htmlNovoPacote = gerarHtmlPacote(setorIdAlvo, setorLinha, tipoLinha, pacoteLinha, novoIdx, '');
+        containerPacotes.insertAdjacentHTML('beforeend', htmlNovoPacote);
+        registrarPacoteAdicionado(tipoLinha, setorLinha, pacoteLinha);
+        tabela = containerPacotes.querySelector('#table-' + setorIdAlvo + '-pacote-' + novoIdx);
+        if (tabela) {
+          todasTabelas.push(tabela);
+          var tbodyNovo = tabela.querySelector('tbody');
+          if (tbodyNovo) tbodyNovo.innerHTML = '';
+        }
+      }
+
+      // Se for linha de exemplo do template CSV e todos os valores forem zero:
+      // Valida o template e registra o pacote pronto
+      if (ehExemplo && todosZeros) {
+        if (tabela) {
+          tabelasModificadas.add(tabela);
+          countTemplates++;
+        }
         continue;
       }
 
@@ -1541,11 +1594,15 @@
         var codConta = extrairCodigoConta(contaLinha);
         var descLimpaCsv = normalizarTexto(contaLinha).replace(/^\d+\s*/, '').trim();
 
+        // 1. Tenta encontrar linha existente que combine com a conta
         var trEncontrada = trs.find(function(tr) {
-          var nomeTr = normalizarTexto(getNomeCustoCompleto(tr));
+          var nomeCompleto = getNomeCustoCompleto(tr);
+          var nomeTr = normalizarTexto(nomeCompleto);
+          if (!nomeTr) return false;
+
           if (nomeTr === normalizarTexto(contaLinha)) return true;
           
-          var codTr = extrairCodigoConta(getNomeCustoCompleto(tr));
+          var codTr = extrairCodigoConta(nomeCompleto);
           if (codConta && codTr && codConta === codTr) return true;
 
           var descLimpaTr = nomeTr.replace(/^\d+\s*/, '').trim();
@@ -1564,22 +1621,48 @@
           marcarLinha(trEncontrada);
           countAtualizadas++;
         } else {
-          var rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-          tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(contaLinha, valoresMeses, false, '', true, rowId));
-          var novaTr = tbody.lastElementChild;
-          calcularTotal(novaTr.querySelector('.input-mes'));
-          marcarLinha(novaTr);
-          countInseridas++;
+          // 2. Se não encontrou, verifica se há uma linha vazia (placeholder) no pacote para preenchê-la
+          var trVazia = trs.find(function(tr) {
+            var inpNome = tr.querySelector('.nome-custo');
+            return inpNome && (!inpNome.value || inpNome.value.trim() === '');
+          });
+
+          if (trVazia) {
+            var inpDesc = trVazia.querySelector('.nome-custo');
+            if (inpDesc) {
+              inpDesc.value = contaLinha.toUpperCase();
+            }
+            var inputsVazia = trVazia.querySelectorAll('.input-mes');
+            inputsVazia.forEach(function(inp, mIdx) {
+              inp.value = valoresMeses[mIdx];
+              inp.readOnly = false;
+            });
+            calcularTotal(inputsVazia[0]);
+            marcarLinha(trVazia);
+            countAtualizadas++;
+          } else {
+            // 3. Se todas as linhas já têm nome, insere uma nova linha
+            var rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(contaLinha, valoresMeses, false, '', true, rowId));
+            var novaTr = tbody.lastElementChild;
+            calcularTotal(novaTr.querySelector('.input-mes'));
+            marcarLinha(novaTr);
+            countInseridas++;
+          }
         }
       }
     }
 
     tabelasModificadas.forEach(function(tb) {
       atualizarMasterDot(tb);
+      var colDiv = tb.closest('.collapse');
+      if (colDiv && !colDiv.classList.contains('show')) {
+        colDiv.classList.add('show');
+      }
     });
 
     var totalPreenchidas = countAtualizadas + countInseridas;
-    if (totalPreenchidas === 0) {
+    if (totalPreenchidas === 0 && countTemplates === 0) {
       mostrarToast("Nenhuma conta correspondente foi encontrada para preencher na tela.", "warning");
       return;
     }
@@ -1588,7 +1671,11 @@
     salvarSessaoLocal();
     registrarAlteracao();
 
-    mostrarToast("Importação concluída! " + totalPreenchidas + " contas preenchidas na tela. Revise os dados e clique em 'Salvar Orçamento' para enviar à planilha.", "success");
+    if (totalPreenchidas > 0) {
+      mostrarToast("Importação concluída! " + totalPreenchidas + " contas preenchidas com sucesso em " + (setorPadrao || 'Setor') + ". Revise os dados e clique em 'Salvar Orçamento' para enviar à planilha.", "success");
+    } else {
+      mostrarToast("Template CSV carregado com sucesso! Os pacotes de " + (setorPadrao || 'Setor') + " foram validados e estão prontos na tela. Preencha os valores desejados.", "info");
+    }
   }
 
   function salvarDadosSetor(setorId, setor, tipo) {
