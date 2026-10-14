@@ -310,6 +310,152 @@ function salvarCustos(dados) {
 }
 
 /**
+ * Salva ou atualiza os lançamentos de um ÚNICO setor na aba correspondente (OPEX_Dados ou CAPEX_Dados).
+ * ENVIO INDIVIDUAL POR SETOR:
+ * - Localiza a aba correta (OPEX_Dados ou CAPEX_Dados).
+ * - Preserva integralmente os lançamentos de TODOS os outros setores.
+ * - Para o setor especificado, substitui suas linhas pelos novos dados enviados,
+ *   garantindo que se um pacote/linha foi removido desse setor, ele é removido da planilha.
+ * - Deduplica e grava em lote, limpando qualquer excesso no final da planilha.
+ */
+function salvarCustosSetor(tipo, setor, dadosSetor) {
+  if (!tipo || !setor) {
+    return { success: false, message: "Tipo ou Setor não especificados." };
+  }
+  dadosSetor = dadosSetor || [];
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const nomeAba = String(tipo).toUpperCase() === 'OPEX' ? 'OPEX_Dados' : 'CAPEX_Dados';
+  const aba = ss.getSheetByName(nomeAba);
+  if (!aba) {
+    return { success: false, message: "Aba " + nomeAba + " não encontrada na planilha." };
+  }
+
+  const dataAtual = new Date();
+
+  function normalizarTexto(str) {
+    return String(str || '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s]/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function extrairCodigoConta(str) {
+    const m = String(str || '').match(/^\d+/);
+    return m ? m[0] : '';
+  }
+
+  function gerarChaveNegocio(sSetor, sPacote, sNomeCusto) {
+    return normalizarTexto(sSetor) + '|||' + normalizarTexto(sPacote) + '|||' + normalizarTexto(sNomeCusto);
+  }
+
+  function gerarChaveCodigo(sSetor, sPacote, sNomeCusto) {
+    const cod = extrairCodigoConta(sNomeCusto);
+    return cod ? (normalizarTexto(sSetor) + '|||' + normalizarTexto(sPacote) + '|||COD_' + cod) : '';
+  }
+
+  const setorAlvoNorm = normalizarTexto(setor);
+  const dataRange = aba.getDataRange();
+  const valores = dataRange.getValues();
+
+  // 1. Separa linhas que pertencem a OUTROS setores (permanecem intactas)
+  // e mapeia linhas existentes do setor alvo para preservar identificadores estáveis
+  const linhasOutrosSetores = [];
+  const mapIdExistenteSetor = new Map();
+  const mapChaveExistenteSetor = new Map();
+
+  for (let i = 1; i < valores.length; i++) {
+    const row = valores[i];
+    const setorRow = String(row[3] || '').trim();
+    const nomeCustoRow = String(row[5] || '').trim();
+    if (!nomeCustoRow) continue;
+
+    if (normalizarTexto(setorRow) !== setorAlvoNorm) {
+      linhasOutrosSetores.push(row);
+    } else {
+      const idExistente = String(row[0] || '').trim();
+      const pacoteRow = String(row[4] || '').trim();
+      const chave = gerarChaveNegocio(setorRow, pacoteRow, nomeCustoRow);
+      const chaveCod = gerarChaveCodigo(setorRow, pacoteRow, nomeCustoRow);
+
+      if (idExistente && !mapIdExistenteSetor.has(idExistente)) {
+        mapIdExistenteSetor.set(idExistente, idExistente);
+      }
+      if (!mapChaveExistenteSetor.has(chave)) {
+        mapChaveExistenteSetor.set(chave, idExistente);
+      }
+      if (chaveCod && !mapChaveExistenteSetor.has(chaveCod)) {
+        mapChaveExistenteSetor.set(chaveCod, idExistente);
+      }
+    }
+  }
+
+  // 2. Monta as novas linhas do setor alvo enviadas da interface (deduplicadas)
+  const mapLinhasNovasSetor = new Map();
+
+  dadosSetor.forEach(linha => {
+    const nomeCustoLimpo = String(linha.nomeCusto || '').trim();
+    if (!nomeCustoLimpo) return;
+
+    const chaveLinha = gerarChaveNegocio(setor, linha.pacote, nomeCustoLimpo);
+    const chaveCodLinha = gerarChaveCodigo(setor, linha.pacote, nomeCustoLimpo);
+
+    const mesesVals = [];
+    for (let m = 0; m < 12; m++) {
+      mesesVals.push(parseFloat(linha.meses[m]) || 0);
+    }
+    const totalVal = parseFloat(linha.total) || mesesVals.reduce((acc, curr) => acc + curr, 0);
+
+    let idFinal = linha.id || '';
+    if (!idFinal || !mapIdExistenteSetor.has(idFinal)) {
+      if (mapChaveExistenteSetor.has(chaveLinha)) {
+        idFinal = mapChaveExistenteSetor.get(chaveLinha);
+      } else if (chaveCodLinha && mapChaveExistenteSetor.has(chaveCodLinha)) {
+        idFinal = mapChaveExistenteSetor.get(chaveCodLinha);
+      }
+    }
+    if (!idFinal) {
+      idFinal = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    }
+
+    const registroFormatado = [
+      idFinal,
+      dataAtual,
+      tipo,
+      setor,
+      linha.pacote,
+      nomeCustoLimpo,
+      ...mesesVals,
+      totalVal
+    ];
+
+    mapLinhasNovasSetor.set(chaveLinha, registroFormatado);
+  });
+
+  const linhasNovasDesteSetor = Array.from(mapLinhasNovasSetor.values());
+
+  // 3. Junta as linhas dos outros setores com as linhas atualizadas deste setor
+  const todasLinhasFinais = linhasOutrosSetores.concat(linhasNovasDesteSetor);
+  const totalLinhasPlanilha = aba.getLastRow();
+
+  if (todasLinhasFinais.length > 0) {
+    aba.getRange(2, 1, todasLinhasFinais.length, 19).setValues(todasLinhasFinais);
+
+    if (totalLinhasPlanilha > todasLinhasFinais.length + 1) {
+      const qtdExcesso = totalLinhasPlanilha - (todasLinhasFinais.length + 1);
+      aba.getRange(todasLinhasFinais.length + 2, 1, qtdExcesso, 19).clearContent();
+    }
+  } else if (totalLinhasPlanilha > 1) {
+    aba.getRange(2, 1, totalLinhasPlanilha - 1, 19).clearContent();
+  }
+
+  return { success: true, message: "Setor " + setor + " salvo com sucesso na planilha!" };
+}
+
+/**
  * Obtém dados da aba 'Importacao' para um setor e tipo específicos.
  */
 function obterDadosImportacao(setorFiltro, tipoFiltro) {

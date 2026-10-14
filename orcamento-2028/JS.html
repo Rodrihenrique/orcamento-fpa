@@ -485,17 +485,17 @@
         '<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
           '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
           '<div class="d-flex gap-2 flex-wrap">' +
-            '<button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" onclick="adicionarNovoPacote(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Criar novo pacote de gastos neste setor">' +
-              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>' +
-              ' + Novo Pacote' +
-            '</button>' +
-            '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')">' +
+            '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')" title="Exportar dados deste setor em formato CSV">' +
               '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
               ' Exportar Template CSV' +
             '</button>' +
-            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="acionarImportacaoCSV(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Importar arquivo CSV de ' + tipo + ' do setor ' + setor + '">' +
+            '<button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" onclick="acionarImportacaoCSV(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Importar arquivo CSV de ' + tipo + ' do setor ' + setor + '">' +
               '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' +
               ' Importar Arquivo CSV' +
+            '</button>' +
+            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" id="btn-salvar-' + setorId + '" onclick="salvarDadosSetor(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Salvar orçamento deste setor na planilha">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>' +
+              ' Salvar Orçamento' +
             '</button>' +
             '<input type="file" id="input-csv-' + setorId + '" accept=".csv,text/csv" style="display:none;" onchange="processarArquivoCSV(this, \'' + setor + '\', \'' + tipo + '\')">' +
           '</div>' +
@@ -1588,7 +1588,97 @@
     salvarSessaoLocal();
     registrarAlteracao();
 
-    mostrarToast("Importação concluída! " + totalPreenchidas + " contas preenchidas na tela. Revise os dados e clique em 'Salvar Orçamento Geral' para enviar à planilha.", "success");
+    mostrarToast("Importação concluída! " + totalPreenchidas + " contas preenchidas na tela. Revise os dados e clique em 'Salvar Orçamento' para enviar à planilha.", "success");
+  }
+
+  function salvarDadosSetor(setorId, setor, tipo) {
+    var tabPane = document.getElementById(setorId);
+    if (!tabPane) return;
+
+    var tabelas = tabPane.querySelectorAll('.table-clean[data-tipo]');
+    var dadosParaSalvar = [];
+
+    tabelas.forEach(function(tabela) {
+      var tipoTabela = tabela.getAttribute('data-tipo');
+      var setorTabela = tabela.getAttribute('data-setor');
+      var pacoteTabela = tabela.getAttribute('data-pacote');
+
+      tabela.querySelectorAll('tbody tr').forEach(function(linha) {
+        var id = linha.getAttribute('data-id');
+        var temFilhos = tabela.querySelector('tr.sub-linha[data-parent="' + id + '"]') !== null;
+
+        // Pula o pai se ele tiver sub-linhas detalhadas, pois o que salva são os detalhes
+        if (temFilhos && !linha.classList.contains('sub-linha')) return;
+
+        var inputDesc = linha.querySelector('.nome-custo');
+        if (!inputDesc) return;
+
+        var nomeCusto = getNomeCustoCompleto(linha);
+        if (nomeCusto.trim() !== '') {
+          var inputsMes = linha.querySelectorAll('.input-mes');
+          var valoresMeses = Array.from(inputsMes).map(function(input) { return parseFloat(input.value) || 0; });
+          var total = valoresMeses.reduce(function(acc, curr) { return acc + curr; }, 0);
+
+          dadosParaSalvar.push({
+            id: id,
+            tipo: tipoTabela,
+            setor: setorTabela,
+            pacote: pacoteTabela,
+            nomeCusto: nomeCusto,
+            meses: valoresMeses,
+            total: total
+          });
+
+          // Marca a linha salva na tela com a bolinha verde
+          marcarLinha(linha);
+        }
+      });
+    });
+
+    if (dadosParaSalvar.length === 0) {
+      mostrarToast('Nenhum custo preenchido para salvar no setor ' + setor + '.', 'warning');
+      return;
+    }
+
+    var btn = document.getElementById('btn-salvar-' + setorId);
+    var originalHtml = btn ? btn.innerHTML : 'Salvar Orçamento';
+    if (btn) {
+      btn.innerHTML = '<span class="spin-icon">⏳</span> Salvando...';
+      btn.disabled = true;
+    }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+          }
+          alteracoesPendentes = false;
+          atualizarStatusSincronizado(true);
+          salvarSessaoLocal();
+          mostrarToast("Orçamento de " + setor + " (" + tipo + ") salvo com sucesso na planilha!", "success");
+        })
+        .withFailureHandler(function(err) {
+          if (btn) {
+            btn.innerHTML = originalHtml;
+            btn.disabled = false;
+          }
+          mostrarToast('Erro ao salvar setor na planilha: ' + err.message, "danger");
+        })
+        .salvarCustosSetor(tipo, setor, dadosParaSalvar);
+    } else {
+      setTimeout(function() {
+        if (btn) {
+          btn.innerHTML = originalHtml;
+          btn.disabled = false;
+        }
+        alteracoesPendentes = false;
+        atualizarStatusSincronizado(true);
+        salvarSessaoLocal();
+        mostrarToast("Modo local: setor " + setor + " (" + tipo + ") salvo com sucesso.", "success");
+      }, 500);
+    }
   }
 
   function salvarDados() {
