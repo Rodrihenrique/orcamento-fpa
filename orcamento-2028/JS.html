@@ -1,5 +1,28 @@
 <script>
-  // Cão de Guarda: Registra e alerta caso haja erros imprevistos
+  // =====================================
+  // TOAST DE FEEDBACK & CÃO DE GUARDA
+  // =====================================
+  function mostrarToast(mensagem, tipo) {
+    tipo = tipo || 'primary';
+    var toastEl = document.getElementById('toastFeedback');
+    var msgEl = document.getElementById('toastMessage');
+    if (!toastEl || !msgEl) {
+      console.log('[TOAST - ' + tipo + '] ' + mensagem);
+      return;
+    }
+
+    toastEl.className = 'toast align-items-center text-white border-0 bg-' + tipo;
+    msgEl.textContent = mensagem;
+
+    if (window.bootstrap && window.bootstrap.Toast) {
+      var toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+      toast.show();
+    } else {
+      toastEl.classList.add('show');
+      setTimeout(function() { toastEl.classList.remove('show'); }, 4000);
+    }
+  }
+
   window.onerror = function(msg, url, lineNo, columnNo, error) {
     console.error("Erro detectado:", msg, "Linha:", lineNo, error);
     mostrarToast("Erro detectado na interface: " + msg, "danger");
@@ -102,7 +125,7 @@
   };
 
   var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-  var iconeLixeira = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+  var iconeLixeira = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
   // =====================================
   // INICIALIZAÇÃO BLINDADA
@@ -111,7 +134,6 @@
     try {
       console.log("Iniciando sistema de orçamento 2028...");
       
-      // Carrega dados salvos: prioridade para o servidor (Google Sheets), fallback para localStorage
       var dadosSalvos = obterDadosSalvosIniciais();
 
       renderizarEstrutura('OPEX', 'sectorTabsOpex', 'sectorContentOpex', dadosSalvos);
@@ -121,7 +143,7 @@
       document.querySelectorAll('tr[data-id]:not(.sub-linha)').forEach(function(trPai) {
         var id = trPai.getAttribute('data-id');
         if (id) {
-          var temFilhos = document.querySelectorAll(`tr.sub-linha[data-parent="${id}"]`).length > 0;
+          var temFilhos = document.querySelectorAll('tr.sub-linha[data-parent="' + id + '"]').length > 0;
           if (temFilhos) { recalcularPai(id); }
         }
       });
@@ -142,7 +164,7 @@
       console.log("Sistema de orçamento 2028 carregado e consolidado com sucesso.");
     } catch (err) {
       console.error("Falha ao inicializar sistema:", err);
-      mostrarToast("Aviso: Inicializando com estrutura base devido a: " + err.message, "warning");
+      mostrarToast("Aviso ao inicializar: " + err.message, "warning");
     }
   }
 
@@ -154,22 +176,36 @@
   }
 
   /**
-   * Obtém a lista de registros salvos, priorizando o Google Sheets via injeção server-side
+   * Obtém a lista de registros salvos, priorizando dados vindos do Google Sheets
    */
   function obterDadosSalvosIniciais() {
-    // 1. Dados injetados diretamente pelo doGet do Apps Script
+    // 1. Tag de dados JSON injetada pelo doGet
+    try {
+      var scriptTag = document.getElementById('dados-iniciais-json');
+      if (scriptTag && scriptTag.textContent.trim()) {
+        var parsedServer = JSON.parse(scriptTag.textContent.trim());
+        if (Array.isArray(parsedServer) && parsedServer.length > 0) {
+          console.log("Carregados " + parsedServer.length + " registros diretamente do Google Sheets via script tag.");
+          return parsedServer;
+        }
+      }
+    } catch(e) {
+      console.warn("Falha ao ler dados da tag json:", e);
+    }
+
+    // 2. Variável global de fallback
     if (window.DADOS_INICIAIS_SERVIDOR && Array.isArray(window.DADOS_INICIAIS_SERVIDOR) && window.DADOS_INICIAIS_SERVIDOR.length > 0) {
-      console.log(`Carregados ${window.DADOS_INICIAIS_SERVIDOR.length} registros diretamente do Google Sheets.`);
+      console.log("Carregados " + window.DADOS_INICIAIS_SERVIDOR.length + " registros diretamente do Google Sheets.");
       return window.DADOS_INICIAIS_SERVIDOR;
     }
 
-    // 2. Cache local (localStorage) como fallback de contingência
+    // 3. Cache local (localStorage) como contingência
     try {
       var s = localStorage.getItem('brisa_orcamento_sessao');
       if (s) {
         var parsed = JSON.parse(s);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          console.log(`Carregados ${parsed.length} registros do cache local.`);
+          console.log("Carregados " + parsed.length + " registros do cache local.");
           return parsed;
         }
       }
@@ -188,7 +224,6 @@
     var contentContainer = document.getElementById(contentId);
     if (!tabsContainer || !contentContainer) return;
 
-    // Limpa containers para permitir recarregamento
     tabsContainer.innerHTML = '';
     contentContainer.innerHTML = '';
 
@@ -199,51 +234,52 @@
       if (!estruturaSetores.hasOwnProperty(setor)) continue;
       var pacotes = estruturaSetores[setor];
 
-      var setorId = `${tipo.toLowerCase()}-` + setor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
+      var setorId = tipo.toLowerCase() + '-' + setor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
      
       // Aba do Setor
       var tabButton = document.createElement('li');
       tabButton.className = 'nav-item';
-      tabButton.innerHTML = `<button class="nav-link ${isFirst ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#${setorId}" type="button">${setor}</button>`;
+      tabButton.innerHTML = '<button class="nav-link ' + (isFirst ? 'active' : '') + '" data-bs-toggle="tab" data-bs-target="#' + setorId + '" type="button">' + setor + '</button>';
       tabsContainer.appendChild(tabButton);
 
       // Painel de Conteúdo do Setor
       var tabPane = document.createElement('div');
-      tabPane.className = `tab-pane fade ${isFirst ? 'show active' : ''}`;
+      tabPane.className = 'tab-pane fade ' + (isFirst ? 'show active' : '');
       tabPane.id = setorId;
 
-      var htmlConteudo = `
-        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-          <h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ${setor.toUpperCase()} (${tipo})</h3>
-          <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV('${setor}', '${tipo}')">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Exportar Template CSV
-            </button>
-            <button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="importarSetorGoogleSheets(this, '${setor}', '${tipo}')">
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-              Importar da Aba "Importacao"
-            </button>
-          </div>
-        </div>
-        <div class="resumo-box">
-          <div class="resumo-title">Resumo Financeiro - ${setor} (${tipo})</div>
-          <div class="table-responsive">
-            <table class="table table-borderless table-clean" id="resumo-${setorId}">
-              <thead><tr><th>Pacote</th>${meses.map(function(m){return `<th>${m}</th>`}).join('')}<th class="text-end">Total</th></tr></thead>
-              <tbody></tbody>
-              <tfoot></tfoot>
-            </table>
-          </div>
-        </div>
-      `;
+      var mesesTh = meses.map(function(m){ return '<th>' + m + '</th>'; }).join('');
+
+      var htmlConteudo = '' +
+        '<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
+          '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
+          '<div class="d-flex gap-2">' +
+            '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
+              ' Exportar Template CSV' +
+            '</button>' +
+            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="importarSetorGoogleSheets(this, \'' + setor + '\', \'' + tipo + '\')">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' +
+              ' Importar da Aba "Importacao"' +
+            '</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="resumo-box">' +
+          '<div class="resumo-title">Resumo Financeiro - ' + setor + ' (' + tipo + ')</div>' +
+          '<div class="table-responsive">' +
+            '<table class="table table-borderless table-clean" id="resumo-' + setorId + '">' +
+              '<thead><tr><th>Pacote</th>' + mesesTh + '<th class="text-end">Total</th></tr></thead>' +
+              '<tbody></tbody>' +
+              '<tfoot></tfoot>' +
+            '</table>' +
+          '</div>' +
+        '</div>';
 
       pacotes.forEach(function(pacote, index) {
-        var pacoteId = `${setorId}-pacote-${index}`;
+        var pacoteId = setorId + '-pacote-' + index;
         var linhasInjetadas = '';
         var nomesAdicionados = {};
 
-        // 1. Injeta linhas que já foram salvas para este setor e pacote
+        // Injeta linhas que já foram salvas para este setor e pacote
         var linhasSalvasPacote = dadosSalvos.filter(function(s) {
           return String(s.tipo).toUpperCase() === tipo && 
                  String(s.setor).toLowerCase() === setor.toLowerCase() && 
@@ -266,7 +302,7 @@
           });
         }
 
-        // 2. Para OPEX, se houver contas pré-definidas que ainda não foram salvas, adiciona como template
+        // Para OPEX, se houver contas pré-definidas que ainda não foram salvas, adiciona como template
         if (tipo === 'OPEX' && contasPreDefinidas[setor] && contasPreDefinidas[setor][pacote]) {
           contasPreDefinidas[setor][pacote].forEach(function(contaNome) {
             if (!nomesAdicionados[contaNome.toUpperCase()]) {
@@ -275,29 +311,28 @@
           });
         }
 
-        htmlConteudo += `
-          <div class="package-wrapper">
-            <div class="package-header" data-bs-toggle="collapse" data-bs-target="#col-${pacoteId}">
-              <span>${pacote}</span><span class="text-muted small">▼</span>
-            </div>
-            <div id="col-${pacoteId}" class="collapse">
-              <div class="package-body table-responsive">
-                <table class="table table-borderless table-clean" id="table-${pacoteId}" data-tipo="${tipo}" data-setor="${setor}" data-pacote="${pacote}" data-setorid="${setorId}">
-                  <thead>
-                    <tr>
-                      <th>Descrição do Custo</th>
-                      ${meses.map(function(m){return `<th>${m}</th>`}).join('')}
-                      <th class="text-end">Total</th>
-                      <th style="width: 40px;"></th>
-                    </tr>
-                  </thead>
-                  <tbody>${linhasInjetadas}</tbody>
-                </table>
-                <button class="btn-add-line" onclick="adicionarLinhaCusto('${pacoteId}')">+ Adicionar Nova Linha Manualmente</button>
-              </div>
-            </div>
-          </div>
-        `;
+        htmlConteudo += '' +
+          '<div class="package-wrapper">' +
+            '<div class="package-header" data-bs-toggle="collapse" data-bs-target="#col-' + pacoteId + '">' +
+              '<span>' + pacote + '</span><span class="text-muted small">▼</span>' +
+            '</div>' +
+            '<div id="col-' + pacoteId + '" class="collapse">' +
+              '<div class="package-body table-responsive">' +
+                '<table class="table table-borderless table-clean" id="table-' + pacoteId + '" data-tipo="' + tipo + '" data-setor="' + setor + '" data-pacote="' + pacote + '" data-setorid="' + setorId + '">' +
+                  '<thead>' +
+                    '<tr>' +
+                      '<th>Descrição do Custo</th>' +
+                      mesesTh +
+                      '<th class="text-end">Total</th>' +
+                      '<th style="width: 40px;"></th>' +
+                    '</tr>' +
+                  '</thead>' +
+                  '<tbody>' + linhasInjetadas + '</tbody>' +
+                '</table>' +
+                '<button class="btn-add-line" onclick="adicionarLinhaCusto(\'' + pacoteId + '\')">+ Adicionar Nova Linha Manualmente</button>' +
+              '</div>' +
+            '</div>' +
+          '</div>';
       });
      
       tabPane.innerHTML = htmlConteudo;
@@ -316,10 +351,10 @@
     isSubline = isSubline || false;
     parentId = parentId || '';
 
-    var rowId = paramId || 'ID_' + new Date().getTime() + '_' + Math.random().toString(36).substr(2, 9);
+    var rowId = paramId || ('ID_' + new Date().getTime() + '_' + Math.random().toString(36).substr(2, 9));
    
     var safeNome = nomePredefinido ? nomePredefinido.replace(/"/g, '&quot;') : '';
-    var valorDesc = safeNome ? `value="${safeNome}"` : `placeholder="${isSubline ? 'Descreva o detalhe...' : 'Defina o nome do custo'}"`;
+    var valorDesc = safeNome ? ('value="' + safeNome + '"') : ('placeholder="' + (isSubline ? 'Descreva o detalhe...' : 'Defina o nome do custo') + '"');
    
     var savedClass = isSaved ? 'linha-salva' : '';
     var dotClass = isSaved ? 'saved' : '';
@@ -329,34 +364,35 @@
     var mesReadonly = isHist ? 'readonly' : '';
    
     var subClass = isSubline ? 'sub-linha' : '';
-    var dataParentAttr = isSubline && parentId ? `data-parent="${parentId}"` : '';
-    var btnAddSubline = !isSubline ? `<button type="button" class="btn-subline" onclick="adicionarSubLinha(this)" title="Adicionar Detalhe">↳ + Detalhe</button>` : '';
+    var dataParentAttr = (isSubline && parentId) ? ('data-parent="' + parentId + '"') : '';
+    var btnAddSubline = !isSubline ? '<button type="button" class="btn-subline" onclick="adicionarSubLinha(this)" title="Adicionar Detalhe">↳ + Detalhe</button>' : '';
    
-    var html = `<tr data-id="${rowId}" ${dataParentAttr} class="${savedClass} ${subClass}">
-      <td>
-        <div class="d-flex align-items-center gap-2 mb-2">
-          <button class="btn-validate-dot ${dotClass}" onclick="salvarLinhaIndividual(this)" title="Marcar/Desmarcar linha (Salva no Orçamento)">${dotIcon}</button>
-          <input type="text" class="input-minimal desc nome-custo m-0" ${valorDesc} style="text-transform: uppercase;" onkeydown="pularProximoCampo(event, this)" oninput="desbloquearLinhaEdicao(this)">
-        </div>
-        <div class="d-flex align-items-center gap-2 mt-1 ms-4 pl-2">
-          <label class="form-check-label text-muted d-flex align-items-center gap-1 m-0" style="font-size:11px; cursor:pointer; user-select:none;">
-            <input class="form-check-input check-historico m-0" type="checkbox" onchange="toggleHistorico(this)" ${histChecked} style="width:13px; height:13px; cursor:pointer;">
-            Histórico Fixo
-          </label>
-          <input type="number" class="input-minimal input-fixo ${fixoClass}" style="width: 85px; padding: 2px 6px; font-size:11px; height:24px;" placeholder="Valor Fixo" step="0.01" value="${valorFixo}" onfocus="limparZero(this)" oninput="aplicarFixo(this)" onkeydown="pularProximoCampo(event, this)">
-          ${btnAddSubline}
-        </div>
-      </td>`;
+    var html = '' +
+      '<tr data-id="' + rowId + '" ' + dataParentAttr + ' class="' + savedClass + ' ' + subClass + '">' +
+        '<td>' +
+          '<div class="d-flex align-items-center gap-2 mb-2">' +
+            '<button class="btn-validate-dot ' + dotClass + '" onclick="salvarLinhaIndividual(this)" title="Marcar/Desmarcar linha (Salva no Orçamento)">' + dotIcon + '</button>' +
+            '<input type="text" class="input-minimal desc nome-custo m-0" ' + valorDesc + ' style="text-transform: uppercase;" onkeydown="pularProximoCampo(event, this)" oninput="desbloquearLinhaEdicao(this)">' +
+          '</div>' +
+          '<div class="d-flex align-items-center gap-2 mt-1 ms-4 pl-2">' +
+            '<label class="form-check-label text-muted d-flex align-items-center gap-1 m-0" style="font-size:11px; cursor:pointer; user-select:none;">' +
+              '<input class="form-check-input check-historico m-0" type="checkbox" onchange="toggleHistorico(this)" ' + histChecked + ' style="width:13px; height:13px; cursor:pointer;">' +
+              ' Histórico Fixo' +
+            '</label>' +
+            '<input type="number" class="input-minimal input-fixo ' + fixoClass + '" style="width: 85px; padding: 2px 6px; font-size:11px; height:24px;" placeholder="Valor Fixo" step="0.01" value="' + valorFixo + '" onfocus="limparZero(this)" oninput="aplicarFixo(this)" onkeydown="pularProximoCampo(event, this)">' +
+            btnAddSubline +
+          '</div>' +
+        '</td>';
    
     var somaLinha = 0;
     for(var i = 0; i < 12; i++) {
       var val = paramMeses[i] || '0.00';
       somaLinha += parseFloat(val) || 0;
-      html += `<td><input type="number" class="input-minimal input-mes" value="${val}" step="0.01" ${mesReadonly} onfocus="limparZero(this)" onblur="restaurarZero(this)" oninput="calcularTotal(this)" onkeydown="pularProximoCampo(event, this)"></td>`;
+      html += '<td><input type="number" class="input-minimal input-mes" value="' + val + '" step="0.01" ' + mesReadonly + ' onfocus="limparZero(this)" onblur="restaurarZero(this)" oninput="calcularTotal(this)" onkeydown="pularProximoCampo(event, this)"></td>';
     }
    
-    html += `<td class="cell-total">${formatarMoeda(somaLinha)}</td>`;
-    html += `<td><button class="btn-delete" onclick="removerLinha(this)" title="Remover custo">${iconeLixeira}</button></td></tr>`;
+    html += '<td class="cell-total">' + formatarMoeda(somaLinha) + '</td>';
+    html += '<td><button class="btn-delete" onclick="removerLinha(this)" title="Remover custo">' + iconeLixeira + '</button></td></tr>';
    
     return html;
   }
@@ -508,7 +544,7 @@
 
     if (sincronizado) {
       dot.classList.remove('pending');
-      txt.textContent = 'Sincronizado com a Planilha';
+      txt.textContent = 'Sincronizado';
     } else {
       dot.classList.add('pending');
       txt.textContent = 'Alterações pendentes de salvar';
@@ -524,7 +560,7 @@
     }
     if (tr && tr.classList.contains('sub-linha')) {
       var parentId = tr.getAttribute('data-parent');
-      var trPai = document.querySelector(`tr[data-id="${parentId}"]`);
+      var trPai = document.querySelector('tr[data-id="' + parentId + '"]');
       if (trPai && trPai.classList.contains('linha-salva')) {
         trPai.classList.remove('linha-salva');
         var dotPai = trPai.querySelector('.btn-validate-dot');
@@ -540,7 +576,7 @@
     tr.classList.remove('linha-salva');
 
     var id = tr.getAttribute('data-id');
-    var isPaiBloqueado = !tr.classList.contains('sub-linha') && document.querySelectorAll(`tr.sub-linha[data-parent="${id}"]`).length > 0;
+    var isPaiBloqueado = !tr.classList.contains('sub-linha') && document.querySelectorAll('tr.sub-linha[data-parent="' + id + '"]').length > 0;
    
     if (!isPaiBloqueado) {
       tr.querySelectorAll('.input-mes').forEach(function(inp) { inp.value = '0.00'; inp.readOnly = false; });
@@ -574,14 +610,14 @@
       }
       marcarLinha(tr);
       if (isParent && rowId) {
-        document.querySelectorAll(`tr.sub-linha[data-parent="${rowId}"]`).forEach(function(sub) {
+        document.querySelectorAll('tr.sub-linha[data-parent="' + rowId + '"]').forEach(function(sub) {
           if (sub.querySelector('.nome-custo').value.trim() !== '') marcarLinha(sub);
         });
       }
     } else {
       desmarcarEZerarLinha(tr);
       if (isParent && rowId) {
-        document.querySelectorAll(`tr.sub-linha[data-parent="${rowId}"]`).forEach(function(sub){ desmarcarEZerarLinha(sub); });
+        document.querySelectorAll('tr.sub-linha[data-parent="' + rowId + '"]').forEach(function(sub){ desmarcarEZerarLinha(sub); });
         recalcularPai(rowId);
       }
     }
@@ -596,7 +632,7 @@
   // DETALHAMENTO DE LINHAS E SOMA
   // =====================================
   function adicionarLinhaCusto(pacoteId) {
-    var tbody = document.querySelector(`#table-${pacoteId} tbody`);
+    var tbody = document.querySelector('#table-' + pacoteId + ' tbody');
     if(tbody) { 
       tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml()); 
       registrarAlteracao(); 
@@ -627,7 +663,7 @@
    
     if (!isSubline && id) {
       var tbody = tr.closest('tbody');
-      var subLinhas = tbody.querySelectorAll(`tr.sub-linha[data-parent="${id}"]`);
+      var subLinhas = tbody.querySelectorAll('tr.sub-linha[data-parent="' + id + '"]');
       subLinhas.forEach(function(sub){ sub.remove(); });
     }
     tr.remove();
@@ -639,10 +675,10 @@
 
   function recalcularPai(parentId) {
     if(!parentId) return;
-    var parentTr = document.querySelector(`tr[data-id="${parentId}"]`);
+    var parentTr = document.querySelector('tr[data-id="' + parentId + '"]');
     if (!parentTr) return;
 
-    var subLinhas = document.querySelectorAll(`tr.sub-linha[data-parent="${parentId}"]`);
+    var subLinhas = document.querySelectorAll('tr.sub-linha[data-parent="' + parentId + '"]');
     var inputsPai = parentTr.querySelectorAll('.input-mes');
     var checkHistPai = parentTr.querySelector('.check-historico');
     var inputFixoPai = parentTr.querySelector('.input-fixo');
@@ -748,8 +784,8 @@
     });
 
     Object.keys(totaisSetor).forEach(function(setorId) {
-      var tbResumoBody = document.querySelector(`#resumo-${setorId} tbody`);
-      var tbResumoFoot = document.querySelector(`#resumo-${setorId} tfoot`);
+      var tbResumoBody = document.querySelector('#resumo-' + setorId + ' tbody');
+      var tbResumoFoot = document.querySelector('#resumo-' + setorId + ' tfoot');
       if(!tbResumoBody) return;
 
       var htmlBody = '';
@@ -759,14 +795,16 @@
       Object.keys(totaisSetor[setorId]).forEach(function(pacote) {
         var dados = totaisSetor[setorId][pacote];
         if(dados.total > 0) {
-          htmlBody += `<tr><td class="fw-semibold">${pacote}</td>${dados.meses.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fw-bold">${formatarMoeda(dados.total)}</td></tr>`;
+          htmlBody += '<tr><td class="fw-semibold">' + pacote + '</td>' + 
+            dados.meses.map(function(v){ return '<td>' + formatarMoeda(v) + '</td>'; }).join('') + 
+            '<td class="text-end fw-bold">' + formatarMoeda(dados.total) + '</td></tr>';
           dados.meses.forEach(function(v, i) { totaisSetorGeral[i] += v; });
           totalSetorGeralAno += dados.total;
         }
       });
 
-      tbResumoBody.innerHTML = htmlBody || `<tr><td colspan="14" class="text-center text-muted">Nenhum custo lançado.</td></tr>`;
-      tbResumoFoot.innerHTML = totalSetorGeralAno > 0 ? `<tr><td>TOTAL DO SETOR</td>${totaisSetorGeral.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fs-6">${formatarMoeda(totalSetorGeralAno)}</td></tr>` : '';
+      tbResumoBody.innerHTML = htmlBody || '<tr><td colspan="14" class="text-center text-muted">Nenhum custo lancado.</td></tr>';
+      tbResumoFoot.innerHTML = totalSetorGeralAno > 0 ? ('<tr><td>TOTAL DO SETOR</td>' + totaisSetorGeral.map(function(v){ return '<td>' + formatarMoeda(v) + '</td>'; }).join('') + '<td class="text-end fs-6">' + formatarMoeda(totalSetorGeralAno) + '</td></tr>') : '';
     });
 
     renderizarTabelaConsolidadaFinal('#table-consolidado-opex', totaisPacoteOpex, 'OPEX');
@@ -774,8 +812,8 @@
   }
 
   function renderizarTabelaConsolidadaFinal(selectorId, dadosPacote, tipo) {
-    var tbody = document.querySelector(`${selectorId} tbody`);
-    var tfoot = document.querySelector(`${selectorId} tfoot`);
+    var tbody = document.querySelector(selectorId + ' tbody');
+    var tfoot = document.querySelector(selectorId + ' tfoot');
     if(!tbody || !tfoot) return;
     var htmlBody = '';
     var totaisGeraisMeses = Array(12).fill(0);
@@ -784,14 +822,16 @@
     Object.keys(dadosPacote).sort().forEach(function(pacote) {
       var dados = dadosPacote[pacote];
       if(dados.total > 0) {
-        htmlBody += `<tr><td class="fw-semibold">${pacote}</td>${dados.meses.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fw-bold text-dark">${formatarMoeda(dados.total)}</td></tr>`;
+        htmlBody += '<tr><td class="fw-semibold">' + pacote + '</td>' + 
+          dados.meses.map(function(v){ return '<td>' + formatarMoeda(v) + '</td>'; }).join('') + 
+          '<td class="text-end fw-bold text-dark">' + formatarMoeda(dados.total) + '</td></tr>';
         dados.meses.forEach(function(v, i) { totaisGeraisMeses[i] += v; });
         totalGeralAno += dados.total;
       }
     });
 
-    tbody.innerHTML = htmlBody || `<tr><td colspan="14" class="text-center text-muted py-4">Nenhum custo ${tipo} lançado.</td></tr>`;
-    tfoot.innerHTML = totalGeralAno > 0 ? `<tr><td>TOTAL GERAL ${tipo}</td>${totaisGeraisMeses.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fs-6">${formatarMoeda(totalGeralAno)}</td></tr>` : '';
+    tbody.innerHTML = htmlBody || ('<tr><td colspan="14" class="text-center text-muted py-4">Nenhum custo ' + tipo + ' lancado.</td></tr>');
+    tfoot.innerHTML = totalGeralAno > 0 ? ('<tr><td>TOTAL GERAL ' + tipo + '</td>' + totaisGeraisMeses.map(function(v){ return '<td>' + formatarMoeda(v) + '</td>'; }).join('') + '<td class="text-end fs-6">' + formatarMoeda(totalGeralAno) + '</td></tr>') : '';
   }
 
   function formatarMoeda(valor) {
@@ -805,7 +845,7 @@
     var nome = nomeElement.value.toUpperCase();
     if (tr.classList.contains('sub-linha')) {
       var parentId = tr.getAttribute('data-parent');
-      var parentTr = document.querySelector(`tr[data-id="${parentId}"]`);
+      var parentTr = document.querySelector('tr[data-id="' + parentId + '"]');
       if (parentTr) {
         var parentNomeElement = parentTr.querySelector('.nome-custo');
         if(parentNomeElement) nome = parentNomeElement.value.toUpperCase() + " - " + nome;
@@ -819,7 +859,7 @@
   // =====================================
   function exportarSetorCSV(setor, tipo) {
     try {
-      var tabelas = document.querySelectorAll(`.table-clean[data-setor="${setor}"][data-tipo="${tipo}"]`);
+      var tabelas = document.querySelectorAll('.table-clean[data-setor="' + setor + '"][data-tipo="' + tipo + '"]');
       var csvContent = 'sep=;\nTipo;Setor;Pacote;Conta / Descricao;Jan;Fev;Mar;Abr;Mai;Jun;Jul;Ago;Set;Out;Nov;Dez\n';
 
       tabelas.forEach(function(tb) {
@@ -827,14 +867,14 @@
         tb.querySelectorAll('tbody tr').forEach(function(tr) {
           var id = tr.getAttribute('data-id');
           var isSubline = tr.classList.contains('sub-linha');
-          var temFilhos = tb.querySelector(`tr.sub-linha[data-parent="${id}"]`) !== null;
+          var temFilhos = tb.querySelector('tr.sub-linha[data-parent="' + id + '"]') !== null;
          
           if (temFilhos && !isSubline) return;
 
           var nomeCusto = getNomeCustoCompleto(tr).replace(/;/g, '-').trim();
           if (nomeCusto) {
             var mesesVals = Array.from(tr.querySelectorAll('.input-mes')).map(function(inp) { return inp.value.replace('.', ','); });
-            csvContent += `${tipo};${setor};${pacote};${nomeCusto};${mesesVals.join(';')}\n`;
+            csvContent += tipo + ';' + setor + ';' + pacote + ';' + nomeCusto + ';' + mesesVals.join(';') + '\n';
           }
         });
       });
@@ -843,11 +883,11 @@
       var url = URL.createObjectURL(blob);
       var link = document.createElement("a");
       link.setAttribute("href", url);
-      link.setAttribute("download", `Template_${tipo}_${setor.replace(/\s+/g, '_')}.csv`);
+      link.setAttribute("download", 'Template_' + tipo + '_' + setor.replace(/\s+/g, '_') + '.csv');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      mostrarToast(`Template CSV de ${setor} exportado com sucesso.`, 'success');
+      mostrarToast('Template CSV de ' + setor + ' exportado com sucesso.', 'success');
     } catch (error) {
       mostrarToast("Erro ao exportar o arquivo CSV. Tente novamente.", 'danger');
     }
@@ -860,7 +900,7 @@
     }
 
     var originalHtml = btn.innerHTML;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Importando...`;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Importando...';
     btn.disabled = true;
 
     google.script.run
@@ -869,13 +909,13 @@
         btn.disabled = false;
 
         if (!dadosImportados || dadosImportados.length === 0) {
-          mostrarToast(`Nenhum dado encontrado para o setor "${setor}" (${tipo}) na aba "Importacao".`, "warning");
+          mostrarToast('Nenhum dado encontrado para o setor "' + setor + '" (' + tipo + ') na aba "Importacao".', 'warning');
           return;
         }
 
         var importCount = 0;
         dadosImportados.forEach(function(dado) {
-          var tabela = document.querySelector(`.table-clean[data-setor="${setor}"][data-tipo="${tipo}"][data-pacote="${dado.pacote}"]`);
+          var tabela = document.querySelector('.table-clean[data-setor="' + setor + '"][data-tipo="' + tipo + '"][data-pacote="' + dado.pacote + '"]');
           if (!tabela) return;
 
           var tbody = tabela.querySelector('tbody');
@@ -900,12 +940,12 @@
 
         atualizarConsolidado();
         registrarAlteracao();
-        mostrarToast(`Importação concluída! ${importCount} linhas sincronizadas da aba "Importacao".`, "success");
+        mostrarToast('Importação concluída! ' + importCount + ' linhas sincronizadas da aba "Importacao".', 'success');
       })
       .withFailureHandler(function(error) {
         btn.innerHTML = originalHtml;
         btn.disabled = false;
-        mostrarToast('Erro ao importar da planilha: ' + error.message, "danger");
+        mostrarToast('Erro ao importar da planilha: ' + error.message, 'danger');
       })
       .obterDadosImportacao(setor, tipo);
   }
@@ -923,7 +963,7 @@
     }
 
     var originalHtml = btn.innerHTML;
-    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Recarregando...`;
+    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Recarregando...';
     btn.disabled = true;
 
     google.script.run
@@ -955,7 +995,7 @@
      
       tabela.querySelectorAll('tbody tr').forEach(function(linha) {
         var id = linha.getAttribute('data-id');
-        var temFilhos = tabela.querySelector(`tr.sub-linha[data-parent="${id}"]`) !== null;
+        var temFilhos = tabela.querySelector('tr.sub-linha[data-parent="' + id + '"]') !== null;
        
         // Pula o pai se ele tiver sub-linhas detalhadas, pois o que salva são os detalhes
         if (temFilhos && !linha.classList.contains('sub-linha')) { return; }
@@ -1026,30 +1066,6 @@
         salvarSessaoLocal();
         mostrarToast("Modo local: dados salvos no cache com sucesso.", "success");
       }, 500);
-    }
-  }
-
-  // =====================================
-  // TOAST DE FEEDBACK
-  // =====================================
-  function mostrarToast(mensagem, tipo) {
-    tipo = tipo || 'primary';
-    var toastEl = document.getElementById('toastFeedback');
-    var msgEl = document.getElementById('toastMessage');
-    if (!toastEl || !msgEl) {
-      console.log(`[TOAST - ${tipo}] ${mensagem}`);
-      return;
-    }
-
-    toastEl.className = `toast align-items-center text-white border-0 bg-${tipo}`;
-    msgEl.textContent = mensagem;
-
-    if (window.bootstrap && window.bootstrap.Toast) {
-      var toast = bootstrap.Toast.getOrCreateInstance(toastEl);
-      toast.show();
-    } else {
-      toastEl.classList.add('show');
-      setTimeout(function() { toastEl.classList.remove('show'); }, 4000);
     }
   }
 </script>

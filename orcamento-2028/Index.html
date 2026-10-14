@@ -11,9 +11,18 @@
     <?!= include('CSS'); ?>
   </head>
   <body>
-    <!-- Injeção dos dados persistidos vindos do Google Sheets via scriptlet -->
+    <!-- Injeção dos dados persistidos vindos do Google Sheets via tag JSON segura -->
+    <script id="dados-iniciais-json" type="application/json">
+<?!= typeof dadosIniciaisJSON !== 'undefined' ? dadosIniciaisJSON : '[]' ?>
+    </script>
     <script>
-      window.DADOS_INICIAIS_SERVIDOR = <?!= typeof dadosIniciaisJSON !== 'undefined' ? dadosIniciaisJSON : '[]' ?>;
+      try {
+        var rawJsonEl = document.getElementById('dados-iniciais-json');
+        window.DADOS_INICIAIS_SERVIDOR = rawJsonEl ? JSON.parse(rawJsonEl.textContent || '[]') : [];
+      } catch (e) {
+        console.warn("Erro ao ler dados-iniciais-json:", e);
+        window.DADOS_INICIAIS_SERVIDOR = [];
+      }
     </script>
 
     <div class="app-container">
