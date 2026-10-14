@@ -478,6 +478,7 @@
 
   var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   var iconeLixeira = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+  var iconeLimpar = '<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>';
 
     function padronizarTexto(str) {
     if (!str) return '';
@@ -849,7 +850,12 @@
 
       var htmlConteudo = '' +
         '<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
-          '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
+          '<div class="d-flex align-items-center gap-2 flex-wrap">' +
+            '<button type="button" class="btn-validate-dot btn-sector-master-dot" id="dot-sector-' + setorId + '" onclick="toggleMarcarTodasSetor(this, \'' + setorId + '\')" title="Marcar / Desmarcar todas as contas deste setor"></button>' +
+            '<span class="lbl-sector-master-dot small fw-semibold text-muted" style="font-size: 11px; cursor: pointer; user-select: none;" onclick="document.getElementById(\'dot-sector-' + setorId + '\').click()" title="Marcar / Desmarcar todas as contas deste setor">Marcar Todas</span>' +
+            '<span class="divider">|</span>' +
+            '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
+          '</div>' +
           '<div class="d-flex gap-2 flex-wrap">' +
             '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')" title="Exportar dados deste setor em formato CSV">' +
               '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
@@ -891,6 +897,7 @@
     }
 
     contentContainer.querySelectorAll('.table-clean[data-tipo]').forEach(atualizarMasterDot);
+    contentContainer.querySelectorAll('.tab-pane').forEach(function(tp) { atualizarSectorMasterDot(tp.id); });
   }
 
   function gerarHtmlPacote(setorId, setor, tipo, pacote, index, linhasInjetadas) {
@@ -932,7 +939,7 @@
                   '</th>' +
                   mesesTh +
                   '<th class="text-end">Total</th>' +
-                  '<th style="width: 40px;"></th>' +
+                  '<th style="width: 65px;"></th>' +
                 '</tr>' +
               '</thead>' +
               '<tbody>' + linhasInjetadas + '</tbody>' +
@@ -1282,6 +1289,144 @@
     var btn = tr.querySelector('.btn-validate-dot');
     if (btn) { btn.innerHTML = '✔'; btn.classList.add('saved'); }
     tr.classList.add('linha-salva');
+  }
+
+    function toggleMarcarTodasSetor(sectorMasterBtn, setorId) {
+    var tabPane = document.getElementById(setorId);
+    if (!tabPane) return;
+
+    var linhas = Array.from(tabPane.querySelectorAll('tbody tr'));
+    if (linhas.length === 0) return;
+
+    var isMasterSaved = sectorMasterBtn.classList.contains('saved');
+    var deveMarcar = !isMasterSaved;
+
+    if (deveMarcar) {
+      var count = 0;
+      linhas.forEach(function(tr) {
+        var desc = tr.querySelector('.nome-custo');
+        if (desc && desc.value.trim() !== '') {
+          marcarLinha(tr);
+          count++;
+        }
+      });
+      sectorMasterBtn.classList.add('saved');
+      sectorMasterBtn.innerHTML = '✔';
+      var lbl = tabPane.querySelector('.lbl-sector-master-dot');
+      if (lbl) lbl.textContent = 'Desmarcar Todas';
+      salvarSessaoLocal();
+      registrarAlteracao();
+      if (count > 0) {
+        mostrarToast(count + " contas do setor marcadas com sucesso!", "success");
+      }
+    } else {
+      linhas.forEach(function(tr) {
+        var btn = tr.querySelector('.btn-validate-dot');
+        if (btn) { btn.innerHTML = ''; btn.classList.remove('saved'); }
+        tr.classList.remove('linha-salva');
+      });
+      sectorMasterBtn.classList.remove('saved');
+      sectorMasterBtn.innerHTML = '';
+      var lbl = tabPane.querySelector('.lbl-sector-master-dot');
+      if (lbl) lbl.textContent = 'Marcar Todas';
+      salvarSessaoLocal();
+      registrarAlteracao();
+      mostrarToast("Todas as marcações do setor foram desmarcadas.", "info");
+    }
+
+    tabPane.querySelectorAll('.table-clean[data-pacote]').forEach(atualizarMasterDot);
+    atualizarConsolidado();
+  }
+
+  function atualizarSectorMasterDot(setorId) {
+    var tabPane = document.getElementById(setorId);
+    if (!tabPane) return;
+    var sectorMasterBtn = tabPane.querySelector('.btn-sector-master-dot');
+    var lbl = tabPane.querySelector('.lbl-sector-master-dot');
+    if (!sectorMasterBtn) return;
+
+    var linhas = Array.from(tabPane.querySelectorAll('tbody tr'));
+    var linhasComNome = linhas.filter(function(tr) {
+      var desc = tr.querySelector('.nome-custo');
+      return desc && desc.value.trim() !== '';
+    });
+
+    if (linhasComNome.length === 0) {
+      sectorMasterBtn.classList.remove('saved');
+      sectorMasterBtn.innerHTML = '';
+      if (lbl) lbl.textContent = 'Marcar Todas';
+      return;
+    }
+
+    var todasMarcadas = linhasComNome.every(function(tr) {
+      return tr.classList.contains('linha-salva');
+    });
+
+    if (todasMarcadas) {
+      sectorMasterBtn.classList.add('saved');
+      sectorMasterBtn.innerHTML = '✔';
+      if (lbl) lbl.textContent = 'Desmarcar Todas';
+    } else {
+      sectorMasterBtn.classList.remove('saved');
+      sectorMasterBtn.innerHTML = '';
+      if (lbl) lbl.textContent = 'Marcar Todas';
+    }
+  }
+
+  function limparLinha(btn) {
+    var tr = btn.closest('tr');
+    if (!tr) return;
+
+    function resetTr(linha) {
+      var inputs = linha.querySelectorAll('.input-mes');
+      inputs.forEach(function(inp) {
+        inp.value = '0.00';
+        inp.readOnly = false;
+      });
+
+      var fixoInput = linha.querySelector('.input-fixo');
+      if (fixoInput) {
+        fixoInput.value = '';
+        fixoInput.classList.remove('d-block');
+        fixoInput.classList.add('d-none');
+      }
+
+      var checkHist = linha.querySelector('.check-historico');
+      if (checkHist) {
+        checkHist.checked = false;
+      }
+
+      if (inputs.length > 0) calcularTotal(inputs[0]);
+
+      var dot = linha.querySelector('.btn-validate-dot');
+      if (dot) {
+        dot.classList.remove('saved');
+        dot.textContent = '';
+      }
+      linha.classList.remove('linha-salva');
+    }
+
+    var rowId = tr.getAttribute('data-id');
+    var tabela = tr.closest('table');
+
+    resetTr(tr);
+
+    if (tabela && rowId) {
+      var subLinhas = tabela.querySelectorAll('tr.sub-linha[data-parent="' + rowId + '"]');
+      subLinhas.forEach(resetTr);
+    }
+
+    if (tabela) {
+      atualizarMasterDot(tabela);
+      var setorId = tabela.getAttribute('data-setorid');
+      if (setorId) atualizarSectorMasterDot(setorId);
+    }
+
+    atualizarConsolidado();
+    salvarSessaoLocal();
+    registrarAlteracao();
+
+    mostrarToast("Dados da linha limpos com sucesso.", "info");
   }
 
   function toggleMarcarTodasPacote(masterBtn) {
@@ -1844,6 +1989,49 @@
       else if (idxPacote > -1) startIdx = idxPacote + 1;
       for (var m = 0; m < 12; m++) {
         idxMeses.push(startIdx + m);
+      }
+    }
+
+        // =====================================
+    // TRAVA DE SEGURANCA POR SETOR E TIPO
+    // =====================================
+    if (setorPadrao) {
+      var setorPadraoNorm = padronizarTexto(setorPadrao);
+      var setoresDetectadosNoArquivo = new Set();
+      var tiposDetectadosNoArquivo = new Set();
+
+      for (var v = 1; v < linhas.length; v++) {
+        var colsVal = dividirLinhaCSV(linhas[v], delimitador);
+        if (colsVal.length < 2) continue;
+        if (idxSetor > -1 && colsVal[idxSetor]) {
+          var sTxt = padronizarTexto(colsVal[idxSetor]);
+          if (sTxt) setoresDetectadosNoArquivo.add(sTxt);
+        }
+        if (idxTipo > -1 && colsVal[idxTipo]) {
+          var tTxt = padronizarTexto(colsVal[idxTipo]);
+          if (tTxt) tiposDetectadosNoArquivo.add(tTxt);
+        }
+      }
+
+      // Trava 1: Setor
+      if (setoresDetectadosNoArquivo.size > 0) {
+        var setoresArray = Array.from(setoresDetectadosNoArquivo);
+        var setorInvalido = setoresArray.find(function(s) { return s !== setorPadraoNorm; });
+        if (setorInvalido) {
+          mostrarToast("Bloqueado: O arquivo CSV pertence ao setor '" + setorInvalido + "', mas voce esta no setor '" + setorPadrao + "'. Cada setor so pode importar seus respectivos arquivos.", "danger");
+          return;
+        }
+      }
+
+      // Trava 2: Tipo (OPEX / CAPEX)
+      if (tipoPadrao && tiposDetectadosNoArquivo.size > 0) {
+        var tipoPadraoNorm = padronizarTexto(tipoPadrao);
+        var tiposArray = Array.from(tiposDetectadosNoArquivo);
+        var tipoInvalido = tiposArray.find(function(t) { return t !== tipoPadraoNorm; });
+        if (tipoInvalido) {
+          mostrarToast("Bloqueado: O arquivo CSV contem dados de " + tipoInvalido + ", mas voce esta na visao " + tipoPadrao + ". Cada visao so aceita arquivos do mesmo tipo.", "danger");
+          return;
+        }
       }
     }
 
