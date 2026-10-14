@@ -850,12 +850,7 @@
 
       var htmlConteudo = '' +
         '<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
-          '<div class="d-flex align-items-center gap-2 flex-wrap">' +
-            '<button type="button" class="btn-validate-dot btn-sector-master-dot" id="dot-sector-' + setorId + '" onclick="toggleMarcarTodasSetor(this, \'' + setorId + '\')" title="Marcar / Desmarcar todas as contas deste setor"></button>' +
-            '<span class="lbl-sector-master-dot small fw-semibold text-muted" style="font-size: 11px; cursor: pointer; user-select: none;" onclick="document.getElementById(\'dot-sector-' + setorId + '\').click()" title="Marcar / Desmarcar todas as contas deste setor">Marcar Todas</span>' +
-            '<span class="divider">|</span>' +
-            '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
-          '</div>' +
+          '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
           '<div class="d-flex gap-2 flex-wrap">' +
             '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')" title="Exportar dados deste setor em formato CSV">' +
               '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
@@ -881,6 +876,13 @@
               '<tfoot></tfoot>' +
             '</table>' +
           '</div>' +
+        '</div>' +
+        '<div class="d-flex align-items-center justify-content-between mb-3 px-1 py-1">' +
+          '<div class="d-flex align-items-center gap-2">' +
+            '<button type="button" class="btn-validate-dot btn-sector-master-dot" id="dot-sector-' + setorId + '" onclick="toggleMarcarTodasSetor(this, \'' + setorId + '\')" title="Marcar / Desmarcar todas as contas de ' + setor + '"></button>' +
+            '<span class="lbl-sector-master-dot fw-semibold" style="font-size: 13px; color: var(--text-dark); cursor: pointer; user-select: none;" onclick="document.getElementById(\'dot-sector-' + setorId + '\').click()" title="Marcar / Desmarcar todas as contas deste setor">Marcar Todas</span>' +
+          '</div>' +
+          '<span class="text-muted small">Total de Pacotes: ' + pacotes.length + '</span>' +
         '</div>' +
         '<div id="container-pacotes-' + setorId + '" class="packages-container">' +
           htmlPacotes +
@@ -939,7 +941,7 @@
                   '</th>' +
                   mesesTh +
                   '<th class="text-end">Total</th>' +
-                  '<th style="width: 65px;"></th>' +
+                  '<th style="width: 70px;"></th>' +
                 '</tr>' +
               '</thead>' +
               '<tbody>' + linhasInjetadas + '</tbody>' +
@@ -1087,7 +1089,12 @@
     }
    
     html += '<td class="cell-total">' + formatarMoeda(somaLinha) + '</td>';
-    html += '<td><button class="btn-delete" onclick="removerLinha(this)" title="Remover custo">' + iconeLixeira + '</button></td></tr>';
+    html += '<td class="text-nowrap" style="width: 70px;">' +
+              '<div class="d-flex align-items-center gap-1 justify-content-end">' +
+                '<button type="button" class="btn-clear-row" onclick="limparLinha(this)" title="Limpar dados preenchidos desta linha">' + iconeLimpar + '</button>' +
+                '<button type="button" class="btn-delete" onclick="removerLinha(this)" title="Remover custo">' + iconeLixeira + '</button>' +
+              '</div>' +
+            '</td></tr>';
    
     return html;
   }
