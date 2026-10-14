@@ -73,6 +73,20 @@ function obterCustosSalvos() {
   const abaOpex = ss.getSheetByName('OPEX_Dados');
   const abaCapex = ss.getSheetByName('CAPEX_Dados');
   const dados = [];
+  const mapIndices = {};
+
+  function normalizarTexto(str) {
+    return String(str || '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function gerarChaveCusto(tipo, setor, pacote, nomeCusto) {
+    return normalizarTexto(tipo) + '|||' + normalizarTexto(setor) + '|||' + normalizarTexto(pacote) + '|||' + normalizarTexto(nomeCusto);
+  }
 
   function extrairDadosAba(aba, tipoPadrao) {
     if (!aba) return;
@@ -102,7 +116,8 @@ function obterCustosSalvos() {
         total = meses.reduce((acc, curr) => acc + parseFloat(curr), 0);
       }
 
-      dados.push({
+      const chave = gerarChaveCusto(tipo, setor, pacote, nomeCusto);
+      const registro = {
         id: id || ('ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)),
         tipo: tipo,
         setor: setor,
@@ -111,7 +126,15 @@ function obterCustosSalvos() {
         meses: meses,
         total: total,
         isSaved: false
-      });
+      };
+
+      // Trava contra duplicidades na leitura: se já existir, atualiza com a ocorrência mais recente
+      if (mapIndices[chave] !== undefined) {
+        dados[mapIndices[chave]] = registro;
+      } else {
+        mapIndices[chave] = dados.length;
+        dados.push(registro);
+      }
     }
   }
 
@@ -123,6 +146,9 @@ function obterCustosSalvos() {
 
 /**
  * Salva ou atualiza os lançamentos de custos nas abas correspondentes (OPEX_Dados ou CAPEX_Dados).
+ * TRAVA ANTI-DUPLICAÇÃO:
+ * Se já existir registro para o mesmo Setor + Pacote + Nome do Custo (ou mesmo ID),
+ * substitui a linha existente diretamente na planilha, evitando qualquer duplicidade.
  */
 function salvarCustos(dados) {
   if (!dados || !Array.isArray(dados) || dados.length === 0) {
@@ -134,31 +160,76 @@ function salvarCustos(dados) {
   const abaCapex = ss.getSheetByName('CAPEX_Dados');
   const dataAtual = new Date();
 
+  function normalizarTexto(str) {
+    return String(str || '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function gerarChaveNegocio(setor, pacote, nomeCusto) {
+    return normalizarTexto(setor) + '|||' + normalizarTexto(pacote) + '|||' + normalizarTexto(nomeCusto);
+  }
+
   function processarAba(aba, listaLinhas) {
     if (!aba || listaLinhas.length === 0) return;
 
     const dataRange = aba.getDataRange();
     const valores = dataRange.getValues();
     
-    // Mapeia IDs existentes para seus números de linha (1-based)
+    // Mapeia tanto por ID_Sistema quanto pela Chave Composta de Negócio (Setor|Pacote|NomeCusto)
     const mapIdLinha = {};
+    const mapChaveLinha = {};
+
     for (let i = 1; i < valores.length; i++) {
-      const idExistente = String(valores[i][0]).trim();
+      const idExistente = String(valores[i][0] || '').trim();
+      const setorExistente = valores[i][3];
+      const pacoteExistente = valores[i][4];
+      const nomeExistente = valores[i][5];
+      const chaveExistente = gerarChaveNegocio(setorExistente, pacoteExistente, nomeExistente);
+      
+      const rowIndex = i + 1; // 1-based index na planilha
       if (idExistente) {
-        mapIdLinha[idExistente] = i + 1;
+        mapIdLinha[idExistente] = rowIndex;
+      }
+      if (chaveExistente !== '||||||') {
+        mapChaveLinha[chaveExistente] = rowIndex;
       }
     }
 
     const linhasParaInserir = [];
 
     listaLinhas.forEach(linha => {
+      const nomeCustoLimpo = String(linha.nomeCusto || '').trim();
+      if (!nomeCustoLimpo) return;
+
+      const chaveLinha = gerarChaveNegocio(linha.setor, linha.pacote, nomeCustoLimpo);
+      
+      // Trava anti-duplicação: localiza linha existente por ID ou pela chave (Setor + Pacote + Nome)
+      let rowIndex = (linha.id && mapIdLinha[linha.id]) ? mapIdLinha[linha.id] : mapChaveLinha[chaveLinha];
+      
+      let idFinal = linha.id;
+      if (rowIndex) {
+        // Se a linha já existia na planilha por chave de negócio, preserva o ID original
+        const idExistenteNaPlanilha = String(valores[rowIndex - 1][0] || '').trim();
+        if (idExistenteNaPlanilha) {
+          idFinal = idExistenteNaPlanilha;
+        }
+      } else {
+        if (!idFinal) {
+          idFinal = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+      }
+
       const rowData = [
-        linha.id,
+        idFinal,
         dataAtual,
         linha.tipo,
         linha.setor,
         linha.pacote,
-        linha.nomeCusto,
+        nomeCustoLimpo,
         parseFloat(linha.meses[0]) || 0,
         parseFloat(linha.meses[1]) || 0,
         parseFloat(linha.meses[2]) || 0,
@@ -174,11 +245,15 @@ function salvarCustos(dados) {
         parseFloat(linha.total) || 0
       ];
 
-      const rowIndex = mapIdLinha[linha.id];
       if (rowIndex) {
+        // ATUALIZA A LINHA EXISTENTE (substitui sem duplicar)
         aba.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
       } else {
+        // INSERE NOVA LINHA
         linhasParaInserir.push(rowData);
+        const novoRowIndex = aba.getLastRow() + linhasParaInserir.length;
+        mapIdLinha[idFinal] = novoRowIndex;
+        mapChaveLinha[chaveLinha] = novoRowIndex;
       }
     });
 
@@ -193,7 +268,7 @@ function salvarCustos(dados) {
   processarAba(abaOpex, linhasOpex);
   processarAba(abaCapex, linhasCapex);
 
-  return { success: true, message: "Orçamento salvo e sincronizado com sucesso na planilha!" };
+  return { success: true, message: "Dados sincronizados com sucesso na planilha sem duplicidade!" };
 }
 
 /**

@@ -67,6 +67,11 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg>
             Recarregar Planilha
           </button>
+          <button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" id="btnImportarGeralCSV" onclick="acionarImportacaoCSV('geral', '', '')" title="Importar qualquer arquivo CSV de OPEX ou CAPEX">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Importar CSV
+          </button>
+          <input type="file" id="input-csv-geral" accept=".csv,text/csv" style="display:none;" onchange="processarArquivoCSV(this, '', '')">
           <button class="btn btn-primary-soft" id="btnSalvarGeral" onclick="salvarDados()">Salvar Orçamento Geral</button>
         </div>
       </div>

@@ -257,10 +257,11 @@
               '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
               ' Exportar Template CSV' +
             '</button>' +
-            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="importarSetorGoogleSheets(this, \'' + setor + '\', \'' + tipo + '\')">' +
+            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="acionarImportacaoCSV(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Importar arquivo CSV de ' + tipo + ' do setor ' + setor + '">' +
               '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' +
-              ' Importar da Aba "Importacao"' +
+              ' Importar Arquivo CSV' +
             '</button>' +
+            '<input type="file" id="input-csv-' + setorId + '" accept=".csv,text/csv" style="display:none;" onchange="processarArquivoCSV(this, \'' + setor + '\', \'' + tipo + '\')">' +
           '</div>' +
         '</div>' +
         '<div class="resumo-box">' +
@@ -321,7 +322,12 @@
                 '<table class="table table-borderless table-clean" id="table-' + pacoteId + '" data-tipo="' + tipo + '" data-setor="' + setor + '" data-pacote="' + pacote + '" data-setorid="' + setorId + '">' +
                   '<thead>' +
                     '<tr>' +
-                      '<th>Descrição do Custo</th>' +
+                      '<th>' +
+                        '<div class="d-flex align-items-center gap-2">' +
+                          '<button type="button" class="btn-validate-dot btn-master-dot" onclick="toggleMarcarTodasPacote(this)" title="Marcar / Desmarcar todas as linhas deste pacote"></button>' +
+                          '<span>Descrição do Custo</span>' +
+                        '</div>' +
+                      '</th>' +
                       mesesTh +
                       '<th class="text-end">Total</th>' +
                       '<th style="width: 40px;"></th>' +
@@ -339,6 +345,8 @@
       contentContainer.appendChild(tabPane);
       isFirst = false;
     }
+
+    contentContainer.querySelectorAll('.table-clean[data-tipo]').forEach(atualizarMasterDot);
   }
 
   function gerarLinhaHtml(nomePredefinido, paramMeses, isHist, valorFixo, isSaved, paramId, isSubline, parentId) {
@@ -568,6 +576,7 @@
       }
     }
     registrarAlteracao();
+    if (tr) atualizarMasterDot(tr.closest('table'));
   }
 
   function desmarcarEZerarLinha(tr) {
@@ -593,6 +602,73 @@
     var btn = tr.querySelector('.btn-validate-dot');
     if (btn) { btn.innerHTML = '✔'; btn.classList.add('saved'); }
     tr.classList.add('linha-salva');
+  }
+
+  function toggleMarcarTodasPacote(masterBtn) {
+    var tabela = masterBtn.closest('table');
+    if (!tabela) return;
+    var linhas = Array.from(tabela.querySelectorAll('tbody tr'));
+    if (linhas.length === 0) return;
+
+    var isMasterSaved = masterBtn.classList.contains('saved');
+    var deveMarcar = !isMasterSaved;
+
+    if (deveMarcar) {
+      var count = 0;
+      linhas.forEach(function(tr) {
+        var desc = tr.querySelector('.nome-custo');
+        if (desc && desc.value.trim() !== '') {
+          marcarLinha(tr);
+          count++;
+        }
+      });
+      masterBtn.classList.add('saved');
+      masterBtn.innerHTML = '✔';
+      if (count > 0) {
+        mostrarToast(count + " linha(s) marcada(s) no pacote!", "success");
+      }
+    } else {
+      linhas.forEach(function(tr) {
+        var btn = tr.querySelector('.btn-validate-dot');
+        if (btn) { btn.innerHTML = ''; btn.classList.remove('saved'); }
+        tr.classList.remove('linha-salva');
+      });
+      masterBtn.classList.remove('saved');
+      masterBtn.innerHTML = '';
+      mostrarToast("Linhas do pacote desmarcadas.", "info");
+    }
+
+    atualizarConsolidado();
+    registrarAlteracao();
+  }
+
+  function atualizarMasterDot(tabela) {
+    if (!tabela) return;
+    var masterBtn = tabela.querySelector('.btn-master-dot');
+    if (!masterBtn) return;
+    var linhas = Array.from(tabela.querySelectorAll('tbody tr'));
+    var linhasComNome = linhas.filter(function(tr) {
+      var desc = tr.querySelector('.nome-custo');
+      return desc && desc.value.trim() !== '';
+    });
+
+    if (linhasComNome.length === 0) {
+      masterBtn.classList.remove('saved');
+      masterBtn.innerHTML = '';
+      return;
+    }
+
+    var todasMarcadas = linhasComNome.every(function(tr) {
+      return tr.classList.contains('linha-salva');
+    });
+
+    if (todasMarcadas) {
+      masterBtn.classList.add('saved');
+      masterBtn.innerHTML = '✔';
+    } else {
+      masterBtn.classList.remove('saved');
+      masterBtn.innerHTML = '';
+    }
   }
 
   function salvarLinhaIndividual(btn) {
@@ -634,6 +710,7 @@
    
     atualizarConsolidado();
     registrarAlteracao();
+    atualizarMasterDot(tr.closest('table'));
   }
 
   // =====================================
@@ -644,6 +721,7 @@
     if(tbody) { 
       tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml()); 
       registrarAlteracao(); 
+      atualizarMasterDot(tbody.closest('table'));
     }
   }
 
@@ -665,6 +743,7 @@
 
   function removerLinha(btn) {
     var tr = btn.closest('tr');
+    var tabela = tr.closest('table');
     var id = tr.getAttribute('data-id');
     var isSubline = tr.classList.contains('sub-linha');
     var parentId = tr.getAttribute('data-parent');
@@ -679,6 +758,7 @@
    
     atualizarConsolidado();
     registrarAlteracao();
+    if (tabela) atualizarMasterDot(tabela);
   }
 
   function recalcularPai(parentId) {
@@ -901,60 +981,248 @@
     }
   }
 
-  function importarSetorGoogleSheets(btn, setor, tipo) {
-    if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      mostrarToast("Ambiente local/preview: recurso de importação disponível no Apps Script.", "warning");
+  // =====================================
+  // IMPORTAÇÃO DE ARQUIVOS CSV
+  // =====================================
+  function normalizarTexto(str) {
+    return String(str || '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function normalizarNumero(valorStr) {
+    if (!valorStr) return '0.00';
+    var limpo = String(valorStr).replace(/"/g, '').replace(/R\$/g, '').trim();
+    if (limpo === '' || limpo === '-') return '0.00';
+    if (limpo.indexOf(',') > -1) {
+      limpo = limpo.replace(/\./g, '').replace(',', '.');
+    }
+    var n = parseFloat(limpo);
+    return isNaN(n) ? '0.00' : n.toFixed(2);
+  }
+
+  function dividirLinhaCSV(linha, delim) {
+    var resultado = [];
+    var valorAtual = '';
+    var dentroDeAspas = false;
+    for (var i = 0; i < linha.length; i++) {
+      var char = linha[i];
+      if (char === '"') {
+        if (dentroDeAspas && linha[i + 1] === '"') {
+          valorAtual += '"';
+          i++;
+        } else {
+          dentroDeAspas = !dentroDeAspas;
+        }
+      } else if (char === delim && !dentroDeAspas) {
+        resultado.push(valorAtual.trim());
+        valorAtual = '';
+      } else {
+        valorAtual += char;
+      }
+    }
+    resultado.push(valorAtual.trim());
+    return resultado;
+  }
+
+  function acionarImportacaoCSV(setorId, setor, tipo) {
+    var inputId = setorId ? ('input-csv-' + setorId) : 'input-csv-geral';
+    var input = document.getElementById(inputId);
+    if (!input) {
+      input = document.createElement('input');
+      input.type = 'file';
+      input.id = inputId;
+      input.accept = '.csv,text/csv';
+      input.style.display = 'none';
+      input.onchange = function(e) { processarArquivoCSV(e.target, setor, tipo); };
+      document.body.appendChild(input);
+    }
+    input.value = '';
+    input.click();
+  }
+
+  function processarArquivoCSV(input, setorPadrao, tipoPadrao) {
+    var file = input.files && input.files[0];
+    if (!file) return;
+
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var conteudo = e.target.result;
+      importarConteudoCSV(conteudo, setorPadrao, tipoPadrao);
+    };
+    reader.onerror = function() {
+      mostrarToast("Erro ao ler o arquivo CSV selecionado.", "danger");
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function importarConteudoCSV(conteudo, setorPadrao, tipoPadrao) {
+    if (!conteudo || typeof conteudo !== 'string') {
+      mostrarToast("Arquivo CSV vazio ou ilegível.", "warning");
       return;
     }
 
-    var originalHtml = btn.innerHTML;
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Importando...';
-    btn.disabled = true;
+    if (conteudo.charCodeAt(0) === 0xFEFF) {
+      conteudo = conteudo.slice(1);
+    }
 
-    google.script.run
-      .withSuccessHandler(function(dadosImportados) {
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
+    var linhas = conteudo.split(/\r?\n/).filter(function(l) { return l.trim() !== ''; });
+    if (linhas.length === 0) {
+      mostrarToast("Arquivo CSV vazio.", "warning");
+      return;
+    }
 
-        if (!dadosImportados || dadosImportados.length === 0) {
-          mostrarToast('Nenhum dado encontrado para o setor "' + setor + '" (' + tipo + ') na aba "Importacao".', 'warning');
-          return;
-        }
+    var delimitador = ';';
+    if (linhas[0].toLowerCase().indexOf('sep=') === 0) {
+      var sepChar = linhas[0].split('=')[1];
+      if (sepChar) delimitador = sepChar.trim();
+      linhas.shift();
+    } else {
+      var countPontoVirgula = (linhas[0].match(/;/g) || []).length;
+      var countVirgula = (linhas[0].match(/,/g) || []).length;
+      delimitador = countPontoVirgula >= countVirgula ? ';' : ',';
+    }
 
-        var importCount = 0;
-        dadosImportados.forEach(function(dado) {
-          var tabela = document.querySelector('.table-clean[data-setor="' + setor + '"][data-tipo="' + tipo + '"][data-pacote="' + dado.pacote + '"]');
-          if (!tabela) return;
+    if (linhas.length === 0) {
+      mostrarToast("Nenhuma linha de cabeçalho encontrada no CSV.", "warning");
+      return;
+    }
 
-          var tbody = tabela.querySelector('tbody');
-          var trEncontrada = null;
-         
-          Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
-            if (getNomeCustoCompleto(tr).toUpperCase() === dado.nomeCusto) trEncontrada = tr;
-          });
+    var headers = dividirLinhaCSV(linhas[0], delimitador).map(function(h) { return normalizarTexto(h); });
+    
+    var idxTipo = -1;
+    var idxSetor = -1;
+    var idxPacote = -1;
+    var idxConta = -1;
+    var idxMeses = [];
 
-          if (!trEncontrada) {
-            tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(dado.nomeCusto));
-            trEncontrada = tbody.lastElementChild;
-          }
+    var mesesNomes = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 
-          var inputsMes = trEncontrada.querySelectorAll('.input-mes');
-          inputsMes.forEach(function(inp, idx) { inp.value = dado.meses[idx]; });
-         
-          calcularTotal(inputsMes[0]);
-          importCount++;
+    headers.forEach(function(h, idx) {
+      if (h === 'TIPO') idxTipo = idx;
+      else if (h === 'SETOR') idxSetor = idx;
+      else if (h === 'PACOTE') idxPacote = idx;
+      else if (h.indexOf('CONTA') > -1 || h.indexOf('DESCRICAO') > -1 || h.indexOf('CUSTO') > -1 || h.indexOf('NOME') > -1) idxConta = idx;
+    });
+
+    mesesNomes.forEach(function(mNome) {
+      var mIdx = headers.findIndex(function(h) { return h === mNome || h.indexOf(mNome) === 0; });
+      idxMeses.push(mIdx);
+    });
+
+    if (idxMeses.some(function(i){ return i === -1; })) {
+      idxMeses = [];
+      var startIdx = (idxConta > -1 ? idxConta + 1 : 4);
+      for (var m = 0; m < 12; m++) {
+        idxMeses.push(startIdx + m);
+      }
+    }
+
+    var dadosParaSalvar = [];
+    var countAtualizadas = 0;
+    var countInseridas = 0;
+    var tabelasModificadas = new Set();
+    var todasTabelas = Array.from(document.querySelectorAll('.table-clean[data-tipo]'));
+
+    for (var i = 1; i < linhas.length; i++) {
+      var colunas = dividirLinhaCSV(linhas[i], delimitador);
+      if (colunas.length < 2) continue;
+
+      var tipoLinha = (idxTipo > -1 && colunas[idxTipo]) ? colunas[idxTipo].trim().toUpperCase() : (tipoPadrao || 'OPEX').toUpperCase();
+      var setorLinha = (idxSetor > -1 && colunas[idxSetor]) ? colunas[idxSetor].trim() : (setorPadrao || '');
+      var pacoteLinha = (idxPacote > -1 && colunas[idxPacote]) ? colunas[idxPacote].trim() : '';
+      var contaLinha = (idxConta > -1 && colunas[idxConta]) ? colunas[idxConta].trim() : (colunas[3] || '').trim();
+
+      if (!contaLinha) continue;
+
+      var valoresMeses = [];
+      var somaMeses = 0;
+      for (var m = 0; m < 12; m++) {
+        var rawVal = idxMeses[m] !== undefined && idxMeses[m] < colunas.length ? colunas[idxMeses[m]] : '0.00';
+        var numStr = normalizarNumero(rawVal);
+        valoresMeses.push(numStr);
+        somaMeses += parseFloat(numStr) || 0;
+      }
+
+      var tabela = todasTabelas.find(function(tb) {
+        var tTipo = tb.getAttribute('data-tipo') || '';
+        var tSetor = tb.getAttribute('data-setor') || '';
+        var tPacote = tb.getAttribute('data-pacote') || '';
+        return tTipo.toUpperCase() === tipoLinha &&
+               normalizarTexto(tSetor) === normalizarTexto(setorLinha) &&
+               normalizarTexto(tPacote) === normalizarTexto(pacoteLinha);
+      });
+
+      var rowId = '';
+      if (tabela) {
+        tabelasModificadas.add(tabela);
+        var tbody = tabela.querySelector('tbody');
+        var trs = Array.from(tbody.querySelectorAll('tr:not(.sub-linha)'));
+        var trEncontrada = trs.find(function(tr) {
+          return normalizarTexto(getNomeCustoCompleto(tr)) === normalizarTexto(contaLinha);
         });
 
-        atualizarConsolidado();
-        registrarAlteracao();
-        mostrarToast('Importação concluída! ' + importCount + ' linhas sincronizadas da aba "Importacao".', 'success');
-      })
-      .withFailureHandler(function(error) {
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-        mostrarToast('Erro ao importar da planilha: ' + error.message, 'danger');
-      })
-      .obterDadosImportacao(setor, tipo);
+        if (trEncontrada) {
+          rowId = trEncontrada.getAttribute('data-id');
+          var inputs = trEncontrada.querySelectorAll('.input-mes');
+          inputs.forEach(function(inp, mIdx) {
+            inp.value = valoresMeses[mIdx];
+          });
+          calcularTotal(inputs[0]);
+          countAtualizadas++;
+        } else {
+          rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(contaLinha, valoresMeses, false, '', false, rowId));
+          var novaTr = tbody.lastElementChild;
+          calcularTotal(novaTr.querySelector('.input-mes'));
+          countInseridas++;
+        }
+      } else {
+        rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      }
+
+      dadosParaSalvar.push({
+        id: rowId,
+        tipo: tipoLinha,
+        setor: setorLinha,
+        pacote: pacoteLinha,
+        nomeCusto: contaLinha.toUpperCase(),
+        meses: valoresMeses.map(parseFloat),
+        total: somaMeses
+      });
+    }
+
+    tabelasModificadas.forEach(function(tb) {
+      atualizarMasterDot(tb);
+    });
+
+    if (dadosParaSalvar.length === 0) {
+      mostrarToast("Nenhum custo válido encontrado no arquivo CSV.", "warning");
+      return;
+    }
+
+    atualizarConsolidado();
+    salvarSessaoLocal();
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      mostrarToast("Importando " + dadosParaSalvar.length + " custos e sincronizando com a Base de Dados...", "info");
+      google.script.run
+        .withSuccessHandler(function(res) {
+          atualizarStatusSincronizado(true);
+          salvarSessaoLocal();
+          mostrarToast("Importação concluída! " + (countAtualizadas + countInseridas) + " custos aplicados e atualizados na planilha sem duplicidade.", "success");
+        })
+        .withFailureHandler(function(err) {
+          mostrarToast("Erro ao sincronizar com a planilha: " + err.message, "danger");
+        })
+        .salvarCustos(dadosParaSalvar);
+    } else {
+      atualizarStatusSincronizado(true);
+      mostrarToast("Modo local: " + (countAtualizadas + countInseridas) + " custos importados no painel com sucesso.", "success");
+    }
   }
 
   function recarregarDadosPlanilha(btn) {
