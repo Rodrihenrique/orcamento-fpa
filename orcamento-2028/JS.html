@@ -1,0 +1,1055 @@
+<script>
+  // Cão de Guarda: Registra e alerta caso haja erros imprevistos
+  window.onerror = function(msg, url, lineNo, columnNo, error) {
+    console.error("Erro detectado:", msg, "Linha:", lineNo, error);
+    mostrarToast("Erro detectado na interface: " + msg, "danger");
+    return false;
+  };
+</script>
+
+<script>
+  var alteracoesPendentes = false;
+  var celulasSelecionadas = [];
+  var isDragging = false;
+
+  window.addEventListener('beforeunload', function (e) {
+    if (alteracoesPendentes) {
+      e.preventDefault();
+      e.returnValue = 'Você possui alterações que ainda não foram salvas na planilha. Tem certeza que deseja sair?';
+      return e.returnValue;
+    }
+  });
+
+  // =====================================
+  // DADOS DA ESTRUTURA E CONTAS
+  // =====================================
+  var estruturaSetores = {
+    "Gestão Telefonia": ["Contratos", "Frotas", "Jurídico", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Tecnologia da Informação", "Viagens"],
+    "Operação e Manutenção de Redes": ["Compras", "Contratos", "Estoque", "Patrimonial", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Taxas e Licenças", "Tecnologia da Informação", "Viagens"],
+    "Telefonia": ["Compras", "Contratos", "Estoque", "Frotas", "Jurídico", "Patrimonial", "Pessoal", "Propaganda e Marketing", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "SESMT", "Taxas e Licenças", "Tecnologia da Informação", "Tributos", "Viagens"],
+    "Operações de Redes": ["Compras", "Contratos", "Estoque", "Patrimonial", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Taxas e Licenças", "Tecnologia da Informação", "Viagens"],
+    "Projetos de Implantação": ["Compras", "Contratos", "Estoque", "Frotas", "Jurídico", "Patrimonial", "Pessoal", "Resultados Financeiros", "Resultados Operacionais", "Serviços Terceiros", "Taxas e Licenças", "Tecnologia da Informação", "Viagens"]
+  };
+
+  var contasPreDefinidas = {
+    "Telefonia": {
+      "Compras": ["51100026 - CONS. ÁGUA GERAL", "63007000 - CORREIOS E MALOTES", "63015000 - SUPORTE TÉCNICO", "63016000 - ANUNIDADES E CONTRIBUIÇÕES DE CLASSE"],
+      "Contratos": ["56101300 - INTERCONEXÃO", "63001000 - ENERGIA ELÉTRICA", "63004000 - SEGURO PATRIMONIAL", "63005000 - ALUGUEL E CONDOMINIO", "63006000 - TELEFONES", "67000003 - INDENIZAÇÕES DE TERCEIROS", "75004020 - IPTU /ITR"],
+      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA.", "51100009 - CONS. MATERIAL P/ MANUTENÇÃO E REFORMA", "51100015 - CONS. MATERIAL DE EXPEDIENTE", "51100017 - CONSUMO DE FARDAMENTOS"],
+      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "51109012 - DESPESA C/ RASTREADORES DE VEÍCULOS", "56101600 - MANUTENÇÃO DE VEÍCULOS", "60010014 - SEGUROS OBRIGATÓRIOS E LICENCIAMENTOS", "67005001 - MULTAS DE TRANSITO", "75008020 - IPVA"],
+      "Jurídico": ["71010404 - DESPESAS JUDICIAIS CIVIL - CUSTOS"],
+      "Patrimonial": ["51109002 - DEPRECIAÇÃO DE IMOBILIZADO - DEDUTIVEL", "51109008 - DEPRECIAÇÃO DE ARRENDAMENTO - OPERACIONAL"],
+      "Pessoal": ["51000002 - 13 SALARIO", "51000007 - ADICIONAL DE PERICULOSIDADE", "51000014 - AVISO PREVIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "51100052 - AJUDA DE CUSTO AGUA", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000012 - VALE TRANSPORTE", "61000013 - PLANO DE SAUDE", "61000017 - FGTS MULTA RESCISORIA", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000027 - PRÊMIOS E BONIFICAÇÕES", "61000028 - PPR - COLABORADORES", "61000031 - BENEFICIOS COM COLABORADORES - PCD", "61000034 - AJUDAS DE CUSTOS", "61000037 - VALE ALIMENTAÇÃO", "61000040 - SOBREAVISO", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63018000 - ASSISTÊNCIA MÉDICA, CLINICA E SAÚDE OCUPACIONAL"],
+      "Propaganda e Marketing": ["51100028 - CONS. PROPAGANDA E MARKETING"],
+      "Resultados Financeiros": ["65000001 - JUROS MORATORIOS E MULTAS", "65000008 - DESPESA JUROS - ARRENDAMENTO - INDEDUTIVEL", "71050000 - DESCONTO CONCEDIDOS", "72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
+      "Resultados Operacionais": ["51109018 - (-) CRÉDITOS DE ICMS S/ ENERGIA", "71800000 - OUTRAS DESPESAS INDEDUTIVEIS"],
+      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA", "63010000 - ASSESSORIA E CONSULTORIA EMPRESARIAL"],
+      "SESMT": ["51100014 - CONSUMO DE EPIS"],
+      "Taxas e Licenças": ["63013100 - TAXAS E EMOLUMENTOS"],
+      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
+      "Tributos": ["63999001 - (-) CREDITOS COFINS S/DESPESAS ADMINISTRATIVAS", "63999002 - (-) CREDITOS PIS S/DESPESAS ADMINISTRATIVAS"],
+      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO", "61007000 - DESPESAS DE VIAGEM - COND., PASSAG. E TRANSPORTES"]
+    },
+    "Operações de Redes": {
+      "Compras": ["51100026 - CONS. ÁGUA GERAL"],
+      "Contratos": ["56101300 - INTERCONEXÃO", "63001000 - ENERGIA ELÉTRICA", "63004000 - SEGURO PATRIMONIAL", "63005000 - ALUGUEL E CONDOMINIO", "63006000 - TELEFONES"],
+      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA.", "51100010 - MATERIAIS E MANUTENÇÃO DE EQUIPAMENTOS DE INFORMÁT", "51100017 - CONSUMO DE FARDAMENTOS", "56101100 - MANUTENÇÃO E REPAROS"],
+      "Patrimonial": ["51109008 - DEPRECIAÇÃO DE ARRENDAMENTO - OPERACIONAL"],
+      "Pessoal": ["51000002 - 13 SALARIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000013 - PLANO DE SAUDE", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000027 - PRÊMIOS E BONIFICAÇÕES", "61000028 - PPR - COLABORADORES", "61000037 - VALE ALIMENTAÇÃO", "61000038 - AUXÍLIO CRECHE", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63018000 - ASSISTÊNCIA MÉDICA, CLINICA E SAÚDE OCUPACIONAL"],
+      "Resultados Financeiros": ["65000001 - JUROS MORATORIOS E MULTAS", "65000008 - DESPESA JUROS - ARRENDAMENTO - INDEDUTIVEL", "65000009 - JUROS MORATORIOS SOBRE TRIBUTOS", "65000010 - MULTAS MORATORIAS SOBRE TRIBUTOS", "72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
+      "Resultados Operacionais": ["51109018 - (-) CRÉDITOS DE ICMS S/ ENERGIA"],
+      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA", "63010000 - ASSESSORIA E CONSULTORIA EMPRESARIAL"],
+      "Taxas e Licenças": ["63013100 - TAXAS E EMOLUMENTOS"],
+      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
+      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO"]
+    },
+    "Operação e Manutenção de Redes": {
+      "Compras": ["51100012 - BENS DE REDUZIDO VALOR", "51100026 - CONS. ÁGUA GERAL", "63015000 - SUPORTE TÉCNICO"],
+      "Contratos": ["56101300 - INTERCONEXÃO", "63001000 - ENERGIA ELÉTRICA", "63005000 - ALUGUEL E CONDOMINIO", "63006000 - TELEFONES"],
+      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA.", "51100009 - CONS. MATERIAL P/ MANUTENÇÃO E REFORMA", "51100010 - MATERIAIS E MANUTENÇÃO DE EQUIPAMENTOS DE INFORMÁT", "51100015 - CONS. MATERIAL DE EXPEDIENTE", "51100017 - CONSUMO DE FARDAMENTOS", "56101400 - FRETE"],
+      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "51109012 - DESPESA C/ RASTREADORES DE VEÍCULOS", "56101600 - MANUTENÇÃO DE VEÍCULOS", "56101700 - LOCAÇÃO DE VEÍCULOS", "60010014 - SEGUROS OBRIGATÓRIOS E LICENCIAMENTOS", "63017000 - SERVIÇO DE DESPACHANTE", "67005001 - MULTAS DE TRANSITO", "75008020 - IPVA"],
+      "Jurídico": ["71010403 - DESPESAS JUDICIAIS TRABALHISTAS - CUSTOS"],
+      "Pessoal": ["51000002 - 13 SALARIO", "51000007 - ADICIONAL DE PERICULOSIDADE", "51000014 - AVISO PREVIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "51100052 - AJUDA DE CUSTO AGUA", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000012 - VALE TRANSPORTE", "61000013 - PLANO DE SAUDE", "61000017 - FGTS MULTA RESCISORIA", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000027 - PRÊMIOS E BONIFICAÇÕES", "61000028 - PPR - COLABORADORES", "61000034 - AJUDAS DE CUSTOS", "61000036 - GRATIFICAÇÕES", "61000037 - VALE ALIMENTAÇÃO", "61000040 - SOBREAVISO", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63018000 - ASSISTÊNCIA MÉDICA, CLINICA E SAÚDE OCUPACIONAL"],
+      "Propaganda e Marketing": ["51100028 - CONS. PROPAGANDA E MARKETING"],
+      "Resultados Financeiros": ["72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
+      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA"],
+      "SESMT": ["51100014 - CONSUMO DE EPIS"],
+      "Taxas e Licenças": ["63013100 - TAXAS E EMOLUMENTOS"],
+      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
+      "Tributos": ["63999001 - (-) CREDITOS COFINS S/DESPESAS ADMINISTRATIVAS", "63999002 - (-) CREDITOS PIS S/DESPESAS ADMINISTRATIVAS"],
+      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO", "61007000 - DESPESAS DE VIAGEM - COND., PASSAG. E TRANSPORTES"]
+    },
+    "Gestão Telefonia": {
+      "Contratos": ["56101300 - INTERCONEXÃO", "63006000 - TELEFONES"],
+      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "51109012 - DESPESA C/ RASTREADORES DE VEÍCULOS", "56101700 - LOCAÇÃO DE VEÍCULOS", "75008020 - IPVA"],
+      "Jurídico": ["71010404 - DESPESAS JUDICIAIS CIVIL - CUSTOS"],
+      "Pessoal": ["51000002 - 13 SALARIO", "51000021 - ADICIONAL NOTURNO", "51100018 - BRISAFLEX", "51100019 - ALIMENTAÇÃO - REFEITÓRIO", "61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000013 - PLANO DE SAUDE", "61000019 - PROV. INSS S/FERIAS", "61000020 - PROV. FGTS S/FERIAS", "61000021 - PROV. INSS S/13. SALARIOS", "61000022 - PROV. FGTS S/13. SALARIOS", "61000026 - ABONO / ACT ANUAL", "61000028 - PPR - COLABORADORES", "61000037 - VALE ALIMENTAÇÃO", "61000041 - DESPESAS COM BENEFÍCIOS DE BEM-ESTAR", "61022030 - FERIAS", "61310000 - INSS PATRONAL", "61402000 - SEGURO DE VIDA", "63013103 - COMISSÃO DE COLABORADORES S/ VENDAS"],
+      "Resultados Financeiros": ["65000001 - JUROS MORATORIOS E MULTAS", "72010000 - PERDA POR DIFERENÇAS DA TAXA DE CÂMBIO"],
+      "Resultados Operacionais": ["71800000 - OUTRAS DESPESAS INDEDUTIVEIS"],
+      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA"],
+      "Tecnologia da Informação": ["63008000 - DESPESA COM LICENÇA DE SOFTWARE E SISTEMAS"],
+      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO", "61007000 - DESPESAS DE VIAGEM - COND., PASSAG. E TRANSPORTES"]
+    },
+    "Projetos de Implantação": {
+      "Compras": ["51100012 - BENS DE REDUZIDO VALOR", "63015000 - SUPORTE TÉCNICO"],
+      "Contratos": ["63001000 - ENERGIA ELÉTRICA", "63005000 - ALUGUEL E CONDOMINIO"],
+      "Estoque": ["51100001 - CONS. MATERIAIS DE INSTALAÇÃO", "51100002 - CONS. MATERIAIS INFRA."],
+      "Frotas": ["51100020 - CONS. COMBUSTÍVEIS", "56101600 - MANUTENÇÃO DE VEÍCULOS"],
+      "Pessoal": ["61000000 - SALARIOS", "61000004 - FGTS", "61000008 - HORAS EXTRAS", "61000037 - VALE ALIMENTAÇÃO"],
+      "Serviços Terceiros": ["60050001 - SERVIÇOS TOMADOS PESSOA JURIDICA"],
+      "Viagens": ["61003000 - DESPESAS DE VIAGEM - HOTEL E HOSPEDAGEM", "61004000 - DESPESA DE VIAGEM - ALIMENTAÇÃO"]
+    }
+  };
+
+  var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  var iconeLixeira = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+
+  // =====================================
+  // INICIALIZAÇÃO BLINDADA
+  // =====================================
+  function inicializarSistema() {
+    try {
+      console.log("Iniciando sistema de orçamento 2028...");
+      
+      // Carrega dados salvos: prioridade para o servidor (Google Sheets), fallback para localStorage
+      var dadosSalvos = obterDadosSalvosIniciais();
+
+      renderizarEstrutura('OPEX', 'sectorTabsOpex', 'sectorContentOpex', dadosSalvos);
+      renderizarEstrutura('CAPEX', 'sectorTabsCapex', 'sectorContentCapex', dadosSalvos);
+     
+      // Recalcula totais de linhas pai que possuam sub-linhas
+      document.querySelectorAll('tr[data-id]:not(.sub-linha)').forEach(function(trPai) {
+        var id = trPai.getAttribute('data-id');
+        if (id) {
+          var temFilhos = document.querySelectorAll(`tr.sub-linha[data-parent="${id}"]`).length > 0;
+          if (temFilhos) { recalcularPai(id); }
+        }
+      });
+
+      // Recalcula totais anuais de todas as linhas carregadas
+      document.querySelectorAll('.table-clean tbody tr:not(.sub-linha)').forEach(function(tr) {
+        var inputs = tr.querySelectorAll('.input-mes');
+        if(inputs.length > 0) {
+          var total = 0;
+          inputs.forEach(function(i) { total += parseFloat(i.value) || 0; });
+          var cell = tr.querySelector('.cell-total');
+          if(cell) cell.textContent = formatarMoeda(total);
+        }
+      });
+
+      atualizarConsolidado();
+      atualizarStatusSincronizado(true);
+      console.log("Sistema de orçamento 2028 carregado e consolidado com sucesso.");
+    } catch (err) {
+      console.error("Falha ao inicializar sistema:", err);
+      mostrarToast("Aviso: Inicializando com estrutura base devido a: " + err.message, "warning");
+    }
+  }
+
+  // Execução garantida mesmo se DOMContentLoaded já tiver disparado no iframe do Apps Script
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', inicializarSistema);
+  } else {
+    inicializarSistema();
+  }
+
+  /**
+   * Obtém a lista de registros salvos, priorizando o Google Sheets via injeção server-side
+   */
+  function obterDadosSalvosIniciais() {
+    // 1. Dados injetados diretamente pelo doGet do Apps Script
+    if (window.DADOS_INICIAIS_SERVIDOR && Array.isArray(window.DADOS_INICIAIS_SERVIDOR) && window.DADOS_INICIAIS_SERVIDOR.length > 0) {
+      console.log(`Carregados ${window.DADOS_INICIAIS_SERVIDOR.length} registros diretamente do Google Sheets.`);
+      return window.DADOS_INICIAIS_SERVIDOR;
+    }
+
+    // 2. Cache local (localStorage) como fallback de contingência
+    try {
+      var s = localStorage.getItem('brisa_orcamento_sessao');
+      if (s) {
+        var parsed = JSON.parse(s);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`Carregados ${parsed.length} registros do cache local.`);
+          return parsed;
+        }
+      }
+    } catch(e) {
+      console.warn("Storage local inacessível ou corrompido:", e);
+    }
+
+    return [];
+  }
+
+  // =====================================
+  // RENDERIZAÇÃO DE ESTRUTURA E LINHAS
+  // =====================================
+  function renderizarEstrutura(tipo, tabsId, contentId, dadosSalvos) {
+    var tabsContainer = document.getElementById(tabsId);
+    var contentContainer = document.getElementById(contentId);
+    if (!tabsContainer || !contentContainer) return;
+
+    // Limpa containers para permitir recarregamento
+    tabsContainer.innerHTML = '';
+    contentContainer.innerHTML = '';
+
+    var isFirst = true;
+    dadosSalvos = dadosSalvos || [];
+
+    for (var setor in estruturaSetores) {
+      if (!estruturaSetores.hasOwnProperty(setor)) continue;
+      var pacotes = estruturaSetores[setor];
+
+      var setorId = `${tipo.toLowerCase()}-` + setor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
+     
+      // Aba do Setor
+      var tabButton = document.createElement('li');
+      tabButton.className = 'nav-item';
+      tabButton.innerHTML = `<button class="nav-link ${isFirst ? 'active' : ''}" data-bs-toggle="tab" data-bs-target="#${setorId}" type="button">${setor}</button>`;
+      tabsContainer.appendChild(tabButton);
+
+      // Painel de Conteúdo do Setor
+      var tabPane = document.createElement('div');
+      tabPane.className = `tab-pane fade ${isFirst ? 'show active' : ''}`;
+      tabPane.id = setorId;
+
+      var htmlConteudo = `
+        <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+          <h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ${setor.toUpperCase()} (${tipo})</h3>
+          <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV('${setor}', '${tipo}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Exportar Template CSV
+            </button>
+            <button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="importarSetorGoogleSheets(this, '${setor}', '${tipo}')">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              Importar da Aba "Importacao"
+            </button>
+          </div>
+        </div>
+        <div class="resumo-box">
+          <div class="resumo-title">Resumo Financeiro - ${setor} (${tipo})</div>
+          <div class="table-responsive">
+            <table class="table table-borderless table-clean" id="resumo-${setorId}">
+              <thead><tr><th>Pacote</th>${meses.map(function(m){return `<th>${m}</th>`}).join('')}<th class="text-end">Total</th></tr></thead>
+              <tbody></tbody>
+              <tfoot></tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+
+      pacotes.forEach(function(pacote, index) {
+        var pacoteId = `${setorId}-pacote-${index}`;
+        var linhasInjetadas = '';
+        var nomesAdicionados = {};
+
+        // 1. Injeta linhas que já foram salvas para este setor e pacote
+        var linhasSalvasPacote = dadosSalvos.filter(function(s) {
+          return String(s.tipo).toUpperCase() === tipo && 
+                 String(s.setor).toLowerCase() === setor.toLowerCase() && 
+                 String(s.pacote).toLowerCase() === pacote.toLowerCase();
+        });
+
+        if (linhasSalvasPacote.length > 0) {
+          linhasSalvasPacote.forEach(function(s) {
+            nomesAdicionados[s.nomeCusto.toUpperCase()] = true;
+            linhasInjetadas += gerarLinhaHtml(
+              s.nomeCusto, 
+              s.meses, 
+              s.isHist || false, 
+              s.valorFixo || '', 
+              true, 
+              s.id, 
+              s.isSubline || false, 
+              s.parentId || ''
+            );
+          });
+        }
+
+        // 2. Para OPEX, se houver contas pré-definidas que ainda não foram salvas, adiciona como template
+        if (tipo === 'OPEX' && contasPreDefinidas[setor] && contasPreDefinidas[setor][pacote]) {
+          contasPreDefinidas[setor][pacote].forEach(function(contaNome) {
+            if (!nomesAdicionados[contaNome.toUpperCase()]) {
+              linhasInjetadas += gerarLinhaHtml(contaNome);
+            }
+          });
+        }
+
+        htmlConteudo += `
+          <div class="package-wrapper">
+            <div class="package-header" data-bs-toggle="collapse" data-bs-target="#col-${pacoteId}">
+              <span>${pacote}</span><span class="text-muted small">▼</span>
+            </div>
+            <div id="col-${pacoteId}" class="collapse">
+              <div class="package-body table-responsive">
+                <table class="table table-borderless table-clean" id="table-${pacoteId}" data-tipo="${tipo}" data-setor="${setor}" data-pacote="${pacote}" data-setorid="${setorId}">
+                  <thead>
+                    <tr>
+                      <th>Descrição do Custo</th>
+                      ${meses.map(function(m){return `<th>${m}</th>`}).join('')}
+                      <th class="text-end">Total</th>
+                      <th style="width: 40px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>${linhasInjetadas}</tbody>
+                </table>
+                <button class="btn-add-line" onclick="adicionarLinhaCusto('${pacoteId}')">+ Adicionar Nova Linha Manualmente</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+     
+      tabPane.innerHTML = htmlConteudo;
+      contentContainer.appendChild(tabPane);
+      isFirst = false;
+    }
+  }
+
+  function gerarLinhaHtml(nomePredefinido, paramMeses, isHist, valorFixo, isSaved, paramId, isSubline, parentId) {
+    nomePredefinido = nomePredefinido || '';
+    paramMeses = paramMeses || Array(12).fill('0.00');
+    isHist = isHist || false;
+    valorFixo = valorFixo || '';
+    isSaved = isSaved || false;
+    paramId = paramId || '';
+    isSubline = isSubline || false;
+    parentId = parentId || '';
+
+    var rowId = paramId || 'ID_' + new Date().getTime() + '_' + Math.random().toString(36).substr(2, 9);
+   
+    var safeNome = nomePredefinido ? nomePredefinido.replace(/"/g, '&quot;') : '';
+    var valorDesc = safeNome ? `value="${safeNome}"` : `placeholder="${isSubline ? 'Descreva o detalhe...' : 'Defina o nome do custo'}"`;
+   
+    var savedClass = isSaved ? 'linha-salva' : '';
+    var dotClass = isSaved ? 'saved' : '';
+    var dotIcon = isSaved ? '✔' : '';
+    var histChecked = isHist ? 'checked' : '';
+    var fixoClass = isHist ? 'd-block' : 'd-none';
+    var mesReadonly = isHist ? 'readonly' : '';
+   
+    var subClass = isSubline ? 'sub-linha' : '';
+    var dataParentAttr = isSubline && parentId ? `data-parent="${parentId}"` : '';
+    var btnAddSubline = !isSubline ? `<button type="button" class="btn-subline" onclick="adicionarSubLinha(this)" title="Adicionar Detalhe">↳ + Detalhe</button>` : '';
+   
+    var html = `<tr data-id="${rowId}" ${dataParentAttr} class="${savedClass} ${subClass}">
+      <td>
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <button class="btn-validate-dot ${dotClass}" onclick="salvarLinhaIndividual(this)" title="Marcar/Desmarcar linha (Salva no Orçamento)">${dotIcon}</button>
+          <input type="text" class="input-minimal desc nome-custo m-0" ${valorDesc} style="text-transform: uppercase;" onkeydown="pularProximoCampo(event, this)" oninput="desbloquearLinhaEdicao(this)">
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-1 ms-4 pl-2">
+          <label class="form-check-label text-muted d-flex align-items-center gap-1 m-0" style="font-size:11px; cursor:pointer; user-select:none;">
+            <input class="form-check-input check-historico m-0" type="checkbox" onchange="toggleHistorico(this)" ${histChecked} style="width:13px; height:13px; cursor:pointer;">
+            Histórico Fixo
+          </label>
+          <input type="number" class="input-minimal input-fixo ${fixoClass}" style="width: 85px; padding: 2px 6px; font-size:11px; height:24px;" placeholder="Valor Fixo" step="0.01" value="${valorFixo}" onfocus="limparZero(this)" oninput="aplicarFixo(this)" onkeydown="pularProximoCampo(event, this)">
+          ${btnAddSubline}
+        </div>
+      </td>`;
+   
+    var somaLinha = 0;
+    for(var i = 0; i < 12; i++) {
+      var val = paramMeses[i] || '0.00';
+      somaLinha += parseFloat(val) || 0;
+      html += `<td><input type="number" class="input-minimal input-mes" value="${val}" step="0.01" ${mesReadonly} onfocus="limparZero(this)" onblur="restaurarZero(this)" oninput="calcularTotal(this)" onkeydown="pularProximoCampo(event, this)"></td>`;
+    }
+   
+    html += `<td class="cell-total">${formatarMoeda(somaLinha)}</td>`;
+    html += `<td><button class="btn-delete" onclick="removerLinha(this)" title="Remover custo">${iconeLixeira}</button></td></tr>`;
+   
+    return html;
+  }
+
+  // =====================================
+  // EVENTOS DE COPIAR E COLAR DO EXCEL
+  // =====================================
+  function pularProximoCampo(event, atual) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      if (atual.type === 'number') { atual.value = '0.00'; } else { atual.value = ''; }
+      atual.blur();
+      if (atual.classList.contains('input-fixo')) { aplicarFixo(atual); }
+      else if (atual.classList.contains('input-mes')) { calcularTotal(atual); }
+      desbloquearLinhaEdicao(atual);
+      return;
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      atual.blur();
+      var tbody = atual.closest('tbody');
+      if (!tbody) return;
+      var inputs = Array.from(tbody.querySelectorAll('input:not([readonly]):not(.d-none):not([type="checkbox"])'));
+      var index = inputs.indexOf(atual);
+      if (index > -1 && index + 1 < inputs.length) inputs[index + 1].focus();
+    }
+  }
+
+  function limparZero(input) { if(input.value === '0.00' || input.value === '0') input.value = ''; }
+  function restaurarZero(input) { if(input.value.trim() === '') input.value = '0.00'; calcularTotal(input); }
+
+  document.addEventListener('paste', function(e) {
+    var target = e.target;
+    if (target && target.classList && target.classList.contains('input-mes') && !target.readOnly) {
+      e.preventDefault();
+      var pasteData = (e.clipboardData || window.clipboardData).getData('text');
+      var firstLine = pasteData.split(/\r?\n/)[0];
+     
+      var valores = firstLine.split(/\t/).map(function(v) {
+        var cleaned = v.trim();
+        if (cleaned.includes(',')) cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        return cleaned.replace(/[^\d.-]/g, '');
+      });
+     
+      if(valores.length > 0) {
+        var tr = target.closest('tr');
+        var inputsMes = Array.from(tr.querySelectorAll('.input-mes'));
+        var startIndex = inputsMes.indexOf(target);
+       
+        for(var i = 0; i < valores.length; i++) {
+          if (startIndex + i < inputsMes.length && valores[i] !== '') {
+            var numVal = parseFloat(valores[i]);
+            if(!isNaN(numVal)) inputsMes[startIndex + i].value = numVal.toFixed(2);
+          }
+        }
+        calcularTotal(target);
+      }
+    }
+  });
+
+  document.addEventListener('copy', function(e) {
+    if (celulasSelecionadas.length > 0) {
+      e.preventDefault();
+      var copyText = celulasSelecionadas.map(function(inp){ return inp.value; }).join('\t');
+      (e.clipboardData || window.clipboardData).setData('text/plain', copyText);
+    }
+  });
+
+  document.addEventListener('mousedown', function(e) {
+    if (e.target && e.target.classList && e.target.classList.contains('input-mes')) {
+      isDragging = true;
+      limparSelecao();
+      e.target.classList.add('selected-cell');
+      celulasSelecionadas.push(e.target);
+    } else {
+      limparSelecao();
+    }
+  });
+
+  document.addEventListener('mouseover', function(e) {
+    if (isDragging && e.target && e.target.classList && e.target.classList.contains('input-mes') && !celulasSelecionadas.includes(e.target)) {
+      e.target.classList.add('selected-cell');
+      celulasSelecionadas.push(e.target);
+    }
+  });
+
+  document.addEventListener('mouseup', function() { isDragging = false; });
+  function limparSelecao() { celulasSelecionadas.forEach(function(inp){ inp.classList.remove('selected-cell'); }); celulasSelecionadas = []; }
+
+  // =====================================
+  // CACHE LOCAL E SINCRONIZAÇÃO
+  // =====================================
+  function salvarSessaoLocal() {
+    try {
+      var sessao = [];
+      document.querySelectorAll('.table-clean[data-tipo]').forEach(function(tabela) {
+        var tipo = tabela.getAttribute('data-tipo');
+        var setor = tabela.getAttribute('data-setor');
+        var pacote = tabela.getAttribute('data-pacote');
+       
+        tabela.querySelectorAll('tbody tr').forEach(function(linha) {
+          var inputDesc = linha.querySelector('.nome-custo');
+          if(!inputDesc) return;
+         
+          var id = linha.getAttribute('data-id') || '';
+          var isSubline = linha.classList.contains('sub-linha');
+          var parentId = linha.getAttribute('data-parent') || '';
+          var nomeCusto = inputDesc.value;
+          var isSaved = linha.classList.contains('linha-salva');
+         
+          var meses = Array.from(linha.querySelectorAll('.input-mes')).map(function(inp){ return inp.value || '0.00'; });
+          var checkNode = linha.querySelector('.check-historico');
+          var fixoNode = linha.querySelector('.input-fixo');
+         
+          var isHist = checkNode ? checkNode.checked : false;
+          var valorFixo = fixoNode ? fixoNode.value : '';
+         
+          sessao.push({ 
+            id: id, 
+            tipo: tipo, 
+            setor: setor, 
+            pacote: pacote, 
+            nomeCusto: nomeCusto, 
+            meses: meses, 
+            isHist: isHist, 
+            valorFixo: valorFixo, 
+            isSaved: isSaved, 
+            isSubline: isSubline, 
+            parentId: parentId 
+          });
+        });
+      });
+      localStorage.setItem('brisa_orcamento_sessao', JSON.stringify(sessao));
+    } catch (e) {
+      console.warn("Storage local indisponível para salvar cache:", e);
+    }
+  }
+
+  function registrarAlteracao() {
+    alteracoesPendentes = true;
+    atualizarStatusSincronizado(false);
+    salvarSessaoLocal();
+  }
+
+  function atualizarStatusSincronizado(sincronizado) {
+    var dot = document.querySelector('.status-dot');
+    var txt = document.getElementById('syncText');
+    if (!dot || !txt) return;
+
+    if (sincronizado) {
+      dot.classList.remove('pending');
+      txt.textContent = 'Sincronizado com a Planilha';
+    } else {
+      dot.classList.add('pending');
+      txt.textContent = 'Alterações pendentes de salvar';
+    }
+  }
+
+  function desbloquearLinhaEdicao(elementoFilho) {
+    var tr = elementoFilho.closest('tr');
+    if(tr && tr.classList.contains('linha-salva')) {
+      tr.classList.remove('linha-salva');
+      var dot = tr.querySelector('.btn-validate-dot');
+      if(dot) { dot.classList.remove('saved'); dot.innerHTML = ''; }
+    }
+    if (tr && tr.classList.contains('sub-linha')) {
+      var parentId = tr.getAttribute('data-parent');
+      var trPai = document.querySelector(`tr[data-id="${parentId}"]`);
+      if (trPai && trPai.classList.contains('linha-salva')) {
+        trPai.classList.remove('linha-salva');
+        var dotPai = trPai.querySelector('.btn-validate-dot');
+        if (dotPai) { dotPai.classList.remove('saved'); dotPai.innerHTML = ''; }
+      }
+    }
+    registrarAlteracao();
+  }
+
+  function desmarcarEZerarLinha(tr) {
+    var btn = tr.querySelector('.btn-validate-dot');
+    if (btn) { btn.innerHTML = ''; btn.classList.remove('saved'); }
+    tr.classList.remove('linha-salva');
+
+    var id = tr.getAttribute('data-id');
+    var isPaiBloqueado = !tr.classList.contains('sub-linha') && document.querySelectorAll(`tr.sub-linha[data-parent="${id}"]`).length > 0;
+   
+    if (!isPaiBloqueado) {
+      tr.querySelectorAll('.input-mes').forEach(function(inp) { inp.value = '0.00'; inp.readOnly = false; });
+      var inputFixo = tr.querySelector('.input-fixo');
+      if(inputFixo) { inputFixo.value = ''; inputFixo.classList.add('d-none'); inputFixo.classList.remove('d-block'); }
+      var checkHist = tr.querySelector('.check-historico');
+      if(checkHist) checkHist.checked = false;
+      var cellTotal = tr.querySelector('.cell-total');
+      if(cellTotal) cellTotal.textContent = formatarMoeda(0);
+    }
+  }
+
+  function marcarLinha(tr) {
+    var btn = tr.querySelector('.btn-validate-dot');
+    if (btn) { btn.innerHTML = '✔'; btn.classList.add('saved'); }
+    tr.classList.add('linha-salva');
+  }
+
+  function salvarLinhaIndividual(btn) {
+    var tr = btn.closest('tr');
+    var isMarking = !btn.classList.contains('saved');
+    var isParent = !tr.classList.contains('sub-linha');
+    var rowId = tr.getAttribute('data-id');
+
+    if (isMarking) {
+      var inputDesc = tr.querySelector('.nome-custo');
+      if (inputDesc && inputDesc.value.trim() === '') {
+        mostrarToast("Por favor, preencha a descrição do custo antes de validar.", "warning");
+        inputDesc.focus();
+        return;
+      }
+      marcarLinha(tr);
+      if (isParent && rowId) {
+        document.querySelectorAll(`tr.sub-linha[data-parent="${rowId}"]`).forEach(function(sub) {
+          if (sub.querySelector('.nome-custo').value.trim() !== '') marcarLinha(sub);
+        });
+      }
+    } else {
+      desmarcarEZerarLinha(tr);
+      if (isParent && rowId) {
+        document.querySelectorAll(`tr.sub-linha[data-parent="${rowId}"]`).forEach(function(sub){ desmarcarEZerarLinha(sub); });
+        recalcularPai(rowId);
+      }
+    }
+   
+    if(tr.classList.contains('sub-linha')) recalcularPai(tr.getAttribute('data-parent'));
+   
+    atualizarConsolidado();
+    registrarAlteracao();
+  }
+
+  // =====================================
+  // DETALHAMENTO DE LINHAS E SOMA
+  // =====================================
+  function adicionarLinhaCusto(pacoteId) {
+    var tbody = document.querySelector(`#table-${pacoteId} tbody`);
+    if(tbody) { 
+      tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml()); 
+      registrarAlteracao(); 
+    }
+  }
+
+  function adicionarSubLinha(btn) {
+    var trPai = btn.closest('tr');
+    var parentId = trPai.getAttribute('data-id');
+    var htmlSub = gerarLinhaHtml('', Array(12).fill('0.00'), false, '', false, '', true, parentId);
+   
+    var lastNode = trPai;
+    var nextNode = trPai.nextElementSibling;
+    while (nextNode && nextNode.classList.contains('sub-linha') && nextNode.getAttribute('data-parent') === parentId) {
+      lastNode = nextNode;
+      nextNode = nextNode.nextElementSibling;
+    }
+    lastNode.insertAdjacentHTML('afterend', htmlSub);
+    recalcularPai(parentId);
+    registrarAlteracao();
+  }
+
+  function removerLinha(btn) {
+    var tr = btn.closest('tr');
+    var id = tr.getAttribute('data-id');
+    var isSubline = tr.classList.contains('sub-linha');
+    var parentId = tr.getAttribute('data-parent');
+   
+    if (!isSubline && id) {
+      var tbody = tr.closest('tbody');
+      var subLinhas = tbody.querySelectorAll(`tr.sub-linha[data-parent="${id}"]`);
+      subLinhas.forEach(function(sub){ sub.remove(); });
+    }
+    tr.remove();
+    if (isSubline && parentId) recalcularPai(parentId);
+   
+    atualizarConsolidado();
+    registrarAlteracao();
+  }
+
+  function recalcularPai(parentId) {
+    if(!parentId) return;
+    var parentTr = document.querySelector(`tr[data-id="${parentId}"]`);
+    if (!parentTr) return;
+
+    var subLinhas = document.querySelectorAll(`tr.sub-linha[data-parent="${parentId}"]`);
+    var inputsPai = parentTr.querySelectorAll('.input-mes');
+    var checkHistPai = parentTr.querySelector('.check-historico');
+    var inputFixoPai = parentTr.querySelector('.input-fixo');
+
+    if (subLinhas.length > 0) {
+      inputsPai.forEach(function(inp) { 
+        inp.readOnly = true; 
+        inp.style.backgroundColor = '#E2E8F0'; 
+        inp.style.color = '#64748B'; 
+      });
+      if(checkHistPai) { checkHistPai.disabled = true; checkHistPai.checked = false; }
+      if(inputFixoPai) { inputFixoPai.classList.add('d-none'); inputFixoPai.classList.remove('d-block'); }
+
+      var totaisMeses = Array(12).fill(0);
+      subLinhas.forEach(function(sub) {
+        var inputsSub = sub.querySelectorAll('.input-mes');
+        inputsSub.forEach(function(inp, idx) { totaisMeses[idx] += parseFloat(inp.value) || 0; });
+      });
+
+      var totalPaiAno = 0;
+      inputsPai.forEach(function(inp, idx) {
+        inp.value = totaisMeses[idx] > 0 ? totaisMeses[idx].toFixed(2) : '0.00';
+        totalPaiAno += parseFloat(inp.value);
+      });
+      var c = parentTr.querySelector('.cell-total');
+      if(c) c.textContent = formatarMoeda(totalPaiAno);
+    } else {
+      inputsPai.forEach(function(inp) { 
+        inp.readOnly = false; 
+        inp.style.backgroundColor = ''; 
+        inp.style.color = ''; 
+      });
+      if(checkHistPai) checkHistPai.disabled = false;
+    }
+  }
+
+  function toggleHistorico(checkbox) {
+    var tr = checkbox.closest('tr');
+    var inputFixo = tr.querySelector('.input-fixo');
+    var inputsMes = tr.querySelectorAll('.input-mes');
+   
+    if (checkbox.checked) {
+      inputFixo.classList.remove('d-none');
+      inputFixo.classList.add('d-block');
+      inputsMes.forEach(function(inp) { inp.readOnly = true; });
+    } else {
+      inputFixo.classList.add('d-none');
+      inputFixo.classList.remove('d-block');
+      inputFixo.value = '';
+      inputsMes.forEach(function(inp) { inp.readOnly = false; inp.value = '0.00'; });
+      calcularTotal(checkbox);
+    }
+    desbloquearLinhaEdicao(checkbox);
+  }
+
+  function aplicarFixo(inputFixo) {
+    var tr = inputFixo.closest('tr');
+    var inputsMes = tr.querySelectorAll('.input-mes');
+    var val = inputFixo.value === '' ? '0.00' : parseFloat(inputFixo.value).toFixed(2);
+    inputsMes.forEach(function(inp) { inp.value = val; });
+    calcularTotal(inputFixo);
+  }
+
+  function calcularTotal(inputElement) {
+    var tr = inputElement.closest('tr');
+    var inputs = tr.querySelectorAll('.input-mes');
+    var totalCell = tr.querySelector('.cell-total');
+    var total = 0;
+    inputs.forEach(function(input) { total += parseFloat(input.value) || 0; });
+    if(totalCell) totalCell.textContent = formatarMoeda(total);
+   
+    if (tr.classList.contains('sub-linha')) recalcularPai(tr.getAttribute('data-parent'));
+
+    atualizarConsolidado();
+    desbloquearLinhaEdicao(inputElement);
+  }
+
+  function atualizarConsolidado() {
+    var totaisSetor = {};
+    var totaisPacoteOpex = {};
+    var totaisPacoteCapex = {};
+
+    document.querySelectorAll('.table-clean[data-tipo]').forEach(function(tabela) {
+      var tipo = tabela.getAttribute('data-tipo');
+      var setorId = tabela.getAttribute('data-setorid');
+      var pacote = tabela.getAttribute('data-pacote');
+     
+      if(!totaisSetor[setorId]) totaisSetor[setorId] = {};
+      if(!totaisSetor[setorId][pacote]) totaisSetor[setorId][pacote] = { meses: Array(12).fill(0), total: 0 };
+     
+      var objPacoteConsolidado = tipo === 'OPEX' ? totaisPacoteOpex : totaisPacoteCapex;
+      if(!objPacoteConsolidado[pacote]) objPacoteConsolidado[pacote] = { meses: Array(12).fill(0), total: 0 };
+
+      tabela.querySelectorAll('tbody tr:not(.sub-linha)').forEach(function(linha) {
+        linha.querySelectorAll('.input-mes').forEach(function(input, idx) {
+          var val = parseFloat(input.value) || 0;
+          totaisSetor[setorId][pacote].meses[idx] += val;
+          totaisSetor[setorId][pacote].total += val;
+          objPacoteConsolidado[pacote].meses[idx] += val;
+          objPacoteConsolidado[pacote].total += val;
+        });
+      });
+    });
+
+    Object.keys(totaisSetor).forEach(function(setorId) {
+      var tbResumoBody = document.querySelector(`#resumo-${setorId} tbody`);
+      var tbResumoFoot = document.querySelector(`#resumo-${setorId} tfoot`);
+      if(!tbResumoBody) return;
+
+      var htmlBody = '';
+      var totaisSetorGeral = Array(12).fill(0);
+      var totalSetorGeralAno = 0;
+
+      Object.keys(totaisSetor[setorId]).forEach(function(pacote) {
+        var dados = totaisSetor[setorId][pacote];
+        if(dados.total > 0) {
+          htmlBody += `<tr><td class="fw-semibold">${pacote}</td>${dados.meses.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fw-bold">${formatarMoeda(dados.total)}</td></tr>`;
+          dados.meses.forEach(function(v, i) { totaisSetorGeral[i] += v; });
+          totalSetorGeralAno += dados.total;
+        }
+      });
+
+      tbResumoBody.innerHTML = htmlBody || `<tr><td colspan="14" class="text-center text-muted">Nenhum custo lançado.</td></tr>`;
+      tbResumoFoot.innerHTML = totalSetorGeralAno > 0 ? `<tr><td>TOTAL DO SETOR</td>${totaisSetorGeral.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fs-6">${formatarMoeda(totalSetorGeralAno)}</td></tr>` : '';
+    });
+
+    renderizarTabelaConsolidadaFinal('#table-consolidado-opex', totaisPacoteOpex, 'OPEX');
+    renderizarTabelaConsolidadaFinal('#table-consolidado-capex', totaisPacoteCapex, 'CAPEX');
+  }
+
+  function renderizarTabelaConsolidadaFinal(selectorId, dadosPacote, tipo) {
+    var tbody = document.querySelector(`${selectorId} tbody`);
+    var tfoot = document.querySelector(`${selectorId} tfoot`);
+    if(!tbody || !tfoot) return;
+    var htmlBody = '';
+    var totaisGeraisMeses = Array(12).fill(0);
+    var totalGeralAno = 0;
+
+    Object.keys(dadosPacote).sort().forEach(function(pacote) {
+      var dados = dadosPacote[pacote];
+      if(dados.total > 0) {
+        htmlBody += `<tr><td class="fw-semibold">${pacote}</td>${dados.meses.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fw-bold text-dark">${formatarMoeda(dados.total)}</td></tr>`;
+        dados.meses.forEach(function(v, i) { totaisGeraisMeses[i] += v; });
+        totalGeralAno += dados.total;
+      }
+    });
+
+    tbody.innerHTML = htmlBody || `<tr><td colspan="14" class="text-center text-muted py-4">Nenhum custo ${tipo} lançado.</td></tr>`;
+    tfoot.innerHTML = totalGeralAno > 0 ? `<tr><td>TOTAL GERAL ${tipo}</td>${totaisGeraisMeses.map(function(v){ return `<td>${formatarMoeda(v)}</td>`; }).join('')}<td class="text-end fs-6">${formatarMoeda(totalGeralAno)}</td></tr>` : '';
+  }
+
+  function formatarMoeda(valor) {
+    if(valor === 0) return '-';
+    return valor.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+  }
+
+  function getNomeCustoCompleto(tr) {
+    var nomeElement = tr.querySelector('.nome-custo');
+    if(!nomeElement) return '';
+    var nome = nomeElement.value.toUpperCase();
+    if (tr.classList.contains('sub-linha')) {
+      var parentId = tr.getAttribute('data-parent');
+      var parentTr = document.querySelector(`tr[data-id="${parentId}"]`);
+      if (parentTr) {
+        var parentNomeElement = parentTr.querySelector('.nome-custo');
+        if(parentNomeElement) nome = parentNomeElement.value.toUpperCase() + " - " + nome;
+      }
+    }
+    return nome;
+  }
+
+  // =====================================
+  // EXPORTAR, IMPORTAR E SALVAR DADOS
+  // =====================================
+  function exportarSetorCSV(setor, tipo) {
+    try {
+      var tabelas = document.querySelectorAll(`.table-clean[data-setor="${setor}"][data-tipo="${tipo}"]`);
+      var csvContent = 'sep=;\nTipo;Setor;Pacote;Conta / Descricao;Jan;Fev;Mar;Abr;Mai;Jun;Jul;Ago;Set;Out;Nov;Dez\n';
+
+      tabelas.forEach(function(tb) {
+        var pacote = tb.getAttribute('data-pacote');
+        tb.querySelectorAll('tbody tr').forEach(function(tr) {
+          var id = tr.getAttribute('data-id');
+          var isSubline = tr.classList.contains('sub-linha');
+          var temFilhos = tb.querySelector(`tr.sub-linha[data-parent="${id}"]`) !== null;
+         
+          if (temFilhos && !isSubline) return;
+
+          var nomeCusto = getNomeCustoCompleto(tr).replace(/;/g, '-').trim();
+          if (nomeCusto) {
+            var mesesVals = Array.from(tr.querySelectorAll('.input-mes')).map(function(inp) { return inp.value.replace('.', ','); });
+            csvContent += `${tipo};${setor};${pacote};${nomeCusto};${mesesVals.join(';')}\n`;
+          }
+        });
+      });
+
+      var blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+      var url = URL.createObjectURL(blob);
+      var link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `Template_${tipo}_${setor.replace(/\s+/g, '_')}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      mostrarToast(`Template CSV de ${setor} exportado com sucesso.`, 'success');
+    } catch (error) {
+      mostrarToast("Erro ao exportar o arquivo CSV. Tente novamente.", 'danger');
+    }
+  }
+
+  function importarSetorGoogleSheets(btn, setor, tipo) {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      mostrarToast("Ambiente local/preview: recurso de importação disponível no Apps Script.", "warning");
+      return;
+    }
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Importando...`;
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function(dadosImportados) {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+
+        if (!dadosImportados || dadosImportados.length === 0) {
+          mostrarToast(`Nenhum dado encontrado para o setor "${setor}" (${tipo}) na aba "Importacao".`, "warning");
+          return;
+        }
+
+        var importCount = 0;
+        dadosImportados.forEach(function(dado) {
+          var tabela = document.querySelector(`.table-clean[data-setor="${setor}"][data-tipo="${tipo}"][data-pacote="${dado.pacote}"]`);
+          if (!tabela) return;
+
+          var tbody = tabela.querySelector('tbody');
+          var trEncontrada = null;
+         
+          Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+            if (getNomeCustoCompleto(tr).toUpperCase() === dado.nomeCusto) trEncontrada = tr;
+          });
+
+          if (!trEncontrada) {
+            tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(dado.nomeCusto));
+            trEncontrada = tbody.lastElementChild;
+          }
+
+          var inputsMes = trEncontrada.querySelectorAll('.input-mes');
+          inputsMes.forEach(function(inp, idx) { inp.value = dado.meses[idx]; });
+         
+          marcarLinha(trEncontrada);
+          calcularTotal(inputsMes[0]);
+          importCount++;
+        });
+
+        atualizarConsolidado();
+        registrarAlteracao();
+        mostrarToast(`Importação concluída! ${importCount} linhas sincronizadas da aba "Importacao".`, "success");
+      })
+      .withFailureHandler(function(error) {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        mostrarToast('Erro ao importar da planilha: ' + error.message, "danger");
+      })
+      .obterDadosImportacao(setor, tipo);
+  }
+
+  function recarregarDadosPlanilha(btn) {
+    if (typeof google === 'undefined' || !google.script || !google.script.run) {
+      mostrarToast("Ambiente local/preview: recurso de recarregar disponível no Apps Script.", "warning");
+      return;
+    }
+
+    if (alteracoesPendentes) {
+      if (!confirm("Existem alterações não salvas. Deseja descartá-las e recarregar os dados da planilha?")) {
+        return;
+      }
+    }
+
+    var originalHtml = btn.innerHTML;
+    btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Recarregando...`;
+    btn.disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function(custosSalvos) {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        window.DADOS_INICIAIS_SERVIDOR = custosSalvos || [];
+        inicializarSistema();
+        alteracoesPendentes = false;
+        atualizarStatusSincronizado(true);
+        mostrarToast("Dados recarregados com sucesso diretamente da planilha!", "success");
+      })
+      .withFailureHandler(function(err) {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        mostrarToast("Erro ao recarregar da planilha: " + err.message, "danger");
+      })
+      .obterCustosSalvos();
+  }
+
+  function salvarDados() {
+    var tabelas = document.querySelectorAll('.table-clean[data-tipo]');
+    var dadosParaSalvar = [];
+   
+    tabelas.forEach(function(tabela) {
+      var tipo = tabela.getAttribute('data-tipo');
+      var setor = tabela.getAttribute('data-setor');
+      var pacote = tabela.getAttribute('data-pacote');
+     
+      tabela.querySelectorAll('tbody tr').forEach(function(linha) {
+        var id = linha.getAttribute('data-id');
+        var temFilhos = tabela.querySelector(`tr.sub-linha[data-parent="${id}"]`) !== null;
+       
+        // Pula o pai se ele tiver sub-linhas detalhadas, pois o que salva são os detalhes
+        if (temFilhos && !linha.classList.contains('sub-linha')) { return; }
+
+        var inputDesc = linha.querySelector('.nome-custo');
+        if(!inputDesc) return;
+       
+        var nomeCusto = getNomeCustoCompleto(linha);
+       
+        if (nomeCusto.trim() !== '') {
+          var inputsMes = linha.querySelectorAll('.input-mes');
+          var valoresMeses = Array.from(inputsMes).map(function(input){ return parseFloat(input.value) || 0; });
+          var total = valoresMeses.reduce(function(acc, curr){ return acc + curr; }, 0);
+         
+          dadosParaSalvar.push({ 
+            id: id, 
+            tipo: tipo, 
+            setor: setor, 
+            pacote: pacote, 
+            nomeCusto: nomeCusto, 
+            meses: valoresMeses, 
+            total: total 
+          });
+         
+          linha.classList.add('linha-salva');
+          var dot = linha.querySelector('.btn-validate-dot');
+          if(dot) {
+            dot.classList.add('saved');
+            dot.innerHTML = '✔';
+          }
+        }
+      });
+    });
+   
+    if (dadosParaSalvar.length === 0) {
+      mostrarToast('Nenhum custo preenchido para salvar.', 'warning');
+      return;
+    }
+
+    var btn = document.getElementById('btnSalvarGeral');
+    var originalText = btn.textContent;
+    btn.textContent = "Salvando Sincronizado...";
+    btn.disabled = true;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.textContent = originalText;
+          btn.disabled = false;
+          alteracoesPendentes = false;
+          atualizarStatusSincronizado(true);
+          salvarSessaoLocal();
+          mostrarToast("Sincronização completa! Orçamento Geral salvo na planilha com sucesso.", "success");
+        })
+        .withFailureHandler(function(err) {
+          btn.textContent = originalText;
+          btn.disabled = false;
+          mostrarToast('Erro ao sincronizar com a planilha: ' + err.message, "danger");
+        })
+        .salvarCustos(dadosParaSalvar);
+    } else {
+      // Modo local / preview
+      setTimeout(function() {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alteracoesPendentes = false;
+        atualizarStatusSincronizado(true);
+        salvarSessaoLocal();
+        mostrarToast("Modo local: dados salvos no cache com sucesso.", "success");
+      }, 500);
+    }
+  }
+
+  // =====================================
+  // TOAST DE FEEDBACK
+  // =====================================
+  function mostrarToast(mensagem, tipo) {
+    tipo = tipo || 'primary';
+    var toastEl = document.getElementById('toastFeedback');
+    var msgEl = document.getElementById('toastMessage');
+    if (!toastEl || !msgEl) {
+      console.log(`[TOAST - ${tipo}] ${mensagem}`);
+      return;
+    }
+
+    toastEl.className = `toast align-items-center text-white border-0 bg-${tipo}`;
+    msgEl.textContent = mensagem;
+
+    if (window.bootstrap && window.bootstrap.Toast) {
+      var toast = bootstrap.Toast.getOrCreateInstance(toastEl);
+      toast.show();
+    } else {
+      toastEl.classList.add('show');
+      setTimeout(function() { toastEl.classList.remove('show'); }, 4000);
+    }
+  }
+</script>

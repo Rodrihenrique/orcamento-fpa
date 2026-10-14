@@ -48,3 +48,12 @@ Localizado no diretório [`sistema-gestao-contratos/`](./sistema-gestao-contrato
 * Dashboard interativo com busca em tempo real, filtros por status e risco, e modal de detalhes.
 * Sem emojis, visual corporativo e profissional.
 * Veja as instruções completas no [`README.md`](./sistema-gestao-contratos/README.md) do módulo.
+
+### 3. Painel de Orçamento 2028 | OPEX e CAPEX
+Localizado no diretório [`orcamento-2028/`](./orcamento-2028/):
+* Sistema de planejamento e consolidação orçamentária para 2028 da Gerência Executiva de Telefonia.
+* Arquitetura em 4 arquivos canônicos: `Codigo.gs`, `Index.html`, `CSS.html` e `JS.html`.
+* Visão consolidada por pacote e visão detalhada por setores (Gestão Telefonia, Operação e Manutenção de Redes, Telefonia, Operações de Redes, Projetos de Implantação).
+* Sincronização direta e bidirecional com Google Sheets (`OPEX_Dados`, `CAPEX_Dados`, `Importacao`).
+* Suporte completo a atalhos, navegação por teclado e colar (copy/paste) diretamente de planilhas Excel.
+* Veja as instruções completas no [`README.md`](./orcamento-2028/README.md) do módulo.

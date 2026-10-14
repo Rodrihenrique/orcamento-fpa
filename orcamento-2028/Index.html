@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Orçamento 2028 | OPEX e CAPEX - brisanet</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Rubik:wght@500;600&display=swap" rel="stylesheet">
+    <?!= include('CSS'); ?>
+  </head>
+  <body>
+    <!-- Injeção dos dados persistidos vindos do Google Sheets via scriptlet -->
+    <script>
+      window.DADOS_INICIAIS_SERVIDOR = <?!= typeof dadosIniciaisJSON !== 'undefined' ? dadosIniciaisJSON : '[]' ?>;
+    </script>
+
+    <div class="app-container">
+     
+      <!-- Top Header -->
+      <header class="top-header mb-4 d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <div class="brand-square">brisa</div>
+          <div class="header-titles ms-3">
+            <h1 class="page-title">Painel de Orçamento 2028 <span class="divider">|</span> OPEX e CAPEX</h1>
+            <h2 class="page-subtitle">ORÇAMENTO GERÊNCIA EXECUTIVA DE TELEFONIA • BRISANET</h2>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div id="statusSincronizacao" class="sync-indicator d-flex align-items-center gap-1 text-muted small">
+            <span class="status-dot"></span>
+            <span id="syncText">Sincronizado</span>
+          </div>
+          <div class="user-pill d-flex align-items-center">
+            <span class="user-email">usuario.teste@grupobrisanet.com.br</span>
+            <span class="badge-role">ADMIN</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Barra de Ações e Abas Principais -->
+      <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+        <ul class="nav nav-pills custom-main-nav" id="mainTabs" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active" id="tab-consolidado" data-bs-toggle="pill" data-bs-target="#view-consolidado" type="button">Visão Consolidada</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-opex" data-bs-toggle="pill" data-bs-target="#view-opex" type="button">Lançamentos OPEX</button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-capex" data-bs-toggle="pill" data-bs-target="#view-capex" type="button">Lançamentos CAPEX</button>
+          </li>
+        </ul>
+
+        <div class="d-flex align-items-center gap-2">
+          <button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" id="btnRecarregarPlanilha" onclick="recarregarDadosPlanilha(this)" title="Recarrega todos os dados salvos diretamente da planilha">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg>
+            Recarregar Planilha
+          </button>
+          <button class="btn btn-primary-soft" id="btnSalvarGeral" onclick="salvarDados()">Salvar Orçamento Geral</button>
+        </div>
+      </div>
+
+      <!-- Conteúdo das Abas Principais -->
+      <div class="tab-content" id="mainContent">
+       
+        <!-- VISÃO 1: Consolidado -->
+        <div class="tab-pane fade show active" id="view-consolidado">
+          <div class="soft-card p-4 mb-4">
+            <h3 class="section-title mb-1">Consolidado OPEX por Pacotes</h3>
+            <p class="section-desc mb-4">Soma total de todos os custos OPEX agrupados por pacote, unificando todos os setores.</p>
+            <div class="table-responsive">
+              <table class="table table-borderless table-consolidado table-clean" id="table-consolidado-opex">
+                <thead>
+                  <tr>
+                    <th>Pacote (OPEX)</th>
+                    <th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>
+                    <th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>
+                    <th class="text-end">Total Anual</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div class="soft-card p-4">
+            <h3 class="section-title mb-1">Consolidado CAPEX por Pacotes</h3>
+            <p class="section-desc mb-4">Soma total de todos os custos CAPEX agrupados por pacote, unificando todos os setores.</p>
+            <div class="table-responsive">
+              <table class="table table-borderless table-consolidado table-clean" id="table-consolidado-capex">
+                <thead>
+                  <tr>
+                    <th>Pacote (CAPEX)</th>
+                    <th>Jan</th><th>Fev</th><th>Mar</th><th>Abr</th><th>Mai</th><th>Jun</th>
+                    <th>Jul</th><th>Ago</th><th>Set</th><th>Out</th><th>Nov</th><th>Dez</th>
+                    <th class="text-end">Total Anual</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- VISÃO 2: OPEX -->
+        <div class="tab-pane fade" id="view-opex">
+          <div class="soft-card p-4">
+            <p class="section-desc mb-4">Preencha as informações detalhadas de custos OPEX (Despesas Operacionais).</p>
+            <ul class="nav nav-tabs custom-sector-tabs mb-4" id="sectorTabsOpex" role="tablist"></ul>
+            <div class="tab-content" id="sectorContentOpex"></div>
+          </div>
+        </div>
+
+        <!-- VISÃO 3: CAPEX -->
+        <div class="tab-pane fade" id="view-capex">
+          <div class="soft-card p-4">
+            <p class="section-desc mb-4">Preencha as informações detalhadas de custos CAPEX (Despesas de Capital / Investimentos).</p>
+            <ul class="nav nav-tabs custom-sector-tabs mb-4" id="sectorTabsCapex" role="tablist"></ul>
+            <div class="tab-content" id="sectorContentCapex"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Toast de Notificações -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+      <div id="toastFeedback" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="d-flex">
+          <div class="toast-body" id="toastMessage">Ação executada com sucesso.</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <?!= include('JS'); ?>
+  </body>
+</html>
