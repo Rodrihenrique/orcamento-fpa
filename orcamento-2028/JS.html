@@ -294,7 +294,7 @@
               s.meses, 
               s.isHist || false, 
               s.valorFixo || '', 
-              true, 
+              s.isSaved === true, 
               s.id, 
               s.isSubline || false, 
               s.parentId || ''
@@ -614,7 +614,15 @@
           if (sub.querySelector('.nome-custo').value.trim() !== '') marcarLinha(sub);
         });
       }
+      mostrarToast("Progresso da linha salvo com sucesso!", "success");
     } else {
+      var inputsMes = tr.querySelectorAll('.input-mes');
+      var temValores = Array.from(inputsMes).some(function(inp) { return parseFloat(inp.value) > 0; });
+      if (temValores) {
+        if (!confirm("Esta linha possui valores preenchidos. Deseja realmente desmarcar e zerar os valores desta linha?")) {
+          return;
+        }
+      }
       desmarcarEZerarLinha(tr);
       if (isParent && rowId) {
         document.querySelectorAll('tr.sub-linha[data-parent="' + rowId + '"]').forEach(function(sub){ desmarcarEZerarLinha(sub); });
@@ -933,7 +941,6 @@
           var inputsMes = trEncontrada.querySelectorAll('.input-mes');
           inputsMes.forEach(function(inp, idx) { inp.value = dado.meses[idx]; });
          
-          marcarLinha(trEncontrada);
           calcularTotal(inputsMes[0]);
           importCount++;
         });
@@ -1019,13 +1026,6 @@
             meses: valoresMeses, 
             total: total 
           });
-         
-          linha.classList.add('linha-salva');
-          var dot = linha.querySelector('.btn-validate-dot');
-          if(dot) {
-            dot.classList.add('saved');
-            dot.innerHTML = '✔';
-          }
         }
       });
     });

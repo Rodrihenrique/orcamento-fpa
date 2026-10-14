@@ -110,7 +110,7 @@ function obterCustosSalvos() {
         nomeCusto: nomeCusto,
         meses: meses,
         total: total,
-        isSaved: true
+        isSaved: false
       });
     }
   }
