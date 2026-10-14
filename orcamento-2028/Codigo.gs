@@ -73,19 +73,29 @@ function obterCustosSalvos() {
   const abaOpex = ss.getSheetByName('OPEX_Dados');
   const abaCapex = ss.getSheetByName('CAPEX_Dados');
   const dados = [];
-  const mapIndices = {};
 
   function normalizarTexto(str) {
     return String(str || '')
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s]/gi, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
   }
 
+  function extrairCodigoConta(str) {
+    const m = String(str || '').match(/^\d+/);
+    return m ? m[0] : '';
+  }
+
   function gerarChaveCusto(tipo, setor, pacote, nomeCusto) {
     return normalizarTexto(tipo) + '|||' + normalizarTexto(setor) + '|||' + normalizarTexto(pacote) + '|||' + normalizarTexto(nomeCusto);
+  }
+
+  function gerarChaveCodigo(tipo, setor, pacote, nomeCusto) {
+    const cod = extrairCodigoConta(nomeCusto);
+    return cod ? (normalizarTexto(tipo) + '|||' + normalizarTexto(setor) + '|||' + normalizarTexto(pacote) + '|||COD_' + cod) : '';
   }
 
   function extrairDadosAba(aba, tipoPadrao) {
@@ -93,6 +103,9 @@ function obterCustosSalvos() {
     const dataRange = aba.getDataRange();
     const valores = dataRange.getValues();
     if (!valores || valores.length <= 1) return;
+
+    const mapChave = new Map();
+    const mapCod = new Map();
 
     for (let i = 1; i < valores.length; i++) {
       const row = valores[i];
@@ -102,7 +115,6 @@ function obterCustosSalvos() {
       const pacote = String(row[4] || '').trim();
       const nomeCusto = String(row[5] || '').trim();
 
-      // Pula linhas sem nome de custo
       if (!nomeCusto) continue;
 
       const meses = [];
@@ -117,6 +129,8 @@ function obterCustosSalvos() {
       }
 
       const chave = gerarChaveCusto(tipo, setor, pacote, nomeCusto);
+      const chaveCod = gerarChaveCodigo(tipo, setor, pacote, nomeCusto);
+
       const registro = {
         id: id || ('ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)),
         tipo: tipo,
@@ -128,12 +142,18 @@ function obterCustosSalvos() {
         isSaved: false
       };
 
-      // Trava contra duplicidades na leitura: se já existir, atualiza com a ocorrência mais recente
-      if (mapIndices[chave] !== undefined) {
-        dados[mapIndices[chave]] = registro;
+      // Trava contra duplicidades na leitura: atualiza ocorrência existente ou insere
+      if (mapChave.has(chave)) {
+        const idx = mapChave.get(chave);
+        dados[idx] = registro;
+      } else if (chaveCod && mapCod.has(chaveCod)) {
+        const idx = mapCod.get(chaveCod);
+        dados[idx] = registro;
       } else {
-        mapIndices[chave] = dados.length;
+        const novoIdx = dados.length;
         dados.push(registro);
+        mapChave.set(chave, novoIdx);
+        if (chaveCod) mapCod.set(chaveCod, novoIdx);
       }
     }
   }
@@ -146,9 +166,10 @@ function obterCustosSalvos() {
 
 /**
  * Salva ou atualiza os lançamentos de custos nas abas correspondentes (OPEX_Dados ou CAPEX_Dados).
- * TRAVA ANTI-DUPLICAÇÃO:
- * Se já existir registro para o mesmo Setor + Pacote + Nome do Custo (ou mesmo ID),
- * substitui a linha existente diretamente na planilha, evitando qualquer duplicidade.
+ * TRAVA ANTI-DUPLICAÇÃO E SUBSTITUIÇÃO:
+ * - Se já existir registro para o mesmo Setor + Pacote + Nome/Código de Custo (ou mesmo ID),
+ *   substitui a linha existente diretamente na planilha com os novos valores, sem criar duplicatas.
+ * - Caso existam duplicidades residuais antigas na planilha, consolida em um único registro limpo.
  */
 function salvarCustos(dados) {
   if (!dados || !Array.isArray(dados) || dados.length === 0) {
@@ -164,13 +185,24 @@ function salvarCustos(dados) {
     return String(str || '')
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s]/gi, '')
       .replace(/\s+/g, ' ')
       .trim()
       .toUpperCase();
   }
 
+  function extrairCodigoConta(str) {
+    const m = String(str || '').match(/^\d+/);
+    return m ? m[0] : '';
+  }
+
   function gerarChaveNegocio(setor, pacote, nomeCusto) {
     return normalizarTexto(setor) + '|||' + normalizarTexto(pacote) + '|||' + normalizarTexto(nomeCusto);
+  }
+
+  function gerarChaveCodigo(setor, pacote, nomeCusto) {
+    const cod = extrairCodigoConta(nomeCusto);
+    return cod ? (normalizarTexto(setor) + '|||' + normalizarTexto(pacote) + '|||COD_' + cod) : '';
   }
 
   function processarAba(aba, listaLinhas) {
@@ -179,86 +211,99 @@ function salvarCustos(dados) {
     const dataRange = aba.getDataRange();
     const valores = dataRange.getValues();
     
-    // Mapeia tanto por ID_Sistema quanto pela Chave Composta de Negócio (Setor|Pacote|NomeCusto)
-    const mapIdLinha = {};
-    const mapChaveLinha = {};
+    // Leitura e mapeamento das linhas existentes na planilha
+    const mapLinhas = new Map();
+    const mapCodigo = new Map();
+    const mapId = new Map();
 
     for (let i = 1; i < valores.length; i++) {
-      const idExistente = String(valores[i][0] || '').trim();
-      const setorExistente = valores[i][3];
-      const pacoteExistente = valores[i][4];
-      const nomeExistente = valores[i][5];
-      const chaveExistente = gerarChaveNegocio(setorExistente, pacoteExistente, nomeExistente);
-      
-      const rowIndex = i + 1; // 1-based index na planilha
-      if (idExistente) {
-        mapIdLinha[idExistente] = rowIndex;
-      }
-      if (chaveExistente !== '||||||') {
-        mapChaveLinha[chaveExistente] = rowIndex;
+      const row = valores[i];
+      const idExistente = String(row[0] || '').trim();
+      const setorExistente = row[3];
+      const pacoteExistente = row[4];
+      const nomeExistente = row[5];
+      if (!nomeExistente) continue;
+
+      const chave = gerarChaveNegocio(setorExistente, pacoteExistente, nomeExistente);
+      const chaveCod = gerarChaveCodigo(setorExistente, pacoteExistente, nomeExistente);
+
+      // Deduplicação na carga da planilha: mantém apenas uma linha única por chave de custo
+      if (!mapLinhas.has(chave)) {
+        mapLinhas.set(chave, row);
+        if (chaveCod && !mapCodigo.has(chaveCod)) {
+          mapCodigo.set(chaveCod, row);
+        }
+        if (idExistente && !mapId.has(idExistente)) {
+          mapId.set(idExistente, row);
+        }
       }
     }
 
-    const linhasParaInserir = [];
-
+    // Processa a lista de linhas enviadas da interface
     listaLinhas.forEach(linha => {
       const nomeCustoLimpo = String(linha.nomeCusto || '').trim();
       if (!nomeCustoLimpo) return;
 
       const chaveLinha = gerarChaveNegocio(linha.setor, linha.pacote, nomeCustoLimpo);
-      
-      // Trava anti-duplicação: localiza linha existente por ID ou pela chave (Setor + Pacote + Nome)
-      let rowIndex = (linha.id && mapIdLinha[linha.id]) ? mapIdLinha[linha.id] : mapChaveLinha[chaveLinha];
-      
-      let idFinal = linha.id;
-      if (rowIndex) {
-        // Se a linha já existia na planilha por chave de negócio, preserva o ID original
-        const idExistenteNaPlanilha = String(valores[rowIndex - 1][0] || '').trim();
-        if (idExistenteNaPlanilha) {
-          idFinal = idExistenteNaPlanilha;
-        }
-      } else {
-        if (!idFinal) {
-          idFinal = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
+      const chaveCodLinha = gerarChaveCodigo(linha.setor, linha.pacote, nomeCustoLimpo);
+
+      // Trava anti-duplicação: localiza linha existente por ID, chave composta ou código numérico
+      let targetRow = null;
+      if (linha.id && mapId.has(linha.id)) {
+        targetRow = mapId.get(linha.id);
+      } else if (mapLinhas.has(chaveLinha)) {
+        targetRow = mapLinhas.get(chaveLinha);
+      } else if (chaveCodLinha && mapCodigo.has(chaveCodLinha)) {
+        targetRow = mapCodigo.get(chaveCodLinha);
       }
 
-      const rowData = [
-        idFinal,
-        dataAtual,
-        linha.tipo,
-        linha.setor,
-        linha.pacote,
-        nomeCustoLimpo,
-        parseFloat(linha.meses[0]) || 0,
-        parseFloat(linha.meses[1]) || 0,
-        parseFloat(linha.meses[2]) || 0,
-        parseFloat(linha.meses[3]) || 0,
-        parseFloat(linha.meses[4]) || 0,
-        parseFloat(linha.meses[5]) || 0,
-        parseFloat(linha.meses[6]) || 0,
-        parseFloat(linha.meses[7]) || 0,
-        parseFloat(linha.meses[8]) || 0,
-        parseFloat(linha.meses[9]) || 0,
-        parseFloat(linha.meses[10]) || 0,
-        parseFloat(linha.meses[11]) || 0,
-        parseFloat(linha.total) || 0
-      ];
+      const mesesVals = [];
+      for (let m = 0; m < 12; m++) {
+        mesesVals.push(parseFloat(linha.meses[m]) || 0);
+      }
+      const totalVal = parseFloat(linha.total) || mesesVals.reduce((acc, curr) => acc + curr, 0);
 
-      if (rowIndex) {
-        // ATUALIZA A LINHA EXISTENTE (substitui sem duplicar)
-        aba.getRange(rowIndex, 1, 1, rowData.length).setValues([rowData]);
+      if (targetRow) {
+        // ATUALIZA A LINHA EXISTENTE (substitui diretamente na memória os valores anteriores)
+        targetRow[1] = dataAtual;
+        targetRow[2] = linha.tipo;
+        targetRow[3] = linha.setor;
+        targetRow[4] = linha.pacote;
+        targetRow[5] = nomeCustoLimpo;
+        for (let m = 0; m < 12; m++) {
+          targetRow[6 + m] = mesesVals[m];
+        }
+        targetRow[18] = totalVal;
       } else {
         // INSERE NOVA LINHA
-        linhasParaInserir.push(rowData);
-        const novoRowIndex = aba.getLastRow() + linhasParaInserir.length;
-        mapIdLinha[idFinal] = novoRowIndex;
-        mapChaveLinha[chaveLinha] = novoRowIndex;
+        const novoId = linha.id || ('ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9));
+        const novaLinha = [
+          novoId,
+          dataAtual,
+          linha.tipo,
+          linha.setor,
+          linha.pacote,
+          nomeCustoLimpo,
+          ...mesesVals,
+          totalVal
+        ];
+        mapLinhas.set(chaveLinha, novaLinha);
+        if (chaveCodLinha) mapCodigo.set(chaveCodLinha, novaLinha);
+        mapId.set(novoId, novaLinha);
       }
     });
 
-    if (linhasParaInserir.length > 0) {
-      aba.getRange(aba.getLastRow() + 1, 1, linhasParaInserir.length, 19).setValues(linhasParaInserir);
+    const linhasFinais = Array.from(mapLinhas.values());
+    if (linhasFinais.length > 0) {
+      // Grava em lote na planilha a partir da linha 2
+      aba.getRange(2, 1, linhasFinais.length, 19).setValues(linhasFinais);
+
+      // Se a planilha possuía mais linhas antigas (duplicatas residuais), limpa o excesso
+      const totalLinhasPlanilha = aba.getLastRow();
+      if (totalLinhasPlanilha > linhasFinais.length + 1) {
+        const qtdExcesso = totalLinhasPlanilha - (linhasFinais.length + 1);
+        aba.getRange(linhasFinais.length + 2, 1, qtdExcesso, 19).clearContent();
+      }
     }
   }
 

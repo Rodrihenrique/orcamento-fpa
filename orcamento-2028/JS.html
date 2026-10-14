@@ -127,6 +127,21 @@
   var meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   var iconeLixeira = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
 
+  function normalizarTexto(str) {
+    return String(str || '')
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^\w\s]/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase();
+  }
+
+  function extrairCodigoConta(str) {
+    var m = String(str || '').match(/^\d+/);
+    return m ? m[0] : '';
+  }
+
   // =====================================
   // INICIALIZAÇÃO BLINDADA
   // =====================================
@@ -176,44 +191,100 @@
   }
 
   /**
-   * Obtém a lista de registros salvos, priorizando dados vindos do Google Sheets
+   * Obtém os custos salvos na planilha e mescla com a trava de progresso local (bolinhas verdes).
+   * REGRA DA BOLINHA DE SEGURANÇA:
+   * - Se o usuário preencheu e marcou a bolinha (verde ✔): o progresso está travado localmente.
+   *   Ao atualizar a página (F5), esses dados preenchidos NÃO são perdidos e a bolinha permanece marcada.
+   * - Se o usuário preencheu mas NÃO marcou a bolinha: ao atualizar a página, os dados não salvos são perdidos.
+   * - Os dados só vão para a planilha ao clicar em "Salvar Orçamento Geral".
    */
   function obterDadosSalvosIniciais() {
-    // 1. Tag de dados JSON injetada pelo doGet
+    var dadosPlanilha = [];
+
+    // 1. Tenta carregar dados da planilha passados pelo servidor
     try {
       var scriptTag = document.getElementById('dados-iniciais-json');
       if (scriptTag && scriptTag.textContent.trim()) {
-        var parsedServer = JSON.parse(scriptTag.textContent.trim());
-        if (Array.isArray(parsedServer) && parsedServer.length > 0) {
-          console.log("Carregados " + parsedServer.length + " registros diretamente do Google Sheets via script tag.");
-          return parsedServer;
-        }
+        dadosPlanilha = JSON.parse(scriptTag.textContent.trim());
       }
     } catch(e) {
       console.warn("Falha ao ler dados da tag json:", e);
     }
 
-    // 2. Variável global de fallback
-    if (window.DADOS_INICIAIS_SERVIDOR && Array.isArray(window.DADOS_INICIAIS_SERVIDOR) && window.DADOS_INICIAIS_SERVIDOR.length > 0) {
-      console.log("Carregados " + window.DADOS_INICIAIS_SERVIDOR.length + " registros diretamente do Google Sheets.");
-      return window.DADOS_INICIAIS_SERVIDOR;
+    if (!Array.isArray(dadosPlanilha) || dadosPlanilha.length === 0) {
+      if (window.DADOS_INICIAIS_SERVIDOR && Array.isArray(window.DADOS_INICIAIS_SERVIDOR)) {
+        dadosPlanilha = window.DADOS_INICIAIS_SERVIDOR;
+      }
     }
 
-    // 3. Cache local (localStorage) como contingência
+    // 2. Cache local (localStorage) para recuperar progresso travado com a bolinha
+    var sessaoLocal = [];
     try {
       var s = localStorage.getItem('brisa_orcamento_sessao');
       if (s) {
-        var parsed = JSON.parse(s);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          console.log("Carregados " + parsed.length + " registros do cache local.");
-          return parsed;
-        }
+        sessaoLocal = JSON.parse(s);
       }
     } catch(e) {
-      console.warn("Storage local inacessível ou corrompido:", e);
+      console.warn("Storage local inacessível:", e);
     }
 
-    return [];
+    // Cria mapa de progresso travado (APENAS linhas onde isSaved === true)
+    var mapaProgressoTravado = {};
+    if (Array.isArray(sessaoLocal)) {
+      sessaoLocal.forEach(function(item) {
+        if (item && item.isSaved === true && item.nomeCusto) {
+          var chave = normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||' + normalizarTexto(item.nomeCusto);
+          mapaProgressoTravado[chave] = item;
+          var cod = extrairCodigoConta(item.nomeCusto);
+          if (cod) {
+            mapaProgressoTravado[normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||COD_' + cod] = item;
+          }
+        }
+      });
+    }
+
+    var resultado = [];
+    var chavesProcessadas = {};
+
+    (dadosPlanilha || []).forEach(function(d) {
+      var chave = normalizarTexto(d.tipo) + '|||' + normalizarTexto(d.setor) + '|||' + normalizarTexto(d.pacote) + '|||' + normalizarTexto(d.nomeCusto);
+      var cod = extrairCodigoConta(d.nomeCusto);
+      var chaveCod = cod ? (normalizarTexto(d.tipo) + '|||' + normalizarTexto(d.setor) + '|||' + normalizarTexto(d.pacote) + '|||COD_' + cod) : '';
+
+      var travado = mapaProgressoTravado[chave] || (chaveCod ? mapaProgressoTravado[chaveCod] : null);
+
+      if (travado) {
+        // Usuário travou o progresso com a bolinha: preserva os valores e o status isSaved: true
+        resultado.push(travado);
+        chavesProcessadas[chave] = true;
+        if (chaveCod) chavesProcessadas[chaveCod] = true;
+      } else {
+        // Usuário não travou esta linha com a bolinha: dados vêm da planilha com isSaved: false
+        d.isSaved = false;
+        resultado.push(d);
+        chavesProcessadas[chave] = true;
+        if (chaveCod) chavesProcessadas[chaveCod] = true;
+      }
+    });
+
+    // Inclui linhas manuais ou importadas que foram travadas com a bolinha mas ainda não estão na planilha
+    if (Array.isArray(sessaoLocal)) {
+      sessaoLocal.forEach(function(item) {
+        if (item && item.isSaved === true && item.nomeCusto) {
+          var chave = normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||' + normalizarTexto(item.nomeCusto);
+          var cod = extrairCodigoConta(item.nomeCusto);
+          var chaveCod = cod ? (normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||COD_' + cod) : '';
+          
+          if (!chavesProcessadas[chave] && (!chaveCod || !chavesProcessadas[chaveCod])) {
+            resultado.push(item);
+            chavesProcessadas[chave] = true;
+            if (chaveCod) chavesProcessadas[chaveCod] = true;
+          }
+        }
+      });
+    }
+
+    return resultado;
   }
 
   // =====================================
@@ -281,15 +352,22 @@
         var nomesAdicionados = {};
 
         // Injeta linhas que já foram salvas para este setor e pacote
+        var sSetorNorm = normalizarTexto(setor);
+        var sPacoteNorm = normalizarTexto(pacote);
+
         var linhasSalvasPacote = dadosSalvos.filter(function(s) {
           return String(s.tipo).toUpperCase() === tipo && 
-                 String(s.setor).toLowerCase() === setor.toLowerCase() && 
-                 String(s.pacote).toLowerCase() === pacote.toLowerCase();
+                 normalizarTexto(s.setor) === sSetorNorm && 
+                 normalizarTexto(s.pacote) === sPacoteNorm;
         });
 
         if (linhasSalvasPacote.length > 0) {
           linhasSalvasPacote.forEach(function(s) {
-            nomesAdicionados[s.nomeCusto.toUpperCase()] = true;
+            var nomeNorm = normalizarTexto(s.nomeCusto);
+            nomesAdicionados[nomeNorm] = true;
+            var cod = extrairCodigoConta(s.nomeCusto);
+            if (cod) nomesAdicionados['COD_' + cod] = true;
+
             linhasInjetadas += gerarLinhaHtml(
               s.nomeCusto, 
               s.meses, 
@@ -306,7 +384,9 @@
         // Para OPEX, se houver contas pré-definidas que ainda não foram salvas, adiciona como template
         if (tipo === 'OPEX' && contasPreDefinidas[setor] && contasPreDefinidas[setor][pacote]) {
           contasPreDefinidas[setor][pacote].forEach(function(contaNome) {
-            if (!nomesAdicionados[contaNome.toUpperCase()]) {
+            var cNorm = normalizarTexto(contaNome);
+            var codConta = extrairCodigoConta(contaNome);
+            if (!nomesAdicionados[cNorm] && (!codConta || !nomesAdicionados['COD_' + codConta])) {
               linhasInjetadas += gerarLinhaHtml(contaNome);
             }
           });
@@ -624,8 +704,10 @@
       });
       masterBtn.classList.add('saved');
       masterBtn.innerHTML = '✔';
+      salvarSessaoLocal();
+      registrarAlteracao();
       if (count > 0) {
-        mostrarToast(count + " linha(s) marcada(s) no pacote!", "success");
+        mostrarToast(count + " linha(s) do pacote travadas no progresso local!", "success");
       }
     } else {
       linhas.forEach(function(tr) {
@@ -635,11 +717,12 @@
       });
       masterBtn.classList.remove('saved');
       masterBtn.innerHTML = '';
-      mostrarToast("Linhas do pacote desmarcadas.", "info");
+      salvarSessaoLocal();
+      registrarAlteracao();
+      mostrarToast("Travas das linhas do pacote removidas.", "info");
     }
 
     atualizarConsolidado();
-    registrarAlteracao();
   }
 
   function atualizarMasterDot(tabela) {
@@ -680,7 +763,7 @@
     if (isMarking) {
       var inputDesc = tr.querySelector('.nome-custo');
       if (inputDesc && inputDesc.value.trim() === '') {
-        mostrarToast("Por favor, preencha a descrição do custo antes de validar.", "warning");
+        mostrarToast("Por favor, preencha a descrição do custo antes de travar.", "warning");
         inputDesc.focus();
         return;
       }
@@ -690,26 +773,37 @@
           if (sub.querySelector('.nome-custo').value.trim() !== '') marcarLinha(sub);
         });
       }
-      mostrarToast("Progresso da linha salvo com sucesso!", "success");
+      salvarSessaoLocal();
+      registrarAlteracao();
+      mostrarToast("Progresso travado com sucesso! Se a página for atualizada, os dados desta linha serão mantidos.", "success");
     } else {
       var inputsMes = tr.querySelectorAll('.input-mes');
       var temValores = Array.from(inputsMes).some(function(inp) { return parseFloat(inp.value) > 0; });
       if (temValores) {
-        if (!confirm("Esta linha possui valores preenchidos. Deseja realmente desmarcar e zerar os valores desta linha?")) {
+        if (!confirm("Esta linha possui valores preenchidos. Deseja realmente remover a trava de progresso? Se a página for recarregada sem a trava, os dados não salvos na planilha serão perdidos.")) {
           return;
         }
       }
-      desmarcarEZerarLinha(tr);
+      btn.innerHTML = '';
+      btn.classList.remove('saved');
+      tr.classList.remove('linha-salva');
+
       if (isParent && rowId) {
-        document.querySelectorAll('tr.sub-linha[data-parent="' + rowId + '"]').forEach(function(sub){ desmarcarEZerarLinha(sub); });
+        document.querySelectorAll('tr.sub-linha[data-parent="' + rowId + '"]').forEach(function(sub){
+          var subDot = sub.querySelector('.btn-validate-dot');
+          if (subDot) { subDot.innerHTML = ''; subDot.classList.remove('saved'); }
+          sub.classList.remove('linha-salva');
+        });
         recalcularPai(rowId);
       }
+      salvarSessaoLocal();
+      registrarAlteracao();
+      mostrarToast("Trava removida. Esta linha não está mais protegida contra recarregamento.", "info");
     }
    
     if(tr.classList.contains('sub-linha')) recalcularPai(tr.getAttribute('data-parent'));
    
     atualizarConsolidado();
-    registrarAlteracao();
     atualizarMasterDot(tr.closest('table'));
   }
 
@@ -982,17 +1076,8 @@
   }
 
   // =====================================
-  // IMPORTAÇÃO DE ARQUIVOS CSV
+  // IMPORTAÇÃO E PROCESSAMENTO DE CSV
   // =====================================
-  function normalizarTexto(str) {
-    return String(str || '')
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/\s+/g, ' ')
-      .trim()
-      .toUpperCase();
-  }
-
   function normalizarNumero(valorStr) {
     if (!valorStr) return '0.00';
     var limpo = String(valorStr).replace(/"/g, '').replace(/R\$/g, '').trim();
@@ -1029,7 +1114,7 @@
   }
 
   function acionarImportacaoCSV(setorId, setor, tipo) {
-    var inputId = setorId ? ('input-csv-' + setorId) : 'input-csv-geral';
+    var inputId = 'input-csv-' + setorId;
     var input = document.getElementById(inputId);
     if (!input) {
       input = document.createElement('input');
@@ -1051,6 +1136,15 @@
     var reader = new FileReader();
     reader.onload = function(e) {
       var conteudo = e.target.result;
+      // Se detectado caractere de substituição UTF-8 (\uFFFD), o arquivo original veio em ANSI / Windows-1252 / ISO-8859-1
+      if (conteudo && conteudo.indexOf('\uFFFD') > -1) {
+        var readerLatin = new FileReader();
+        readerLatin.onload = function(e2) {
+          importarConteudoCSV(e2.target.result, setorPadrao, tipoPadrao);
+        };
+        readerLatin.readAsText(file, 'ISO-8859-1');
+        return;
+      }
       importarConteudoCSV(conteudo, setorPadrao, tipoPadrao);
     };
     reader.onerror = function() {
@@ -1083,7 +1177,9 @@
     } else {
       var countPontoVirgula = (linhas[0].match(/;/g) || []).length;
       var countVirgula = (linhas[0].match(/,/g) || []).length;
-      delimitador = countPontoVirgula >= countVirgula ? ';' : ',';
+      var countTab = (linhas[0].match(/\t/g) || []).length;
+      if (countTab > countPontoVirgula && countTab > countVirgula) delimitador = '\t';
+      else delimitador = countPontoVirgula >= countVirgula ? ';' : ',';
     }
 
     if (linhas.length === 0) {
@@ -1108,8 +1204,11 @@
       else if (h.indexOf('CONTA') > -1 || h.indexOf('DESCRICAO') > -1 || h.indexOf('CUSTO') > -1 || h.indexOf('NOME') > -1) idxConta = idx;
     });
 
+    // Mapeamento dos meses garantindo que 'SET' não dê match em 'SETOR'
     mesesNomes.forEach(function(mNome) {
-      var mIdx = headers.findIndex(function(h) { return h === mNome || h.indexOf(mNome) === 0; });
+      var mIdx = headers.findIndex(function(h) { 
+        return h === mNome || (h.indexOf(mNome) === 0 && h !== 'SETOR'); 
+      });
       idxMeses.push(mIdx);
     });
 
@@ -1121,7 +1220,6 @@
       }
     }
 
-    var dadosParaSalvar = [];
     var countAtualizadas = 0;
     var countInseridas = 0;
     var tabelasModificadas = new Set();
@@ -1131,132 +1229,95 @@
       var colunas = dividirLinhaCSV(linhas[i], delimitador);
       if (colunas.length < 2) continue;
 
-      var tipoLinha = (idxTipo > -1 && colunas[idxTipo]) ? colunas[idxTipo].trim().toUpperCase() : (tipoPadrao || 'OPEX').toUpperCase();
-      var setorLinha = (idxSetor > -1 && colunas[idxSetor]) ? colunas[idxSetor].trim() : (setorPadrao || '');
-      var pacoteLinha = (idxPacote > -1 && colunas[idxPacote]) ? colunas[idxPacote].trim() : '';
-      var contaLinha = (idxConta > -1 && colunas[idxConta]) ? colunas[idxConta].trim() : (colunas[3] || '').trim();
+      var rawTipo = (idxTipo > -1 && colunas[idxTipo]) ? colunas[idxTipo].trim().toUpperCase() : '';
+      var rawSetor = (idxSetor > -1 && colunas[idxSetor]) ? colunas[idxSetor].trim() : '';
+      var rawPacote = (idxPacote > -1 && colunas[idxPacote]) ? colunas[idxPacote].trim() : '';
+      var rawConta = (idxConta > -1 && colunas[idxConta]) ? colunas[idxConta].trim() : (colunas[3] || '').trim();
+
+      var tipoLinha = rawTipo || (tipoPadrao || 'OPEX').toUpperCase();
+      var setorLinha = rawSetor || (setorPadrao || '');
+      var pacoteLinha = rawPacote || '';
+      var contaLinha = rawConta;
 
       if (!contaLinha) continue;
 
       var valoresMeses = [];
-      var somaMeses = 0;
       for (var m = 0; m < 12; m++) {
         var rawVal = idxMeses[m] !== undefined && idxMeses[m] < colunas.length ? colunas[idxMeses[m]] : '0.00';
         var numStr = normalizarNumero(rawVal);
         valoresMeses.push(numStr);
-        somaMeses += parseFloat(numStr) || 0;
       }
 
+      // Localiza a tabela correspondente no DOM
       var tabela = todasTabelas.find(function(tb) {
-        var tTipo = tb.getAttribute('data-tipo') || '';
-        var tSetor = tb.getAttribute('data-setor') || '';
-        var tPacote = tb.getAttribute('data-pacote') || '';
-        return tTipo.toUpperCase() === tipoLinha &&
-               normalizarTexto(tSetor) === normalizarTexto(setorLinha) &&
-               normalizarTexto(tPacote) === normalizarTexto(pacoteLinha);
+        var tTipo = normalizarTexto(tb.getAttribute('data-tipo'));
+        var tSetor = normalizarTexto(tb.getAttribute('data-setor'));
+        var tPacote = normalizarTexto(tb.getAttribute('data-pacote'));
+        var lTipo = normalizarTexto(tipoLinha);
+        var lSetor = normalizarTexto(setorLinha);
+        var lPacote = normalizarTexto(pacoteLinha);
+        
+        return tTipo === lTipo && 
+               (tSetor === lSetor || tSetor.indexOf(lSetor) > -1 || lSetor.indexOf(tSetor) > -1) &&
+               (tPacote === lPacote || tPacote.indexOf(lPacote) > -1 || lPacote.indexOf(tPacote) > -1);
       });
 
-      var rowId = '';
       if (tabela) {
         tabelasModificadas.add(tabela);
         var tbody = tabela.querySelector('tbody');
         var trs = Array.from(tbody.querySelectorAll('tr:not(.sub-linha)'));
+        
+        var codConta = extrairCodigoConta(contaLinha);
+        var descLimpaCsv = normalizarTexto(contaLinha).replace(/^\d+\s*/, '').trim();
+
         var trEncontrada = trs.find(function(tr) {
-          return normalizarTexto(getNomeCustoCompleto(tr)) === normalizarTexto(contaLinha);
+          var nomeTr = normalizarTexto(getNomeCustoCompleto(tr));
+          if (nomeTr === normalizarTexto(contaLinha)) return true;
+          
+          var codTr = extrairCodigoConta(getNomeCustoCompleto(tr));
+          if (codConta && codTr && codConta === codTr) return true;
+
+          var descLimpaTr = nomeTr.replace(/^\d+\s*/, '').trim();
+          if (descLimpaTr && descLimpaCsv && descLimpaTr === descLimpaCsv) return true;
+
+          return false;
         });
 
         if (trEncontrada) {
-          rowId = trEncontrada.getAttribute('data-id');
           var inputs = trEncontrada.querySelectorAll('.input-mes');
           inputs.forEach(function(inp, mIdx) {
             inp.value = valoresMeses[mIdx];
+            inp.readOnly = false;
           });
           calcularTotal(inputs[0]);
+          marcarLinha(trEncontrada);
           countAtualizadas++;
         } else {
-          rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-          tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(contaLinha, valoresMeses, false, '', false, rowId));
+          var rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+          tbody.insertAdjacentHTML('beforeend', gerarLinhaHtml(contaLinha, valoresMeses, false, '', true, rowId));
           var novaTr = tbody.lastElementChild;
           calcularTotal(novaTr.querySelector('.input-mes'));
+          marcarLinha(novaTr);
           countInseridas++;
         }
-      } else {
-        rowId = 'ID_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
       }
-
-      dadosParaSalvar.push({
-        id: rowId,
-        tipo: tipoLinha,
-        setor: setorLinha,
-        pacote: pacoteLinha,
-        nomeCusto: contaLinha.toUpperCase(),
-        meses: valoresMeses.map(parseFloat),
-        total: somaMeses
-      });
     }
 
     tabelasModificadas.forEach(function(tb) {
       atualizarMasterDot(tb);
     });
 
-    if (dadosParaSalvar.length === 0) {
-      mostrarToast("Nenhum custo válido encontrado no arquivo CSV.", "warning");
+    var totalPreenchidas = countAtualizadas + countInseridas;
+    if (totalPreenchidas === 0) {
+      mostrarToast("Nenhuma conta correspondente foi encontrada para preencher na tela.", "warning");
       return;
     }
 
     atualizarConsolidado();
     salvarSessaoLocal();
+    registrarAlteracao();
 
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      mostrarToast("Importando " + dadosParaSalvar.length + " custos e sincronizando com a Base de Dados...", "info");
-      google.script.run
-        .withSuccessHandler(function(res) {
-          atualizarStatusSincronizado(true);
-          salvarSessaoLocal();
-          mostrarToast("Importação concluída! " + (countAtualizadas + countInseridas) + " custos aplicados e atualizados na planilha sem duplicidade.", "success");
-        })
-        .withFailureHandler(function(err) {
-          mostrarToast("Erro ao sincronizar com a planilha: " + err.message, "danger");
-        })
-        .salvarCustos(dadosParaSalvar);
-    } else {
-      atualizarStatusSincronizado(true);
-      mostrarToast("Modo local: " + (countAtualizadas + countInseridas) + " custos importados no painel com sucesso.", "success");
-    }
-  }
-
-  function recarregarDadosPlanilha(btn) {
-    if (typeof google === 'undefined' || !google.script || !google.script.run) {
-      mostrarToast("Ambiente local/preview: recurso de recarregar disponível no Apps Script.", "warning");
-      return;
-    }
-
-    if (alteracoesPendentes) {
-      if (!confirm("Existem alterações não salvas. Deseja descartá-las e recarregar os dados da planilha?")) {
-        return;
-      }
-    }
-
-    var originalHtml = btn.innerHTML;
-    btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21.5 2v6h-6M2.13 15.57a9 9 0 1 0 3.84-10.36L2.5 8M2.5 8V2h6"/></svg> Recarregando...';
-    btn.disabled = true;
-
-    google.script.run
-      .withSuccessHandler(function(custosSalvos) {
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-        window.DADOS_INICIAIS_SERVIDOR = custosSalvos || [];
-        inicializarSistema();
-        alteracoesPendentes = false;
-        atualizarStatusSincronizado(true);
-        mostrarToast("Dados recarregados com sucesso diretamente da planilha!", "success");
-      })
-      .withFailureHandler(function(err) {
-        btn.innerHTML = originalHtml;
-        btn.disabled = false;
-        mostrarToast("Erro ao recarregar da planilha: " + err.message, "danger");
-      })
-      .obterCustosSalvos();
+    mostrarToast("Importação concluída! " + totalPreenchidas + " contas preenchidas na tela. Revise os dados e clique em 'Salvar Orçamento Geral' para enviar à planilha.", "success");
   }
 
   function salvarDados() {
@@ -1294,6 +1355,9 @@
             meses: valoresMeses, 
             total: total 
           });
+
+          // Garante que todas as linhas validadas para salvar fiquem visualmente marcadas
+          marcarLinha(linha);
         }
       });
     });
@@ -1304,35 +1368,43 @@
     }
 
     var btn = document.getElementById('btnSalvarGeral');
-    var originalText = btn.textContent;
-    btn.textContent = "Salvando Sincronizado...";
-    btn.disabled = true;
+    var originalText = btn ? btn.textContent : 'Salvar Orçamento Geral';
+    if (btn) {
+      btn.textContent = "Salvando na Planilha...";
+      btn.disabled = true;
+    }
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(res) {
-          btn.textContent = originalText;
-          btn.disabled = false;
+          if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
           alteracoesPendentes = false;
           atualizarStatusSincronizado(true);
           salvarSessaoLocal();
-          mostrarToast("Sincronização completa! Orçamento Geral salvo na planilha com sucesso.", "success");
+          mostrarToast("Orçamento Geral salvo e sincronizado na planilha com sucesso!", "success");
         })
         .withFailureHandler(function(err) {
-          btn.textContent = originalText;
-          btn.disabled = false;
+          if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
           mostrarToast('Erro ao sincronizar com a planilha: ' + err.message, "danger");
         })
         .salvarCustos(dadosParaSalvar);
     } else {
       // Modo local / preview
       setTimeout(function() {
-        btn.textContent = originalText;
-        btn.disabled = false;
+        if (btn) {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }
         alteracoesPendentes = false;
         atualizarStatusSincronizado(true);
         salvarSessaoLocal();
-        mostrarToast("Modo local: dados salvos no cache com sucesso.", "success");
+        mostrarToast("Modo local: dados salvos com sucesso.", "success");
       }, 500);
     }
   }
