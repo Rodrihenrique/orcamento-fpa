@@ -190,6 +190,114 @@
     inicializarSistema();
   }
 
+  // =====================================
+  // GESTÃO DINÂMICA DE PACOTES DE GASTOS
+  // =====================================
+  function obterChaveAdicionados(tipo, setor) {
+    return 'brisa_pacotes_add_' + String(tipo).toUpperCase() + '_' + normalizarTexto(setor);
+  }
+
+  function obterChaveRemovidos(tipo, setor) {
+    return 'brisa_pacotes_rem_' + String(tipo).toUpperCase() + '_' + normalizarTexto(setor);
+  }
+
+  function pacoteEstaRemovido(tipo, setor, pacote) {
+    try {
+      var s = localStorage.getItem(obterChaveRemovidos(tipo, setor));
+      if (!s) return false;
+      var arr = JSON.parse(s);
+      var pNorm = normalizarTexto(pacote);
+      return Array.isArray(arr) && arr.some(function(x) { return normalizarTexto(x) === pNorm; });
+    } catch(e) {
+      return false;
+    }
+  }
+
+  function registrarPacoteAdicionado(tipo, setor, pacote) {
+    try {
+      var kAdd = obterChaveAdicionados(tipo, setor);
+      var kRem = obterChaveRemovidos(tipo, setor);
+      var pNorm = normalizarTexto(pacote);
+
+      var sRem = localStorage.getItem(kRem);
+      if (sRem) {
+        var arrRem = JSON.parse(sRem);
+        if (Array.isArray(arrRem)) {
+          arrRem = arrRem.filter(function(x) { return normalizarTexto(x) !== pNorm; });
+          localStorage.setItem(kRem, JSON.stringify(arrRem));
+        }
+      }
+
+      var sAdd = localStorage.getItem(kAdd);
+      var arrAdd = sAdd ? JSON.parse(sAdd) : [];
+      if (!arrAdd.some(function(x) { return normalizarTexto(x) === pNorm; })) {
+        arrAdd.push(pacote.trim());
+        localStorage.setItem(kAdd, JSON.stringify(arrAdd));
+      }
+    } catch(e) {
+      console.warn("Erro ao registrar pacote adicionado:", e);
+    }
+  }
+
+  function registrarPacoteRemovido(tipo, setor, pacote) {
+    try {
+      var kAdd = obterChaveAdicionados(tipo, setor);
+      var kRem = obterChaveRemovidos(tipo, setor);
+      var pNorm = normalizarTexto(pacote);
+
+      var sAdd = localStorage.getItem(kAdd);
+      if (sAdd) {
+        var arrAdd = JSON.parse(sAdd);
+        if (Array.isArray(arrAdd)) {
+          arrAdd = arrAdd.filter(function(x) { return normalizarTexto(x) !== pNorm; });
+          localStorage.setItem(kAdd, JSON.stringify(arrAdd));
+        }
+      }
+
+      var sRem = localStorage.getItem(kRem);
+      var arrRem = sRem ? JSON.parse(sRem) : [];
+      if (!arrRem.some(function(x) { return normalizarTexto(x) === pNorm; })) {
+        arrRem.push(pacote.trim());
+        localStorage.setItem(kRem, JSON.stringify(arrRem));
+      }
+    } catch(e) {
+      console.warn("Erro ao registrar pacote removido:", e);
+    }
+  }
+
+  function obterPacotesDoSetor(tipo, setor, dadosSalvos) {
+    var base = (estruturaSetores[setor] || []).slice();
+    var sNorm = normalizarTexto(setor);
+
+    (dadosSalvos || []).forEach(function(d) {
+      if (String(d.tipo).toUpperCase() === String(tipo).toUpperCase() && normalizarTexto(d.setor) === sNorm && d.pacote) {
+        var jaExiste = base.some(function(p) { return normalizarTexto(p) === normalizarTexto(d.pacote); });
+        if (!jaExiste) {
+          base.push(d.pacote.trim());
+        }
+      }
+    });
+
+    try {
+      var sAdd = localStorage.getItem(obterChaveAdicionados(tipo, setor));
+      if (sAdd) {
+        var arrAdd = JSON.parse(sAdd);
+        if (Array.isArray(arrAdd)) {
+          arrAdd.forEach(function(p) {
+            var jaExiste = base.some(function(bp) { return normalizarTexto(bp) === normalizarTexto(p); });
+            if (!jaExiste) base.push(p.trim());
+          });
+        }
+      }
+    } catch(e) {}
+
+    var resultado = base.filter(function(p) {
+      return !pacoteEstaRemovido(tipo, setor, p);
+    });
+
+    return resultado;
+  }
+
   /**
    * Obtém os custos salvos na planilha e mescla com a trava de progresso local (bolinhas verdes).
    * REGRA DA BOLINHA DE SEGURANÇA:
@@ -233,6 +341,7 @@
     if (Array.isArray(sessaoLocal)) {
       sessaoLocal.forEach(function(item) {
         if (item && item.isSaved === true && item.nomeCusto) {
+          if (pacoteEstaRemovido(item.tipo, item.setor, item.pacote)) return;
           var chave = normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||' + normalizarTexto(item.nomeCusto);
           mapaProgressoTravado[chave] = item;
           var cod = extrairCodigoConta(item.nomeCusto);
@@ -247,6 +356,8 @@
     var chavesProcessadas = {};
 
     (dadosPlanilha || []).forEach(function(d) {
+      if (pacoteEstaRemovido(d.tipo, d.setor, d.pacote)) return;
+
       var chave = normalizarTexto(d.tipo) + '|||' + normalizarTexto(d.setor) + '|||' + normalizarTexto(d.pacote) + '|||' + normalizarTexto(d.nomeCusto);
       var cod = extrairCodigoConta(d.nomeCusto);
       var chaveCod = cod ? (normalizarTexto(d.tipo) + '|||' + normalizarTexto(d.setor) + '|||' + normalizarTexto(d.pacote) + '|||COD_' + cod) : '';
@@ -271,6 +382,8 @@
     if (Array.isArray(sessaoLocal)) {
       sessaoLocal.forEach(function(item) {
         if (item && item.isSaved === true && item.nomeCusto) {
+          if (pacoteEstaRemovido(item.tipo, item.setor, item.pacote)) return;
+
           var chave = normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||' + normalizarTexto(item.nomeCusto);
           var cod = extrairCodigoConta(item.nomeCusto);
           var chaveCod = cod ? (normalizarTexto(item.tipo) + '|||' + normalizarTexto(item.setor) + '|||' + normalizarTexto(item.pacote) + '|||COD_' + cod) : '';
@@ -303,7 +416,7 @@
 
     for (var setor in estruturaSetores) {
       if (!estruturaSetores.hasOwnProperty(setor)) continue;
-      var pacotes = estruturaSetores[setor];
+      var pacotes = obterPacotesDoSetor(tipo, setor, dadosSalvos);
 
       var setorId = tipo.toLowerCase() + '-' + setor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
      
@@ -320,38 +433,11 @@
 
       var mesesTh = meses.map(function(m){ return '<th>' + m + '</th>'; }).join('');
 
-      var htmlConteudo = '' +
-        '<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
-          '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
-          '<div class="d-flex gap-2">' +
-            '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')">' +
-              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
-              ' Exportar Template CSV' +
-            '</button>' +
-            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="acionarImportacaoCSV(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Importar arquivo CSV de ' + tipo + ' do setor ' + setor + '">' +
-              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' +
-              ' Importar Arquivo CSV' +
-            '</button>' +
-            '<input type="file" id="input-csv-' + setorId + '" accept=".csv,text/csv" style="display:none;" onchange="processarArquivoCSV(this, \'' + setor + '\', \'' + tipo + '\')">' +
-          '</div>' +
-        '</div>' +
-        '<div class="resumo-box">' +
-          '<div class="resumo-title">Resumo Financeiro - ' + setor + ' (' + tipo + ')</div>' +
-          '<div class="table-responsive">' +
-            '<table class="table table-borderless table-clean" id="resumo-' + setorId + '">' +
-              '<thead><tr><th>Pacote</th>' + mesesTh + '<th class="text-end">Total</th></tr></thead>' +
-              '<tbody></tbody>' +
-              '<tfoot></tfoot>' +
-            '</table>' +
-          '</div>' +
-        '</div>';
-
+      var htmlPacotes = '';
       pacotes.forEach(function(pacote, index) {
-        var pacoteId = setorId + '-pacote-' + index;
         var linhasInjetadas = '';
         var nomesAdicionados = {};
 
-        // Injeta linhas que já foram salvas para este setor e pacote
         var sSetorNorm = normalizarTexto(setor);
         var sPacoteNorm = normalizarTexto(pacote);
 
@@ -392,34 +478,46 @@
           });
         }
 
-        htmlConteudo += '' +
-          '<div class="package-wrapper">' +
-            '<div class="package-header" data-bs-toggle="collapse" data-bs-target="#col-' + pacoteId + '">' +
-              '<span>' + pacote + '</span><span class="text-muted small">▼</span>' +
-            '</div>' +
-            '<div id="col-' + pacoteId + '" class="collapse">' +
-              '<div class="package-body table-responsive">' +
-                '<table class="table table-borderless table-clean" id="table-' + pacoteId + '" data-tipo="' + tipo + '" data-setor="' + setor + '" data-pacote="' + pacote + '" data-setorid="' + setorId + '">' +
-                  '<thead>' +
-                    '<tr>' +
-                      '<th>' +
-                        '<div class="d-flex align-items-center gap-2">' +
-                          '<button type="button" class="btn-validate-dot btn-master-dot" onclick="toggleMarcarTodasPacote(this)" title="Marcar / Desmarcar todas as linhas deste pacote"></button>' +
-                          '<span>Descrição do Custo</span>' +
-                        '</div>' +
-                      '</th>' +
-                      mesesTh +
-                      '<th class="text-end">Total</th>' +
-                      '<th style="width: 40px;"></th>' +
-                    '</tr>' +
-                  '</thead>' +
-                  '<tbody>' + linhasInjetadas + '</tbody>' +
-                '</table>' +
-                '<button class="btn-add-line" onclick="adicionarLinhaCusto(\'' + pacoteId + '\')">+ Adicionar Nova Linha Manualmente</button>' +
-              '</div>' +
-            '</div>' +
-          '</div>';
+        htmlPacotes += gerarHtmlPacote(setorId, setor, tipo, pacote, index, linhasInjetadas);
       });
+
+      var htmlConteudo = '' +
+        '<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">' +
+          '<h3 class="m-0 fs-5 fw-bold" style="color: var(--brisa-azul);">SETOR: ' + setor.toUpperCase() + ' (' + tipo + ')</h3>' +
+          '<div class="d-flex gap-2 flex-wrap">' +
+            '<button class="btn btn-outline-primary btn-sm d-flex align-items-center gap-1" onclick="adicionarNovoPacote(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Criar novo pacote de gastos neste setor">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>' +
+              ' + Novo Pacote' +
+            '</button>' +
+            '<button class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1" onclick="exportarSetorCSV(\'' + setor + '\', \'' + tipo + '\')">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>' +
+              ' Exportar Template CSV' +
+            '</button>' +
+            '<button class="btn btn-primary-soft btn-sm d-flex align-items-center gap-1" onclick="acionarImportacaoCSV(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" title="Importar arquivo CSV de ' + tipo + ' do setor ' + setor + '">' +
+              '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>' +
+              ' Importar Arquivo CSV' +
+            '</button>' +
+            '<input type="file" id="input-csv-' + setorId + '" accept=".csv,text/csv" style="display:none;" onchange="processarArquivoCSV(this, \'' + setor + '\', \'' + tipo + '\')">' +
+          '</div>' +
+        '</div>' +
+        '<div class="resumo-box">' +
+          '<div class="resumo-title">Resumo Financeiro - ' + setor + ' (' + tipo + ')</div>' +
+          '<div class="table-responsive">' +
+            '<table class="table table-borderless table-clean" id="resumo-' + setorId + '">' +
+              '<thead><tr><th>Pacote</th>' + mesesTh + '<th class="text-end">Total</th></tr></thead>' +
+              '<tbody></tbody>' +
+              '<tfoot></tfoot>' +
+            '</table>' +
+          '</div>' +
+        '</div>' +
+        '<div id="container-pacotes-' + setorId + '" class="packages-container">' +
+          htmlPacotes +
+        '</div>' +
+        '<div class="text-center mt-3 mb-4">' +
+          '<button type="button" class="btn btn-outline-secondary btn-sm" onclick="adicionarNovoPacote(\'' + setorId + '\', \'' + setor + '\', \'' + tipo + '\')" style="border-style: dashed; padding: 8px 24px; font-weight: 600;">' +
+            '+ Adicionar Novo Pacote de Gastos em ' + setor +
+          '</button>' +
+        '</div>';
      
       tabPane.innerHTML = htmlConteudo;
       contentContainer.appendChild(tabPane);
@@ -427,6 +525,139 @@
     }
 
     contentContainer.querySelectorAll('.table-clean[data-tipo]').forEach(atualizarMasterDot);
+  }
+
+  function gerarHtmlPacote(setorId, setor, tipo, pacote, index, linhasInjetadas) {
+    var pacoteId = setorId + '-pacote-' + (index !== undefined ? index : (Date.now() + '-' + Math.random().toString(36).substr(2, 5)));
+    var mesesTh = meses.map(function(m){ return '<th>' + m + '</th>'; }).join('');
+    linhasInjetadas = linhasInjetadas || '';
+
+    if (!linhasInjetadas) {
+      linhasInjetadas = gerarLinhaHtml();
+    }
+
+    var pacoteEscapado = pacote.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    var setorEscapado = setor.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+    return '' +
+      '<div class="package-wrapper" id="wrapper-' + pacoteId + '">' +
+        '<div class="package-header" data-bs-toggle="collapse" data-bs-target="#col-' + pacoteId + '">' +
+          '<div class="d-flex align-items-center gap-2">' +
+            '<button type="button" class="btn-delete-package" onclick="removerPacote(event, this, \'' + setorId + '\', \'' + setorEscapado + '\', \'' + tipo + '\', \'' + pacoteEscapado + '\')" title="Remover pacote de gastos">' +
+              iconeLixeira +
+            '</button>' +
+            '<span>' + pacote + '</span>' +
+          '</div>' +
+          '<span class="text-muted small">▼</span>' +
+        '</div>' +
+        '<div id="col-' + pacoteId + '" class="collapse">' +
+          '<div class="package-body table-responsive">' +
+            '<table class="table table-borderless table-clean" id="table-' + pacoteId + '" data-tipo="' + tipo + '" data-setor="' + setor + '" data-pacote="' + pacote + '" data-setorid="' + setorId + '">' +
+              '<thead>' +
+                '<tr>' +
+                  '<th>' +
+                    '<div class="d-flex align-items-center gap-2">' +
+                      '<button type="button" class="btn-validate-dot btn-master-dot" onclick="toggleMarcarTodasPacote(this)" title="Marcar / Desmarcar todas as linhas deste pacote"></button>' +
+                      '<span>Descrição do Custo</span>' +
+                    '</div>' +
+                  '</th>' +
+                  mesesTh +
+                  '<th class="text-end">Total</th>' +
+                  '<th style="width: 40px;"></th>' +
+                '</tr>' +
+              '</thead>' +
+              '<tbody>' + linhasInjetadas + '</tbody>' +
+            '</table>' +
+            '<button class="btn-add-line" onclick="adicionarLinhaCusto(\'' + pacoteId + '\')">+ Adicionar Nova Linha Manualmente</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+  }
+
+  function adicionarNovoPacote(setorId, setor, tipo) {
+    var nomePacote = prompt("Digite o nome do novo Pacote de Gastos para " + setor + " (" + tipo + "):");
+    if (!nomePacote || !nomePacote.trim()) return;
+
+    nomePacote = nomePacote.trim();
+    var container = document.getElementById('container-pacotes-' + setorId);
+    if (!container) return;
+
+    var nomeNorm = normalizarTexto(nomePacote);
+    var tabelasExistentes = container.querySelectorAll('.table-clean[data-pacote]');
+    var duplicado = false;
+    tabelasExistentes.forEach(function(tb) {
+      if (normalizarTexto(tb.getAttribute('data-pacote')) === nomeNorm) {
+        duplicado = true;
+      }
+    });
+
+    if (duplicado) {
+      mostrarToast("Já existe um pacote chamado '" + nomePacote + "' neste setor.", "warning");
+      return;
+    }
+
+    var novoIdx = 'custom_' + Date.now();
+    var htmlPacote = gerarHtmlPacote(setorId, setor, tipo, nomePacote, novoIdx, '');
+    container.insertAdjacentHTML('beforeend', htmlPacote);
+
+    registrarPacoteAdicionado(tipo, setor, nomePacote);
+
+    var novaTabela = container.querySelector('#table-' + setorId + '-pacote-' + novoIdx);
+    if (novaTabela) {
+      atualizarMasterDot(novaTabela);
+    }
+
+    var col = document.getElementById('col-' + setorId + '-pacote-' + novoIdx);
+    if (col) {
+      col.classList.add('show');
+    }
+
+    atualizarConsolidado();
+    salvarSessaoLocal();
+    registrarAlteracao();
+    mostrarToast("Pacote de Gastos '" + nomePacote + "' adicionado com sucesso!", "success");
+  }
+
+  function removerPacote(event, btn, setorId, setor, tipo, nomePacote) {
+    if (event) {
+      event.stopPropagation();
+      event.preventDefault();
+    }
+
+    var wrapper = btn.closest('.package-wrapper');
+    if (!wrapper) return;
+
+    var tabela = wrapper.querySelector('.table-clean[data-pacote]');
+    var temValores = false;
+    var totalVal = 0;
+
+    if (tabela) {
+      tabela.querySelectorAll('tbody tr').forEach(function(tr) {
+        var nome = getNomeCustoCompleto(tr);
+        if (nome.trim()) {
+          temValores = true;
+        }
+        tr.querySelectorAll('.input-mes').forEach(function(inp) {
+          totalVal += parseFloat(inp.value) || 0;
+        });
+      });
+    }
+
+    var mensagem = "Deseja realmente remover o pacote '" + nomePacote + "' deste setor?";
+    if (temValores || totalVal > 0) {
+      mensagem = "Atenção: O pacote '" + nomePacote + "' possui lançamentos" + (totalVal > 0 ? " no valor total de " + formatarMoeda(totalVal) : "") + ".\nAo remover, todos os custos deste pacote serão excluídos.\n\nDeseja continuar?";
+    }
+
+    if (!confirm(mensagem)) {
+      return;
+    }
+
+    wrapper.remove();
+    registrarPacoteRemovido(tipo, setor, nomePacote);
+    atualizarConsolidado();
+    salvarSessaoLocal();
+    registrarAlteracao();
+    mostrarToast("Pacote '" + nomePacote + "' removido com sucesso.", "info");
   }
 
   function gerarLinhaHtml(nomePredefinido, paramMeses, isHist, valorFixo, isSaved, paramId, isSubline, parentId) {
@@ -851,6 +1082,7 @@
     if (isSubline && parentId) recalcularPai(parentId);
    
     atualizarConsolidado();
+    salvarSessaoLocal();
     registrarAlteracao();
     if (tabela) atualizarMasterDot(tabela);
   }
@@ -1042,11 +1274,18 @@
   function exportarSetorCSV(setor, tipo) {
     try {
       var tabelas = document.querySelectorAll('.table-clean[data-setor="' + setor + '"][data-tipo="' + tipo + '"]');
+      if (tabelas.length === 0) {
+        mostrarToast('Nenhum pacote encontrado para o setor ' + setor, 'warning');
+        return;
+      }
       var csvContent = 'sep=;\nTipo;Setor;Pacote;Conta / Descricao;Jan;Fev;Mar;Abr;Mai;Jun;Jul;Ago;Set;Out;Nov;Dez\n';
 
       tabelas.forEach(function(tb) {
         var pacote = tb.getAttribute('data-pacote');
-        tb.querySelectorAll('tbody tr').forEach(function(tr) {
+        var linhasTr = tb.querySelectorAll('tbody tr');
+        var linhasComCusto = 0;
+
+        linhasTr.forEach(function(tr) {
           var id = tr.getAttribute('data-id');
           var isSubline = tr.classList.contains('sub-linha');
           var temFilhos = tb.querySelector('tr.sub-linha[data-parent="' + id + '"]') !== null;
@@ -1055,10 +1294,17 @@
 
           var nomeCusto = getNomeCustoCompleto(tr).replace(/;/g, '-').trim();
           if (nomeCusto) {
+            linhasComCusto++;
             var mesesVals = Array.from(tr.querySelectorAll('.input-mes')).map(function(inp) { return inp.value.replace('.', ','); });
             csvContent += tipo + ';' + setor + ';' + pacote + ';' + nomeCusto + ';' + mesesVals.join(';') + '\n';
           }
         });
+
+        // Se o pacote não possuir nenhuma linha com custo preenchido (ex: pacote recém-adicionado),
+        // exporta uma linha modelo para que o pacote conste no template CSV atualizado
+        if (linhasComCusto === 0) {
+          csvContent += tipo + ';' + setor + ';' + pacote + ';EXEMPLO CUSTO;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00;0,00\n';
+        }
       });
 
       var blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -1069,7 +1315,7 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      mostrarToast('Template CSV de ' + setor + ' exportado com sucesso.', 'success');
+      mostrarToast('Template CSV de ' + setor + ' exportado com os pacotes atualizados.', 'success');
     } catch (error) {
       mostrarToast("Erro ao exportar o arquivo CSV. Tente novamente.", 'danger');
     }
@@ -1261,6 +1507,31 @@
                (tSetor === lSetor || tSetor.indexOf(lSetor) > -1 || lSetor.indexOf(tSetor) > -1) &&
                (tPacote === lPacote || tPacote.indexOf(lPacote) > -1 || lPacote.indexOf(tPacote) > -1);
       });
+
+      // Se o pacote não existir na tela, cria o pacote dinamicamente!
+      if (!tabela && setorLinha && pacoteLinha) {
+        var setorIdAlvo = tipoLinha.toLowerCase() + '-' + setorLinha.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, '-').toLowerCase();
+        var containerPacotes = document.getElementById('container-pacotes-' + setorIdAlvo);
+        if (containerPacotes) {
+          var novoIdx = 'import_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+          var htmlNovoPacote = gerarHtmlPacote(setorIdAlvo, setorLinha, tipoLinha, pacoteLinha, novoIdx, '');
+          containerPacotes.insertAdjacentHTML('beforeend', htmlNovoPacote);
+          registrarPacoteAdicionado(tipoLinha, setorLinha, pacoteLinha);
+          tabela = containerPacotes.querySelector('#table-' + setorIdAlvo + '-pacote-' + novoIdx);
+          if (tabela) {
+            todasTabelas.push(tabela);
+            var tbodyNovo = tabela.querySelector('tbody');
+            if (tbodyNovo) tbodyNovo.innerHTML = '';
+          }
+        }
+      }
+
+      // Se for linha de exemplo do template CSV e todos os valores forem zero, apenas assegura a criação do pacote
+      var contaUpper = contaLinha.toUpperCase().trim();
+      if ((contaUpper === 'EXEMPLO CUSTO' || contaUpper === 'EXEMPLO_CUSTO') && valoresMeses.every(function(v){ return parseFloat(v) === 0; })) {
+        if (tabela) tabelasModificadas.add(tabela);
+        continue;
+      }
 
       if (tabela) {
         tabelasModificadas.add(tabela);
