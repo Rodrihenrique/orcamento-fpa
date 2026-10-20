@@ -396,7 +396,7 @@
         <div class="flex flex-wrap items-center gap-2.5">
           <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Período de Análise:</span>
           <select id="filtroMes" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 font-medium focus:ring-1 focus:ring-brisa-blue outline-none">
-            <option value="todos">Todos os meses</option>
+            <option value="todos" selected>Todos os meses</option>
             <option value="01">Janeiro</option>
             <option value="02">Fevereiro</option>
             <option value="03">Março</option>
@@ -405,7 +405,7 @@
             <option value="06">Junho</option>
             <option value="07">Julho</option>
             <option value="08">Agosto</option>
-            <option value="09" selected>Setembro</option>
+            <option value="09">Setembro</option>
             <option value="10">Outubro</option>
             <option value="11">Novembro</option>
             <option value="12">Dezembro</option>
@@ -2173,8 +2173,9 @@
     }
 
     function formatarTextoComLinks(texto, truncarLinks) {
-      if (!texto || typeof texto !== 'string') return '';
-      const escapado = texto
+      if (texto == null || texto === '') return '';
+      const str = String(texto);
+      const escapado = str
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
@@ -3035,11 +3036,12 @@
     }
 
     function formatarMensagemTimeline(msg) {
-      if (!msg) return '';
-      let seguro = msg.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (msg == null || msg === '') return '';
+      const str = String(msg);
+      let seguro = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       const urlRegex = /(https?:\/\/[^\s]+)/g;
       return seguro.replace(urlRegex, function(url) {
-        return '<a href="' + url + '" target="_blank" class="text-brisa-blue font-semibold hover:underline inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-brisa-blue inline flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>' + url + '</a>';
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="text-brisa-blue font-semibold hover:underline inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-brisa-blue inline flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>' + url + '</a>';
       });
     }
 
@@ -3049,46 +3051,58 @@
 
       google.script.run
         .withSuccessHandler(function(logs) {
-          if (logs.length === 0) {
+          if (!logs || logs.length === 0) {
             container.innerHTML = '<div class="text-xs text-slate-400">Nenhum evento registrado até o momento.</div>';
             return;
           }
           let html = '';
           logs.forEach(function(l) {
-            const isNotaInterna = !l.visivelSolicitante;
-            const isRespostaSolicitante = l.tipoAcao === 'Resposta do Solicitante';
+            try {
+              const isNotaInterna = !l.visivelSolicitante;
+              const tipoAcaoStr = String(l.tipoAcao || '');
+              const isRespostaSolicitante = tipoAcaoStr === 'Resposta do Solicitante';
 
-            let badgeNota = '';
-            let dotColor = 'bg-brisa-blue';
-            let bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+              let badgeNota = '';
+              let dotColor = 'bg-brisa-blue';
+              let bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
 
-            if (isNotaInterna) {
-              badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">Nota Interna</span>';
-              dotColor = 'bg-amber-500';
-              bgCaixa = 'bg-amber-50/70 border-amber-200/80 text-amber-950';
-            } else if (isRespostaSolicitante) {
-              badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">Resposta do Solicitante</span>';
-              dotColor = 'bg-emerald-600';
-              bgCaixa = 'bg-emerald-50/60 border-emerald-200 text-slate-800';
-            } else {
-              badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-brisa-blue border border-blue-200">Resposta ao Solicitante</span>';
-              dotColor = 'bg-brisa-blue';
-              bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+              if (isNotaInterna) {
+                badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">Nota Interna</span>';
+                dotColor = 'bg-amber-500';
+                bgCaixa = 'bg-amber-50/70 border-amber-200/80 text-amber-950';
+              } else if (isRespostaSolicitante) {
+                badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300">Resposta do Solicitante</span>';
+                dotColor = 'bg-emerald-600';
+                bgCaixa = 'bg-emerald-50/60 border-emerald-200 text-slate-800';
+              } else {
+                badgeNota = '<span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-brisa-blue border border-blue-200">Resposta ao Solicitante</span>';
+                dotColor = 'bg-brisa-blue';
+                bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+              }
+
+              const dataHoraStr = String(l.dataHora || '');
+              const autorStr = String(l.autor || '');
+              const novoStatusStr = l.novoStatus ? ' (' + String(l.novoStatus) + ')' : '';
+
+              html += '<div class="relative mb-3.5">';
+              html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + dotColor + ' border-2 border-white"></div>';
+              html += '<div class="flex items-center gap-2 mb-1">';
+              html += badgeNota;
+              html += '<span class="text-[11px] text-slate-400 font-rubik">' + dataHoraStr + (autorStr ? ' • ' + autorStr : '') + '</span>';
+              html += '</div>';
+              html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + tipoAcaoStr + novoStatusStr + '</div>';
+              if (l.mensagem != null && l.mensagem !== '') {
+                html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + formatarMensagemTimeline(l.mensagem) + '</div>';
+              }
+              html += '</div>';
+            } catch (errItem) {
+              console.warn('Erro ao processar item do histórico:', errItem);
             }
-
-            html += '<div class="relative mb-3.5">';
-            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + dotColor + ' border-2 border-white"></div>';
-            html += '<div class="flex items-center gap-2 mb-1">';
-            html += badgeNota;
-            html += '<span class="text-[11px] text-slate-400 font-rubik">' + l.dataHora + ' • ' + l.autor + '</span>';
-            html += '</div>';
-            html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + l.tipoAcao + (l.novoStatus ? ' (' + l.novoStatus + ')' : '') + '</div>';
-            if (l.mensagem) {
-              html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + formatarMensagemTimeline(l.mensagem) + '</div>';
-            }
-            html += '</div>';
           });
-          container.innerHTML = html;
+          container.innerHTML = html || '<div class="text-xs text-slate-400">Nenhum evento registrado.</div>';
+        })
+        .withFailureHandler(function(err) {
+          container.innerHTML = '<div class="text-xs text-rose-500 font-medium p-2 bg-rose-50 rounded-lg">Não foi possível carregar a linha do tempo: ' + (err.message || err) + '</div>';
         })
         .obterHistoricoChamado(idChamado);
     }
@@ -4211,7 +4225,9 @@
       let visita = visitaFallback || null;
 
       if (!visita && appState.visitas) {
-        visita = appState.visitas.find(function(v) { return v.idVisita === idVisita; });
+        visita = appState.visitas.find(function(v) { 
+          return (token && v.tokenAcesso && v.tokenAcesso === token) || (v.idVisita === idVisita); 
+        });
       }
 
       if (!visita) {
@@ -4544,32 +4560,41 @@
           }
           let html = '';
           logs.forEach(function(l) {
-            let dotColor = 'bg-brisa-blue';
-            let bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+            try {
+              let dotColor = 'bg-brisa-blue';
+              let bgCaixa = 'bg-slate-50 border-slate-100 text-slate-700';
+              const tipoAcaoStr = String(l.tipoAcao || '');
 
-            if (l.tipoAcao.includes('Decisão')) {
-              dotColor = 'bg-emerald-600';
-              bgCaixa = 'bg-emerald-50/60 border-emerald-200 text-emerald-950 font-medium';
-            } else if (l.tipoAcao.includes('Visitante')) {
-              dotColor = 'bg-brisa-orange';
-              bgCaixa = 'bg-orange-50/60 border-orange-200 text-slate-800';
-            }
+              if (tipoAcaoStr.includes('Decisão') || tipoAcaoStr.includes('Aprovada')) {
+                dotColor = 'bg-emerald-600';
+                bgCaixa = 'bg-emerald-50/60 border-emerald-200 text-emerald-950 font-medium';
+              } else if (tipoAcaoStr.includes('Visitante') || tipoAcaoStr.includes('Resposta')) {
+                dotColor = 'bg-brisa-orange';
+                bgCaixa = 'bg-orange-50/60 border-orange-200 text-slate-800';
+              }
 
-            html += '<div class="relative mb-3.5">';
-            html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + dotColor + ' border-2 border-white"></div>';
-            html += '<div class="flex items-center gap-2 mb-1">';
-            html += '<span class="text-[11px] text-slate-400 font-rubik">' + l.dataHora + ' • ' + l.autor + '</span>';
-            html += '</div>';
-            html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + l.tipoAcao + (l.novoStatus ? ' (' + l.novoStatus + ')' : '') + '</div>';
-            if (l.mensagem) {
-              html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + formatarMensagemTimeline(l.mensagem) + '</div>';
+              const dataHoraStr = String(l.dataHora || '');
+              const autorStr = String(l.autor || '');
+              const novoStatusStr = l.novoStatus ? ' (' + String(l.novoStatus) + ')' : '';
+
+              html += '<div class="relative mb-3.5">';
+              html += '<div class="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full ' + dotColor + ' border-2 border-white"></div>';
+              html += '<div class="flex items-center gap-2 mb-1">';
+              html += '<span class="text-[11px] text-slate-400 font-rubik">' + dataHoraStr + (autorStr ? ' • ' + autorStr : '') + '</span>';
+              html += '</div>';
+              html += '<div class="text-xs font-bold text-slate-800 mt-0.5">' + tipoAcaoStr + novoStatusStr + '</div>';
+              if (l.mensagem != null && l.mensagem !== '') {
+                html += '<div class="text-xs mt-1.5 p-3 rounded-xl border ' + bgCaixa + ' whitespace-pre-wrap leading-relaxed font-normal">' + formatarMensagemTimeline(l.mensagem) + '</div>';
+              }
+              html += '</div>';
+            } catch (errItem) {
+              console.warn('Erro ao processar item do histórico de visita:', errItem);
             }
-            html += '</div>';
           });
-          container.innerHTML = html;
+          container.innerHTML = html || '<div class="text-xs text-slate-400">Nenhum evento registrado.</div>';
         })
         .withFailureHandler(function(err) {
-          container.innerHTML = '<div class="text-xs text-slate-400">Não foi possível obter o histórico: ' + err.message + '</div>';
+          container.innerHTML = '<div class="text-xs text-rose-500 font-medium p-2 bg-rose-50 rounded-lg">Não foi possível obter o histórico: ' + (err.message || err) + '</div>';
         })
         .obterHistoricoVisita(idVisita, token);
     }

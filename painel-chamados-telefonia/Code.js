@@ -158,6 +158,13 @@ function sanitizarAnexosParaPlanilha(listaAnexos) {
  * Cria um novo chamado com upload multi-formato no Google Drive.
  */
 function criarChamado(dados, arquivosBase64) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (eLock) {
+    return { sucesso: false, erro: 'Sistema ocupado no momento. Por favor, tente novamente em instantes.' };
+  }
+
   try {
     const props = PropertiesService.getScriptProperties();
     const spreadsheetId = props.getProperty('SPREADSHEET_ID');
@@ -168,8 +175,22 @@ function criarChamado(dados, arquivosBase64) {
     
     const agora = new Date();
     const anoAtual = agora.getFullYear();
-    const proximaLinha = abaChamados.getLastRow() + 1;
-    const sequencial = ('0000' + (proximaLinha - 1)).slice(-4);
+
+    SpreadsheetApp.flush();
+    const dadosExistentes = abaChamados.getDataRange().getValues();
+    let maxSeq = 0;
+    for (let i = 1; i < dadosExistentes.length; i++) {
+      const celulaId = String(dadosExistentes[i][0] || '').trim();
+      const match = celulaId.match(/BRISA-TEL-(\d{4})-(\d+)/i);
+      if (match && match[1] === String(anoAtual)) {
+        const num = parseInt(match[2], 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    }
+    const proximoNum = maxSeq + 1;
+    const sequencial = ('0000' + proximoNum).slice(-4);
     const idChamado = 'BRISA-TEL-' + anoAtual + '-' + sequencial;
 
     // 1. Processar e salvar múltiplos anexos no Google Drive
@@ -210,6 +231,7 @@ function criarChamado(dados, arquivosBase64) {
       'Chamado registrado com sucesso pela gerência solicitante.',
       'SIM'
     ]);
+    SpreadsheetApp.flush();
 
     // 4. Notificação por E-mail corporativo sem emojis
     try {
@@ -235,6 +257,8 @@ function criarChamado(dados, arquivosBase64) {
   } catch (error) {
     Logger.log('Erro ao criar chamado: ' + error.message);
     return { sucesso: false, erro: error.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
 }
 
@@ -834,27 +858,33 @@ function obterHistoricoChamado(idChamado) {
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const abaLog = ss.getSheetByName('LOG_INTERACOES');
+  if (!abaLog) return [];
   
-  const usuarioEmail = Session.getActiveUser().getEmail().trim().toLowerCase();
-  const config = obterConfiguracoesIniciais();
-  const isAdmin = config.usuario.isAdmin;
+  let isAdmin = false;
+  try {
+    const config = obterConfiguracoesIniciais();
+    isAdmin = config.usuario.isAdmin;
+  } catch (e) {}
 
   const dados = abaLog.getDataRange().getValues();
   const logs = [];
+  const idProcurado = String(idChamado || '').trim().toUpperCase();
 
   for (let i = 1; i < dados.length; i++) {
-    if (dados[i][1] === idChamado) {
-      const visivel = dados[i][8] === 'SIM';
+    const idItem = String(dados[i][1] != null ? dados[i][1] : '').trim().toUpperCase();
+    if (idItem === idProcurado) {
+      const visivelVal = String(dados[i][8] != null ? dados[i][8] : '').trim().toUpperCase();
+      const visivel = visivelVal === 'SIM' || visivelVal === 'TRUE';
       // Solicitante comum só vê se visivelSolicitante === SIM
       if (isAdmin || visivel) {
         logs.push({
-          idLog: dados[i][0],
+          idLog: String(dados[i][0] != null ? dados[i][0] : ''),
           dataHora: formatarData(dados[i][2]),
-          autor: dados[i][3],
-          tipoAcao: dados[i][4],
-          statusAnterior: dados[i][5],
-          novoStatus: dados[i][6],
-          mensagem: dados[i][7],
+          autor: String(dados[i][3] != null ? dados[i][3] : ''),
+          tipoAcao: String(dados[i][4] != null ? dados[i][4] : ''),
+          statusAnterior: String(dados[i][5] != null ? dados[i][5] : ''),
+          novoStatus: String(dados[i][6] != null ? dados[i][6] : ''),
+          mensagem: String(dados[i][7] != null ? dados[i][7] : ''),
           visivelSolicitante: visivel
         });
       }
@@ -1596,6 +1626,13 @@ function montarObjetoVisita(linha) {
  * Cria uma nova solicitação de visita corporativa a partir do formulário web.
  */
 function criarSolicitacaoVisita(dados, arquivosBase64) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (eLock) {
+    return { sucesso: false, erro: 'Sistema ocupado no momento. Por favor, tente novamente em instantes.' };
+  }
+
   try {
     const props = PropertiesService.getScriptProperties();
     const spreadsheetId = props.getProperty('SPREADSHEET_ID');
@@ -1605,8 +1642,22 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
 
     const agora = new Date();
     const anoAtual = agora.getFullYear();
-    const proximaLinha = abaVisitas.getLastRow() + 1;
-    const sequencial = ('0000' + (proximaLinha - 1)).slice(-4);
+
+    SpreadsheetApp.flush();
+    const dadosExistentes = abaVisitas.getDataRange().getValues();
+    let maxSeq = 0;
+    for (let i = 1; i < dadosExistentes.length; i++) {
+      const celulaId = String(dadosExistentes[i][0] || '').trim();
+      const match = celulaId.match(/BRISA-VIS-(\d{4})-(\d+)/i);
+      if (match && match[1] === String(anoAtual)) {
+        const num = parseInt(match[2], 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    }
+    const proximoNum = maxSeq + 1;
+    const sequencial = ('0000' + proximoNum).slice(-4);
     const idVisita = 'BRISA-VIS-' + anoAtual + '-' + sequencial;
     const tokenAcesso = Utilities.getUuid().replace(/-/g, '').substring(0, 16);
 
@@ -1654,6 +1705,7 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
         'SIM'
       ]);
     }
+    SpreadsheetApp.flush();
 
     // Se a origem do formulário enviou a URL pública do portal e ainda não temos uma URL configurada manualmente, memorizar
     if (dados && dados.portalUrl && typeof dados.portalUrl === 'string' && dados.portalUrl.startsWith('http')) {
@@ -1721,7 +1773,97 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
   } catch (err) {
     Logger.log('Erro em criarSolicitacaoVisita: ' + err.message);
     return { sucesso: false, erro: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
   }
+}
+
+/**
+ * Detecta e corrige automaticamente qualquer duplicidade de protocolo na aba VISITAS.
+ * Reatribui novos protocolos únicos e separa os históricos correspondentes no LOG_INTERACOES.
+ */
+function corrigirProtocolosDuplicadosVisitas(ss) {
+  if (!ss) return;
+  const abaVisitas = ss.getSheetByName('VISITAS');
+  if (!abaVisitas) return;
+  const abaLog = ss.getSheetByName('LOG_INTERACOES');
+
+  SpreadsheetApp.flush();
+  const dados = abaVisitas.getDataRange().getValues();
+  if (dados.length <= 2) return;
+
+  const anoAtual = new Date().getFullYear();
+  let maxSeq = 0;
+  for (let i = 1; i < dados.length; i++) {
+    const idAtual = String(dados[i][0] || '').trim();
+    const match = idAtual.match(/BRISA-VIS-(\d{4})-(\d+)/i);
+    if (match && match[1] === String(anoAtual)) {
+      const num = parseInt(match[2], 10);
+      if (!isNaN(num) && num > maxSeq) maxSeq = num;
+    }
+  }
+
+  const protocolosVistos = new Map();
+  const duplicatas = [];
+
+  for (let i = 1; i < dados.length; i++) {
+    const idAtual = String(dados[i][0] || '').trim();
+    if (!idAtual) continue;
+    const idUpper = idAtual.toUpperCase();
+
+    if (protocolosVistos.has(idUpper)) {
+      duplicatas.push({
+        rowIndex: i + 1,
+        idAntigo: idAtual,
+        empresa: String(dados[i][2] || '').trim(),
+        email: String(dados[i][4] || '').trim().toLowerCase()
+      });
+    } else {
+      protocolosVistos.set(idUpper, {
+        rowIndex: i + 1,
+        empresa: String(dados[i][2] || '').trim(),
+        email: String(dados[i][4] || '').trim().toLowerCase()
+      });
+    }
+  }
+
+  if (duplicatas.length === 0) return;
+
+  Logger.log('Saneamento: Detectadas ' + duplicatas.length + ' visitas com protocolo duplicado.');
+
+  duplicatas.forEach(function(dup) {
+    maxSeq++;
+    const novoSequencial = ('0000' + maxSeq).slice(-4);
+    const novoId = 'BRISA-VIS-' + anoAtual + '-' + novoSequencial;
+
+    Logger.log('Corrigindo visita linha ' + dup.rowIndex + ' (' + dup.empresa + '): ' + dup.idAntigo + ' -> ' + novoId);
+    abaVisitas.getRange(dup.rowIndex, 1).setValue(novoId);
+
+    // Atualizar LOG_INTERACOES para separar os históricos entre as empresas
+    if (abaLog) {
+      const dadosLog = abaLog.getDataRange().getValues();
+      for (let j = 1; j < dadosLog.length; j++) {
+        const idLogVisita = String(dadosLog[j][1] || '').trim().toUpperCase();
+        if (idLogVisita === dup.idAntigo.toUpperCase()) {
+          const autorLog = String(dadosLog[j][3] || '').trim().toLowerCase();
+          const msgLog = String(dadosLog[j][7] || '').toLowerCase();
+          const emailNorm = dup.email.toLowerCase();
+          const empNorm = dup.empresa.toLowerCase();
+
+          const pertenceAEstaEmpresa = 
+            (emailNorm && autorLog === emailNorm) ||
+            (empNorm && msgLog.includes(empNorm)) ||
+            (emailNorm && msgLog.includes(emailNorm));
+
+          if (pertenceAEstaEmpresa) {
+            abaLog.getRange(j + 1, 2).setValue(novoId);
+          }
+        }
+      }
+    }
+  });
+
+  SpreadsheetApp.flush();
 }
 
 /**
@@ -1737,6 +1879,13 @@ function obterFilaVisitas(filtro) {
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const abaVisitas = garantirAbaVisitas(ss);
+
+  // Auto-reparar qualquer protocolo duplicado para garantir separação estrita de históricos
+  try {
+    corrigirProtocolosDuplicadosVisitas(ss);
+  } catch (eCorr) {
+    Logger.log('Aviso ao corrigir protocolos duplicados: ' + eCorr.message);
+  }
 
   const dados = abaVisitas.getDataRange().getValues();
   const visitas = [];
@@ -1868,8 +2017,8 @@ function obterVisitaPorIdOuToken(idVisita, token, emailConsulta) {
  * Retorna o histórico de pareceres e eventos de uma solicitação de visita.
  * Acesso autorizado para Administradores ou visitantes portando o Token seguro.
  */
-function obterHistoricoVisita(idVisita, token) {
-  const visita = obterVisitaPorIdOuToken(idVisita, token);
+function obterHistoricoVisita(idVisita, token, emailConsulta) {
+  const visita = obterVisitaPorIdOuToken(idVisita, token, emailConsulta);
   if (!visita) return [];
 
   let isAdmin = false;
@@ -1886,19 +2035,39 @@ function obterHistoricoVisita(idVisita, token) {
 
   const dados = abaLog.getDataRange().getValues();
   const logs = [];
+  const idProcurado = String(idVisita || '').trim().toUpperCase();
+
+  const emailVisita = String(visita.responsavelEmail || '').toLowerCase().trim();
+  const empresaVisita = String(visita.empresa || '').toLowerCase().trim();
 
   for (let i = 1; i < dados.length; i++) {
-    if (String(dados[i][1]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
-      const visivel = dados[i][8] === 'SIM';
+    const idItem = String(dados[i][1] != null ? dados[i][1] : '').trim().toUpperCase();
+    if (idItem === idProcurado) {
+      const visivelVal = String(dados[i][8] != null ? dados[i][8] : '').trim().toUpperCase();
+      const visivel = visivelVal === 'SIM' || visivelVal === 'TRUE';
+
+      // Sigilo corporativo: visitantes externos NUNCA visualizam logs de outras empresas
+      if (!isAdmin) {
+        const autorLog = String(dados[i][3] != null ? dados[i][3] : '').trim().toLowerCase();
+        const msgLog = String(dados[i][7] != null ? dados[i][7] : '').toLowerCase();
+        const isLogDaMesmaEmpresa = 
+          autorLog.endsWith('@brisanet.com.br') || 
+          autorLog.endsWith('@grupobrisanet.com.br') || 
+          (emailVisita && autorLog === emailVisita) ||
+          (empresaVisita && msgLog.includes(empresaVisita));
+        
+        if (!isLogDaMesmaEmpresa) continue;
+      }
+
       if (isAdmin || visivel) {
         logs.push({
-          idLog: dados[i][0],
+          idLog: String(dados[i][0] != null ? dados[i][0] : ''),
           dataHora: formatarData(dados[i][2]),
-          autor: dados[i][3],
-          tipoAcao: dados[i][4],
-          statusAnterior: dados[i][5],
-          novoStatus: dados[i][6],
-          mensagem: dados[i][7],
+          autor: String(dados[i][3] != null ? dados[i][3] : ''),
+          tipoAcao: String(dados[i][4] != null ? dados[i][4] : ''),
+          statusAnterior: String(dados[i][5] != null ? dados[i][5] : ''),
+          novoStatus: String(dados[i][6] != null ? dados[i][6] : ''),
+          mensagem: String(dados[i][7] != null ? dados[i][7] : ''),
           visivelSolicitante: visivel
         });
       }

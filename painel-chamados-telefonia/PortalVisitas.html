@@ -1700,6 +1700,16 @@
       document.getElementById('portalDrawer').classList.add('translate-x-full');
     }
 
+    function formatarMensagemTimeline(msg) {
+      if (msg == null || msg === '') return '';
+      const str = String(msg);
+      let seguro = str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const urlRegex = /(https?:\/\/[^\s]+)/g;
+      return seguro.replace(urlRegex, function(url) {
+        return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="text-brisa-blue font-semibold hover:underline inline-flex items-center gap-1"><svg class="w-3.5 h-3.5 text-brisa-blue inline flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>' + url + '</a>';
+      });
+    }
+
     function carregarHistoricoPortal(idVisita, token) {
       const container = document.getElementById('pDrawerTimeline');
       container.innerHTML = '<div class="text-xs text-slate-400">Carregando histórico...</div>';
@@ -1713,30 +1723,39 @@
 
           let html = '';
           logs.forEach(function(l) {
-            let dotColor = 'bg-blue-600';
-            let bgCaixa = 'bg-slate-50 border-slate-200 text-slate-700';
+            try {
+              let dotColor = 'bg-blue-600';
+              let bgCaixa = 'bg-slate-50 border-slate-200 text-slate-700';
+              const tipoAcaoStr = String(l.tipoAcao || '');
 
-            if (l.tipoAcao.includes('Decisão') || l.tipoAcao.includes('Aprovada')) {
-              dotColor = 'bg-emerald-600';
-              bgCaixa = 'bg-emerald-50/70 border-emerald-200 text-emerald-950 font-medium';
-            } else if (l.tipoAcao.includes('Resposta') || l.tipoAcao.includes('Visitante')) {
-              dotColor = 'bg-brisa-orange';
-              bgCaixa = 'bg-orange-50/70 border-orange-200 text-slate-800';
+              if (tipoAcaoStr.includes('Decisão') || tipoAcaoStr.includes('Aprovada')) {
+                dotColor = 'bg-emerald-600';
+                bgCaixa = 'bg-emerald-50/70 border-emerald-200 text-emerald-950 font-medium';
+              } else if (tipoAcaoStr.includes('Resposta') || tipoAcaoStr.includes('Visitante')) {
+                dotColor = 'bg-brisa-orange';
+                bgCaixa = 'bg-orange-50/70 border-orange-200 text-slate-800';
+              }
+
+              const dataHoraStr = String(l.dataHora || '');
+              const autorRaw = String(l.autor || '');
+              const autorNome = autorRaw.includes('@') ? autorRaw.split('@')[0] : autorRaw;
+
+              html += [
+                '<div class="relative pl-2 pb-2">',
+                '  <div class="absolute -left-[23px] top-1.5 w-2.5 h-2.5 rounded-full ' + dotColor + ' ring-4 ring-white"></div>',
+                '  <div class="text-[11px] text-slate-400 font-rubik mb-1">' + dataHoraStr + ' &bull; <strong class="text-slate-700">' + autorNome + '</strong> (' + tipoAcaoStr + ')</div>',
+                '  <div class="p-3 rounded-xl border text-xs leading-relaxed ' + bgCaixa + ' whitespace-pre-wrap">' + formatarMensagemTimeline(l.mensagem) + '</div>',
+                '</div>'
+              ].join('');
+            } catch (errItem) {
+              console.warn('Erro ao processar item do histórico portal:', errItem);
             }
-
-            html += [
-              '<div class="relative pl-2 pb-2">',
-              '  <div class="absolute -left-[23px] top-1.5 w-2.5 h-2.5 rounded-full ' + dotColor + ' ring-4 ring-white"></div>',
-              '  <div class="text-[11px] text-slate-400 font-rubik mb-1">' + l.dataHora + ' &bull; <strong class="text-slate-700">' + l.autor.split('@')[0] + '</strong> (' + l.tipoAcao + ')</div>',
-              '  <div class="p-3 rounded-xl border text-xs leading-relaxed ' + bgCaixa + ' whitespace-pre-wrap">' + l.mensagem + '</div>',
-              '</div>'
-            ].join('');
           });
 
-          container.innerHTML = html;
+          container.innerHTML = html || '<div class="text-xs text-slate-400">Nenhum evento registrado.</div>';
         })
         .withFailureHandler(function(err) {
-          container.innerHTML = '<div class="text-xs text-slate-400">Não foi possível obter o histórico: ' + err.message + '</div>';
+          container.innerHTML = '<div class="text-xs text-rose-500 font-medium p-2 bg-rose-50 rounded-lg">Não foi possível obter o histórico: ' + (err.message || err) + '</div>';
         })
         .obterHistoricoVisita(idVisita, token);
     }
