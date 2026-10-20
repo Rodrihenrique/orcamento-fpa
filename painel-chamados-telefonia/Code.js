@@ -110,8 +110,33 @@ function obterConfiguracoesIniciais() {
 }
 
 /**
+ * Concede permissão de edição a uma pasta/arquivo no Google Drive SEM enviar e-mail de notificação.
+ * Utiliza a API REST v3 do Google Drive com sendNotificationEmail=false.
+ */
+function adicionarPermissaoDriveSemNotificacao(fileId, email, role) {
+  if (!fileId || !email || !email.includes('@')) return;
+  try {
+    const url = 'https://www.googleapis.com/drive/v3/files/' + encodeURIComponent(fileId) + '/permissions?sendNotificationEmail=false&supportsAllDrives=true';
+    const payload = JSON.stringify({
+      role: role || 'writer',
+      type: 'user',
+      emailAddress: email.trim().toLowerCase()
+    });
+    UrlFetchApp.fetch(url, {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() },
+      payload: payload,
+      muteHttpExceptions: true
+    });
+  } catch (errDrive) {
+    Logger.log('Aviso ao conceder permissão Drive sem e-mail: ' + errDrive.message);
+  }
+}
+
+/**
  * Salva arquivos codificados em Base64 no Google Drive na pasta do chamado.
- * Garante permissões adequadas de leitura/download para todos os administradores cadastrados.
+ * Garante permissões adequadas de leitura/download para todos os administradores cadastrados sem disparar e-mails de notificação do Drive.
  * Retorna array de objetos com { nome, url, id, downloadUrl }.
  */
 function salvarAnexosNoDrive(idChamado, arquivosBase64) {
@@ -144,15 +169,14 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
       pastaChamado.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
     } catch (eP) {}
 
-    // Compartilhar pasta do chamado diretamente com os administradores cadastrados na planilha
+    // Compartilhar pasta do chamado com os administradores cadastrados SEM disparar e-mail de notificação do Google Drive
     try {
       const config = obterConfiguracoesIniciais();
       const administradores = config.administradores || [];
+      const pastaChamadoId = pastaChamado.getId();
       administradores.forEach(function(email) {
         if (email && email.includes('@')) {
-          try {
-            pastaChamado.addEditor(email);
-          } catch (eShareAdmin) {}
+          adicionarPermissaoDriveSemNotificacao(pastaChamadoId, email, 'writer');
         }
       });
     } catch (eCfg) {}
@@ -235,7 +259,7 @@ function sincronizarPermissoesDriveComAdmins() {
 
     administradores.forEach(function(adminEmail) {
       if (adminEmail && adminEmail.includes('@')) {
-        try { pastaRaiz.addEditor(adminEmail); } catch (e) {}
+        adicionarPermissaoDriveSemNotificacao(rootFolderId, adminEmail, 'writer');
       }
     });
 
@@ -248,7 +272,7 @@ function sincronizarPermissoesDriveComAdmins() {
       totalPastas++;
       try { pAno.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
       administradores.forEach(function(email) {
-        try { pAno.addEditor(email); } catch (e) {}
+        adicionarPermissaoDriveSemNotificacao(pAno.getId(), email, 'writer');
       });
 
       const pChamados = pAno.getFolders();
@@ -257,7 +281,7 @@ function sincronizarPermissoesDriveComAdmins() {
         totalPastas++;
         try { pCh.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
         administradores.forEach(function(email) {
-          try { pCh.addEditor(email); } catch (e) {}
+          adicionarPermissaoDriveSemNotificacao(pCh.getId(), email, 'writer');
         });
 
         const arqs = pCh.getFiles();
@@ -266,7 +290,7 @@ function sincronizarPermissoesDriveComAdmins() {
           totalArquivos++;
           try { arq.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
           administradores.forEach(function(email) {
-            try { arq.addEditor(email); } catch (e) {}
+            adicionarPermissaoDriveSemNotificacao(arq.getId(), email, 'writer');
           });
         }
       }
@@ -1877,7 +1901,7 @@ function enviarEmailNotificacao(params) {
   const options = {
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-    replyTo: 'nao-responda@grupobrisanet.com.br'
+    replyTo: emailAtendente
   };
 
   if (listaCc) {
@@ -1894,7 +1918,7 @@ function enviarEmailNotificacao(params) {
     body: textoPlano,
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-    replyTo: 'nao-responda@grupobrisanet.com.br'
+    replyTo: emailAtendente
   };
 
   if (listaCc) {
@@ -1909,25 +1933,33 @@ function enviarEmailNotificacao(params) {
   let enviado = false;
 
   try {
-    let threads = GmailApp.search('subject:"' + idChamado + '"', 0, 5);
+    // Busca exclusivamente pela thread institucional oficial do chamado
+    let threads = GmailApp.search('subject:"[brisanet] Chamado ' + idChamado + '"', 0, 5);
     if (!threads || threads.length === 0) {
-      threads = GmailApp.search('"' + idChamado + '"', 0, 5);
-    }
-    if (!threads || threads.length === 0) {
-      threads = GmailApp.search(idChamado, 0, 5);
+      threads = GmailApp.search('subject:"' + idChamado + '"', 0, 5);
     }
 
     let threadEncontrada = null;
     if (threads && threads.length > 0) {
       for (let t = 0; t < threads.length; t++) {
-        const subj = threads[t].getFirstMessageSubject() || '';
-        if (subj.indexOf(idChamado) !== -1) {
+        const subj = (threads[t].getFirstMessageSubject() || '').trim();
+        const subjLower = subj.toLowerCase();
+
+        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou falhas de entrega
+        if (subjLower.indexOf('compartilhada') !== -1 ||
+            subjLower.indexOf('google drive') !== -1 ||
+            subjLower.indexOf('delivery subsystem') !== -1 ||
+            subjLower.indexOf('mailer-daemon') !== -1 ||
+            subjLower.indexOf('endereço não encontrado') !== -1 ||
+            subjLower.indexOf('address not found') !== -1) {
+          continue;
+        }
+
+        // A thread legítima deve conter [brisanet] e o ID do chamado
+        if (subj.indexOf('[brisanet]') !== -1 && subj.indexOf(idChamado) !== -1) {
           threadEncontrada = threads[t];
           break;
         }
-      }
-      if (!threadEncontrada && threads.length > 0) {
-        threadEncontrada = threads[0];
       }
     }
 
@@ -1943,7 +1975,7 @@ function enviarEmailNotificacao(params) {
       const replyOpts = {
         htmlBody: htmlCorpo,
         name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-        replyTo: 'nao-responda@grupobrisanet.com.br'
+        replyTo: emailAtendente
       };
       if (blobsAnexos.length > 0) {
         replyOpts.attachments = blobsAnexos;
@@ -1954,7 +1986,11 @@ function enviarEmailNotificacao(params) {
         listaCc.split(/[,;\s]+/).forEach(function(em) {
           const emLimpo = em.trim().toLowerCase();
           if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
-            ccList.push(emLimpo);
+            if (emLimpo.indexOf('nao-responda') === -1 &&
+                emLimpo.indexOf('mailer-daemon') === -1 &&
+                emLimpo.indexOf('googlemail.com') === -1) {
+              ccList.push(emLimpo);
+            }
           }
         });
       }
@@ -2300,23 +2336,10 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
     const urlWeb = obterUrlPortalVisitas();
     const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
 
-    // Notificar visitante externo e administradores cadastrados em cópia (CC) em um único e-mail/thread
+    // Enviar confirmação por e-mail exclusivamente ao visitante externo (sem cópia para outros administradores)
     try {
-      const config = obterConfiguracoesIniciais();
-      const administradores = config.administradores || [];
-      const adminsCc = [];
-      administradores.forEach(function(adminEmail) {
-        if (adminEmail && adminEmail.includes('@')) {
-          const limpo = adminEmail.trim().toLowerCase();
-          if (limpo !== emailResponsavel.toLowerCase() && adminsCc.indexOf(limpo) === -1) {
-            adminsCc.push(limpo);
-          }
-        }
-      });
-
       enviarEmailNotificacaoVisita({
         destinatario: emailResponsavel,
-        cc: adminsCc.join(', '),
         assunto: '[brisanet] Visita ' + idVisita + ' - ' + empresa,
         idVisita: idVisita,
         empresa: empresa,
@@ -3255,7 +3278,7 @@ function enviarEmailNotificacaoVisita(params) {
   const options = {
     htmlBody: htmlCorpo,
     name: 'Gestão de Visitas | brisanet',
-    replyTo: emailAutor
+    replyTo: emailAutor || 'telefonia@brisanet.com.br'
   };
   if (listaCc) options.cc = listaCc;
   if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
@@ -3267,25 +3290,33 @@ function enviarEmailNotificacaoVisita(params) {
   let enviado = false;
 
   try {
-    let threads = GmailApp.search('subject:"' + params.idVisita + '"', 0, 5);
+    // Busca exclusivamente pela thread institucional oficial da visita
+    let threads = GmailApp.search('subject:"[brisanet] Visita ' + params.idVisita + '"', 0, 5);
     if (!threads || threads.length === 0) {
-      threads = GmailApp.search('"' + params.idVisita + '"', 0, 5);
-    }
-    if (!threads || threads.length === 0) {
-      threads = GmailApp.search(params.idVisita, 0, 5);
+      threads = GmailApp.search('subject:"' + params.idVisita + '"', 0, 5);
     }
 
     let threadEncontrada = null;
     if (threads && threads.length > 0) {
       for (let t = 0; t < threads.length; t++) {
-        const subj = threads[t].getFirstMessageSubject() || '';
-        if (subj.indexOf(params.idVisita) !== -1) {
+        const subj = (threads[t].getFirstMessageSubject() || '').trim();
+        const subjLower = subj.toLowerCase();
+
+        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou falhas de entrega
+        if (subjLower.indexOf('compartilhada') !== -1 ||
+            subjLower.indexOf('google drive') !== -1 ||
+            subjLower.indexOf('delivery subsystem') !== -1 ||
+            subjLower.indexOf('mailer-daemon') !== -1 ||
+            subjLower.indexOf('endereço não encontrado') !== -1 ||
+            subjLower.indexOf('address not found') !== -1) {
+          continue;
+        }
+
+        // A thread legítima deve conter [brisanet] e o ID da visita
+        if (subj.indexOf('[brisanet]') !== -1 && subj.indexOf(params.idVisita) !== -1) {
           threadEncontrada = threads[t];
           break;
         }
-      }
-      if (!threadEncontrada && threads.length > 0) {
-        threadEncontrada = threads[0];
       }
     }
 
@@ -3301,7 +3332,7 @@ function enviarEmailNotificacaoVisita(params) {
       const replyOpts = {
         htmlBody: htmlCorpo,
         name: 'Gestão de Visitas | brisanet',
-        replyTo: emailAutor || 'nao-responda@grupobrisanet.com.br'
+        replyTo: emailAutor || 'telefonia@brisanet.com.br'
       };
       if (blobsAnexos.length > 0) {
         replyOpts.attachments = blobsAnexos;
@@ -3312,7 +3343,11 @@ function enviarEmailNotificacaoVisita(params) {
         listaCc.split(/[,;\s]+/).forEach(function(em) {
           const emLimpo = em.trim().toLowerCase();
           if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
-            ccList.push(emLimpo);
+            if (emLimpo.indexOf('nao-responda') === -1 &&
+                emLimpo.indexOf('mailer-daemon') === -1 &&
+                emLimpo.indexOf('googlemail.com') === -1) {
+              ccList.push(emLimpo);
+            }
           }
         });
       }
@@ -3352,7 +3387,7 @@ function enviarEmailNotificacaoVisita(params) {
         body: textoPlano,
         htmlBody: htmlCorpo,
         name: 'Gestão de Visitas | brisanet',
-        replyTo: emailAutor,
+        replyTo: emailAutor || 'telefonia@brisanet.com.br',
         attachments: blobsAnexos.length > 0 ? blobsAnexos : undefined
       });
       enviado = true;
