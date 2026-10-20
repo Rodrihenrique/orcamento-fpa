@@ -665,6 +665,7 @@
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Categoria:</span><span id="drawerCategoria" class="font-medium text-slate-800"></span></div>
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Abertura:</span><span id="drawerDataAbertura" class="font-medium text-slate-800"></span></div>
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Atendente:</span><span id="drawerAtendente" class="font-medium text-slate-800"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Acompanhantes:</span><span id="drawerAcompanhantesInfo" class="font-medium text-slate-800 truncate max-w-[200px]" title="Usuários em cópia">Apenas Atendente & Solicitante (Padrão)</span></div>
       </div>
 
       <!-- Observações Administrativas (Notas Internas / Links) -->
@@ -749,6 +750,26 @@
               </label>
             </div>
             <div id="adminListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
+          </div>
+
+          <!-- Acompanhantes da Conversa (Opcional - Adicionar outros usuários para acompanhar) -->
+          <div class="pt-2 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-[11px] font-bold text-slate-600 uppercase flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                <span>Acompanhar Respostas (Em Cópia / CC)</span>
+              </label>
+              <span class="text-[10px] text-slate-400 font-medium">Padrão: Apenas Atendente & Solicitante</span>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="drawerEmailsAcompanhantes" placeholder="Ex: gestor@brisanet.com.br, analista@brisanet.com.br" class="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-1 focus:ring-brisa-blue">
+              <button type="button" onclick="executarSalvarAcompanhantes()" title="Salvar lista de acompanhantes agora" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 whitespace-nowrap">
+                Salvar
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1">
+              Adicione outros usuários para receber e acompanhar as respostas deste chamado em cópia (CC).
+            </p>
           </div>
 
           <button onclick="executarSalvarInteracao()" class="w-full mt-2 py-2 bg-brisa-orange text-white rounded-lg text-xs font-semibold hover:bg-opacity-90 transition-colors shadow-sm">
@@ -2955,6 +2976,15 @@
       document.getElementById('drawerDescricao').textContent = chamado.descricao;
       document.getElementById('drawerBadgeStatus').innerHTML = renderBadgeStatus(chamado.status);
 
+      // Acompanhantes da Conversa
+      const acompStr = chamado.emailsAcompanhantes || '';
+      const inputAcomp = document.getElementById('drawerEmailsAcompanhantes');
+      if (inputAcomp) inputAcomp.value = acompStr;
+      const infoAcomp = document.getElementById('drawerAcompanhantesInfo');
+      if (infoAcomp) {
+        infoAcomp.textContent = acompStr ? acompStr : 'Apenas Atendente & Solicitante (Padrão)';
+      }
+
       // Observações Administrativas
       const secaoObs = document.getElementById('drawerSecaoObservacoesAdmin');
       const boxObs = document.getElementById('drawerChamadoObservacoes');
@@ -3127,10 +3157,12 @@
       const msg = document.getElementById('drawerMensagemFeedback').value;
       const status = document.getElementById('drawerAlterarStatus').value;
       const notaInterna = document.getElementById('drawerNotaInterna').checked;
+      const inputAcomp = document.getElementById('drawerEmailsAcompanhantes');
+      const emailsAcomp = inputAcomp ? inputAcomp.value.trim() : '';
       const arquivos = appState.arquivosAdmin || [];
 
-      if (!msg && !status && arquivos.length === 0) {
-        alert('Digite uma mensagem de parecer, selecione um novo status ou anexe um arquivo.');
+      if (!msg && !status && arquivos.length === 0 && emailsAcomp === (appState.chamadoSelecionado.emailsAcompanhantes || '')) {
+        alert('Digite uma mensagem de parecer, selecione um novo status, adicione acompanhantes ou anexe um arquivo.');
         return;
       }
 
@@ -3170,9 +3202,19 @@
             const countAdmin = document.getElementById('adminArquivosCount');
             if (countAdmin) countAdmin.textContent = '0 selecionado(s)';
 
-            if (res.chamadoAtualizado && res.chamadoAtualizado.anexos) {
-              appState.chamadoSelecionado.anexos = res.chamadoAtualizado.anexos;
-              renderizarAnexosDrawer(res.chamadoAtualizado.anexos);
+            if (res.chamadoAtualizado) {
+              if (res.chamadoAtualizado.anexos) {
+                appState.chamadoSelecionado.anexos = res.chamadoAtualizado.anexos;
+                renderizarAnexosDrawer(res.chamadoAtualizado.anexos);
+              }
+              if (res.chamadoAtualizado.emailsAcompanhantes !== undefined) {
+                appState.chamadoSelecionado.emailsAcompanhantes = res.chamadoAtualizado.emailsAcompanhantes;
+                const infoAcomp = document.getElementById('drawerAcompanhantesInfo');
+                if (infoAcomp) {
+                  infoAcomp.textContent = res.chamadoAtualizado.emailsAcompanhantes ? res.chamadoAtualizado.emailsAcompanhantes : 'Apenas Atendente & Solicitante (Padrão)';
+                }
+                if (inputAcomp) inputAcomp.value = res.chamadoAtualizado.emailsAcompanhantes || '';
+              }
             }
             carregarHistoricoDrawer(appState.chamadoSelecionado.idChamado);
             carregarDados();
@@ -3187,7 +3229,33 @@
           }
           alert('Erro: ' + err.message);
         })
-        .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna, arquivosBase64);
+        .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna, arquivosBase64, emailsAcomp);
+    }
+
+    function executarSalvarAcompanhantes() {
+      if (!appState.chamadoSelecionado) return;
+      const input = document.getElementById('drawerEmailsAcompanhantes');
+      const emails = input ? input.value : '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.sucesso) {
+            alert(res.mensagem || 'Acompanhantes atualizados com sucesso!');
+            if (input) input.value = res.emailsAcompanhantes || '';
+            appState.chamadoSelecionado.emailsAcompanhantes = res.emailsAcompanhantes || '';
+            const infoAcomp = document.getElementById('drawerAcompanhantesInfo');
+            if (infoAcomp) {
+              infoAcomp.textContent = res.emailsAcompanhantes ? res.emailsAcompanhantes : 'Apenas Atendente & Solicitante (Padrão)';
+            }
+            carregarDados();
+          } else {
+            alert('Erro: ' + res.erro);
+          }
+        })
+        .withFailureHandler(function(err) {
+          alert('Erro ao salvar acompanhantes: ' + err.message);
+        })
+        .atualizarAcompanhantesChamado(appState.chamadoSelecionado.idChamado, emails);
     }
 
     async function executarEnviarRespostaSolicitante() {

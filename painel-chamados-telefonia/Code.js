@@ -344,7 +344,8 @@ function garantirCabecalhosChamados(abaChamados) {
     const cabecalhosDesejados = [
       { col: 17, nome: 'OBSERVACOES_ADMIN' },
       { col: 18, nome: 'DATA_STATUS_AGUARDANDO' },
-      { col: 19, nome: 'AVISO_4_DIAS_ENVIADO' }
+      { col: 19, nome: 'AVISO_4_DIAS_ENVIADO' },
+      { col: 20, nome: 'EMAILS_ACOMPANHANTES' }
     ];
     cabecalhosDesejados.forEach(function(item) {
       const valAtual = abaChamados.getRange(1, item.col).getValue();
@@ -419,6 +420,65 @@ function salvarObservacaoAdminChamado(idChamado, observacao) {
     };
   } catch (err) {
     Logger.log('Erro ao salvar observação admin: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Sanitiza e valida uma string de e-mails de acompanhantes separados por vírgula/espaço.
+ */
+function sanitizarEmailsAcompanhantes(strEmails) {
+  if (!strEmails) return '';
+  const partes = String(strEmails).split(/[,;\s]+/);
+  const emailsValidos = [];
+  const regexEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  partes.forEach(function(p) {
+    const limpo = p.trim().toLowerCase();
+    if (limpo && regexEmail.test(limpo)) {
+      if (emailsValidos.indexOf(limpo) === -1) {
+        emailsValidos.push(limpo);
+      }
+    }
+  });
+  
+  return emailsValidos.join(', ');
+}
+
+/**
+ * Permite ao atendente salvar ou atualizar a lista de usuários acompanhantes de um chamado.
+ */
+function atualizarAcompanhantesChamado(idChamado, emailsAcompanhantes) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const abaChamados = ss.getSheetByName('CHAMADOS');
+    if (!abaChamados) return { sucesso: false, erro: 'Aba CHAMADOS não encontrada.' };
+    
+    garantirCabecalhosChamados(abaChamados);
+
+    const dados = abaChamados.getDataRange().getValues();
+    let linhaAlvo = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]).trim().toUpperCase() === String(idChamado).trim().toUpperCase()) {
+        linhaAlvo = i + 1;
+        break;
+      }
+    }
+
+    if (linhaAlvo === -1) return { sucesso: false, erro: 'Chamado ' + idChamado + ' não encontrado.' };
+
+    const emailsSanitizados = sanitizarEmailsAcompanhantes(emailsAcompanhantes);
+    abaChamados.getRange(linhaAlvo, 20).setValue(emailsSanitizados);
+
+    return {
+      sucesso: true,
+      mensagem: 'Lista de acompanhantes atualizada com sucesso!',
+      emailsAcompanhantes: emailsSanitizados
+    };
+  } catch (err) {
+    Logger.log('Erro ao atualizar acompanhantes: ' + err.message);
     return { sucesso: false, erro: err.message };
   }
 }
@@ -715,9 +775,9 @@ function assumirChamado(idChamado) {
 }
 
 /**
- * Registra feedback, troca de status ou notas internas com suporte a anexos.
+ * Registra feedback, troca de status ou notas internas com suporte a anexos e gestão de acompanhantes.
  */
-function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSolicitante, arquivosBase64) {
+function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSolicitante, arquivosBase64, emailsAcompanhantes) {
   const props = PropertiesService.getScriptProperties();
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
@@ -752,6 +812,14 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
   }
 
   if (linhaAlvo === -1) return { sucesso: false, erro: 'Chamado não localizado.' };
+
+  // Atualizar lista de acompanhantes se fornecida pelo atendente
+  garantirCabecalhosChamados(abaChamados);
+  let emailsAcompFinal = String(dados[linhaAlvo - 1][19] || '').trim();
+  if (emailsAcompanhantes !== undefined && emailsAcompanhantes !== null) {
+    emailsAcompFinal = sanitizarEmailsAcompanhantes(emailsAcompanhantes);
+    abaChamados.getRange(linhaAlvo, 20).setValue(emailsAcompFinal);
+  }
 
   // Processar novos anexos do atendente (se houver)
   const novosAnexos = salvarAnexosNoDrive(idChamado, arquivosBase64);
@@ -808,6 +876,7 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
     try {
       enviarEmailNotificacao({
         destinatario: emailSolicitante,
+        cc: emailsAcompFinal,
         assunto: '[brisanet] Chamado ' + idChamado + ' - ' + tituloChamado,
         idChamado: idChamado,
         titulo: tituloChamado,
@@ -824,7 +893,10 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
   return { 
     sucesso: true, 
     mensagem: 'Interação registrada com sucesso.', 
-    chamadoAtualizado: { anexos: sanitizarAnexosParaPlanilha(anexosExistentes) } 
+    chamadoAtualizado: { 
+      anexos: sanitizarAnexosParaPlanilha(anexosExistentes),
+      emailsAcompanhantes: emailsAcompFinal
+    } 
   };
 }
 
@@ -921,6 +993,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
     let statusAtual = '';
     let atendenteEmail = '';
     let tituloChamado = '';
+    let emailsAcompanhantes = '';
     let anexosExistentes = [];
 
     for (let i = 1; i < dados.length; i++) {
@@ -929,6 +1002,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
         statusAtual = dados[i][11];
         atendenteEmail = dados[i][12];
         tituloChamado = dados[i][8];
+        emailsAcompanhantes = String(dados[i][19] || '').trim();
         try {
           if (dados[i][10]) anexosExistentes = JSON.parse(dados[i][10]);
         } catch (e) {
@@ -979,11 +1053,12 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
       'SIM'
     ]);
 
-    // Notifica o atendente responsável por e-mail (se houver analista atribuído)
+    // Notifica o atendente responsável por e-mail (e eventuais acompanhantes em cópia)
     if (atendenteEmail && atendenteEmail.includes('@')) {
       try {
         enviarEmailNotificacao({
           destinatario: atendenteEmail,
+          cc: emailsAcompanhantes,
           assunto: '[brisanet] Chamado ' + idChamado + ' - ' + tituloChamado,
           idChamado: idChamado,
           titulo: tituloChamado,
@@ -1531,6 +1606,8 @@ function enviarEmailNotificacao(params) {
   const htmlTimeline = montarHtmlTimelineEmail(historicoLogs, params.destinatario);
   const textoPlanoTimeline = montarTextoPlanoTimeline(historicoLogs);
 
+  const listaCc = sanitizarEmailsAcompanhantes(params.cc);
+
   const htmlCorpo = [
     '<!DOCTYPE html>',
     '<html>',
@@ -1587,9 +1664,15 @@ function enviarEmailNotificacao(params) {
     htmlAnexos,
     '      ',
     '      <!-- Atendente Responsável -->',
-    '      <div style="font-size: 12px; color: #64748B; margin-bottom: 20px;">',
+    '      <div style="font-size: 12px; color: #64748B; margin-bottom: 8px;">',
     '        Responsável pela atualização: <strong style="color: #0F172A;">' + emailAtendente + '</strong>',
     '      </div>',
+    (listaCc ? [
+      '      <!-- Acompanhantes em Cópia (CC) -->',
+      '      <div style="font-size: 11px; color: #64748B; margin-bottom: 20px; background-color: #F1F5F9; border-radius: 6px; padding: 6px 10px; display: inline-block;">',
+      '        Acompanhantes notificados: <strong style="color: #0B316D;">' + listaCc + '</strong>',
+      '      </div>'
+    ].join('\n') : ''),
     '      ',
     htmlTimeline,
     '      ',
@@ -1632,6 +1715,7 @@ function enviarEmailNotificacao(params) {
     'ÚLTIMA MENSAGEM / PARECER:',
     params.mensagem,
     '',
+    (listaCc ? 'Acompanhantes em cópia (CC): ' + listaCc + '\n\n' : ''),
     (params.anexos && params.anexos.length > 0 ? 'Anexos para download:\n' + params.anexos.map(function(a) { 
       const id = a.id || extrairIdDrive(a.url);
       const dl = a.downloadUrl || (id ? 'https://drive.google.com/uc?export=download&id=' + id : a.url);
@@ -1652,6 +1736,10 @@ function enviarEmailNotificacao(params) {
     replyTo: 'nao-responda@grupobrisanet.com.br'
   };
 
+  if (listaCc) {
+    options.cc = listaCc;
+  }
+
   if (blobsAnexos.length > 0) {
     options.attachments = blobsAnexos;
   }
@@ -1665,67 +1753,24 @@ function enviarEmailNotificacao(params) {
     replyTo: 'nao-responda@grupobrisanet.com.br'
   };
 
+  if (listaCc) {
+    mailAppOptions.cc = listaCc;
+  }
+
   if (blobsAnexos.length > 0) {
     mailAppOptions.attachments = blobsAnexos;
   }
 
-  // 4. Envio com agrupamento na mesma conversa (Thread) no Gmail
+  // 4. Envio direto e seguro: estritamente entre Atendente e Solicitante, com cópia exclusivamente para acompanhantes autorizados
   let enviado = false;
-
   try {
-    const query = 'subject:("' + idChamado + '")';
-    const threads = GmailApp.search(query, 0, 5);
-    let threadEncontrada = null;
-
-    if (threads && threads.length > 0) {
-      for (let t = 0; t < threads.length; t++) {
-        const subj = threads[t].getFirstMessageSubject() || '';
-        if (subj.indexOf(idChamado) !== -1) {
-          threadEncontrada = threads[t];
-          break;
-        }
-      }
-    }
-
-    if (threadEncontrada) {
-      const msgs = threadEncontrada.getMessages();
-      const participantes = [];
-      msgs.forEach(function(m) {
-        participantes.push(m.getFrom(), m.getTo(), m.getCc());
-      });
-      const todosParticipantes = participantes.join(',').toLowerCase();
-      const dest = String(params.destinatario || '').toLowerCase().trim();
-
-      const replyOpts = {
-        htmlBody: htmlCorpo,
-        name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-        replyTo: 'nao-responda@grupobrisanet.com.br'
-      };
-      if (blobsAnexos.length > 0) {
-        replyOpts.attachments = blobsAnexos;
-      }
-      if (dest && todosParticipantes.indexOf(dest) === -1) {
-        replyOpts.cc = params.destinatario;
-      }
-
-      threadEncontrada.replyAll(textoPlano, replyOpts);
-      enviado = true;
-    }
-  } catch (errThread) {
-    Logger.log('Aviso ao tentar responder na thread do Gmail: ' + errThread.message);
+    GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
+    enviado = true;
+  } catch (errGmail) {
+    Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
   }
 
-  // Fallback 1: Envia novo e-mail com o assunto unificado
-  if (!enviado) {
-    try {
-      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
-      enviado = true;
-    } catch (errGmail) {
-      Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
-    }
-  }
-
-  // Fallback 2: MailApp caso GmailApp falhe
+  // Fallback: MailApp caso GmailApp falhe
   if (!enviado) {
     try {
       MailApp.sendEmail(mailAppOptions);
@@ -1770,7 +1815,8 @@ function montarObjetoChamado(linha) {
     tempoTotalHoras: linha[15],
     observacoesAdmin: String(linha[16] || ''),
     dataStatusAguardando: formatarData(linha[17]),
-    aviso4DiasEnviado: linha[18] === 'SIM' || linha[18] === true
+    aviso4DiasEnviado: linha[18] === 'SIM' || linha[18] === true,
+    emailsAcompanhantes: String(linha[19] || '').trim()
   };
 }
 
@@ -2909,62 +2955,22 @@ function enviarEmailNotificacaoVisita(params) {
 
   let enviado = false;
   try {
-    const query = 'subject:("' + params.idVisita + '")';
-    const threads = GmailApp.search(query, 0, 5);
-    let threadEncontrada = null;
-    if (threads && threads.length > 0) {
-      for (let t = 0; t < threads.length; t++) {
-        const subj = threads[t].getFirstMessageSubject() || '';
-        if (subj.indexOf(params.idVisita) !== -1) {
-          threadEncontrada = threads[t];
-          break;
-        }
-      }
-    }
-    if (threadEncontrada) {
-      const msgs = threadEncontrada.getMessages();
-      const participantes = [];
-      msgs.forEach(function(m) {
-        participantes.push(m.getFrom(), m.getTo(), m.getCc());
-      });
-      const todosParticipantes = participantes.join(',').toLowerCase();
-      const dest = String(params.destinatario || '').toLowerCase().trim();
-
-      const replyOpts = {
+    GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
+    enviado = true;
+  } catch (e1) {
+    try {
+      MailApp.sendEmail({
+        to: params.destinatario,
+        subject: assuntoUnificado,
+        body: textoPlano,
         htmlBody: htmlCorpo,
         name: 'Gestão de Visitas | brisanet',
-        replyTo: emailAutor
-      };
-      if (blobsAnexos.length > 0) replyOpts.attachments = blobsAnexos;
-      if (dest && todosParticipantes.indexOf(dest) === -1) {
-        replyOpts.cc = params.destinatario;
-      }
-      threadEncontrada.replyAll(textoPlano, replyOpts);
+        replyTo: emailAutor,
+        attachments: blobsAnexos.length > 0 ? blobsAnexos : undefined
+      });
       enviado = true;
-    }
-  } catch (eThread) {
-    Logger.log('Aviso thread visita: ' + eThread.message);
-  }
-
-  if (!enviado) {
-    try {
-      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
-      enviado = true;
-    } catch (e1) {
-      try {
-        MailApp.sendEmail({
-          to: params.destinatario,
-          subject: assuntoUnificado,
-          body: textoPlano,
-          htmlBody: htmlCorpo,
-          name: 'Gestão de Visitas | brisanet',
-          replyTo: emailAutor,
-          attachments: blobsAnexos.length > 0 ? blobsAnexos : undefined
-        });
-        enviado = true;
-      } catch (e2) {
-        Logger.log('Erro ao enviar e-mail de visita: ' + e2.message);
-      }
+    } catch (e2) {
+      Logger.log('Erro ao enviar e-mail de visita: ' + e2.message);
     }
   }
 }
