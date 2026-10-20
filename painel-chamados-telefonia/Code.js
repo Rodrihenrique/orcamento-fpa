@@ -1942,7 +1942,8 @@ function enviarEmailNotificacao(params) {
     let threadEncontrada = null;
     if (threads && threads.length > 0) {
       for (let t = 0; t < threads.length; t++) {
-        const subj = (threads[t].getFirstMessageSubject() || '').trim();
+        const thread = threads[t];
+        const subj = (thread.getFirstMessageSubject() || '').trim();
         const subjLower = subj.toLowerCase();
 
         // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou falhas de entrega
@@ -1955,9 +1956,30 @@ function enviarEmailNotificacao(params) {
           continue;
         }
 
+        // Verifica se a thread contém alguma mensagem de falha/bounce de e-mail (mailer-daemon)
+        const msgsThread = thread.getMessages();
+        let contemBounce = false;
+        for (let m = 0; m < msgsThread.length; m++) {
+          const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
+          const toMsg = (msgsThread[m].getTo() || '').toLowerCase();
+          const ccMsg = (msgsThread[m].getCc() || '').toLowerCase();
+          if (fromMsg.indexOf('mailer-daemon') !== -1 ||
+              fromMsg.indexOf('delivery subsystem') !== -1 ||
+              fromMsg.indexOf('nao-responda') !== -1 ||
+              toMsg.indexOf('mailer-daemon') !== -1 ||
+              ccMsg.indexOf('mailer-daemon') !== -1) {
+            contemBounce = true;
+            break;
+          }
+        }
+        if (contemBounce) {
+          // Desconsidera a thread com erro de bounce para não perpetuar o mailer-daemon em CC
+          continue;
+        }
+
         // A thread legítima deve conter [brisanet] e o ID do chamado
         if (subj.indexOf('[brisanet]') !== -1 && subj.indexOf(idChamado) !== -1) {
-          threadEncontrada = threads[t];
+          threadEncontrada = thread;
           break;
         }
       }
@@ -1988,6 +2010,7 @@ function enviarEmailNotificacao(params) {
           if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
             if (emLimpo.indexOf('nao-responda') === -1 &&
                 emLimpo.indexOf('mailer-daemon') === -1 &&
+                emLimpo.indexOf('delivery subsystem') === -1 &&
                 emLimpo.indexOf('googlemail.com') === -1) {
               ccList.push(emLimpo);
             }
@@ -2003,8 +2026,25 @@ function enviarEmailNotificacao(params) {
         replyOpts.cc = ccList.join(', ');
       }
 
-      threadEncontrada.replyAll(textoPlano, replyOpts);
-      enviado = true;
+      // Localiza a última mensagem humana válida da thread
+      let mensagemAlvo = null;
+      for (let m = msgs.length - 1; m >= 0; m--) {
+        const from = (msgs[m].getFrom() || '').toLowerCase();
+        if (from.indexOf('mailer-daemon') === -1 &&
+            from.indexOf('delivery subsystem') === -1 &&
+            from.indexOf('nao-responda') === -1) {
+          mensagemAlvo = msgs[m];
+          break;
+        }
+      }
+      if (!mensagemAlvo && msgs.length > 0) {
+        mensagemAlvo = msgs[msgs.length - 1];
+      }
+
+      if (mensagemAlvo) {
+        mensagemAlvo.replyAll(textoPlano, replyOpts);
+        enviado = true;
+      }
     }
   } catch (errThread) {
     Logger.log('Aviso ao tentar responder na thread do chamado: ' + errThread.message);
@@ -3299,7 +3339,8 @@ function enviarEmailNotificacaoVisita(params) {
     let threadEncontrada = null;
     if (threads && threads.length > 0) {
       for (let t = 0; t < threads.length; t++) {
-        const subj = (threads[t].getFirstMessageSubject() || '').trim();
+        const thread = threads[t];
+        const subj = (thread.getFirstMessageSubject() || '').trim();
         const subjLower = subj.toLowerCase();
 
         // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou falhas de entrega
@@ -3312,9 +3353,30 @@ function enviarEmailNotificacaoVisita(params) {
           continue;
         }
 
+        // Verifica se a thread contém alguma mensagem de falha/bounce de e-mail (mailer-daemon)
+        const msgsThread = thread.getMessages();
+        let contemBounce = false;
+        for (let m = 0; m < msgsThread.length; m++) {
+          const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
+          const toMsg = (msgsThread[m].getTo() || '').toLowerCase();
+          const ccMsg = (msgsThread[m].getCc() || '').toLowerCase();
+          if (fromMsg.indexOf('mailer-daemon') !== -1 ||
+              fromMsg.indexOf('delivery subsystem') !== -1 ||
+              fromMsg.indexOf('nao-responda') !== -1 ||
+              toMsg.indexOf('mailer-daemon') !== -1 ||
+              ccMsg.indexOf('mailer-daemon') !== -1) {
+            contemBounce = true;
+            break;
+          }
+        }
+        if (contemBounce) {
+          // Desconsidera a thread com erro de bounce para não perpetuar o mailer-daemon em CC
+          continue;
+        }
+
         // A thread legítima deve conter [brisanet] e o ID da visita
         if (subj.indexOf('[brisanet]') !== -1 && subj.indexOf(params.idVisita) !== -1) {
-          threadEncontrada = threads[t];
+          threadEncontrada = thread;
           break;
         }
       }
@@ -3345,6 +3407,7 @@ function enviarEmailNotificacaoVisita(params) {
           if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
             if (emLimpo.indexOf('nao-responda') === -1 &&
                 emLimpo.indexOf('mailer-daemon') === -1 &&
+                emLimpo.indexOf('delivery subsystem') === -1 &&
                 emLimpo.indexOf('googlemail.com') === -1) {
               ccList.push(emLimpo);
             }
@@ -3360,8 +3423,25 @@ function enviarEmailNotificacaoVisita(params) {
         replyOpts.cc = ccList.join(', ');
       }
 
-      threadEncontrada.replyAll(textoPlano, replyOpts);
-      enviado = true;
+      // Localiza a última mensagem humana válida da thread
+      let mensagemAlvo = null;
+      for (let m = msgs.length - 1; m >= 0; m--) {
+        const from = (msgs[m].getFrom() || '').toLowerCase();
+        if (from.indexOf('mailer-daemon') === -1 &&
+            from.indexOf('delivery subsystem') === -1 &&
+            from.indexOf('nao-responda') === -1) {
+          mensagemAlvo = msgs[m];
+          break;
+        }
+      }
+      if (!mensagemAlvo && msgs.length > 0) {
+        mensagemAlvo = msgs[msgs.length - 1];
+      }
+
+      if (mensagemAlvo) {
+        mensagemAlvo.replyAll(textoPlano, replyOpts);
+        enviado = true;
+      }
     }
   } catch (errThread) {
     Logger.log('Aviso ao tentar responder na thread da visita: ' + errThread.message);
