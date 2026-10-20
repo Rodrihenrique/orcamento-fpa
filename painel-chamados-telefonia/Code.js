@@ -974,14 +974,16 @@ function assumirChamado(idChamado) {
 /**
  * Registra feedback, troca de status ou notas internas com suporte a anexos e gestão de acompanhantes.
  */
-function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSolicitante, arquivosBase64, emailsAcompanhantes) {
+function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSolicitante, arquivosBase64, emailsAcompanhantes, emailAtendenteParam) {
   const props = PropertiesService.getScriptProperties();
   const spreadsheetId = props.getProperty('SPREADSHEET_ID');
   const ss = SpreadsheetApp.openById(spreadsheetId);
   const abaChamados = ss.getSheetByName('CHAMADOS');
   const abaLog = ss.getSheetByName('LOG_INTERACOES');
   
-  const usuarioEmail = Session.getActiveUser().getEmail() || '';
+  const usuarioEmail = (emailAtendenteParam && emailAtendenteParam.includes('@'))
+    ? emailAtendenteParam.trim().toLowerCase()
+    : ((Session.getActiveUser().getEmail() || '').trim().toLowerCase() || obterEmailAdminPadrao());
   const agora = new Date();
 
   const dados = abaChamados.getDataRange().getValues();
@@ -1167,7 +1169,7 @@ function obterHistoricoChamado(idChamado) {
  * Registra a resposta ou esclarecimento do usuário solicitante pela aba Meus Chamados.
  * Suporta texto e/ou upload de múltiplos anexos.
  */
-function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) {
+function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64, emailSolicitanteParam) {
   try {
     const temTexto = respostaTexto && respostaTexto.trim().length > 0;
     const temArquivos = arquivosBase64 && arquivosBase64.length > 0;
@@ -1182,7 +1184,9 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
     const abaChamados = ss.getSheetByName('CHAMADOS');
     const abaLog = ss.getSheetByName('LOG_INTERACOES');
 
-    const usuarioEmail = Session.getActiveUser().getEmail() || 'solicitante@brisanet.com.br';
+    const usuarioEmail = (emailSolicitanteParam && emailSolicitanteParam.includes('@'))
+      ? emailSolicitanteParam.trim().toLowerCase()
+      : ((Session.getActiveUser().getEmail() || '').trim().toLowerCase() || 'solicitante@brisanet.com.br');
     const agora = new Date();
 
     const dados = abaChamados.getDataRange().getValues();

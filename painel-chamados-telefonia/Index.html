@@ -2222,7 +2222,7 @@
     }
 
     function carregarMeusChamados() {
-      const emailFallback = appState.emailUrlPendente || '';
+      const emailFallback = appState.emailUrlPendente || (appState.usuario && appState.usuario.email ? appState.usuario.email : '');
       const tokenFallback = appState.visitaTokenPendente || '';
 
       google.script.run
@@ -3009,7 +3009,9 @@
         categoria: categoria,
         prioridade: 'Normal',
         titulo: document.getElementById('campoTitulo').value,
-        descricao: document.getElementById('campoDescricao').value
+        descricao: document.getElementById('campoDescricao').value,
+        email: (appState.usuario && appState.usuario.email) ? appState.usuario.email : '',
+        nome: (appState.usuario && appState.usuario.nome) ? appState.usuario.nome : ''
       };
 
       // Converter arquivos para Base64
@@ -3335,7 +3337,7 @@
           }
           alert('Erro: ' + err.message);
         })
-        .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna, arquivosBase64, emailsAcomp);
+        .adicionarInteracao(appState.chamadoSelecionado.idChamado, msg, status, !notaInterna, arquivosBase64, emailsAcomp, (appState.usuario && appState.usuario.email) ? appState.usuario.email : '');
     }
 
     function executarSalvarAcompanhantes() {
@@ -3427,7 +3429,7 @@
           btn.innerHTML = '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg><span>Enviar Resposta ao Atendente</span>';
           alert('Erro de comunicação: ' + err.message);
         })
-        .adicionarRespostaSolicitante(appState.chamadoSelecionado.idChamado, texto, arquivosBase64);
+        .adicionarRespostaSolicitante(appState.chamadoSelecionado.idChamado, texto, arquivosBase64, (appState.usuario && appState.usuario.email) ? appState.usuario.email : '');
     }
 
     function toBase64(file) {
