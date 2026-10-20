@@ -14,7 +14,8 @@
  *    - Coluna B: VALOR EMISSAO (numérico)
  *    - Coluna C: PERÍODO (mês por extenso)
  *    - Coluna D: Data e Hora da transação
- * 4. Valida e filtra motoristas pela Base de Colaboradores (Telefonia / Redes).
+ * 4. Valida e filtra motoristas a partir da aba 'Custos_Totais' (Coluna A)
+ *    da própria planilha de destino (ex.: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
  * 5. Move arquivos processados para pasta de histórico para evitar duplicidade.
  * 6. Fornece menu interativo no Google Sheets e suporte a gatilhos automáticos.
  * ============================================================================
@@ -42,10 +43,10 @@ const CONFIG_FROTA = {
   ABA_DESTINO_ABASTECIMENTO: 'Base_Abastecimento',
   ABA_DESTINO_MANUTENCAO: 'MANUTENCAO CARROS',
 
-  // Base de Colaboradores (para filtrar os motoristas que pertencem ao setor)
+  // Base de Colaboradores: Aba 'Custos_Totais' da própria planilha de destino (Coluna A)
   FILTRAR_POR_COLABORADORES: true,
-  ID_PLANILHA_COLABORADORES: '1PtqV_ief0ygTXyKXYAy9hrF6uHEHWYCB37TyceDVk0o',
-  ABA_COLABORADORES: 'BASE COLABORADORES TELFONIA',
+  ABA_COLABORADORES: 'Custos_Totais',
+  COLUNA_COLABORADORES: 1, // Coluna A (1 = A)
 
   // Limpeza de dados antigos da aba (a partir da linha 2)
   // Deixe 'true' caso a aba tenha vindo com linhas de exemplo de meses anteriores
@@ -69,7 +70,6 @@ function onOpen() {
       .addItem("🛑 Desativar Leitura Automática", "removerGatilhos")
       .addToUi();
   } catch (e) {
-    // Caso seja executado em projeto independente sem interface de planilha vinculada
     Logger.log("Interface UI não disponível neste contexto: " + e.message);
   }
 }
@@ -98,7 +98,7 @@ function importarDadosAbastecimento() {
     return;
   }
 
-  // 2. Carregar mapa de colaboradores do setor
+  // 2. Carregar colaboradores da aba 'Custos_Totais' (Coluna A)
   var mapaColaboradores = {};
   if (CONFIG_FROTA.FILTRAR_POR_COLABORADORES) {
     mapaColaboradores = carregarMapaColaboradores(planilhaDestino);
@@ -163,7 +163,7 @@ function importarDadosAbastecimento() {
             continue;
           }
 
-          // Filtra e formata os dados para o padrão de 4 colunas da aba
+          // Filtra e formata os dados para o padrão de 4 colunas da aba Base_Abastecimento
           for (var r = 0; r < dados.length; r++) {
             var linha = dados[r];
             if (!linha || linha.length === 0) continue;
@@ -173,7 +173,7 @@ function importarDadosAbastecimento() {
 
             var nomePadronizado = padronizarTexto(nomeOriginal);
 
-            // Validação por colaborador
+            // Validação pelo nome do colaborador cadastrado na aba Custos_Totais
             if (CONFIG_FROTA.FILTRAR_POR_COLABORADORES && Object.keys(mapaColaboradores).length > 0) {
               if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
                 nomesNaoEncontrados[nomeOriginal] = true;
@@ -213,7 +213,7 @@ function importarDadosAbastecimento() {
     }
   }
 
-  // 4. Inserir registros na aba de destino
+  // 4. Inserir registros na aba Base_Abastecimento
   if (dadosParaInserir.length > 0) {
     if (CONFIG_FROTA.LIMPAR_DADOS_EXISTENTES && abaDestino.getLastRow() > 1) {
       abaDestino.getRange(2, 1, abaDestino.getLastRow() - 1, 4).clearContent();
@@ -233,7 +233,7 @@ function importarDadosAbastecimento() {
   // 5. Exibir logs e relatório final
   var listaIgnorados = Object.keys(nomesNaoEncontrados);
   if (listaIgnorados.length > 0) {
-    Logger.log("Motoristas no CSV que não constam na Base Telefonia: " + listaIgnorados.join(", "));
+    Logger.log("Motoristas no CSV que não constam na aba Custos_Totais: " + listaIgnorados.join(", "));
   }
 
   var msg = "";
@@ -268,7 +268,7 @@ function importarDadosManutencao() {
 
   var mapaColaboradores = {};
   if (CONFIG_FROTA.FILTRAR_POR_COLABORADORES) {
-    mapaColaboradores = carregarMapaColaboradoresCompleto(planilhaDestino);
+    mapaColaboradores = carregarMapaColaboradores(planilhaDestino);
   }
 
   var pastaOrigem = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_MANUTENCAO);
@@ -322,9 +322,9 @@ function importarDadosManutencao() {
 
             if (mapaColaboradores.hasOwnProperty(nomePadronizado)) {
               var colab = mapaColaboradores[nomePadronizado];
-              linha.splice(indexInsercaoEquipe, 0, colab.equipe);
+              linha.splice(indexInsercaoEquipe, 0, (colab && colab.equipe) ? colab.equipe : "");
               while (linha.length < 40) linha.push("");
-              linha[40] = colab.gerente;
+              linha[40] = (colab && colab.gerente) ? colab.gerente : "";
               dadosFiltrados.push(linha);
             } else if (nomePadronizado !== "") {
               nomesNaoEncontrados[nomeOriginal] = true;
@@ -366,9 +366,10 @@ function importarDadosManutencao() {
 function testarConexoes() {
   var relatorio = [];
 
-  // Testar Planilha de Destino
+  // 1. Testar Planilha de Destino
+  var pDest = null;
   try {
-    var pDest = obterPlanilhaDestino(CONFIG_FROTA.ID_PLANILHA_DESTINO, CONFIG_FROTA.NOME_PLANILHA_DESTINO);
+    pDest = obterPlanilhaDestino(CONFIG_FROTA.ID_PLANILHA_DESTINO, CONFIG_FROTA.NOME_PLANILHA_DESTINO);
     if (pDest) {
       relatorio.push("✅ Planilha de Destino encontrada: " + pDest.getName());
       var aAbast = pDest.getSheetByName(CONFIG_FROTA.ABA_DESTINO_ABASTECIMENTO);
@@ -380,7 +381,7 @@ function testarConexoes() {
     relatorio.push("❌ Erro ao acessar planilha: " + e.message);
   }
 
-  // Testar Pastas do Drive
+  // 2. Testar Pastas do Drive
   try {
     var pOrigem = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_ABASTECIMENTO);
     relatorio.push("✅ Pasta Origem Abastecimento: " + pOrigem.getName());
@@ -395,12 +396,19 @@ function testarConexoes() {
     relatorio.push("❌ Erro na Pasta Processados: " + e.message);
   }
 
-  // Testar Base de Colaboradores
+  // 3. Testar Leitura dos Colaboradores na aba 'Custos_Totais' (Coluna A)
   try {
-    var mapa = carregarMapaColaboradores(pDest);
-    relatorio.push("✅ Base de Colaboradores carregada: " + Object.keys(mapa).length + " registros.");
+    if (pDest) {
+      var mapa = carregarMapaColaboradores(pDest);
+      var total = Object.keys(mapa).length;
+      if (total > 0) {
+        relatorio.push("✅ Aba '" + CONFIG_FROTA.ABA_COLABORADORES + "' (Coluna A): " + total + " colaboradores carregados como referência.");
+      } else {
+        relatorio.push("⚠️ Aba '" + CONFIG_FROTA.ABA_COLABORADORES + "': Encontrada, mas nenhum colaborador foi lido na Coluna A.");
+      }
+    }
   } catch (e) {
-    relatorio.push("❌ Erro na Base de Colaboradores: " + e.message);
+    relatorio.push("❌ Erro ao ler aba '" + CONFIG_FROTA.ABA_COLABORADORES + "': " + e.message);
   }
 
   var msgCompleta = relatorio.join("\n");
@@ -438,6 +446,9 @@ function removerGatilhos() {
 // 7. FUNÇÕES UTILITÁRIAS
 // ============================================================================
 
+/**
+ * Abre a planilha pelo ID fornecido ou pesquisa pelo nome no Google Drive.
+ */
 function obterPlanilhaDestino(idPlanilha, nomePlanilha) {
   if (idPlanilha && idPlanilha.trim() !== '') {
     try {
@@ -457,78 +468,60 @@ function obterPlanilhaDestino(idPlanilha, nomePlanilha) {
   return null;
 }
 
+/**
+ * Carrega a lista de colaboradores a partir da aba 'Custos_Totais' (Coluna A)
+ * da própria planilha de destino (ex.: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
+ */
 function carregarMapaColaboradores(planilhaDestino) {
   var mapa = {};
-  var abaColab = null;
 
-  try {
-    if (planilhaDestino) {
-      abaColab = planilhaDestino.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
-    }
-  } catch(e) {}
-
-  if (!abaColab && CONFIG_FROTA.ID_PLANILHA_COLABORADORES) {
-    try {
-      var planilhaCentral = SpreadsheetApp.openById(CONFIG_FROTA.ID_PLANILHA_COLABORADORES);
-      abaColab = planilhaCentral.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
-    } catch(e) {
-      Logger.log('Erro ao abrir base central de colaboradores: ' + e.toString());
-    }
+  if (!planilhaDestino) {
+    Logger.log("Erro: Planilha de destino não fornecida para carregar colaboradores.");
+    return mapa;
   }
 
-  if (abaColab) {
-    var dados = abaColab.getDataRange().getValues();
-    var indiceNome = 5; // Coluna F
-    for (var i = 1; i < dados.length; i++) {
-      var nome = dados[i][indiceNome];
-      if (nome) {
-        mapa[padronizarTexto(nome)] = true;
-      }
-    }
+  var abaColab = planilhaDestino.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
+
+  if (!abaColab) {
+    Logger.log('Aviso: Aba "' + CONFIG_FROTA.ABA_COLABORADORES + '" não encontrada na planilha de destino.');
+    return mapa;
   }
 
+  var ultimaLinha = abaColab.getLastRow();
+  if (ultimaLinha < 1) {
+    Logger.log('Aviso: Aba "' + CONFIG_FROTA.ABA_COLABORADORES + '" está vazia.');
+    return mapa;
+  }
+
+  // Lê toda a Coluna A até a última linha
+  var dados = abaColab.getRange(1, CONFIG_FROTA.COLUNA_COLABORADORES, ultimaLinha, 1).getValues();
+  var cabecalhosIgnorar = ['NOME', 'COLABORADOR', 'NOME COLABORADOR', 'FUNCIONARIO', 'MOTORISTA', 'CONDUTOR', 'COLABORADORES', 'NOMES'];
+
+  for (var i = 0; i < dados.length; i++) {
+    var nomeOriginal = dados[i][0];
+    if (!nomeOriginal) continue;
+
+    var nomePadronizado = padronizarTexto(nomeOriginal);
+    if (!nomePadronizado) continue;
+
+    // Se for a primeira linha e for um cabeçalho, ignora
+    if (i === 0 && cabecalhosIgnorar.indexOf(nomePadronizado) > -1) {
+      continue;
+    }
+
+    mapa[nomePadronizado] = {
+      nomeOriginal: nomeOriginal.toString().trim(),
+      linhaPlanilha: i + 1
+    };
+  }
+
+  Logger.log('Carregados ' + Object.keys(mapa).length + ' colaboradores da aba "' + CONFIG_FROTA.ABA_COLABORADORES + '" (Coluna A).');
   return mapa;
 }
 
-function carregarMapaColaboradoresCompleto(planilhaDestino) {
-  var mapa = {};
-  var abaColab = null;
-
-  try {
-    if (planilhaDestino) {
-      abaColab = planilhaDestino.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
-    }
-  } catch(e) {}
-
-  if (!abaColab && CONFIG_FROTA.ID_PLANILHA_COLABORADORES) {
-    try {
-      var planilhaCentral = SpreadsheetApp.openById(CONFIG_FROTA.ID_PLANILHA_COLABORADORES);
-      abaColab = planilhaCentral.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
-    } catch(e) {
-      Logger.log('Erro ao abrir base central: ' + e.toString());
-    }
-  }
-
-  if (abaColab) {
-    var dados = abaColab.getDataRange().getValues();
-    var indiceNome = 5;
-    var indiceGerente = 13;
-    var indiceEquipe = 16;
-
-    for (var i = 1; i < dados.length; i++) {
-      var nome = dados[i][indiceNome];
-      if (nome) {
-        mapa[padronizarTexto(nome)] = {
-          gerente: dados[i][indiceGerente],
-          equipe: dados[i][indiceEquipe]
-        };
-      }
-    }
-  }
-
-  return mapa;
-}
-
+/**
+ * Limpa acentuação, espaços duplos e padroniza para maiúsculas.
+ */
 function padronizarTexto(texto) {
   if (!texto) return "";
   return texto.toString()
@@ -539,6 +532,9 @@ function padronizarTexto(texto) {
     .replace(/\s+/g, ' ');
 }
 
+/**
+ * Converte valor em formato string para número decimal válido no Sheets.
+ */
 function formatarValorNumerico(valor) {
   if (valor === undefined || valor === null || valor === "") return "";
   if (typeof valor === 'number') return valor;
@@ -550,6 +546,9 @@ function formatarValorNumerico(valor) {
   return isNaN(num) ? valor : num;
 }
 
+/**
+ * Identifica o mês por extenso a partir da data da transação ou do nome do arquivo.
+ */
 function identificarPeriodo(dataStr, nomeArquivo) {
   var mapaMeses = {
     '01': 'JANEIRO', '02': 'FEVEREIRO', '03': 'MARÇO', '04': 'ABRIL',
@@ -572,12 +571,18 @@ function identificarPeriodo(dataStr, nomeArquivo) {
   return 'OUTUBRO';
 }
 
+/**
+ * Identifica se o CSV usa delimitador vírgula ou ponto e vírgula.
+ */
 function detectarDelimitador(linhaCabecalho) {
   var virgulas = (linhaCabecalho.match(/,/g) || []).length;
   var pontoEVirgulas = (linhaCabecalho.match(/;/g) || []).length;
   return pontoEVirgulas > virgulas ? ';' : ',';
 }
 
+/**
+ * Exibe alertas na interface do Sheets ou envia para o Logger se headless.
+ */
 function exibirAlerta(msg) {
   try {
     SpreadsheetApp.getUi().alert(msg);

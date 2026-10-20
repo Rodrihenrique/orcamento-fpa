@@ -12,9 +12,9 @@
  *    - Coluna B: VALOR EMISSAO (convertido para formato numérico)
  *    - Coluna C: PERÍODO (identificado automaticamente como "OUTUBRO" ou conforme a data)
  *    - Coluna D: Data e Hora da Transação
- * 3. Valida e filtra motoristas pela base de colaboradores (Telefonia / Redes).
- * 4. Insere automaticamente na aba 'Base_Abastecimento' da planilha mensal
- *    (ex.: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
+ * 3. Valida e filtra motoristas a partir da aba 'Custos_Totais' (Coluna A)
+ *    da própria planilha de destino (ex.: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
+ * 4. Insere automaticamente na aba 'Base_Abastecimento' da planilha mensal.
  * 5. Move os arquivos processados para a pasta de histórico, evitando duplicidades.
  * ============================================================================
  */
@@ -41,10 +41,10 @@ const CONFIG_FROTA = {
   ABA_DESTINO_ABASTECIMENTO: 'Base_Abastecimento',
   ABA_DESTINO_MANUTENCAO: 'MANUTENCAO CARROS',
 
-  // Base de Colaboradores (Telefonia / Redes)
-  FILTRAR_POR_COLABORADORES: true, // 'true' para importar apenas motoristas da base, 'false' para importar todos
-  ID_PLANILHA_COLABORADORES: '1PtqV_ief0ygTXyKXYAy9hrF6uHEHWYCB37TyceDVk0o',
-  ABA_COLABORADORES: 'BASE COLABORADORES TELFONIA',
+  // Base de Colaboradores: Aba 'Custos_Totais' da própria planilha de destino (Coluna A)
+  FILTRAR_POR_COLABORADORES: true,
+  ABA_COLABORADORES: 'Custos_Totais',
+  COLUNA_COLABORADORES: 1, // Coluna A (1 = A)
 
   // Se true, limpa os dados antigos a partir da linha 2 antes de importar (evita deixar linhas de modelo/exemplo)
   LIMPAR_DADOS_EXISTENTES: false
@@ -74,7 +74,7 @@ function importarDadosAbastecimento() {
     return;
   }
 
-  // 2. Carregar base de colaboradores para filtro
+  // 2. Carregar colaboradores da aba 'Custos_Totais' (Coluna A)
   var mapaColaboradores = {};
   if (CONFIG_FROTA.FILTRAR_POR_COLABORADORES) {
     mapaColaboradores = carregarMapaColaboradores(planilhaDestino);
@@ -148,7 +148,7 @@ function importarDadosAbastecimento() {
 
             var nomePadronizado = padronizarTexto(nomeOriginal);
 
-            // Filtro por colaboradores cadastrados
+            // Filtro pelos colaboradores da aba Custos_Totais
             if (CONFIG_FROTA.FILTRAR_POR_COLABORADORES && Object.keys(mapaColaboradores).length > 0) {
               if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
                 nomesNaoEncontrados[nomeOriginal] = true;
@@ -206,7 +206,7 @@ function importarDadosAbastecimento() {
   // 5. Relatório e logs finais
   var listaIgnorados = Object.keys(nomesNaoEncontrados);
   if (listaIgnorados.length > 0) {
-    Logger.log("Motoristas no CSV que não constam na Base Telefonia: " + listaIgnorados.join(", "));
+    Logger.log("Motoristas no CSV que não constam na aba Custos_Totais: " + listaIgnorados.join(", "));
   }
 
   if (importouAlgo && dadosParaInserir.length > 0) {
@@ -244,38 +244,50 @@ function obterPlanilhaDestino(idPlanilha, nomePlanilha) {
 }
 
 /**
- * Carrega mapa de colaboradores a partir da planilha de destino ou da planilha central.
+ * Carrega mapa de colaboradores a partir da aba 'Custos_Totais' (Coluna A)
+ * da planilha de destino.
  */
 function carregarMapaColaboradores(planilhaDestino) {
   var mapa = {};
-  var abaColab = null;
 
-  try {
-    abaColab = planilhaDestino.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
-  } catch(e) {}
-
-  if (!abaColab && CONFIG_FROTA.ID_PLANILHA_COLABORADORES) {
-    try {
-      var planilhaCentral = SpreadsheetApp.openById(CONFIG_FROTA.ID_PLANILHA_COLABORADORES);
-      abaColab = planilhaCentral.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
-    } catch(e) {
-      Logger.log('Erro ao acessar base central de colaboradores: ' + e.toString());
-    }
+  if (!planilhaDestino) {
+    Logger.log("Erro: Planilha de destino não fornecida.");
+    return mapa;
   }
 
-  if (abaColab) {
-    var dados = abaColab.getDataRange().getValues();
-    var indiceNome = 5; // Coluna F
-    for (var i = 1; i < dados.length; i++) {
-      var nome = dados[i][indiceNome];
-      if (nome) {
-        mapa[padronizarTexto(nome)] = true;
-      }
-    }
-  } else {
-    Logger.log('Aviso: Aba de colaboradores não encontrada. Importação ocorrerá sem filtro.');
+  var abaColab = planilhaDestino.getSheetByName(CONFIG_FROTA.ABA_COLABORADORES);
+  if (!abaColab) {
+    Logger.log('Aviso: Aba "' + CONFIG_FROTA.ABA_COLABORADORES + '" não encontrada.');
+    return mapa;
   }
 
+  var ultimaLinha = abaColab.getLastRow();
+  if (ultimaLinha < 1) {
+    Logger.log('Aviso: Aba "' + CONFIG_FROTA.ABA_COLABORADORES + '" está vazia.');
+    return mapa;
+  }
+
+  var dados = abaColab.getRange(1, CONFIG_FROTA.COLUNA_COLABORADORES, ultimaLinha, 1).getValues();
+  var cabecalhosIgnorar = ['NOME', 'COLABORADOR', 'NOME COLABORADOR', 'FUNCIONARIO', 'MOTORISTA', 'CONDUTOR', 'COLABORADORES', 'NOMES'];
+
+  for (var i = 0; i < dados.length; i++) {
+    var nomeOriginal = dados[i][0];
+    if (!nomeOriginal) continue;
+
+    var nomePadronizado = padronizarTexto(nomeOriginal);
+    if (!nomePadronizado) continue;
+
+    if (i === 0 && cabecalhosIgnorar.indexOf(nomePadronizado) > -1) {
+      continue;
+    }
+
+    mapa[nomePadronizado] = {
+      nomeOriginal: nomeOriginal.toString().trim(),
+      linhaPlanilha: i + 1
+    };
+  }
+
+  Logger.log('Carregados ' + Object.keys(mapa).length + ' colaboradores da aba "' + CONFIG_FROTA.ABA_COLABORADORES + '" (Coluna A).');
   return mapa;
 }
 

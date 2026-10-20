@@ -13,7 +13,7 @@ Este guia contém o passo a passo completo para ativar a automação de importa�
 [Script: automacao-abastecimento-frotas]
    ├── 1. Detecta delimitador (, ou ;)
    ├── 2. Extrai: Nome Motorista, Valor Emissão, Data/Hora
-   ├── 3. Valida contra a Base de Colaboradores Telefonia
+   ├── 3. Valida motoristas com base na aba 'Custos_Totais' (Coluna A)
    └── 4. Determina Período (ex.: OUTUBRO)
          │
          ├──► [Planilha: 10. CUSTOS DO SETOR - OUTUBRO - 2026]
@@ -90,10 +90,10 @@ const CONFIG_FROTA = {
   // Nomes das abas
   ABA_DESTINO_ABASTECIMENTO: 'Base_Abastecimento',
   
-  // Base de Colaboradores
+  // Base de Colaboradores: Aba 'Custos_Totais' (Coluna A) da própria planilha de destino
   FILTRAR_POR_COLABORADORES: true,
-  ID_PLANILHA_COLABORADORES: '1PtqV_ief0ygTXyKXYAy9hrF6uHEHWYCB37TyceDVk0o',
-  ABA_COLABORADORES: 'BASE COLABORADORES TELFONIA',
+  ABA_COLABORADORES: 'Custos_Totais',
+  COLUNA_COLABORADORES: 1, // Coluna A
 
   // Limpeza de modelo
   LIMPAR_DADOS_EXISTENTES: false
@@ -101,14 +101,18 @@ const CONFIG_FROTA = {
 ```
 
 ### 💡 Dicas Importantes de Configuração:
-1. **ID da Planilha de Outubro (Recomendado):**
+1. **Referência de Colaboradores (`Custos_Totais` - Coluna A):**
+   - Os nomes dos colaboradores são lidos diretamente da aba **`Custos_Totais`** na **Coluna A** da própria planilha de Outubro.
+   - Qualquer motorista presente no CSV que conste nessa coluna terá seus registros importados para a aba **`Base_Abastecimento`**.
+
+2. **ID da Planilha de Outubro (Recomendado):**
    - Abra a planilha `10. CUSTOS DO SETOR - OUTUBRO - 2026`.
    - Na barra de endereço do navegador, copie o código entre `/d/` e `/edit`:
-     `https://docs.google.com/spreadsheets/d/`**`1PtqV_ief0ygTXyKXYAy9hrF6uHEHWYCB37TyceDVk0o`**`/edit`
+     `https://docs.google.com/spreadsheets/d/`**`COLE_ESSE_CODIGO`**`/edit`
    - Cole esse código no campo `ID_PLANILHA_DESTINO: 'SEU_ID_AQUI'`.
    *(Se deixar vazio, o script busca automaticamente pelo nome do arquivo no Drive).*
 
-2. **Limpando Linhas de Exemplo:**
+3. **Limpando Linhas de Exemplo:**
    - Se a aba `Base_Abastecimento` de Outubro foi duplicada com dados de teste/exemplo de Agosto, mude temporariamente para:
      ```javascript
      LIMPAR_DADOS_EXISTENTES: true
@@ -129,7 +133,7 @@ Na primeira vez que você executar o script, o Google solicitará permissão de 
    - Clique em **Avançado** (canto inferior esquerdo).
    - Clique em **Acessar [Nome do Projeto] (não seguro)**.
 6. Na tela final, clique em **Permitir**.
-7. Verifique o log de execução: todas as conexões (Planilha, Pastas e Base de Colaboradores) devem retornar com `✅`.
+7. Verifique o log de execução: todas as conexões (Planilha, Pastas e Aba `Custos_Totais`) devem retornar com `✅`.
 
 ---
 
@@ -166,7 +170,7 @@ Quando mudar de mês (ex.: Novembro de 2026):
    NOME_PLANILHA_DESTINO: '11. CUSTOS DO SETOR - NOVEMBRO - 2026',
    ID_PLANILHA_DESTINO: 'ID_DA_PLANILHA_DE_NOVEMBRO',
    ```
-3. O script passará a alimentar automaticamente a planilha de Novembro!
+3. O script passará a buscar os colaboradores na aba `Custos_Totais` de Novembro e preencher a respectiva `Base_Abastecimento`!
 
 ---
 
@@ -175,6 +179,7 @@ Quando mudar de mês (ex.: Novembro de 2026):
 | Situação | Causa Provável | Solução |
 | :--- | :--- | :--- |
 | **"Erro: Planilha não encontrada"** | O nome do arquivo no Drive possui espaço extra ou o script não tem acesso. | Abra a planilha de Outubro, copie o ID da URL e cole em `ID_PLANILHA_DESTINO`. |
-| **"Aba Base_Abastecimento não encontrada"** | A aba na planilha tem nome diferente (ex: com espaço ou maiúscula). | Verifique o nome exato da aba e ajuste `ABA_DESTINO_ABASTECIMENTO`. |
-| **Motoristas não foram importados** | O nome no CSV não bate com a `BASE COLABORADORES TELFONIA`. | O log exibirá os nomes ignorados. Se quiser importar todos sem filtrar, defina `FILTRAR_POR_COLABORADORES: false`. |
+| **"Aba Custos_Totais não encontrada"** | A aba na planilha possui outro nome ou grafia diferente. | Verifique o nome exato da aba e ajuste `ABA_COLABORADORES`. |
+| **"Aba Base_Abastecimento não encontrada"** | A aba de destino tem nome diferente na planilha. | Verifique o nome exato da aba e ajuste `ABA_DESTINO_ABASTECIMENTO`. |
+| **Motoristas não foram importados** | O nome no CSV não consta na Coluna A da aba `Custos_Totais`. | O log exibirá os nomes ignorados. Se quiser importar todos sem filtrar, defina `FILTRAR_POR_COLABORADORES: false`. |
 | **Separador de CSV alterado** | O extrato baixado veio separado por `;` em vez de `,`. | O script possui detecção automática de delimitador e trata isso nativamente. |
