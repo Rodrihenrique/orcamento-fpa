@@ -1360,6 +1360,27 @@
             <textarea id="drawerVisitaParecerAdmin" rows="3" placeholder="Digite o parecer, orientações para portaria ou solicitação de ajustes de horário/sala..." class="w-full bg-white border border-slate-200 rounded-lg p-2.5 text-xs text-slate-800 outline-none focus:ring-1 focus:ring-brisa-blue"></textarea>
           </div>
 
+          <!-- Anexos do Atendente na Visita com Drag & Drop -->
+          <div class="pt-2 border-t border-slate-200/70">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="block text-[11px] font-bold text-slate-600 uppercase">Anexar Documento / Parecer da Visita</label>
+              <span id="adminVisitaArquivosCount" class="text-[11px] text-slate-400 font-rubik">0 selecionado(s)</span>
+            </div>
+            <div id="dropzoneAdminVisita"
+                 ondragover="handleDragOver(event, 'dropzoneAdminVisita')"
+                 ondragenter="handleDragOver(event, 'dropzoneAdminVisita')"
+                 ondragleave="handleDragLeave(event, 'dropzoneAdminVisita')"
+                 ondrop="handleDropAdminVisita(event)"
+                 class="border border-dashed border-slate-200 rounded-xl p-3 text-center transition-all bg-slate-50/50 hover:bg-slate-50 hover:border-brisa-blue/60 cursor-pointer">
+              <input type="file" id="adminVisitaArquivosAnexo" multiple onchange="atualizarListaArquivosAdminVisita(event)" class="hidden" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.ppt,.pptx,.png,.jpg,.jpeg,.webp,.zip,.rar">
+              <label for="adminVisitaArquivosAnexo" class="cursor-pointer flex items-center justify-center gap-2 text-xs text-slate-600">
+                <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                <span>Arraste ou <span class="text-brisa-blue font-semibold hover:underline">clique para anexar</span></span>
+              </label>
+            </div>
+            <div id="adminVisitaListaArquivosContainer" class="flex flex-wrap gap-1.5 mt-2"></div>
+          </div>
+
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
             <button type="button" onclick="executarDecisaoVisita('Aprovada')" class="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors text-center">
               Aprovar Visita
@@ -1443,6 +1464,7 @@
       visitaSelecionada: null,
       arquivosVisita: [],
       arquivosRespostaVisitante: [],
+      arquivosVisitaAdmin: [],
       visitaUrlPendente: null,
       visitaTokenPendente: null,
       visitaTokenAtual: null,
@@ -2818,6 +2840,68 @@
         ].join('');
         container.appendChild(chip);
       });
+    }
+
+    // 2.1 Anexos do Atendente na Visita (Admin)
+    function atualizarListaArquivosAdminVisita(e) {
+      if (e.target && e.target.files) {
+        adicionarArquivosAdminVisita(Array.from(e.target.files));
+      }
+    }
+
+    function adicionarArquivosAdminVisita(novosArquivos) {
+      novosArquivos.forEach(function(novo) {
+        const jaExiste = (appState.arquivosVisitaAdmin || []).some(function(arq) {
+          return arq.name === novo.name && arq.size === novo.size;
+        });
+        if (!jaExiste) {
+          if (!appState.arquivosVisitaAdmin) appState.arquivosVisitaAdmin = [];
+          appState.arquivosVisitaAdmin.push(novo);
+        }
+      });
+      renderizarChipsAdminVisita();
+    }
+
+    function removerArquivoAdminVisita(index) {
+      if (appState.arquivosVisitaAdmin) {
+        appState.arquivosVisitaAdmin.splice(index, 1);
+      }
+      renderizarChipsAdminVisita();
+      const input = document.getElementById('adminVisitaArquivosAnexo');
+      if (input) input.value = '';
+    }
+
+    function renderizarChipsAdminVisita() {
+      const container = document.getElementById('adminVisitaListaArquivosContainer');
+      const countLabel = document.getElementById('adminVisitaArquivosCount');
+      const qtd = appState.arquivosVisitaAdmin ? appState.arquivosVisitaAdmin.length : 0;
+      if (countLabel) countLabel.textContent = qtd + ' selecionado(s)';
+      if (!container) return;
+      container.innerHTML = '';
+
+      (appState.arquivosVisitaAdmin || []).forEach(function(file, idx) {
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center gap-1.5 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-[11px] text-slate-700 shadow-sm';
+        chip.innerHTML = [
+          '<span class="truncate max-w-[160px]">' + file.name + '</span>',
+          '<span class="text-slate-400 font-rubik">(' + (file.size / 1024).toFixed(0) + 'KB)</span>',
+          '<button type="button" onclick="removerArquivoAdminVisita(' + idx + ')" class="text-slate-400 hover:text-red-500 font-bold ml-1 transition-colors" title="Remover">&times;</button>'
+        ].join('');
+        container.appendChild(chip);
+      });
+    }
+
+    function handleDropAdminVisita(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = document.getElementById('dropzoneAdminVisita');
+      if (el) {
+        el.classList.remove('border-brisa-blue', 'bg-blue-50/70', 'ring-2', 'ring-brisa-blue/20');
+        el.classList.add('border-slate-200', 'bg-slate-50/50');
+      }
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        adicionarArquivosAdminVisita(Array.from(e.dataTransfer.files));
+      }
     }
 
     // 3. Anexos do Solicitante (Drawer)
@@ -4454,6 +4538,13 @@
         blocoAdmin.classList.remove('hidden');
         blocoVisitante.classList.add('hidden');
         document.getElementById('drawerVisitaParecerAdmin').value = '';
+        appState.arquivosVisitaAdmin = [];
+        const inputAnexo = document.getElementById('adminVisitaArquivosAnexo');
+        if (inputAnexo) inputAnexo.value = '';
+        const containerChips = document.getElementById('adminVisitaListaArquivosContainer');
+        if (containerChips) containerChips.innerHTML = '';
+        const countLabel = document.getElementById('adminVisitaArquivosCount');
+        if (countLabel) countLabel.textContent = '0 selecionado(s)';
         popularSelectAtendentesVisita(visita.atendente);
         const badgeAtend = document.getElementById('drawerVisitaBadgeAtendente');
         if (badgeAtend) {
@@ -4699,13 +4790,14 @@
         .obterHistoricoVisita(idVisita, token);
     }
 
-    function executarDecisaoVisita(novoStatus) {
+    async function executarDecisaoVisita(novoStatus) {
       if (!appState.visitaSelecionada) return;
       const motivo = document.getElementById('drawerVisitaParecerAdmin').value.trim();
       const inputAcomp = document.getElementById('drawerVisitaEmailsAcompanhantes');
       const emailsAcomp = inputAcomp ? inputAcomp.value.trim() : '';
+      const arquivos = appState.arquivosVisitaAdmin || [];
 
-      if (!motivo && novoStatus !== 'Aprovada') {
+      if (!motivo && novoStatus !== 'Aprovada' && arquivos.length === 0) {
         alert('Por favor, informe a justificativa ou orientações no parecer administrativo.');
         document.getElementById('drawerVisitaParecerAdmin').focus();
         return;
@@ -4725,11 +4817,32 @@
         }
       }
 
+      // Converter eventuais arquivos anexados pelo atendente
+      const arquivosBase64 = [];
+      for (let i = 0; i < arquivos.length; i++) {
+        const file = arquivos[i];
+        const b64 = await toBase64(file);
+        arquivosBase64.push({
+          nome: file.name,
+          tipo: file.type,
+          base64: b64
+        });
+      }
+
       google.script.run
         .withSuccessHandler(function(res) {
           if (res.sucesso) {
             alert('Decisão registrada com sucesso! Notificação enviada ao visitante.');
             appState.visitaSelecionada.status = novoStatus;
+            document.getElementById('drawerVisitaParecerAdmin').value = '';
+            appState.arquivosVisitaAdmin = [];
+            const inputAnexo = document.getElementById('adminVisitaArquivosAnexo');
+            if (inputAnexo) inputAnexo.value = '';
+            const containerChips = document.getElementById('adminVisitaListaArquivosContainer');
+            if (containerChips) containerChips.innerHTML = '';
+            const countLabel = document.getElementById('adminVisitaArquivosCount');
+            if (countLabel) countLabel.textContent = '0 selecionado(s)';
+
             if (res.emailsAcompanhantes !== undefined) {
               appState.visitaSelecionada.emailsAcompanhantes = res.emailsAcompanhantes;
               const infoAcomp = document.getElementById('drawerVisitaAcompanhantesInfo');
@@ -4752,7 +4865,7 @@
         .withFailureHandler(function(err) {
           alert('Erro ao processar decisão: ' + err.message);
         })
-        .atualizarStatusVisita(appState.visitaSelecionada.idVisita, novoStatus, motivo, emailAtendente, emailsAcomp);
+        .atualizarStatusVisita(appState.visitaSelecionada.idVisita, novoStatus, motivo, emailAtendente, emailsAcomp, arquivosBase64);
     }
 
     function executarSalvarAcompanhantesVisita() {

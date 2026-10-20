@@ -1551,7 +1551,7 @@ function montarHtmlTimelineEmail(logs, emailSolicitante) {
     const nomeFormatado = nomeAutor.charAt(0).toUpperCase() + nomeAutor.slice(1);
     
     const tipo = String(item.tipoAcao || '').toLowerCase();
-    const isSolicitante = tipo.includes('solicitante') || (emailSolicitante && autorLimpo.toLowerCase() === emailSolicitante.toLowerCase());
+    const isSolicitante = tipo.includes('solicitante') || tipo.includes('visitante') || (emailSolicitante && autorLimpo.toLowerCase() === emailSolicitante.toLowerCase());
     const isSistema = tipo.includes('aviso') || tipo.includes('cancelado') || autorLimpo.toLowerCase().includes('sistema');
     
     let corBorda = '#0B316D';
@@ -1568,7 +1568,7 @@ function montarHtmlTimelineEmail(logs, emailSolicitante) {
       corBorda = '#2563EB';
       corBadge = '#F1F5F9';
       corBadgeTexto = '#334155';
-      rotuloPapel = 'Solicitante';
+      rotuloPapel = tipo.includes('visitante') ? 'Visitante / Empresa' : 'Solicitante';
     } else {
       corBorda = '#FF5022';
       corBadge = '#FFF1EE';
@@ -1934,66 +1934,55 @@ function enviarEmailNotificacao(params) {
 
   try {
     // Busca exclusivamente pela thread institucional oficial do chamado
-    let threads = GmailApp.search('subject:"[brisanet] Chamado ' + idChamado + '"', 0, 5);
+    let threads = GmailApp.search('subject:' + idChamado, 0, 10);
     if (!threads || threads.length === 0) {
-      threads = GmailApp.search('subject:"' + idChamado + '"', 0, 5);
+      threads = GmailApp.search('"' + idChamado + '"', 0, 10);
+    }
+    if (!threads || threads.length === 0) {
+      threads = GmailApp.search(idChamado, 0, 10);
     }
 
     let threadEncontrada = null;
+    let mensagemAlvo = null;
+
     if (threads && threads.length > 0) {
       for (let t = 0; t < threads.length; t++) {
         const thread = threads[t];
         const subj = (thread.getFirstMessageSubject() || '').trim();
         const subjLower = subj.toLowerCase();
 
-        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou falhas de entrega
+        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou notificações de erro de entrega
         if (subjLower.indexOf('compartilhada') !== -1 ||
             subjLower.indexOf('google drive') !== -1 ||
-            subjLower.indexOf('delivery subsystem') !== -1 ||
-            subjLower.indexOf('mailer-daemon') !== -1 ||
-            subjLower.indexOf('endereço não encontrado') !== -1 ||
-            subjLower.indexOf('address not found') !== -1) {
+            subjLower.indexOf('delivery status notification') !== -1 ||
+            subjLower.indexOf('undelivered mail') !== -1 ||
+            subjLower.indexOf('failure notice') !== -1) {
           continue;
         }
 
-        // Verifica se a thread contém alguma mensagem de falha/bounce de e-mail (mailer-daemon)
+        if (subj.indexOf(idChamado) === -1) {
+          continue;
+        }
+
+        // Procura a última mensagem humana válida na thread (ignorando robôs de entrega mailer-daemon)
         const msgsThread = thread.getMessages();
-        let contemBounce = false;
-        for (let m = 0; m < msgsThread.length; m++) {
+        for (let m = msgsThread.length - 1; m >= 0; m--) {
           const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
-          const toMsg = (msgsThread[m].getTo() || '').toLowerCase();
-          const ccMsg = (msgsThread[m].getCc() || '').toLowerCase();
-          if (fromMsg.indexOf('mailer-daemon') !== -1 ||
-              fromMsg.indexOf('delivery subsystem') !== -1 ||
-              fromMsg.indexOf('nao-responda') !== -1 ||
-              toMsg.indexOf('mailer-daemon') !== -1 ||
-              ccMsg.indexOf('mailer-daemon') !== -1) {
-            contemBounce = true;
+          if (fromMsg.indexOf('mailer-daemon') === -1 &&
+              fromMsg.indexOf('delivery subsystem') === -1) {
+            mensagemAlvo = msgsThread[m];
+            threadEncontrada = thread;
             break;
           }
         }
-        if (contemBounce) {
-          // Desconsidera a thread com erro de bounce para não perpetuar o mailer-daemon em CC
-          continue;
-        }
 
-        // A thread legítima deve conter [brisanet] e o ID do chamado
-        if (subj.indexOf('[brisanet]') !== -1 && subj.indexOf(idChamado) !== -1) {
-          threadEncontrada = thread;
+        if (threadEncontrada && mensagemAlvo) {
           break;
         }
       }
     }
 
-    if (threadEncontrada) {
-      const msgs = threadEncontrada.getMessages();
-      const participantes = [];
-      msgs.forEach(function(m) {
-        participantes.push(m.getFrom(), m.getTo(), m.getCc());
-      });
-      const todosParticipantes = participantes.join(',').toLowerCase();
-      const dest = String(params.destinatario || '').toLowerCase().trim();
-
+    if (threadEncontrada && mensagemAlvo) {
       const replyOpts = {
         htmlBody: htmlCorpo,
         name: nomeFormatado + ' | Gestão de Telefonia brisanet',
@@ -2017,31 +2006,37 @@ function enviarEmailNotificacao(params) {
           }
         });
       }
-      if (dest && todosParticipantes.indexOf(dest) === -1) {
-        if (ccList.indexOf(dest) === -1) {
-          ccList.push(dest);
-        }
-      }
-      if (ccList.length > 0) {
-        replyOpts.cc = ccList.join(', ');
-      }
 
-      // Localiza a última mensagem humana válida da thread
-      let mensagemAlvo = null;
-      for (let m = msgs.length - 1; m >= 0; m--) {
-        const from = (msgs[m].getFrom() || '').toLowerCase();
-        if (from.indexOf('mailer-daemon') === -1 &&
-            from.indexOf('delivery subsystem') === -1 &&
-            from.indexOf('nao-responda') === -1) {
-          mensagemAlvo = msgs[m];
-          break;
-        }
-      }
-      if (!mensagemAlvo && msgs.length > 0) {
-        mensagemAlvo = msgs[msgs.length - 1];
-      }
+      const toMsgAlvo = (mensagemAlvo.getTo() || '').toLowerCase();
+      const fromMsgAlvo = (mensagemAlvo.getFrom() || '').toLowerCase();
+      const ccMsgAlvo = (mensagemAlvo.getCc() || '').toLowerCase();
+      const destPrincipal = String(params.destinatario || '').toLowerCase().trim();
 
-      if (mensagemAlvo) {
+      const contemLixoOriginal = (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('nao-responda') !== -1 ||
+                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1;
+
+      if (contemLixoOriginal) {
+        // Mensagem com resquício de nao-responda em To/Cc: usa reply() simples ao remetente humano e adiciona os demais em CC limpo
+        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+          if (fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
+            ccList.push(destPrincipal);
+          }
+        }
+        if (ccList.length > 0) {
+          replyOpts.cc = ccList.join(', ');
+        }
+        mensagemAlvo.reply(textoPlano, replyOpts);
+        enviado = true;
+      } else {
+        // Mensagem limpa: replyAll
+        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+          if (toMsgAlvo.indexOf(destPrincipal) === -1 && fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
+            ccList.push(destPrincipal);
+          }
+        }
+        if (ccList.length > 0) {
+          replyOpts.cc = ccList.join(', ');
+        }
         mensagemAlvo.replyAll(textoPlano, replyOpts);
         enviado = true;
       }
@@ -2387,6 +2382,7 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
         status: 'Pendente',
         mensagem: 'Sua solicitação de visita à Brisanet foi recebida com sucesso e está em análise pela equipe administrativa e gestores anfitriões.\n\nVocê pode consultar o status, cronograma e deliberações acessando a página "Meus Chamados" pelo link abaixo.',
         linkAcompanhamento: linkAcompanhamento,
+        autorEmail: emailResponsavel,
         anexos: urlsAnexos
       });
     } catch (eMail) {
@@ -2784,7 +2780,7 @@ function atribuirVisita(idVisita, atendenteEmail) {
 /**
  * Atualiza o status da visita (Aprovação, Ajuste ou Reprovação) com disparo de e-mail e gestão de acompanhantes.
  */
-function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail, emailsAcompanhantes) {
+function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail, emailsAcompanhantes, novosArquivosBase64) {
   let isAdmin = false;
   try {
     const config = obterConfiguracoesIniciais();
@@ -2823,6 +2819,17 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
     abaVisitas.getRange(linhaEncontrada, 21).setValue(emailsAcompFinal);
   }
 
+  // Salvar novos anexos se fornecidos pelo atendente na deliberação
+  let novosAnexosSalvos = [];
+  if (novosArquivosBase64 && Array.isArray(novosArquivosBase64) && novosArquivosBase64.length > 0) {
+    novosAnexosSalvos = salvarAnexosNoDrive(idVisita, novosArquivosBase64);
+    if (novosAnexosSalvos.length > 0) {
+      const anexosAtualizados = (visitaObj.anexos || []).concat(novosAnexosSalvos);
+      abaVisitas.getRange(linhaEncontrada, 15).setValue(JSON.stringify(sanitizarAnexosParaPlanilha(anexosAtualizados)));
+      visitaObj.anexos = anexosAtualizados;
+    }
+  }
+
   // Coluna 16: STATUS, 17: ATENDENTE, 19: DATA_DECISAO, 20: MOTIVO_DECISAO
   abaVisitas.getRange(linhaEncontrada, 16).setValue(novoStatus);
   abaVisitas.getRange(linhaEncontrada, 17).setValue(emailAtendente);
@@ -2831,6 +2838,10 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
 
   // Log de Auditoria
   if (abaLog) {
+    let msgAuditoria = motivoParecer || ('Status alterado para ' + novoStatus);
+    if (novosAnexosSalvos.length > 0) {
+      msgAuditoria += '\n\nAnexos adicionados pelo atendente: ' + novosAnexosSalvos.map(function(a) { return a.nome; }).join(', ');
+    }
     abaLog.appendRow([
       Utilities.getUuid(),
       idVisita,
@@ -2839,7 +2850,7 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
       'Decisão de Visita (' + novoStatus + ')',
       visitaObj.status,
       novoStatus,
-      motivoParecer || ('Status alterado para ' + novoStatus),
+      msgAuditoria,
       'SIM'
     ]);
   }
@@ -2850,14 +2861,15 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
 
   try {
     let mensagemStatus = '';
+    const parecerTxt = String(motivoParecer || '').trim();
     if (novoStatus === 'Aprovada') {
-      mensagemStatus = 'Sua solicitação de visita à Brisanet foi APROVADA. Os participantes cadastrados estão autorizados a acessar as instalações e salas indicadas no itinerário oficial.';
+      mensagemStatus = 'Sua solicitação de visita à Brisanet foi APROVADA. Os participantes cadastrados estão autorizados a acessar as instalações e salas indicadas no itinerário oficial.' + (parecerTxt ? '\n\nOrientações / Observações do Atendente:\n' + parecerTxt : '');
     } else if (novoStatus === 'Ajuste Solicitado') {
-      mensagemStatus = 'A equipe administrativa da Brisanet solicitou um ajuste de agenda, sala ou horário em sua visita:\n\n"' + (motivoParecer || '') + '"\n\nPor favor, acesse o link para responder com os novos horários ou esclarecimentos.';
+      mensagemStatus = 'A equipe administrativa da Brisanet solicitou um ajuste de agenda, sala ou horário em sua visita:\n\n"' + (parecerTxt || 'Favor revisar o itinerário ou cronograma proposto.') + '"\n\nPor favor, acesse o link para responder com os novos horários ou esclarecimentos.';
     } else if (novoStatus === 'Reprovada') {
-      mensagemStatus = 'Sua solicitação de visita à Brisanet não pôde ser aprovada no momento.\n\nMotivo: ' + (motivoParecer || 'Incompatibilidade de agenda ou indisponibilidade de salas.');
+      mensagemStatus = 'Sua solicitação de visita à Brisanet não pôde ser aprovada no momento.\n\nMotivo / Justificativa:\n' + (parecerTxt || 'Incompatibilidade de agenda ou indisponibilidade de salas.');
     } else {
-      mensagemStatus = 'O status da sua solicitação de visita foi atualizado para: ' + novoStatus + '.\n\nParecer: ' + (motivoParecer || 'Sem observações adicionais.');
+      mensagemStatus = 'O status da sua solicitação de visita foi atualizado para: ' + novoStatus + '.\n\nParecer do Atendente:\n' + (parecerTxt || 'Sem observações adicionais.');
     }
 
     enviarEmailNotificacaoVisita({
@@ -2870,7 +2882,8 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
       status: novoStatus,
       mensagem: mensagemStatus,
       linkAcompanhamento: linkAcompanhamento,
-      autorEmail: emailAtendente
+      autorEmail: emailAtendente,
+      anexos: (novosAnexosSalvos.length > 0 ? novosAnexosSalvos : (visitaObj.anexos || []))
     });
   } catch (eMail) {
     Logger.log('Aviso ao notificar visitante sobre status: ' + eMail.message);
@@ -2965,6 +2978,7 @@ function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase
       status: 'Em Análise',
       mensagem: 'O visitante ' + visitaObj.responsavelNome + ' respondeu ao chamado da visita:\n\n"' + (respostaTexto || 'Novos documentos anexados.') + '"',
       linkAcompanhamento: linkAdmin,
+      autorEmail: visitaObj.responsavelEmail,
       anexos: novosAnexos
     });
   } catch (eNotif) {
@@ -3160,6 +3174,7 @@ function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
           status: 'Em Análise',
           mensagem: 'O solicitante ' + (dadosVisita.responsavelNome || visitaAntiga.responsavelNome) + ' realizou os ajustes solicitados na proposta de visita:\n\n' + textoMudancas + '\n\nAcesse a aba Gestão de Visitas para deliberar sobre a nova proposta.',
           linkAcompanhamento: linkAdmin,
+          autorEmail: visitaAntiga.responsavelEmail,
           anexos: []
         });
       } catch (eMail) {
@@ -3185,6 +3200,8 @@ function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
  * Mantém todos os e-mails na mesma conversa (thread) com timeline cronológica completa.
  */
 function enviarEmailNotificacaoVisita(params) {
+  const idVisita = params.idVisita;
+  const empresaTitulo = String(params.empresa || '').trim() || 'Visita Corporativa';
   const emailAutor = params.autorEmail || params.atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAutor = emailAutor.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAutor.charAt(0).toUpperCase() + nomeAutor.slice(1);
@@ -3199,21 +3216,83 @@ function enviarEmailNotificacaoVisita(params) {
 
   const link = params.linkAcompanhamento || '';
 
-  // 1. Processar anexos físicos se fornecidos
+  // 1. Coletar Blobs dos anexos para envio como anexos físicos nativos no e-mail (até 20MB)
   const blobsAnexos = [];
+  let tamanhoTotalBytes = 0;
+  const LIMITE_ANEXOS_BYTES = 20 * 1024 * 1024;
+
   if (params.anexos && Array.isArray(params.anexos)) {
     for (let i = 0; i < params.anexos.length; i++) {
+      const anexo = params.anexos[i];
       try {
-        const b = obterBlobDoAnexo(params.anexos[i]);
-        if (b) blobsAnexos.push(b);
-      } catch (eB) {}
+        const blob = obterBlobDoAnexo(anexo);
+        if (blob) {
+          const tamanho = blob.getBytes().length;
+          if (tamanhoTotalBytes + tamanho <= LIMITE_ANEXOS_BYTES) {
+            blobsAnexos.push(blob);
+            tamanhoTotalBytes += tamanho;
+          } else {
+            Logger.log('Anexo de visita ' + (anexo.nome || '') + ' ultrapassou o limite total de 20MB.');
+          }
+        }
+      } catch (errBlob) {
+        Logger.log('Erro ao processar blob do anexo de visita para e-mail: ' + errBlob.message);
+      }
     }
   }
 
-  // 2. Timeline de interações da visita
+  // 2. Montar bloco HTML destacado para os anexos no corpo do e-mail com BOTÕES DE DOWNLOAD DIRETO
+  let htmlAnexos = '';
+  if (params.anexos && params.anexos.length > 0) {
+    const cardsAnexos = params.anexos.map(function(a) {
+      const fileId = a.id || extrairIdDrive(a.url);
+      const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+      const viewUrl = a.url || (fileId ? 'https://drive.google.com/file/d/' + fileId + '/view' : '#');
+
+      return [
+        '<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 10px; background-color: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px;">',
+        '  <tr>',
+        '    <td style="padding: 12px 14px; vertical-align: middle;">',
+        '      <div style="font-size: 13px; font-weight: 700; color: #0F172A; margin-bottom: 2px;">',
+        '        <span style="color: #FF5022; font-size: 14px; font-weight: bold; margin-right: 6px;">&bull;</span>' + a.nome,
+        '      </div>',
+        '      <div style="font-size: 11px; color: #64748B; padding-left: 14px;">',
+        '        Documento / Pauta anexada à visita corporativa',
+        '      </div>',
+        '    </td>',
+        '    <td style="padding: 12px 14px; text-align: right; vertical-align: middle; white-space: nowrap;">',
+        '      <a href="' + downloadUrl + '" target="_blank" style="display: inline-block; padding: 7px 14px; background-color: #FF5022; color: #FFFFFF; font-size: 11px; font-weight: 700; text-decoration: none; border-radius: 6px; margin-right: 6px;">Baixar Arquivo</a>',
+        '      <a href="' + viewUrl + '" target="_blank" style="display: inline-block; padding: 7px 12px; background-color: #EFF6FF; border: 1px solid #BFDBFE; color: #2242D4; font-size: 11px; font-weight: 700; text-decoration: none; border-radius: 6px;">Ver no Drive</a>',
+        '    </td>',
+        '  </tr>',
+        '</table>'
+      ].join('\n');
+    }).join('\n');
+
+    htmlAnexos = [
+      '<div style="background-color: #F8FAFC; border: 1px solid #CBD5E1; border-radius: 12px; padding: 18px 20px; margin-bottom: 22px;">',
+      '  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 10px; border-bottom: 1px solid #E2E8F0; padding-bottom: 8px;">',
+      '    <tr>',
+      '      <td style="font-size: 12px; font-weight: 700; color: #0B316D; text-transform: uppercase; letter-spacing: 0.5px;">',
+      '        Documentos e Pautas Anexadas',
+      '      </td>',
+      '      <td style="text-align: right;">',
+      '        <span style="background-color: #E2E8F0; color: #334155; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 6px;">' + params.anexos.length + ' arquivo(s)</span>',
+      '      </td>',
+      '    </tr>',
+      '  </table>',
+      '  <div style="font-size: 12px; color: #475569; margin-bottom: 12px; line-height: 1.5;">',
+      '    Clique em <strong>Baixar Arquivo</strong> para salvar o documento diretamente em seu dispositivo, ou visualize online. Os arquivos também foram anexados a este e-mail para download.',
+      '  </div>',
+      cardsAnexos,
+      '</div>'
+    ].join('\n');
+  }
+
+  // 3. Obter histórico cronológico de interações da visita para a timeline
   let historicoLogs = [];
   try {
-    historicoLogs = obterHistoricoLogsParaEmail(params.idVisita);
+    historicoLogs = obterHistoricoLogsParaEmail(idVisita);
   } catch (eH) {
     Logger.log('Aviso ao carregar histórico de visita para e-mail: ' + eH.message);
   }
@@ -3245,10 +3324,17 @@ function enviarEmailNotificacaoVisita(params) {
   const htmlCorpo = [
     '<!DOCTYPE html>',
     '<html>',
-    '<head><meta charset="UTF-8"></head>',
-    '<body style="background-color: #F8FAFC; font-family: Arial, sans-serif; margin: 0; padding: 24px;">',
+    '<head>',
+    '  <meta charset="UTF-8">',
+    '  <style>',
+    '    @import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&family=Rubik:wght@500;700&display=swap");',
+    '    body { font-family: "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #F8FAFC; margin: 0; padding: 20px; }',
+    '  </style>',
+    '</head>',
+    '<body style="background-color: #F8FAFC; font-family: \'Figtree\', Arial, sans-serif; margin: 0; padding: 24px;">',
     '  <div style="max-width: 600px; margin: 0 auto; background-color: #FFFFFF; border: 1px solid #E8E8E8; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">',
     '    <div style="height: 5px; background: linear-gradient(90deg, #FF5022, #E47D20);"></div>',
+    '    ',
     '    <div style="background-color: #0B316D; padding: 24px; color: #FFFFFF;">',
     '      <div style="font-size: 19px; font-weight: 700; margin: 0;">',
     '        <span>brisanet</span> <span style="color: #94A3B8; font-weight: 300;">|</span> <span>Gestão de Visitas Corporativas</span>',
@@ -3257,23 +3343,44 @@ function enviarEmailNotificacaoVisita(params) {
     '        GERÊNCIA EXECUTIVA DE TELEFONIA &bull; BRISANET',
     '      </div>',
     '    </div>',
+    '    ',
     '    <div style="padding: 28px 24px; color: #1E293B;">',
     '      <div style="display: flex; gap: 8px; margin-bottom: 18px;">',
-    '        <span style="display: inline-block; padding: 5px 12px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; font-size: 13px; font-weight: 700; color: #0B316D;">Protocolo: ' + params.idVisita + '</span>',
+    (link ? [
+      '        <a href="' + link + '" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; text-decoration: none;" title="Abrir visita no portal">',
+      '          Protocolo: ' + idVisita + ' <span style="color: #2242D4; font-size: 12px; margin-left: 4px;">&#8599;</span>',
+      '        </a>'
+    ].join('\n') : [
+      '        <span style="display: inline-block; padding: 5px 12px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D;">Protocolo: ' + idVisita + '</span>'
+    ].join('\n')),
     '        <span style="display: inline-block; padding: 5px 12px; background-color: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 12px; font-weight: 700; color: ' + statusCor + ';">Status: ' + params.status + '</span>',
     '      </div>',
-    '      <h2 style="margin: 0 0 14px 0; font-size: 17px; font-weight: 700; color: #0F172A;">',
-    '        Solicitação de Visita &bull; ' + params.empresa,
+    '      ',
+    '      <h2 style="margin: 0 0 14px 0; font-size: 16px; font-weight: 700; color: #0F172A; line-height: 1.4;">',
+    '        Solicitação de Visita &bull; ' + empresaTitulo,
     '      </h2>',
+    '      ',
     '      <div style="background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px 16px; margin-bottom: 18px; font-size: 12px; color: #475569; line-height: 1.6;">',
-    '        <div><strong>Empresa Visitante:</strong> ' + params.empresa + '</div>',
+    '        <div><strong>Empresa Visitante:</strong> ' + empresaTitulo + '</div>',
     '        <div><strong>Período Previsto:</strong> ' + (params.periodo || 'A definir') + '</div>',
     '      </div>',
+    '      ',
+    '      <!-- Parecer Técnico / Mensagem Mais Recente -->',
     '      <div style="background-color: #F8FAFC; border-left: 4px solid #FF5022; border-top: 1px solid #E8E8E8; border-right: 1px solid #E8E8E8; border-bottom: 1px solid #E8E8E8; border-radius: 0 10px 10px 0; padding: 16px; margin-bottom: 22px;">',
-    '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">Última Mensagem / Parecer:</div>',
-    '        <div style="font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + formatarTextoComLinksHtml(params.mensagem) + '</div>',
+    '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">',
+    '          Última Mensagem / Parecer:',
+    '        </div>',
+    '        <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + formatarTextoComLinksHtml(params.mensagem) + '</div>',
+    '      </div>',
+    '      ',
+    htmlAnexos,
+    '      ',
+    '      <!-- Responsável pela Atualização -->',
+    '      <div style="font-size: 12px; color: #64748B; margin-bottom: 8px;">',
+    '        Responsável pela atualização: <strong style="color: #0F172A;">' + emailAutor + '</strong>',
     '      </div>',
     (listaCc ? [
+      '      <!-- Acompanhantes em Cópia (CC) -->',
       '      <div style="font-size: 11px; color: #64748B; margin-bottom: 20px; background-color: #F1F5F9; border-radius: 6px; padding: 6px 10px; display: inline-block;">',
       '        Acompanhantes notificados: <strong style="color: #0B316D;">' + listaCc + '</strong>',
       '      </div>'
@@ -3282,119 +3389,138 @@ function enviarEmailNotificacaoVisita(params) {
     htmlTimeline,
     '      ',
     (link ? [
-      '      <div style="margin: 24px 0; text-align: center;">',
-      '        <a href="' + link + '" target="_blank" style="display: inline-block; width: 100%; max-width: 380px; padding: 13px 22px; background-color: #0B316D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(11, 49, 109, 0.2); text-align: center; box-sizing: border-box;">',
+      '      <!-- Botão Direto para o Portal da Visita -->',
+      '      <div style="margin: 22px 0 24px 0; text-align: center;">',
+      '        <a href="' + link + '" target="_blank" style="display: inline-block; width: 100%; max-width: 380px; padding: 13px 22px; background-color: #0B316D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(11, 49, 109, 0.2); text-align: center; box-sizing: border-box; letter-spacing: 0.3px;">',
       '          Acompanhar Solicitação de Visita &rarr;',
       '        </a>',
-      '        <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">Acesse para consultar itinerário, pareceres ou enviar esclarecimentos</div>',
+      '        <div style="font-size: 11px; color: #94A3B8; margin-top: 6px;">',
+      '          Acesse para consultar itinerário, pareceres ou enviar esclarecimentos',
+      '        </div>',
       '      </div>'
     ].join('\n') : ''),
-    '      <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; margin-bottom: 15px; font-size: 12px; color: #78350F; line-height: 1.5;">',
-    '        <strong>COMUNICADO:</strong> Respostas enviadas diretamente por e-mail não são processadas. ' + (link ? '<a href="' + link + '" target="_blank" style="color: #0B316D; font-weight: 700; text-decoration: underline;">Clique aqui para responder pelo painel seguro</a>.' : 'Acesse o painel web para interagir.'),
+    '      ',
+    '      <!-- AVISO DE NÃO RESPONDER POR E-MAIL -->',
+    '      <div style="background-color: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px; padding: 14px 16px; margin-bottom: 15px;">',
+    '        <div style="font-size: 11px; font-weight: 700; color: #92400E; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;">',
+    '          COMUNICADO: NÃO RESPONDA A ESTE E-MAIL',
+    '        </div>',
+    '        <div style="font-size: 12px; color: #78350F; line-height: 1.5;">',
+    '          Respostas enviadas diretamente por e-mail <strong>não são processadas</strong>. ' + (link ? 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, <a href="' + link + '" target="_blank" style="color: #0B316D; font-weight: 700; text-decoration: underline;">clique aqui para acessar diretamente o portal de visita</a>.' : 'Acesse o portal da visita no Painel Web para interagir.'),
+    '        </div>',
     '      </div>',
     '    </div>',
+    '    ',
+    '    <!-- Rodapé Corporativo -->',
     '    <div style="background-color: #F8FAFC; padding: 16px 24px; text-align: center; font-size: 11px; color: #94A3B8; border-top: 1px solid #E8E8E8;">',
     '      Gestão de Visitas Corporativas &bull; Gerência Executiva de Telefonia &bull; brisanet',
     '    </div>',
     '  </div>',
-    '</body></html>'
+    '</body>',
+    '</html>'
   ].join('\n');
 
   const textoPlano = [
-    'Solicitação de Visita: ' + params.idVisita,
-    'Empresa: ' + params.empresa,
+    'Solicitação de Visita: ' + idVisita,
+    'Empresa: ' + empresaTitulo,
     'Status: ' + params.status,
     '',
     'ÚLTIMA MENSAGEM / PARECER:',
     params.mensagem,
     '',
     (listaCc ? 'Acompanhantes em cópia (CC): ' + listaCc + '\n\n' : ''),
+    (params.anexos && params.anexos.length > 0 ? 'Anexos para download:\n' + params.anexos.map(function(a) { 
+      const id = a.id || extrairIdDrive(a.url);
+      const dl = a.downloadUrl || (id ? 'https://drive.google.com/uc?export=download&id=' + id : a.url);
+      return '- ' + a.nome + ': ' + dl;
+    }).join('\n') + '\n\n' : ''),
     textoPlanoTimeline,
     '',
-    (link ? 'Acesse o link seguro para acompanhar e responder:\n' + link + '\n\n' : ''),
-    'Gestão de Telefonia - Brisanet'
+    (link ? 'Link direto para acompanhar e responder:\n' + link + '\n\n' : ''),
+    'Responsável: ' + emailAutor,
+    '',
+    'COMUNICADO: NÃO RESPONDA A ESTE E-MAIL.',
+    (link ? 'Para responder ou anexar arquivos, acesse o link:\n' + link : 'Acesse o Portal de Visitas no Painel Web.')
   ].join('\n');
 
   const options = {
     htmlBody: htmlCorpo,
-    name: 'Gestão de Visitas | brisanet',
-    replyTo: emailAutor || 'telefonia@brisanet.com.br'
+    name: nomeFormatado + ' | Gestão de Visitas brisanet',
+    replyTo: emailAutor
   };
   if (listaCc) options.cc = listaCc;
   if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
 
-  // Assunto unificado para agrupamento em conversa no Gmail/Outlook
-  const assuntoUnificado = '[brisanet] Visita ' + params.idVisita + ' - ' + (params.empresa || 'Solicitação Externa');
+  const mailAppOptions = {
+    to: params.destinatario,
+    subject: '[brisanet] Visita ' + idVisita + ' - ' + empresaTitulo,
+    body: textoPlano,
+    htmlBody: htmlCorpo,
+    name: nomeFormatado + ' | Gestão de Visitas brisanet',
+    replyTo: emailAutor
+  };
+  if (listaCc) mailAppOptions.cc = listaCc;
+  if (blobsAnexos.length > 0) mailAppOptions.attachments = blobsAnexos;
+
+  const assuntoUnificado = '[brisanet] Visita ' + idVisita + ' - ' + empresaTitulo;
 
   // 4. Envio agrupado na mesma conversa (Thread) no Gmail
   let enviado = false;
 
   try {
-    // Busca exclusivamente pela thread institucional oficial da visita
-    let threads = GmailApp.search('subject:"[brisanet] Visita ' + params.idVisita + '"', 0, 5);
+    let threads = GmailApp.search('subject:' + idVisita, 0, 10);
     if (!threads || threads.length === 0) {
-      threads = GmailApp.search('subject:"' + params.idVisita + '"', 0, 5);
+      threads = GmailApp.search('"' + idVisita + '"', 0, 10);
+    }
+    if (!threads || threads.length === 0) {
+      threads = GmailApp.search(idVisita, 0, 10);
     }
 
     let threadEncontrada = null;
+    let mensagemAlvo = null;
+
     if (threads && threads.length > 0) {
       for (let t = 0; t < threads.length; t++) {
         const thread = threads[t];
         const subj = (thread.getFirstMessageSubject() || '').trim();
         const subjLower = subj.toLowerCase();
 
-        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou falhas de entrega
+        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou notificações de erro de entrega
         if (subjLower.indexOf('compartilhada') !== -1 ||
             subjLower.indexOf('google drive') !== -1 ||
-            subjLower.indexOf('delivery subsystem') !== -1 ||
-            subjLower.indexOf('mailer-daemon') !== -1 ||
-            subjLower.indexOf('endereço não encontrado') !== -1 ||
-            subjLower.indexOf('address not found') !== -1) {
+            subjLower.indexOf('delivery status notification') !== -1 ||
+            subjLower.indexOf('undelivered mail') !== -1 ||
+            subjLower.indexOf('failure notice') !== -1) {
           continue;
         }
 
-        // Verifica se a thread contém alguma mensagem de falha/bounce de e-mail (mailer-daemon)
+        if (subj.indexOf(idVisita) === -1) {
+          continue;
+        }
+
+        // Procura a última mensagem humana válida na thread (ignorando robôs de entrega mailer-daemon)
         const msgsThread = thread.getMessages();
-        let contemBounce = false;
-        for (let m = 0; m < msgsThread.length; m++) {
+        for (let m = msgsThread.length - 1; m >= 0; m--) {
           const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
-          const toMsg = (msgsThread[m].getTo() || '').toLowerCase();
-          const ccMsg = (msgsThread[m].getCc() || '').toLowerCase();
-          if (fromMsg.indexOf('mailer-daemon') !== -1 ||
-              fromMsg.indexOf('delivery subsystem') !== -1 ||
-              fromMsg.indexOf('nao-responda') !== -1 ||
-              toMsg.indexOf('mailer-daemon') !== -1 ||
-              ccMsg.indexOf('mailer-daemon') !== -1) {
-            contemBounce = true;
+          if (fromMsg.indexOf('mailer-daemon') === -1 &&
+              fromMsg.indexOf('delivery subsystem') === -1) {
+            mensagemAlvo = msgsThread[m];
+            threadEncontrada = thread;
             break;
           }
         }
-        if (contemBounce) {
-          // Desconsidera a thread com erro de bounce para não perpetuar o mailer-daemon em CC
-          continue;
-        }
 
-        // A thread legítima deve conter [brisanet] e o ID da visita
-        if (subj.indexOf('[brisanet]') !== -1 && subj.indexOf(params.idVisita) !== -1) {
-          threadEncontrada = thread;
+        if (threadEncontrada && mensagemAlvo) {
           break;
         }
       }
     }
 
-    if (threadEncontrada) {
-      const msgs = threadEncontrada.getMessages();
-      const participantes = [];
-      msgs.forEach(function(m) {
-        participantes.push(m.getFrom(), m.getTo(), m.getCc());
-      });
-      const todosParticipantes = participantes.join(',').toLowerCase();
-      const dest = String(params.destinatario || '').toLowerCase().trim();
-
+    if (threadEncontrada && mensagemAlvo) {
       const replyOpts = {
         htmlBody: htmlCorpo,
-        name: 'Gestão de Visitas | brisanet',
-        replyTo: emailAutor || 'telefonia@brisanet.com.br'
+        name: nomeFormatado + ' | Gestão de Visitas brisanet',
+        replyTo: emailAutor
       };
       if (blobsAnexos.length > 0) {
         replyOpts.attachments = blobsAnexos;
@@ -3414,31 +3540,37 @@ function enviarEmailNotificacaoVisita(params) {
           }
         });
       }
-      if (dest && todosParticipantes.indexOf(dest) === -1) {
-        if (ccList.indexOf(dest) === -1) {
-          ccList.push(dest);
-        }
-      }
-      if (ccList.length > 0) {
-        replyOpts.cc = ccList.join(', ');
-      }
 
-      // Localiza a última mensagem humana válida da thread
-      let mensagemAlvo = null;
-      for (let m = msgs.length - 1; m >= 0; m--) {
-        const from = (msgs[m].getFrom() || '').toLowerCase();
-        if (from.indexOf('mailer-daemon') === -1 &&
-            from.indexOf('delivery subsystem') === -1 &&
-            from.indexOf('nao-responda') === -1) {
-          mensagemAlvo = msgs[m];
-          break;
-        }
-      }
-      if (!mensagemAlvo && msgs.length > 0) {
-        mensagemAlvo = msgs[msgs.length - 1];
-      }
+      const toMsgAlvo = (mensagemAlvo.getTo() || '').toLowerCase();
+      const fromMsgAlvo = (mensagemAlvo.getFrom() || '').toLowerCase();
+      const ccMsgAlvo = (mensagemAlvo.getCc() || '').toLowerCase();
+      const destPrincipal = String(params.destinatario || '').toLowerCase().trim();
 
-      if (mensagemAlvo) {
+      const contemLixoOriginal = (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('nao-responda') !== -1 ||
+                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1;
+
+      if (contemLixoOriginal) {
+        // Mensagem contaminada com nao-responda: reply() simples ao remetente humano e adiciona os demais em CC limpo
+        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+          if (fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
+            ccList.push(destPrincipal);
+          }
+        }
+        if (ccList.length > 0) {
+          replyOpts.cc = ccList.join(', ');
+        }
+        mensagemAlvo.reply(textoPlano, replyOpts);
+        enviado = true;
+      } else {
+        // Mensagem limpa: replyAll
+        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+          if (toMsgAlvo.indexOf(destPrincipal) === -1 && fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
+            ccList.push(destPrincipal);
+          }
+        }
+        if (ccList.length > 0) {
+          replyOpts.cc = ccList.join(', ');
+        }
         mensagemAlvo.replyAll(textoPlano, replyOpts);
         enviado = true;
       }
@@ -3460,16 +3592,7 @@ function enviarEmailNotificacaoVisita(params) {
   // Fallback 2: MailApp caso GmailApp falhe
   if (!enviado) {
     try {
-      MailApp.sendEmail({
-        to: params.destinatario,
-        cc: listaCc || undefined,
-        subject: assuntoUnificado,
-        body: textoPlano,
-        htmlBody: htmlCorpo,
-        name: 'Gestão de Visitas | brisanet',
-        replyTo: emailAutor || 'telefonia@brisanet.com.br',
-        attachments: blobsAnexos.length > 0 ? blobsAnexos : undefined
-      });
+      MailApp.sendEmail(mailAppOptions);
       enviado = true;
     } catch (errMail) {
       Logger.log('Erro final ao enviar e-mail de visita: ' + errMail.message);
