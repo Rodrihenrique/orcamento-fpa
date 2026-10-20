@@ -59,7 +59,9 @@ Localizado no diretório [`orcamento-2028/`](./orcamento-2028/):
 * Veja as instruções completas no [`README.md`](./orcamento-2028/README.md) do módulo.
 
 ### 4. Automação de Abastecimento e Custos de Frotas
-Localizado no diretório [`apps-script/Importacao_Abastecimento_Frota.js`](./apps-script/Importacao_Abastecimento_Frota.js):
-* Importação e processamento automático de extratos de faturamento de abastecimento (Ticket Log / `RFCV_*.csv`).
+Localizado no diretório [`automacao-abastecimento-frotas/`](./automacao-abastecimento-frotas/):
+* Módulo independente com automação em **Google Apps Script** para importação de extratos de abastecimento (Ticket Log / `RFCV_*.csv`) e manutenção de veículos.
 * Direcionamento mensal para as planilhas da pasta `CUSTOS DO SETOR > OPERAÇÃO E MANUTENÇÃO DE REDES > 2026` (aba `Base_Abastecimento`).
 * Padronização de dados, extração dinâmica de período/mês, conversão monetária e filtragem por colaboradores do setor.
+* Menu executivo integrado no Google Sheets (`🚗 Gestão de Frota`) e agendamento de leitura diária automática.
+* Veja o passo a passo completo no [**`GUIA_DE_ATIVACAO.md`**](./automacao-abastecimento-frotas/GUIA_DE_ATIVACAO.md).
