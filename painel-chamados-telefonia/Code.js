@@ -228,19 +228,19 @@ function criarChamado(dados, arquivosBase64) {
       'Abertura',
       '',
       'Aberto',
-      'Chamado registrado com sucesso pela gerência solicitante.',
+      dados.descricao ? ('Abertura do Chamado:\n' + dados.descricao) : 'Chamado registrado com sucesso pela gerência solicitante.',
       'SIM'
     ]);
     SpreadsheetApp.flush();
 
-    // 4. Notificação por E-mail corporativo sem emojis
+    // 4. Notificação por E-mail corporativo (assunto padronizado para agrupamento em thread)
     try {
       enviarEmailNotificacao({
         destinatario: emailSolicitante,
-        assunto: '[brisanet] Chamado Criado com Sucesso: ' + idChamado,
+        assunto: '[brisanet] Chamado ' + idChamado + ' - ' + dados.titulo,
         idChamado: idChamado,
         titulo: dados.titulo,
-        mensagem: 'Sua solicitação foi recebida pela Gerência Executiva de Telefonia e está aguardando triagem técnica.',
+        mensagem: 'Sua solicitação foi recebida pela Gerência Executiva de Telefonia e está aguardando triagem técnica.' + (dados.descricao ? '\n\nDescrição inicial da solicitação:\n' + dados.descricao : ''),
         autor: nomeSolicitante,
         anexos: urlsAnexos,
         aba: 'meus'
@@ -523,7 +523,7 @@ function processarPendenciasAguardandoRetorno(ss) {
           try {
             enviarEmailNotificacao({
               destinatario: emailSolicitante,
-              assunto: '[brisanet] Chamado Cancelado por Inatividade: ' + idChamado,
+              assunto: '[brisanet] Chamado ' + idChamado + ' - ' + tituloChamado,
               idChamado: idChamado,
               titulo: tituloChamado,
               mensagem: 'Informamos que o chamado ' + idChamado + ' permaneceu por 7 dias corridos no status "Aguardando Retorno" sem manifestação ou envio dos dados solicitados, e por isso foi cancelado automaticamente pelo sistema.\n\nCaso ainda necessite de atendimento da Telefonia Brisanet, por favor registre um novo chamado na plataforma.',
@@ -560,7 +560,7 @@ function processarPendenciasAguardandoRetorno(ss) {
           try {
             enviarEmailNotificacao({
               destinatario: emailSolicitante,
-              assunto: '[brisanet] Aviso de Pendência (4 dias): ' + idChamado,
+              assunto: '[brisanet] Chamado ' + idChamado + ' - ' + tituloChamado,
               idChamado: idChamado,
               titulo: tituloChamado,
               mensagem: 'Prezado(a) solicitante,\n\nIdentificamos que seu chamado encontra-se com o status "Aguardando Retorno" há 4 dias corridos.\n\nLembramos que, de acordo com as normas da Telefonia Brisanet, chamados sem manifestação por 7 dias corridos são cancelados automaticamente pelo sistema.\n\nRestam 3 dias corridos para o cancelamento automático desta solicitação. Caso ainda necessite de atendimento, acesse seu chamado pelo link abaixo e envie as informações ou documentos solicitados.',
@@ -808,7 +808,7 @@ function adicionarInteracao(idChamado, mensagemFeedback, novoStatus, visivelSoli
     try {
       enviarEmailNotificacao({
         destinatario: emailSolicitante,
-        assunto: '[brisanet] Novo Parecer no Chamado: ' + idChamado,
+        assunto: '[brisanet] Chamado ' + idChamado + ' - ' + tituloChamado,
         idChamado: idChamado,
         titulo: tituloChamado,
         mensagem: mensagemFeedback ? mensagemFeedback.trim() : 'Novo parecer e documento(s) anexado(s) pelo atendente.',
@@ -984,7 +984,7 @@ function adicionarRespostaSolicitante(idChamado, respostaTexto, arquivosBase64) 
       try {
         enviarEmailNotificacao({
           destinatario: atendenteEmail,
-          assunto: '[brisanet] Resposta do Solicitante: ' + idChamado,
+          assunto: '[brisanet] Chamado ' + idChamado + ' - ' + tituloChamado,
           idChamado: idChamado,
           titulo: tituloChamado,
           mensagem: 'O solicitante adicionou uma nova resposta ao chamado:\n\n"' + (temTexto ? respostaTexto.trim() : 'Novo(s) arquivo(s) anexado(s) pelo solicitante.') + '"',
@@ -1222,15 +1222,202 @@ function obterChamadoPorId(idChamado) {
 }
 
 /**
+ * Recupera o histórico cronológico de interações públicas de um chamado
+ * para montagem da timeline corporativa em notificações por e-mail.
+ */
+function obterHistoricoLogsParaEmail(idChamado) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    if (!spreadsheetId) return [];
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    
+    // Garante leitura imediata dos dados mais recentes gravados
+    SpreadsheetApp.flush();
+    
+    const abaLog = ss.getSheetByName('LOG_INTERACOES');
+    if (!abaLog) return [];
+    
+    const dados = abaLog.getDataRange().getValues();
+    const logs = [];
+    const idProcurado = String(idChamado || '').trim().toUpperCase();
+    
+    for (let i = 1; i < dados.length; i++) {
+      const idItem = String(dados[i][1] != null ? dados[i][1] : '').trim().toUpperCase();
+      if (idItem === idProcurado) {
+        const visivelVal = String(dados[i][8] != null ? dados[i][8] : '').trim().toUpperCase();
+        const visivel = visivelVal === 'SIM' || visivelVal === 'TRUE';
+        
+        // Apenas mensagens visíveis ao solicitante compõem a timeline pública da conversa
+        if (visivel) {
+          const msg = String(dados[i][7] != null ? dados[i][7] : '').trim();
+          if (msg.length > 0) {
+            logs.push({
+              dataHora: formatarData(dados[i][2]),
+              dataRaw: (dados[i][2] instanceof Date) ? dados[i][2].getTime() : i,
+              autor: String(dados[i][3] != null ? dados[i][3] : '').trim(),
+              tipoAcao: String(dados[i][4] != null ? dados[i][4] : '').trim(),
+              statusAnterior: String(dados[i][5] != null ? dados[i][5] : '').trim(),
+              novoStatus: String(dados[i][6] != null ? dados[i][6] : '').trim(),
+              mensagem: msg
+            });
+          }
+        }
+      }
+    }
+    
+    // Ordenação cronológica (do mais antigo para o mais recente)
+    logs.sort(function(a, b) {
+      return a.dataRaw - b.dataRaw;
+    });
+    
+    return logs;
+  } catch (err) {
+    Logger.log('Aviso ao obter histórico de logs para e-mail: ' + err.message);
+    return [];
+  }
+}
+
+/**
+ * Converte URLs em links HTML clicáveis e sanitiza caracteres para prevenção de injeção.
+ */
+function formatarTextoComLinksHtml(texto) {
+  if (!texto) return '';
+  const safeTexto = String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  
+  const urlRegex = /(https?:\/\/[^\s<]+)/g;
+  return safeTexto.replace(urlRegex, function(url) {
+    return '<a href="' + url + '" target="_blank" style="color: #0B316D; text-decoration: underline; font-weight: 600;">' + url + '</a>';
+  });
+}
+
+/**
+ * Monta o bloco HTML da Linha do Tempo da conversa para inclusão no corpo do e-mail.
+ */
+function montarHtmlTimelineEmail(logs, emailSolicitante) {
+  if (!logs || logs.length === 0) return '';
+  
+  const total = logs.length;
+  const cardsHtml = logs.map(function(item, idx) {
+    const isUltima = idx === total - 1;
+    const autorLimpo = String(item.autor || 'Sistema Brisanet').trim();
+    const nomeAutor = autorLimpo.includes('@') ? autorLimpo.split('@')[0].replace('.', ' ') : autorLimpo;
+    const nomeFormatado = nomeAutor.charAt(0).toUpperCase() + nomeAutor.slice(1);
+    
+    const tipo = String(item.tipoAcao || '').toLowerCase();
+    const isSolicitante = tipo.includes('solicitante') || (emailSolicitante && autorLimpo.toLowerCase() === emailSolicitante.toLowerCase());
+    const isSistema = tipo.includes('aviso') || tipo.includes('cancelado') || autorLimpo.toLowerCase().includes('sistema');
+    
+    let corBorda = '#0B316D';
+    let corBadge = '#EFF6FF';
+    let corBadgeTexto = '#1D4ED8';
+    let rotuloPapel = 'Atendente / Equipe';
+    
+    if (isSistema) {
+      corBorda = '#D97706';
+      corBadge = '#FEF3C7';
+      corBadgeTexto = '#B45309';
+      rotuloPapel = 'Sistema';
+    } else if (isSolicitante) {
+      corBorda = '#2563EB';
+      corBadge = '#F1F5F9';
+      corBadgeTexto = '#334155';
+      rotuloPapel = 'Solicitante';
+    } else {
+      corBorda = '#FF5022';
+      corBadge = '#FFF1EE';
+      corBadgeTexto = '#C23610';
+      rotuloPapel = 'Atendente Telefonia';
+    }
+    
+    const badgeStatus = (item.novoStatus ? '<span style="font-size: 10px; font-weight: 700; color: #475569; background-color: #E2E8F0; padding: 2px 7px; border-radius: 4px; margin-left: 6px;">Status: ' + item.novoStatus + '</span>' : '');
+    const badgeMaisRecente = (isUltima && total > 1) ? '<span style="font-size: 10px; font-weight: 700; color: #FFFFFF; background-color: #059669; padding: 2px 7px; border-radius: 4px; margin-left: 6px; text-transform: uppercase;">Mais Recente</span>' : '';
+    
+    return [
+      '<div style="margin-bottom: 12px; background-color: #FFFFFF; border: 1px solid #E2E8F0; border-left: 4px solid ' + corBorda + '; border-radius: 0 10px 10px 0; padding: 12px 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.02);' + (isUltima ? ' background-color: #FAFCFF;' : '') + '">',
+      '  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 6px;">',
+      '    <tr>',
+      '      <td style="vertical-align: middle;">',
+      '        <div style="font-size: 12px; font-weight: 700; color: #0F172A;">',
+      '          ' + nomeFormatado + ' ',
+      '          <span style="font-size: 10px; font-weight: 700; color: ' + corBadgeTexto + '; background-color: ' + corBadge + '; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; margin-left: 4px;">' + (item.tipoAcao || rotuloPapel) + '</span>',
+      '          ' + badgeStatus,
+      '          ' + badgeMaisRecente,
+      '        </div>',
+      '        <div style="font-size: 11px; color: #64748B; margin-top: 2px;">' + autorLimpo + '</div>',
+      '      </td>',
+      '      <td style="text-align: right; vertical-align: top; white-space: nowrap; font-size: 11px; color: #94A3B8; font-weight: 600;">',
+      '        ' + item.dataHora,
+      '      </td>',
+      '    </tr>',
+      '  </table>',
+      '  <div style="font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-wrap; word-break: break-word; border-top: 1px dashed #E2E8F0; padding-top: 8px; margin-top: 6px;">' + formatarTextoComLinksHtml(item.mensagem) + '</div>',
+      '</div>'
+    ].join('\n');
+  }).join('\n');
+
+  return [
+    '<div style="margin-top: 24px; margin-bottom: 22px;">',
+    '  <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom: 12px; border-bottom: 2px solid #E2E8F0; padding-bottom: 6px;">',
+    '    <tr>',
+    '      <td style="font-size: 12px; font-weight: 700; color: #0B316D; text-transform: uppercase; letter-spacing: 0.6px;">',
+    '        Linha do Tempo da Conversa &bull; Histórico Completo',
+    '      </td>',
+    '      <td style="text-align: right; font-size: 11px; color: #64748B; font-weight: 600;">',
+    '        ' + total + ' interação(ões)',
+    '      </td>',
+    '    </tr>',
+    '  </table>',
+    '  <div style="font-size: 12px; color: #64748B; margin-bottom: 12px; line-height: 1.4;">',
+    '    Acompanhe abaixo o histórico cronológico de todas as mensagens e pareceres registrados para este chamado:',
+    '  </div>',
+    cardsHtml,
+    '</div>'
+  ].join('\n');
+}
+
+/**
+ * Monta o histórico textual da conversa para o corpo em texto plano (fallback).
+ */
+function montarTextoPlanoTimeline(logs) {
+  if (!logs || logs.length === 0) return '';
+  const linhas = [
+    '',
+    '------------------------------------------------------------',
+    'HISTÓRICO DA CONVERSA / TIMELINE DO CHAMADO',
+    '------------------------------------------------------------'
+  ];
+  for (let i = 0; i < logs.length; i++) {
+    const item = logs[i];
+    const tagRecente = (i === logs.length - 1 && logs.length > 1) ? ' [Mais recente]' : '';
+    const header = '[' + item.dataHora + '] ' + item.autor + ' (' + (item.tipoAcao || 'Interação') + ')' + (item.novoStatus ? ' [Status: ' + item.novoStatus + ']' : '') + tagRecente + ':';
+    linhas.push(header);
+    linhas.push(item.mensagem);
+    linhas.push('');
+  }
+  linhas.push('------------------------------------------------------------');
+  return linhas.join('\n');
+}
+
+/**
  * Template corporativo oficial de notificação por e-mail (brisanet).
  * Utiliza tipografia e paleta do projeto (Navy #0B316D, Laranja #FF5022, Cinza #E8E8E8).
- * Envia via GmailApp em nome do usuário conectado com os arquivos fisicamente anexados (attachments)
- * e disponibiliza botões de DOWNLOAD DIRETO dos arquivos no corpo da mensagem.
+ * Agrupa todas as respostas de um chamado na mesma conversa (Thread) e apresenta a
+ * timeline completa de todas as interações trocadas.
  */
 function enviarEmailNotificacao(params) {
+  const idChamado = params.idChamado;
+  const titulo = params.titulo || 'Atendimento Telefonia';
   const emailAtendente = params.autor || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
   const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
   const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
+
+  // Assunto unificado: todas as mensagens do ciclo de vida deste chamado utilizam o mesmo assunto,
+  // garantindo agrupamento nativo em thread no Gmail, Outlook e outros clientes de e-mail.
+  const assuntoUnificado = '[brisanet] Chamado ' + idChamado + ' - ' + titulo;
 
   // Link direto para o chamado no painel web
   const abaAlvo = params.aba || 'meus';
@@ -1238,7 +1425,7 @@ function enviarEmailNotificacao(params) {
   let linkChamado = '';
   if (urlBase) {
     const sep = urlBase.includes('?') ? '&' : '?';
-    linkChamado = urlBase + sep + 'chamado=' + encodeURIComponent(params.idChamado) + '&aba=' + encodeURIComponent(abaAlvo);
+    linkChamado = urlBase + sep + 'chamado=' + encodeURIComponent(idChamado) + '&aba=' + encodeURIComponent(abaAlvo);
   }
 
   // 1. Coletar Blobs dos anexos para envio como anexos físicos nativos no e-mail
@@ -1314,6 +1501,36 @@ function enviarEmailNotificacao(params) {
     ].join('\n');
   }
 
+  // 3. Obter histórico cronológico de interações do chamado para montagem da timeline da conversa
+  let historicoLogs = [];
+  try {
+    historicoLogs = obterHistoricoLogsParaEmail(idChamado);
+  } catch (eH) {
+    Logger.log('Aviso ao carregar histórico de interações: ' + eH.message);
+  }
+
+  // Garante que a mensagem atual esteja representada na timeline
+  const msgAtualLimpa = String(params.mensagem || '').trim();
+  if (msgAtualLimpa) {
+    const jaContemMsg = historicoLogs.some(function(item) {
+      return item.mensagem && (item.mensagem.indexOf(msgAtualLimpa) !== -1 || msgAtualLimpa.indexOf(item.mensagem) !== -1);
+    });
+    if (!jaContemMsg) {
+      historicoLogs.push({
+        dataHora: formatarData(new Date()),
+        dataRaw: Date.now(),
+        autor: emailAtendente,
+        tipoAcao: 'Mensagem / Parecer',
+        statusAnterior: '',
+        novoStatus: '',
+        mensagem: msgAtualLimpa
+      });
+    }
+  }
+
+  const htmlTimeline = montarHtmlTimelineEmail(historicoLogs, params.destinatario);
+  const textoPlanoTimeline = montarTextoPlanoTimeline(historicoLogs);
+
   const htmlCorpo = [
     '<!DOCTYPE html>',
     '<html>',
@@ -1345,34 +1562,36 @@ function enviarEmailNotificacao(params) {
     (linkChamado ? [
       '      <div style="margin-bottom: 18px;">',
       '        <a href="' + linkChamado + '" target="_blank" style="display: inline-block; padding: 6px 14px; background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; text-decoration: none;" title="Abrir chamado no painel">',
-      '          Protocolo: ' + params.idChamado + ' <span style="color: #2242D4; font-size: 12px; margin-left: 4px;">&#8599;</span>',
+      '          Protocolo: ' + idChamado + ' <span style="color: #2242D4; font-size: 12px; margin-left: 4px;">&#8599;</span>',
       '        </a>',
       '      </div>'
     ].join('\n') : [
       '      <div style="display: inline-block; padding: 5px 12px; background-color: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 8px; font-family: \'Rubik\', sans-serif; font-size: 13px; font-weight: 700; color: #0B316D; margin-bottom: 18px;">',
-      '        Protocolo: ' + params.idChamado,
+      '        Protocolo: ' + idChamado,
       '      </div>'
     ].join('\n')),
     '      ',
     '      <!-- Assunto -->',
     '      <h2 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 700; color: #0F172A; line-height: 1.4;">',
-    '        ' + params.titulo,
+    '        ' + titulo,
     '      </h2>',
     '      ',
-    '      <!-- Parecer Técnico / Mensagem -->',
+    '      <!-- Parecer Técnico / Mensagem Mais Recente -->',
     '      <div style="background-color: #F8FAFC; border-left: 4px solid #FF5022; border-top: 1px solid #E8E8E8; border-right: 1px solid #E8E8E8; border-bottom: 1px solid #E8E8E8; border-radius: 0 10px 10px 0; padding: 16px; margin-bottom: 22px;">',
     '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">',
-    '          Mensagem / Parecer:',
+    '          Última Mensagem / Parecer:',
     '        </div>',
-    '        <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + params.mensagem + '</div>',
+    '        <div style="font-size: 14px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + formatarTextoComLinksHtml(params.mensagem) + '</div>',
     '      </div>',
     '      ',
     htmlAnexos,
     '      ',
     '      <!-- Atendente Responsável -->',
     '      <div style="font-size: 12px; color: #64748B; margin-bottom: 20px;">',
-    '        Atendente responsável: <strong style="color: #0F172A;">' + emailAtendente + '</strong>',
+    '        Responsável pela atualização: <strong style="color: #0F172A;">' + emailAtendente + '</strong>',
     '      </div>',
+    '      ',
+    htmlTimeline,
     '      ',
     (linkChamado ? [
       '      <!-- Botão Direto para o Chamado -->',
@@ -1392,7 +1611,7 @@ function enviarEmailNotificacao(params) {
     '          COMUNICADO: NÃO RESPONDA A ESTE E-MAIL',
     '        </div>',
     '        <div style="font-size: 12px; color: #78350F; line-height: 1.5;">',
-    '          Respostas enviadas diretamente por e-mail <strong>não são recebidas nem monitoradas</strong>. ' + (linkChamado ? 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, <a href="' + linkChamado + '" target="_blank" style="color: #0B316D; font-weight: 700; text-decoration: underline;">clique aqui para acessar diretamente seu chamado em Meus Chamados</a>.' : 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, acesse a aba <strong>Meus Chamados</strong> no Painel Web.'),
+    '          Respostas enviadas diretamente por e-mail <strong>não são processadas</strong>. ' + (linkChamado ? 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, <a href="' + linkChamado + '" target="_blank" style="color: #0B316D; font-weight: 700; text-decoration: underline;">clique aqui para acessar diretamente seu chamado em Meus Chamados</a>.' : 'Para responder ao atendente, enviar esclarecimentos ou anexar novos documentos, acesse a aba <strong>Meus Chamados</strong> no Painel Web.'),
     '        </div>',
     '      </div>',
     '    </div>',
@@ -1407,20 +1626,21 @@ function enviarEmailNotificacao(params) {
   ].join('\n');
 
   const textoPlano = [
-    'Chamado: ' + params.idChamado,
-    'Assunto: ' + params.titulo,
+    'Chamado: ' + idChamado,
+    'Assunto: ' + titulo,
     '',
-    'Mensagem / Parecer:',
+    'ÚLTIMA MENSAGEM / PARECER:',
     params.mensagem,
     '',
-    (linkChamado ? 'Link direto para o chamado no painel:\n' + linkChamado + '\n\n' : ''),
     (params.anexos && params.anexos.length > 0 ? 'Anexos para download:\n' + params.anexos.map(function(a) { 
       const id = a.id || extrairIdDrive(a.url);
       const dl = a.downloadUrl || (id ? 'https://drive.google.com/uc?export=download&id=' + id : a.url);
       return '- ' + a.nome + ': ' + dl;
-    }).join('\n') : ''),
+    }).join('\n') + '\n\n' : ''),
+    textoPlanoTimeline,
     '',
-    'Atendente: ' + emailAtendente,
+    (linkChamado ? 'Link direto para o chamado no painel:\n' + linkChamado + '\n\n' : ''),
+    'Responsável: ' + emailAtendente,
     '',
     'COMUNICADO: NÃO RESPONDA A ESTE E-MAIL.',
     (linkChamado ? 'Para responder ou anexar arquivos, acesse o link:\n' + linkChamado : 'Acesse a aba Meus Chamados no Painel Web para interagir.')
@@ -1438,7 +1658,7 @@ function enviarEmailNotificacao(params) {
 
   const mailAppOptions = {
     to: params.destinatario,
-    subject: params.assunto,
+    subject: assuntoUnificado,
     body: textoPlano,
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
@@ -1449,14 +1669,63 @@ function enviarEmailNotificacao(params) {
     mailAppOptions.attachments = blobsAnexos;
   }
 
+  // 4. Envio com agrupamento na mesma conversa (Thread) no Gmail
   let enviado = false;
+
   try {
-    GmailApp.sendEmail(params.destinatario, params.assunto, textoPlano, options);
-    enviado = true;
-  } catch (errGmail) {
-    Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
+    const query = 'subject:("' + idChamado + '")';
+    const threads = GmailApp.search(query, 0, 5);
+    let threadEncontrada = null;
+
+    if (threads && threads.length > 0) {
+      for (let t = 0; t < threads.length; t++) {
+        const subj = threads[t].getFirstMessageSubject() || '';
+        if (subj.indexOf(idChamado) !== -1) {
+          threadEncontrada = threads[t];
+          break;
+        }
+      }
+    }
+
+    if (threadEncontrada) {
+      const msgs = threadEncontrada.getMessages();
+      const participantes = [];
+      msgs.forEach(function(m) {
+        participantes.push(m.getFrom(), m.getTo(), m.getCc());
+      });
+      const todosParticipantes = participantes.join(',').toLowerCase();
+      const dest = String(params.destinatario || '').toLowerCase().trim();
+
+      const replyOpts = {
+        htmlBody: htmlCorpo,
+        name: nomeFormatado + ' | Gestão de Telefonia brisanet',
+        replyTo: 'nao-responda@grupobrisanet.com.br'
+      };
+      if (blobsAnexos.length > 0) {
+        replyOpts.attachments = blobsAnexos;
+      }
+      if (dest && todosParticipantes.indexOf(dest) === -1) {
+        replyOpts.cc = params.destinatario;
+      }
+
+      threadEncontrada.replyAll(textoPlano, replyOpts);
+      enviado = true;
+    }
+  } catch (errThread) {
+    Logger.log('Aviso ao tentar responder na thread do Gmail: ' + errThread.message);
   }
 
+  // Fallback 1: Envia novo e-mail com o assunto unificado
+  if (!enviado) {
+    try {
+      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
+      enviado = true;
+    } catch (errGmail) {
+      Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
+    }
+  }
+
+  // Fallback 2: MailApp caso GmailApp falhe
   if (!enviado) {
     try {
       MailApp.sendEmail(mailAppOptions);
@@ -2635,21 +2904,67 @@ function enviarEmailNotificacaoVisita(params) {
   };
   if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
 
+  // Assunto unificado para agrupamento em conversa no Gmail/Outlook
+  const assuntoUnificado = '[brisanet] Visita ' + params.idVisita + ' - ' + (params.empresa || 'Solicitação Externa');
+
+  let enviado = false;
   try {
-    GmailApp.sendEmail(params.destinatario, params.assunto, textoPlano, options);
-  } catch (e1) {
-    try {
-      MailApp.sendEmail({
-        to: params.destinatario,
-        subject: params.assunto,
-        body: textoPlano,
+    const query = 'subject:("' + params.idVisita + '")';
+    const threads = GmailApp.search(query, 0, 5);
+    let threadEncontrada = null;
+    if (threads && threads.length > 0) {
+      for (let t = 0; t < threads.length; t++) {
+        const subj = threads[t].getFirstMessageSubject() || '';
+        if (subj.indexOf(params.idVisita) !== -1) {
+          threadEncontrada = threads[t];
+          break;
+        }
+      }
+    }
+    if (threadEncontrada) {
+      const msgs = threadEncontrada.getMessages();
+      const participantes = [];
+      msgs.forEach(function(m) {
+        participantes.push(m.getFrom(), m.getTo(), m.getCc());
+      });
+      const todosParticipantes = participantes.join(',').toLowerCase();
+      const dest = String(params.destinatario || '').toLowerCase().trim();
+
+      const replyOpts = {
         htmlBody: htmlCorpo,
         name: 'Gestão de Visitas | brisanet',
-        replyTo: emailAutor,
-        attachments: blobsAnexos
-      });
-    } catch (e2) {
-      Logger.log('Erro ao enviar e-mail de visita: ' + e2.message);
+        replyTo: emailAutor
+      };
+      if (blobsAnexos.length > 0) replyOpts.attachments = blobsAnexos;
+      if (dest && todosParticipantes.indexOf(dest) === -1) {
+        replyOpts.cc = params.destinatario;
+      }
+      threadEncontrada.replyAll(textoPlano, replyOpts);
+      enviado = true;
+    }
+  } catch (eThread) {
+    Logger.log('Aviso thread visita: ' + eThread.message);
+  }
+
+  if (!enviado) {
+    try {
+      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
+      enviado = true;
+    } catch (e1) {
+      try {
+        MailApp.sendEmail({
+          to: params.destinatario,
+          subject: assuntoUnificado,
+          body: textoPlano,
+          htmlBody: htmlCorpo,
+          name: 'Gestão de Visitas | brisanet',
+          replyTo: emailAutor,
+          attachments: blobsAnexos.length > 0 ? blobsAnexos : undefined
+        });
+        enviado = true;
+      } catch (e2) {
+        Logger.log('Erro ao enviar e-mail de visita: ' + e2.message);
+      }
     }
   }
 }
