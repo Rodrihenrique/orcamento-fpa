@@ -1905,16 +1905,86 @@ function enviarEmailNotificacao(params) {
     mailAppOptions.attachments = blobsAnexos;
   }
 
-  // 4. Envio direto e seguro: estritamente entre Atendente e Solicitante, com cópia exclusivamente para acompanhantes autorizados
+  // 4. Envio agrupado na mesma conversa (Thread) no Gmail
   let enviado = false;
+
   try {
-    GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
-    enviado = true;
-  } catch (errGmail) {
-    Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
+    let threads = GmailApp.search('subject:"' + idChamado + '"', 0, 5);
+    if (!threads || threads.length === 0) {
+      threads = GmailApp.search('"' + idChamado + '"', 0, 5);
+    }
+    if (!threads || threads.length === 0) {
+      threads = GmailApp.search(idChamado, 0, 5);
+    }
+
+    let threadEncontrada = null;
+    if (threads && threads.length > 0) {
+      for (let t = 0; t < threads.length; t++) {
+        const subj = threads[t].getFirstMessageSubject() || '';
+        if (subj.indexOf(idChamado) !== -1) {
+          threadEncontrada = threads[t];
+          break;
+        }
+      }
+      if (!threadEncontrada && threads.length > 0) {
+        threadEncontrada = threads[0];
+      }
+    }
+
+    if (threadEncontrada) {
+      const msgs = threadEncontrada.getMessages();
+      const participantes = [];
+      msgs.forEach(function(m) {
+        participantes.push(m.getFrom(), m.getTo(), m.getCc());
+      });
+      const todosParticipantes = participantes.join(',').toLowerCase();
+      const dest = String(params.destinatario || '').toLowerCase().trim();
+
+      const replyOpts = {
+        htmlBody: htmlCorpo,
+        name: nomeFormatado + ' | Gestão de Telefonia brisanet',
+        replyTo: 'nao-responda@grupobrisanet.com.br'
+      };
+      if (blobsAnexos.length > 0) {
+        replyOpts.attachments = blobsAnexos;
+      }
+
+      const ccList = [];
+      if (listaCc) {
+        listaCc.split(/[,;\s]+/).forEach(function(em) {
+          const emLimpo = em.trim().toLowerCase();
+          if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
+            ccList.push(emLimpo);
+          }
+        });
+      }
+      if (dest && todosParticipantes.indexOf(dest) === -1) {
+        if (ccList.indexOf(dest) === -1) {
+          ccList.push(dest);
+        }
+      }
+      if (ccList.length > 0) {
+        replyOpts.cc = ccList.join(', ');
+      }
+
+      threadEncontrada.replyAll(textoPlano, replyOpts);
+      enviado = true;
+    }
+  } catch (errThread) {
+    Logger.log('Aviso ao tentar responder na thread do chamado: ' + errThread.message);
   }
 
-  // Fallback: MailApp caso GmailApp falhe
+  // Fallback 1: Envia novo e-mail com o assunto padronizado caso seja o primeiro e-mail do chamado
+  if (!enviado) {
+    try {
+      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
+      enviado = true;
+    } catch (errGmail) {
+      Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
+    }
+  }
+
+  // Fallback 2: MailApp caso GmailApp falhe
   if (!enviado) {
     try {
       MailApp.sendEmail(mailAppOptions);
@@ -2230,10 +2300,23 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
     const urlWeb = obterUrlPortalVisitas();
     const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
 
-    // Enviar confirmação por e-mail ao visitante externo (assunto padronizado para agrupamento em conversa)
+    // Notificar visitante externo e administradores cadastrados em cópia (CC) em um único e-mail/thread
     try {
+      const config = obterConfiguracoesIniciais();
+      const administradores = config.administradores || [];
+      const adminsCc = [];
+      administradores.forEach(function(adminEmail) {
+        if (adminEmail && adminEmail.includes('@')) {
+          const limpo = adminEmail.trim().toLowerCase();
+          if (limpo !== emailResponsavel.toLowerCase() && adminsCc.indexOf(limpo) === -1) {
+            adminsCc.push(limpo);
+          }
+        }
+      });
+
       enviarEmailNotificacaoVisita({
         destinatario: emailResponsavel,
+        cc: adminsCc.join(', '),
         assunto: '[brisanet] Visita ' + idVisita + ' - ' + empresa,
         idVisita: idVisita,
         empresa: empresa,
@@ -2245,31 +2328,6 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
       });
     } catch (eMail) {
       Logger.log('Aviso ao enviar e-mail de confirmação de visita: ' + eMail.message);
-    }
-
-    // Notificar administradores cadastrados
-    try {
-      const config = obterConfiguracoesIniciais();
-      const administradores = config.administradores || [];
-      const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
-
-      administradores.forEach(function(adminEmail) {
-        if (adminEmail && adminEmail.includes('@')) {
-          enviarEmailNotificacaoVisita({
-            destinatario: adminEmail,
-            assunto: '[brisanet] Visita ' + idVisita + ' - ' + empresa,
-            idVisita: idVisita,
-            empresa: empresa,
-            periodo: (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || ''),
-            status: 'Pendente',
-            mensagem: 'Nova solicitação de visita corporativa recebida de ' + empresa + ' para o período de ' + (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || '') + '. Acesse a aba Gestão de Visitas para analisar a agenda e salas.',
-            linkAcompanhamento: linkAdmin,
-            anexos: urlsAnexos
-          });
-        }
-      });
-    } catch (eAdminMail) {
-      Logger.log('Aviso ao notificar administradores de nova visita: ' + eAdminMail.message);
     }
 
     return {
@@ -3205,11 +3263,87 @@ function enviarEmailNotificacaoVisita(params) {
   // Assunto unificado para agrupamento em conversa no Gmail/Outlook
   const assuntoUnificado = '[brisanet] Visita ' + params.idVisita + ' - ' + (params.empresa || 'Solicitação Externa');
 
+  // 4. Envio agrupado na mesma conversa (Thread) no Gmail
   let enviado = false;
+
   try {
-    GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
-    enviado = true;
-  } catch (e1) {
+    let threads = GmailApp.search('subject:"' + params.idVisita + '"', 0, 5);
+    if (!threads || threads.length === 0) {
+      threads = GmailApp.search('"' + params.idVisita + '"', 0, 5);
+    }
+    if (!threads || threads.length === 0) {
+      threads = GmailApp.search(params.idVisita, 0, 5);
+    }
+
+    let threadEncontrada = null;
+    if (threads && threads.length > 0) {
+      for (let t = 0; t < threads.length; t++) {
+        const subj = threads[t].getFirstMessageSubject() || '';
+        if (subj.indexOf(params.idVisita) !== -1) {
+          threadEncontrada = threads[t];
+          break;
+        }
+      }
+      if (!threadEncontrada && threads.length > 0) {
+        threadEncontrada = threads[0];
+      }
+    }
+
+    if (threadEncontrada) {
+      const msgs = threadEncontrada.getMessages();
+      const participantes = [];
+      msgs.forEach(function(m) {
+        participantes.push(m.getFrom(), m.getTo(), m.getCc());
+      });
+      const todosParticipantes = participantes.join(',').toLowerCase();
+      const dest = String(params.destinatario || '').toLowerCase().trim();
+
+      const replyOpts = {
+        htmlBody: htmlCorpo,
+        name: 'Gestão de Visitas | brisanet',
+        replyTo: emailAutor || 'nao-responda@grupobrisanet.com.br'
+      };
+      if (blobsAnexos.length > 0) {
+        replyOpts.attachments = blobsAnexos;
+      }
+
+      const ccList = [];
+      if (listaCc) {
+        listaCc.split(/[,;\s]+/).forEach(function(em) {
+          const emLimpo = em.trim().toLowerCase();
+          if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
+            ccList.push(emLimpo);
+          }
+        });
+      }
+      if (dest && todosParticipantes.indexOf(dest) === -1) {
+        if (ccList.indexOf(dest) === -1) {
+          ccList.push(dest);
+        }
+      }
+      if (ccList.length > 0) {
+        replyOpts.cc = ccList.join(', ');
+      }
+
+      threadEncontrada.replyAll(textoPlano, replyOpts);
+      enviado = true;
+    }
+  } catch (errThread) {
+    Logger.log('Aviso ao tentar responder na thread da visita: ' + errThread.message);
+  }
+
+  // Fallback 1: Envia novo e-mail com o assunto padronizado caso seja a primeira mensagem da visita
+  if (!enviado) {
+    try {
+      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
+      enviado = true;
+    } catch (errGmail) {
+      Logger.log('Aviso GmailApp Visita: ' + errGmail.message + ' - utilizando MailApp...');
+    }
+  }
+
+  // Fallback 2: MailApp caso GmailApp falhe
+  if (!enviado) {
     try {
       MailApp.sendEmail({
         to: params.destinatario,
@@ -3222,8 +3356,8 @@ function enviarEmailNotificacaoVisita(params) {
         attachments: blobsAnexos.length > 0 ? blobsAnexos : undefined
       });
       enviado = true;
-    } catch (e2) {
-      Logger.log('Erro ao enviar e-mail de visita: ' + e2.message);
+    } catch (errMail) {
+      Logger.log('Erro final ao enviar e-mail de visita: ' + errMail.message);
     }
   }
 }
