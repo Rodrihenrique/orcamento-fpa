@@ -57,3 +57,9 @@ Localizado no diretório [`orcamento-2028/`](./orcamento-2028/):
 * Sincronização direta e bidirecional com Google Sheets (`OPEX_Dados`, `CAPEX_Dados`, `Importacao`).
 * Suporte completo a atalhos, navegação por teclado e colar (copy/paste) diretamente de planilhas Excel.
 * Veja as instruções completas no [`README.md`](./orcamento-2028/README.md) do módulo.
+
+### 4. Automação de Abastecimento e Custos de Frotas
+Localizado no diretório [`apps-script/Importacao_Abastecimento_Frota.js`](./apps-script/Importacao_Abastecimento_Frota.js):
+* Importação e processamento automático de extratos de faturamento de abastecimento (Ticket Log / `RFCV_*.csv`).
+* Direcionamento mensal para as planilhas da pasta `CUSTOS DO SETOR > OPERAÇÃO E MANUTENÇÃO DE REDES > 2026` (aba `Base_Abastecimento`).
+* Padronização de dados, extração dinâmica de período/mês, conversão monetária e filtragem por colaboradores do setor.
