@@ -110,6 +110,29 @@ function obterConfiguracoesIniciais() {
 }
 
 /**
+ * Retorna o e-mail do administrador padrão cadastrado no sistema (ou o usuário ativo da sessão)
+ * sem utilizar endereços inexistentes como telefonia@brisanet.com.br.
+ */
+function obterEmailAdminPadrao() {
+  const usuarioAtivo = (Session.getActiveUser().getEmail() || '').trim().toLowerCase();
+  if (usuarioAtivo && usuarioAtivo.includes('@') && usuarioAtivo !== 'usuario@brisanet.com.br' && usuarioAtivo.indexOf('telefonia@') === -1) {
+    return usuarioAtivo;
+  }
+  try {
+    const config = obterConfiguracoesIniciais();
+    if (config.administradores && config.administradores.length > 0) {
+      for (let i = 0; i < config.administradores.length; i++) {
+        const adm = String(config.administradores[i] || '').trim().toLowerCase();
+        if (adm && adm.includes('@') && adm.indexOf('telefonia@') === -1) {
+          return adm;
+        }
+      }
+    }
+  } catch (e) {}
+  return (usuarioAtivo && usuarioAtivo.indexOf('telefonia@') === -1) ? usuarioAtivo : '';
+}
+
+/**
  * Concede permissão de edição a uma pasta/arquivo no Google Drive SEM enviar e-mail de notificação.
  * Utiliza a API REST v3 do Google Drive com sendNotificationEmail=false.
  */
@@ -604,8 +627,14 @@ function sanitizarEmailsAcompanhantes(strEmails) {
   partes.forEach(function(p) {
     const limpo = p.trim().toLowerCase();
     if (limpo && regexEmail.test(limpo)) {
-      if (emailsValidos.indexOf(limpo) === -1) {
-        emailsValidos.push(limpo);
+      if (limpo.indexOf('nao-responda') === -1 &&
+          limpo.indexOf('mailer-daemon') === -1 &&
+          limpo.indexOf('delivery subsystem') === -1 &&
+          limpo.indexOf('googlemail.com') === -1 &&
+          limpo.indexOf('telefonia@') === -1) {
+        if (emailsValidos.indexOf(limpo) === -1) {
+          emailsValidos.push(limpo);
+        }
       }
     }
   });
@@ -755,7 +784,7 @@ function processarPendenciasAguardandoRetorno(ss) {
               idChamado: idChamado,
               titulo: tituloChamado,
               mensagem: 'Informamos que o chamado ' + idChamado + ' permaneceu por 7 dias corridos no status "Aguardando Retorno" sem manifestação ou envio dos dados solicitados, e por isso foi cancelado automaticamente pelo sistema.\n\nCaso ainda necessite de atendimento da Telefonia Brisanet, por favor registre um novo chamado na plataforma.',
-              autor: 'telefonia@brisanet.com.br',
+              autor: obterEmailAdminPadrao(),
               anexos: [],
               aba: 'meus'
             });
@@ -792,7 +821,7 @@ function processarPendenciasAguardandoRetorno(ss) {
               idChamado: idChamado,
               titulo: tituloChamado,
               mensagem: 'Prezado(a) solicitante,\n\nIdentificamos que seu chamado encontra-se com o status "Aguardando Retorno" há 4 dias corridos.\n\nLembramos que, de acordo com as normas da Telefonia Brisanet, chamados sem manifestação por 7 dias corridos são cancelados automaticamente pelo sistema.\n\nRestam 3 dias corridos para o cancelamento automático desta solicitação. Caso ainda necessite de atendimento, acesse seu chamado pelo link abaixo e envie as informações ou documentos solicitados.',
-              autor: 'telefonia@brisanet.com.br',
+              autor: obterEmailAdminPadrao(),
               anexos: [],
               aba: 'meus'
             });
@@ -1654,8 +1683,10 @@ function montarTextoPlanoTimeline(logs) {
 function enviarEmailNotificacao(params) {
   const idChamado = params.idChamado;
   const titulo = params.titulo || 'Atendimento Telefonia';
-  const emailAtendente = params.autor || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
-  const nomeAtendente = emailAtendente.split('@')[0].replace('.', ' ');
+  const emailAtendente = (params.autor && params.autor.indexOf('telefonia@') === -1) 
+    ? params.autor 
+    : (Session.getActiveUser().getEmail() || obterEmailAdminPadrao());
+  const nomeAtendente = emailAtendente.includes('@') ? emailAtendente.split('@')[0].replace('.', ' ') : 'Atendimento Telefonia';
   const nomeFormatado = nomeAtendente.charAt(0).toUpperCase() + nomeAtendente.slice(1);
 
   // Assunto unificado: todas as mensagens do ciclo de vida deste chamado utilizam o mesmo assunto,
@@ -1969,7 +2000,9 @@ function enviarEmailNotificacao(params) {
         for (let m = msgsThread.length - 1; m >= 0; m--) {
           const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
           if (fromMsg.indexOf('mailer-daemon') === -1 &&
-              fromMsg.indexOf('delivery subsystem') === -1) {
+              fromMsg.indexOf('delivery subsystem') === -1 &&
+              fromMsg.indexOf('nao-responda') === -1 &&
+              fromMsg.indexOf('telefonia@') === -1) {
             mensagemAlvo = msgsThread[m];
             threadEncontrada = thread;
             break;
@@ -2000,7 +2033,8 @@ function enviarEmailNotificacao(params) {
             if (emLimpo.indexOf('nao-responda') === -1 &&
                 emLimpo.indexOf('mailer-daemon') === -1 &&
                 emLimpo.indexOf('delivery subsystem') === -1 &&
-                emLimpo.indexOf('googlemail.com') === -1) {
+                emLimpo.indexOf('googlemail.com') === -1 &&
+                emLimpo.indexOf('telefonia@') === -1) {
               ccList.push(emLimpo);
             }
           }
@@ -2013,11 +2047,17 @@ function enviarEmailNotificacao(params) {
       const destPrincipal = String(params.destinatario || '').toLowerCase().trim();
 
       const contemLixoOriginal = (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('nao-responda') !== -1 ||
-                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1;
+                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1 ||
+                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('telefonia@') !== -1;
 
       if (contemLixoOriginal) {
-        // Mensagem com resquício de nao-responda em To/Cc: usa reply() simples ao remetente humano e adiciona os demais em CC limpo
-        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+        // Mensagem com resquício de endereços inválidos (telefonia@, nao-responda, mailer-daemon) em To/Cc:
+        // usa reply() simples ao remetente humano e adiciona os demais em CC limpo,
+        // garantindo que o Gmail NÃO tente entregar a telefonia@ ou robôs.
+        if (destPrincipal &&
+            destPrincipal.indexOf('nao-responda') === -1 &&
+            destPrincipal.indexOf('mailer-daemon') === -1 &&
+            destPrincipal.indexOf('telefonia@') === -1) {
           if (fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
             ccList.push(destPrincipal);
           }
@@ -2029,7 +2069,10 @@ function enviarEmailNotificacao(params) {
         enviado = true;
       } else {
         // Mensagem limpa: replyAll
-        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+        if (destPrincipal &&
+            destPrincipal.indexOf('nao-responda') === -1 &&
+            destPrincipal.indexOf('mailer-daemon') === -1 &&
+            destPrincipal.indexOf('telefonia@') === -1) {
           if (toMsgAlvo.indexOf(destPrincipal) === -1 && fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
             ccList.push(destPrincipal);
           }
@@ -2810,7 +2853,9 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
   }
 
   const agora = new Date();
-  const emailAtendente = atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
+  const emailAtendente = (atendenteEmail && atendenteEmail.indexOf('telefonia@') === -1)
+    ? atendenteEmail
+    : (Session.getActiveUser().getEmail() || (visitaObj.atendente && visitaObj.atendente.indexOf('telefonia@') === -1 ? visitaObj.atendente : obterEmailAdminPadrao()));
 
   // Atualizar lista de acompanhantes se fornecida pelo atendente
   let emailsAcompFinal = visitaObj.emailsAcompanhantes || '';
@@ -2966,7 +3011,9 @@ function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase
   try {
     const urlWeb = obterUrlWebApp();
     const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
-    const destinatarioAdmin = visitaObj.atendente || 'telefonia@brisanet.com.br';
+    const destinatarioAdmin = (visitaObj.atendente && visitaObj.atendente.indexOf('telefonia@') === -1)
+      ? visitaObj.atendente
+      : obterEmailAdminPadrao();
 
     enviarEmailNotificacaoVisita({
       destinatario: destinatarioAdmin,
@@ -3162,7 +3209,9 @@ function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
       try {
         const urlWeb = obterUrlWebApp();
         const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
-        const destinatarioAdmin = visitaAntiga.atendente || 'telefonia@brisanet.com.br';
+        const destinatarioAdmin = (visitaAntiga.atendente && visitaAntiga.atendente.indexOf('telefonia@') === -1)
+          ? visitaAntiga.atendente
+          : obterEmailAdminPadrao();
 
         enviarEmailNotificacaoVisita({
           destinatario: destinatarioAdmin,
@@ -3202,8 +3251,12 @@ function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
 function enviarEmailNotificacaoVisita(params) {
   const idVisita = params.idVisita;
   const empresaTitulo = String(params.empresa || '').trim() || 'Visita Corporativa';
-  const emailAutor = params.autorEmail || params.atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
-  const nomeAutor = emailAutor.split('@')[0].replace('.', ' ');
+  const emailAutor = (params.autorEmail && params.autorEmail.indexOf('telefonia@') === -1)
+    ? params.autorEmail
+    : ((params.atendenteEmail && params.atendenteEmail.indexOf('telefonia@') === -1)
+      ? params.atendenteEmail
+      : (Session.getActiveUser().getEmail() || obterEmailAdminPadrao()));
+  const nomeAutor = emailAutor.includes('@') ? emailAutor.split('@')[0].replace('.', ' ') : 'Gestão de Visitas';
   const nomeFormatado = nomeAutor.charAt(0).toUpperCase() + nomeAutor.slice(1);
 
   const statusCor = {
@@ -3498,12 +3551,14 @@ function enviarEmailNotificacaoVisita(params) {
           continue;
         }
 
-        // Procura a última mensagem humana válida na thread (ignorando robôs de entrega mailer-daemon)
+        // Procura a última mensagem humana válida na thread (ignorando robôs de entrega mailer-daemon e e-mails inexistentes)
         const msgsThread = thread.getMessages();
         for (let m = msgsThread.length - 1; m >= 0; m--) {
           const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
           if (fromMsg.indexOf('mailer-daemon') === -1 &&
-              fromMsg.indexOf('delivery subsystem') === -1) {
+              fromMsg.indexOf('delivery subsystem') === -1 &&
+              fromMsg.indexOf('nao-responda') === -1 &&
+              fromMsg.indexOf('telefonia@') === -1) {
             mensagemAlvo = msgsThread[m];
             threadEncontrada = thread;
             break;
@@ -3534,7 +3589,8 @@ function enviarEmailNotificacaoVisita(params) {
             if (emLimpo.indexOf('nao-responda') === -1 &&
                 emLimpo.indexOf('mailer-daemon') === -1 &&
                 emLimpo.indexOf('delivery subsystem') === -1 &&
-                emLimpo.indexOf('googlemail.com') === -1) {
+                emLimpo.indexOf('googlemail.com') === -1 &&
+                emLimpo.indexOf('telefonia@') === -1) {
               ccList.push(emLimpo);
             }
           }
@@ -3547,11 +3603,17 @@ function enviarEmailNotificacaoVisita(params) {
       const destPrincipal = String(params.destinatario || '').toLowerCase().trim();
 
       const contemLixoOriginal = (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('nao-responda') !== -1 ||
-                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1;
+                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1 ||
+                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('telefonia@') !== -1;
 
       if (contemLixoOriginal) {
-        // Mensagem contaminada com nao-responda: reply() simples ao remetente humano e adiciona os demais em CC limpo
-        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+        // Mensagem com resquício de endereços inválidos (telefonia@, nao-responda, mailer-daemon) em To/Cc:
+        // usa reply() simples ao remetente humano e adiciona os demais em CC limpo,
+        // garantindo que o Gmail NÃO tente entregar a telefonia@ ou robôs.
+        if (destPrincipal &&
+            destPrincipal.indexOf('nao-responda') === -1 &&
+            destPrincipal.indexOf('mailer-daemon') === -1 &&
+            destPrincipal.indexOf('telefonia@') === -1) {
           if (fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
             ccList.push(destPrincipal);
           }
@@ -3563,7 +3625,10 @@ function enviarEmailNotificacaoVisita(params) {
         enviado = true;
       } else {
         // Mensagem limpa: replyAll
-        if (destPrincipal && destPrincipal.indexOf('nao-responda') === -1 && destPrincipal.indexOf('mailer-daemon') === -1) {
+        if (destPrincipal &&
+            destPrincipal.indexOf('nao-responda') === -1 &&
+            destPrincipal.indexOf('mailer-daemon') === -1 &&
+            destPrincipal.indexOf('telefonia@') === -1) {
           if (toMsgAlvo.indexOf(destPrincipal) === -1 && fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
             ccList.push(destPrincipal);
           }
