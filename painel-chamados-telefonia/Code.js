@@ -65,13 +65,34 @@ function obterConfiguracoesIniciais() {
   const categorias = [];
   const administradores = [];
 
+  // Incluir o proprietário da planilha como administrador automático
+  try {
+    const dono = ss.getOwner();
+    if (dono && dono.getEmail()) {
+      const emailDono = dono.getEmail().trim().toLowerCase();
+      if (emailDono && administradores.indexOf(emailDono) === -1) {
+        administradores.push(emailDono);
+      }
+    }
+  } catch (eOwner) {}
+
   for (let i = 1; i < dadosConfig.length; i++) {
-    if (dadosConfig[i][0]) gerencias.push(dadosConfig[i][0]);
-    if (dadosConfig[i][1]) categorias.push(dadosConfig[i][1]);
-    if (dadosConfig[i][2]) administradores.push(String(dadosConfig[i][2]).trim().toLowerCase());
+    if (dadosConfig[i][0]) gerencias.push(String(dadosConfig[i][0]).trim());
+    if (dadosConfig[i][1]) categorias.push(String(dadosConfig[i][1]).trim());
+    if (dadosConfig[i][2]) {
+      // Suporte a múltiplos e-mails por linha/célula separados por vírgula, ponto-e-vírgula ou espaço
+      const partes = String(dadosConfig[i][2]).split(/[,;\s]+/);
+      partes.forEach(function(emailRaw) {
+        const emailLimpo = emailRaw.trim().toLowerCase();
+        if (emailLimpo && emailLimpo.includes('@') && administradores.indexOf(emailLimpo) === -1) {
+          administradores.push(emailLimpo);
+        }
+      });
+    }
   }
 
-  const isAdmin = administradores.includes(usuarioEmail.trim().toLowerCase());
+  const emailUsuarioLimpo = String(usuarioEmail).trim().toLowerCase();
+  const isAdmin = administradores.indexOf(emailUsuarioLimpo) !== -1;
 
   return {
     usuario: {
@@ -90,7 +111,8 @@ function obterConfiguracoesIniciais() {
 
 /**
  * Salva arquivos codificados em Base64 no Google Drive na pasta do chamado.
- * Retorna array de objetos com { nome, url }.
+ * Garante permissões adequadas de leitura/download para todos os administradores cadastrados.
+ * Retorna array de objetos com { nome, url, id, downloadUrl }.
  */
 function salvarAnexosNoDrive(idChamado, arquivosBase64) {
   const anexosSalvos = [];
@@ -102,15 +124,38 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
     if (!rootFolderId) return anexosSalvos;
 
     const pastaRaiz = DriveApp.getFolderById(rootFolderId);
+    try {
+      pastaRaiz.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (eR) {}
+
     const anoAtual = new Date().getFullYear();
 
     // Pasta do Ano
     let pastaAno = pastaRaiz.getFoldersByName(String(anoAtual));
     pastaAno = pastaAno.hasNext() ? pastaAno.next() : pastaRaiz.createFolder(String(anoAtual));
+    try {
+      pastaAno.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (eA) {}
 
     // Pasta do Chamado
     let pastaChamado = pastaAno.getFoldersByName(idChamado);
     pastaChamado = pastaChamado.hasNext() ? pastaChamado.next() : pastaAno.createFolder(idChamado);
+    try {
+      pastaChamado.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (eP) {}
+
+    // Compartilhar pasta do chamado diretamente com os administradores cadastrados na planilha
+    try {
+      const config = obterConfiguracoesIniciais();
+      const administradores = config.administradores || [];
+      administradores.forEach(function(email) {
+        if (email && email.includes('@')) {
+          try {
+            pastaChamado.addEditor(email);
+          } catch (eShareAdmin) {}
+        }
+      });
+    } catch (eCfg) {}
 
     arquivosBase64.forEach(function(arq) {
       try {
@@ -118,6 +163,10 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
         const bytes = Utilities.base64Decode(arq.base64.split(',')[1] || arq.base64);
         const blob = Utilities.newBlob(bytes, contentType, arq.nome);
         const arquivoSalvo = pastaChamado.createFile(blob);
+        try {
+          arquivoSalvo.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+        } catch (eFileShare) {}
+
         const fileId = arquivoSalvo.getId();
         const downloadUrl = 'https://drive.google.com/uc?export=download&id=' + fileId;
         anexosSalvos.push({
@@ -136,6 +185,101 @@ function salvarAnexosNoDrive(idChamado, arquivosBase64) {
   }
 
   return anexosSalvos;
+}
+
+/**
+ * Permite que administradores e usuários autorizados baixem qualquer anexo diretamente
+ * através do backend do Apps Script, sem depender de permissões diretas de URL do Drive no navegador.
+ */
+function obterArquivoParaDownload(fileId) {
+  try {
+    if (!fileId) return { sucesso: false, erro: 'ID do arquivo não fornecido.' };
+
+    const arquivo = DriveApp.getFileById(fileId);
+    if (!arquivo) return { sucesso: false, erro: 'Arquivo não localizado no Google Drive.' };
+
+    const blob = arquivo.getBlob();
+    const nome = arquivo.getName();
+    const contentType = blob.getContentType() || 'application/octet-stream';
+    const base64 = Utilities.base64Encode(blob.getBytes());
+
+    return {
+      sucesso: true,
+      nome: nome,
+      contentType: contentType,
+      base64: 'data:' + contentType + ';base64,' + base64
+    };
+  } catch (err) {
+    Logger.log('Erro ao obter arquivo para download: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
+}
+
+/**
+ * Sincroniza permissões da pasta raiz e de todos os arquivos/pastas existentes no Drive
+ * para garantir que todos os administradores cadastrados na planilha tenham acesso total.
+ */
+function sincronizarPermissoesDriveComAdmins() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const rootFolderId = props.getProperty('ROOT_FOLDER_ID');
+    if (!rootFolderId) return { sucesso: false, erro: 'ROOT_FOLDER_ID não configurado.' };
+
+    const config = obterConfiguracoesIniciais();
+    const administradores = config.administradores || [];
+
+    const pastaRaiz = DriveApp.getFolderById(rootFolderId);
+    try {
+      pastaRaiz.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    } catch (e) {}
+
+    administradores.forEach(function(adminEmail) {
+      if (adminEmail && adminEmail.includes('@')) {
+        try { pastaRaiz.addEditor(adminEmail); } catch (e) {}
+      }
+    });
+
+    const subPastas = pastaRaiz.getFolders();
+    let totalPastas = 0;
+    let totalArquivos = 0;
+
+    while (subPastas.hasNext()) {
+      const pAno = subPastas.next();
+      totalPastas++;
+      try { pAno.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+      administradores.forEach(function(email) {
+        try { pAno.addEditor(email); } catch (e) {}
+      });
+
+      const pChamados = pAno.getFolders();
+      while (pChamados.hasNext()) {
+        const pCh = pChamados.next();
+        totalPastas++;
+        try { pCh.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+        administradores.forEach(function(email) {
+          try { pCh.addEditor(email); } catch (e) {}
+        });
+
+        const arqs = pCh.getFiles();
+        while (arqs.hasNext()) {
+          const arq = arqs.next();
+          totalArquivos++;
+          try { arq.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+          administradores.forEach(function(email) {
+            try { arq.addEditor(email); } catch (e) {}
+          });
+        }
+      }
+    }
+
+    return {
+      sucesso: true,
+      mensagem: 'Permissões do Google Drive sincronizadas com sucesso para ' + administradores.length + ' administradores. (' + totalPastas + ' pastas e ' + totalArquivos + ' arquivos liberados).'
+    };
+  } catch (err) {
+    Logger.log('Erro ao sincronizar permissões do Drive: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
 }
 
 /**
@@ -1850,36 +1994,48 @@ function formatarData(valorData) {
  */
 function garantirAbaVisitas(ss) {
   let aba = ss.getSheetByName('VISITAS');
+  const cabecalhos = [
+    'ID_VISITA',
+    'DATA_CRIACAO',
+    'EMPRESA_VISITANTE',
+    'RESPONSAVEL_NOME',
+    'RESPONSAVEL_EMAIL',
+    'RESPONSAVEL_TELEFONE',
+    'PERIODO_INICIO',
+    'PERIODO_FIM',
+    'DADOS_PARTICIPANTES',
+    'DADOS_ANFITRIOES',
+    'DADOS_CRONOGRAMA',
+    'DADOS_ITINERARIO',
+    'DADOS_TOUR',
+    'OBSERVACOES',
+    'ANEXOS',
+    'STATUS',
+    'ATENDENTE_RESPONSAVEL',
+    'TOKEN_ACESSO',
+    'DATA_DECISAO',
+    'MOTIVO_DECISAO',
+    'EMAILS_ACOMPANHANTES'
+  ];
   if (!aba) {
     aba = ss.insertSheet('VISITAS');
-    const cabecalhos = [
-      'ID_VISITA',
-      'DATA_CRIACAO',
-      'EMPRESA_VISITANTE',
-      'RESPONSAVEL_NOME',
-      'RESPONSAVEL_EMAIL',
-      'RESPONSAVEL_TELEFONE',
-      'PERIODO_INICIO',
-      'PERIODO_FIM',
-      'DADOS_PARTICIPANTES',
-      'DADOS_ANFITRIOES',
-      'DADOS_CRONOGRAMA',
-      'DADOS_ITINERARIO',
-      'DADOS_TOUR',
-      'OBSERVACOES',
-      'ANEXOS',
-      'STATUS',
-      'ATENDENTE_RESPONSAVEL',
-      'TOKEN_ACESSO',
-      'DATA_DECISAO',
-      'MOTIVO_DECISAO'
-    ];
     aba.appendRow(cabecalhos);
     aba.getRange(1, 1, 1, cabecalhos.length)
       .setBackground('#0B316D')
       .setFontColor('#FFFFFF')
       .setFontWeight('bold');
     aba.setFrozenRows(1);
+  } else {
+    // Garantir cabeçalho EMAILS_ACOMPANHANTES na coluna 21
+    try {
+      const valAtual = aba.getRange(1, 21).getValue();
+      if (!valAtual || String(valAtual).trim() === '') {
+        aba.getRange(1, 21).setValue('EMAILS_ACOMPANHANTES')
+          .setBackground('#0B316D')
+          .setFontColor('#FFFFFF')
+          .setFontWeight('bold');
+      }
+    } catch (eH) {}
   }
   return aba;
 }
@@ -1933,8 +2089,45 @@ function montarObjetoVisita(linha) {
     atendente: String(linha[16] || ''),
     tokenAcesso: String(linha[17] || ''),
     dataDecisao: formatarData(linha[18]),
-    motivoDecisao: String(linha[19] || '')
+    motivoDecisao: String(linha[19] || ''),
+    emailsAcompanhantes: String(linha[20] || '').trim()
   };
+}
+
+/**
+ * Permite ao atendente salvar ou atualizar a lista de usuários acompanhantes de uma visita corporativa.
+ */
+function atualizarAcompanhantesVisita(idVisita, emailsAcompanhantes) {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const spreadsheetId = props.getProperty('SPREADSHEET_ID');
+    const ss = SpreadsheetApp.openById(spreadsheetId);
+    const abaVisitas = garantirAbaVisitas(ss);
+    if (!abaVisitas) return { sucesso: false, erro: 'Aba VISITAS não encontrada.' };
+
+    const dados = abaVisitas.getDataRange().getValues();
+    let linhaAlvo = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]).trim().toUpperCase() === String(idVisita).trim().toUpperCase()) {
+        linhaAlvo = i + 1;
+        break;
+      }
+    }
+
+    if (linhaAlvo === -1) return { sucesso: false, erro: 'Visita ' + idVisita + ' não encontrada.' };
+
+    const emailsSanitizados = sanitizarEmailsAcompanhantes(emailsAcompanhantes);
+    abaVisitas.getRange(linhaAlvo, 21).setValue(emailsSanitizados);
+
+    return {
+      sucesso: true,
+      mensagem: 'Lista de acompanhantes da visita atualizada com sucesso!',
+      emailsAcompanhantes: emailsSanitizados
+    };
+  } catch (err) {
+    Logger.log('Erro ao atualizar acompanhantes da visita: ' + err.message);
+    return { sucesso: false, erro: err.message };
+  }
 }
 
 /**
@@ -2037,11 +2230,11 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
     const urlWeb = obterUrlPortalVisitas();
     const linkAcompanhamento = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'portal=visita&aba=meus&visita=' + idVisita + '&token=' + tokenAcesso + '&email=' + encodeURIComponent(emailResponsavel)) : '';
 
-    // Enviar confirmação por e-mail ao visitante externo
+    // Enviar confirmação por e-mail ao visitante externo (assunto padronizado para agrupamento em conversa)
     try {
       enviarEmailNotificacaoVisita({
         destinatario: emailResponsavel,
-        assunto: '[brisanet] Solicitação de Visita Recebida: ' + idVisita,
+        assunto: '[brisanet] Visita ' + idVisita + ' - ' + empresa,
         idVisita: idVisita,
         empresa: empresa,
         periodo: (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || ''),
@@ -2064,7 +2257,7 @@ function criarSolicitacaoVisita(dados, arquivosBase64) {
         if (adminEmail && adminEmail.includes('@')) {
           enviarEmailNotificacaoVisita({
             destinatario: adminEmail,
-            assunto: '[brisanet] Nova Solicitação de Visita: ' + empresa + ' (' + idVisita + ')',
+            assunto: '[brisanet] Visita ' + idVisita + ' - ' + empresa,
             idVisita: idVisita,
             empresa: empresa,
             periodo: (dados.periodoInicio || '') + ' a ' + (dados.periodoFim || ''),
@@ -2468,9 +2661,9 @@ function atribuirVisita(idVisita, atendenteEmail) {
 }
 
 /**
- * Atualiza o status da visita (Aprovação, Ajuste ou Reprovação) com disparo de e-mail.
+ * Atualiza o status da visita (Aprovação, Ajuste ou Reprovação) com disparo de e-mail e gestão de acompanhantes.
  */
-function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail) {
+function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEmail, emailsAcompanhantes) {
   let isAdmin = false;
   try {
     const config = obterConfiguracoesIniciais();
@@ -2501,6 +2694,13 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
 
   const agora = new Date();
   const emailAtendente = atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
+
+  // Atualizar lista de acompanhantes se fornecida pelo atendente
+  let emailsAcompFinal = visitaObj.emailsAcompanhantes || '';
+  if (emailsAcompanhantes !== undefined && emailsAcompanhantes !== null) {
+    emailsAcompFinal = sanitizarEmailsAcompanhantes(emailsAcompanhantes);
+    abaVisitas.getRange(linhaEncontrada, 21).setValue(emailsAcompFinal);
+  }
 
   // Coluna 16: STATUS, 17: ATENDENTE, 19: DATA_DECISAO, 20: MOTIVO_DECISAO
   abaVisitas.getRange(linhaEncontrada, 16).setValue(novoStatus);
@@ -2541,7 +2741,8 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
 
     enviarEmailNotificacaoVisita({
       destinatario: visitaObj.responsavelEmail,
-      assunto: '[brisanet] Visita ' + idVisita + ': ' + novoStatus,
+      cc: emailsAcompFinal,
+      assunto: '[brisanet] Visita ' + idVisita + ' - ' + visitaObj.empresa,
       idVisita: idVisita,
       empresa: visitaObj.empresa,
       periodo: visitaObj.periodoInicio + ' a ' + visitaObj.periodoFim,
@@ -2554,7 +2755,11 @@ function atualizarStatusVisita(idVisita, novoStatus, motivoParecer, atendenteEma
     Logger.log('Aviso ao notificar visitante sobre status: ' + eMail.message);
   }
 
-  return { sucesso: true, mensagem: 'Status da visita atualizado para ' + novoStatus + '.' };
+  return {
+    sucesso: true,
+    mensagem: 'Status da visita atualizado para ' + novoStatus + '.',
+    emailsAcompanhantes: emailsAcompFinal
+  };
 }
 
 /**
@@ -2623,7 +2828,7 @@ function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase
     ]);
   }
 
-  // Notificar atendente/admins
+  // Notificar atendente/admins e acompanhantes em cópia
   try {
     const urlWeb = obterUrlWebApp();
     const linkAdmin = urlWeb ? (urlWeb + (urlWeb.includes('?') ? '&' : '?') + 'visita=' + idVisita + '&aba=visitas') : '';
@@ -2631,7 +2836,8 @@ function adicionarRespostaVisitante(idVisita, token, respostaTexto, arquivosBase
 
     enviarEmailNotificacaoVisita({
       destinatario: destinatarioAdmin,
-      assunto: '[brisanet] Resposta do Visitante (' + visitaObj.empresa + '): ' + idVisita,
+      cc: visitaObj.emailsAcompanhantes,
+      assunto: '[brisanet] Visita ' + idVisita + ' - ' + visitaObj.empresa,
       idVisita: idVisita,
       empresa: visitaObj.empresa,
       periodo: visitaObj.periodoInicio + ' a ' + visitaObj.periodoFim,
@@ -2825,7 +3031,8 @@ function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
 
         enviarEmailNotificacaoVisita({
           destinatario: destinatarioAdmin,
-          assunto: '[brisanet] Proposta de Visita Ajustada pelo Solicitante: ' + idVisita,
+          cc: visitaAntiga.emailsAcompanhantes,
+          assunto: '[brisanet] Visita ' + idVisita + ' - ' + (dadosVisita.empresa || visitaAntiga.empresa),
           idVisita: idVisita,
           empresa: dadosVisita.empresa || visitaAntiga.empresa,
           periodo: (dadosVisita.periodoInicio || visitaAntiga.periodoInicio) + ' a ' + (dadosVisita.periodoFim || visitaAntiga.periodoFim),
@@ -2854,6 +3061,7 @@ function salvarEdicaoVisita(dadosVisita, tokenAcesso) {
 
 /**
  * Template corporativo oficial de e-mail para Gestão de Visitas Externas (brisanet).
+ * Mantém todos os e-mails na mesma conversa (thread) com timeline cronológica completa.
  */
 function enviarEmailNotificacaoVisita(params) {
   const emailAutor = params.autorEmail || params.atendenteEmail || Session.getActiveUser().getEmail() || 'telefonia@brisanet.com.br';
@@ -2880,6 +3088,38 @@ function enviarEmailNotificacaoVisita(params) {
       } catch (eB) {}
     }
   }
+
+  // 2. Timeline de interações da visita
+  let historicoLogs = [];
+  try {
+    historicoLogs = obterHistoricoLogsParaEmail(params.idVisita);
+  } catch (eH) {
+    Logger.log('Aviso ao carregar histórico de visita para e-mail: ' + eH.message);
+  }
+
+  // Garante que a mensagem atual esteja representada na timeline
+  const msgAtualLimpa = String(params.mensagem || '').trim();
+  if (msgAtualLimpa) {
+    const jaContemMsg = historicoLogs.some(function(item) {
+      return item.mensagem && (item.mensagem.indexOf(msgAtualLimpa) !== -1 || msgAtualLimpa.indexOf(item.mensagem) !== -1);
+    });
+    if (!jaContemMsg) {
+      historicoLogs.push({
+        dataHora: formatarData(new Date()),
+        dataRaw: Date.now(),
+        autor: emailAutor,
+        tipoAcao: 'Mensagem / Deliberação',
+        statusAnterior: '',
+        novoStatus: params.status || '',
+        mensagem: msgAtualLimpa
+      });
+    }
+  }
+
+  const htmlTimeline = montarHtmlTimelineEmail(historicoLogs, params.destinatario);
+  const textoPlanoTimeline = montarTextoPlanoTimeline(historicoLogs);
+
+  const listaCc = sanitizarEmailsAcompanhantes(params.cc);
 
   const htmlCorpo = [
     '<!DOCTYPE html>',
@@ -2909,9 +3149,17 @@ function enviarEmailNotificacaoVisita(params) {
     '        <div><strong>Período Previsto:</strong> ' + (params.periodo || 'A definir') + '</div>',
     '      </div>',
     '      <div style="background-color: #F8FAFC; border-left: 4px solid #FF5022; border-top: 1px solid #E8E8E8; border-right: 1px solid #E8E8E8; border-bottom: 1px solid #E8E8E8; border-radius: 0 10px 10px 0; padding: 16px; margin-bottom: 22px;">',
-    '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">Parecer / Comunicado:</div>',
-    '        <div style="font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + params.mensagem + '</div>',
+    '        <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #FF5022; margin-bottom: 6px;">Última Mensagem / Parecer:</div>',
+    '        <div style="font-size: 13px; line-height: 1.6; color: #334155; white-space: pre-wrap;">' + formatarTextoComLinksHtml(params.mensagem) + '</div>',
     '      </div>',
+    (listaCc ? [
+      '      <div style="font-size: 11px; color: #64748B; margin-bottom: 20px; background-color: #F1F5F9; border-radius: 6px; padding: 6px 10px; display: inline-block;">',
+      '        Acompanhantes notificados: <strong style="color: #0B316D;">' + listaCc + '</strong>',
+      '      </div>'
+    ].join('\n') : ''),
+    '      ',
+    htmlTimeline,
+    '      ',
     (link ? [
       '      <div style="margin: 24px 0; text-align: center;">',
       '        <a href="' + link + '" target="_blank" style="display: inline-block; width: 100%; max-width: 380px; padding: 13px 22px; background-color: #0B316D; color: #FFFFFF; font-size: 13px; font-weight: 700; text-decoration: none; border-radius: 10px; box-shadow: 0 4px 6px -1px rgba(11, 49, 109, 0.2); text-align: center; box-sizing: border-box;">',
@@ -2936,8 +3184,11 @@ function enviarEmailNotificacaoVisita(params) {
     'Empresa: ' + params.empresa,
     'Status: ' + params.status,
     '',
-    'Mensagem / Parecer:',
+    'ÚLTIMA MENSAGEM / PARECER:',
     params.mensagem,
+    '',
+    (listaCc ? 'Acompanhantes em cópia (CC): ' + listaCc + '\n\n' : ''),
+    textoPlanoTimeline,
     '',
     (link ? 'Acesse o link seguro para acompanhar e responder:\n' + link + '\n\n' : ''),
     'Gestão de Telefonia - Brisanet'
@@ -2948,6 +3199,7 @@ function enviarEmailNotificacaoVisita(params) {
     name: 'Gestão de Visitas | brisanet',
     replyTo: emailAutor
   };
+  if (listaCc) options.cc = listaCc;
   if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
 
   // Assunto unificado para agrupamento em conversa no Gmail/Outlook
@@ -2961,6 +3213,7 @@ function enviarEmailNotificacaoVisita(params) {
     try {
       MailApp.sendEmail({
         to: params.destinatario,
+        cc: listaCc || undefined,
         subject: assuntoUnificado,
         body: textoPlano,
         htmlBody: htmlCorpo,

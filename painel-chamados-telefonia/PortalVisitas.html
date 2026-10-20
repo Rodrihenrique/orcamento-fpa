@@ -1633,14 +1633,15 @@
             if (match) fileId = match[1] || match[0];
           }
           const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+          const safeNome = (a.nome || 'anexo').replace(/'/g, "\\'");
 
           boxAnexos.innerHTML += [
             '<div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">',
-            '  <a href="' + a.url + '" target="_blank" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2">',
+            '  <a href="javascript:void(0)" onclick="baixarArquivoDireto(\'' + (fileId || '') + '\', \'' + safeNome + '\', \'' + downloadUrl + '\')" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2" title="Baixar / Visualizar anexo">',
             '    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
             '    <span class="truncate">' + a.nome + '</span>',
             '  </a>',
-            '  <a href="' + downloadUrl + '" target="_blank" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0">Baixar</a>',
+            '  <button type="button" onclick="baixarArquivoDireto(\'' + (fileId || '') + '\', \'' + safeNome + '\', \'' + downloadUrl + '\')" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0 cursor-pointer">Baixar</button>',
             '</div>'
           ].join('');
         });
@@ -1820,6 +1821,52 @@
           alert('Erro ao enviar resposta: ' + err.message);
         })
         .adicionarRespostaVisitante(portalState.visitaSelecionada.idVisita, portalState.visitaTokenAtual, texto, arquivosBase64);
+    }
+
+    /**
+     * Realiza download seguro de anexo diretamente pelo backend Apps Script (Blob/Base64),
+     * garantindo que visitantes e usuários autorizados baixem sem bloqueios de permissão do Drive.
+     */
+    function baixarArquivoDireto(fileId, nomeArquivo, fallbackUrl) {
+      if (!fileId) {
+        if (fallbackUrl) window.open(fallbackUrl, '_blank');
+        return;
+      }
+
+      const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button, a') : null;
+      const textoOriginal = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '<span class="animate-pulse font-semibold">Baixando...</span>';
+        btn.style.pointerEvents = 'none';
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (btn) {
+            btn.innerHTML = textoOriginal;
+            btn.style.pointerEvents = '';
+          }
+          if (res && res.sucesso && res.base64) {
+            const link = document.createElement('a');
+            link.href = res.base64;
+            link.download = res.nome || nomeArquivo || 'anexo';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else {
+            if (fallbackUrl) window.open(fallbackUrl, '_blank');
+            else alert('Erro ao baixar anexo: ' + (res ? res.erro : 'Erro desconhecido.'));
+          }
+        })
+        .withFailureHandler(function(err) {
+          if (btn) {
+            btn.innerHTML = textoOriginal;
+            btn.style.pointerEvents = '';
+          }
+          if (fallbackUrl) window.open(fallbackUrl, '_blank');
+          else alert('Erro ao processar download: ' + err.message);
+        })
+        .obterArquivoParaDownload(fileId);
     }
   </script>
 

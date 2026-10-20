@@ -1245,6 +1245,7 @@
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Período da Visita:</span><span id="drawerVisitaPeriodo" class="font-bold text-brisa-navy font-rubik"></span></div>
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Criada em:</span><span id="drawerVisitaDataCriacao" class="font-medium text-slate-800"></span></div>
         <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Atendente Brisanet:</span><span id="drawerVisitaAtendente" class="font-medium text-slate-800"></span></div>
+        <div class="flex justify-between"><span class="text-slate-500 font-bold uppercase">Acompanhantes:</span><span id="drawerVisitaAcompanhantesInfo" class="font-medium text-slate-800 truncate max-w-[200px]" title="Usuários em cópia">Apenas Atendente & Visitante (Padrão)</span></div>
       </div>
 
       <!-- Visitantes -->
@@ -1328,6 +1329,26 @@
               </button>
             </div>
           </div>
+        </div>
+
+        <!-- Acompanhantes da Visita (Opcional - Em Cópia / CC) -->
+        <div class="p-3.5 bg-white rounded-xl border border-slate-200 space-y-2 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-brisa-navy uppercase tracking-wider flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+              <span>Acompanhantes da Visita (Em Cópia / CC)</span>
+            </h4>
+            <span class="text-[10px] text-slate-400 font-medium">Padrão: Atendente & Visitante</span>
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="drawerVisitaEmailsAcompanhantes" placeholder="Ex: seguranca@brisanet.com.br, gestor@brisanet.com.br" class="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:ring-1 focus:ring-brisa-blue">
+            <button type="button" onclick="executarSalvarAcompanhantesVisita()" title="Salvar lista de acompanhantes agora" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 whitespace-nowrap cursor-pointer">
+              Salvar
+            </button>
+          </div>
+          <p class="text-[10px] text-slate-400">
+            Adicione outros usuários ou e-mails corporativos para acompanhar todas as respostas e notificações desta visita em cópia (CC).
+          </p>
         </div>
 
         <!-- Parecer e Decisão da Visita -->
@@ -2858,16 +2879,17 @@
             if (match) fileId = match[1] || match[0];
           }
           const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+          const safeNome = (a.nome || 'anexo').replace(/'/g, "\\'");
 
           listaAnexos.innerHTML += [
             '<div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">',
-            '  <a href="' + a.url + '" target="_blank" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2">',
+            '  <a href="javascript:void(0)" onclick="baixarArquivoDireto(\'' + (fileId || '') + '\', \'' + safeNome + '\', \'' + downloadUrl + '\')" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2" title="Baixar / Visualizar documento">',
             '    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
             '    <span class="truncate">' + a.nome + '</span>',
             '  </a>',
-            '  <a href="' + downloadUrl + '" target="_blank" title="Baixar Arquivo" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0">',
+            '  <button type="button" onclick="baixarArquivoDireto(\'' + (fileId || '') + '\', \'' + safeNome + '\', \'' + downloadUrl + '\')" title="Baixar Arquivo Diretamente" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0 flex items-center gap-1 cursor-pointer">',
             '    Baixar',
-            '  </a>',
+            '  </button>',
             '</div>'
           ].join('');
         });
@@ -4324,6 +4346,15 @@
       document.getElementById('drawerVisitaDataCriacao').textContent = visita.dataCriacao;
       document.getElementById('drawerVisitaAtendente').textContent = visita.atendente || 'Sem atendente atribuído';
 
+      // Acompanhantes da Visita
+      const acompVisitaStr = visita.emailsAcompanhantes || '';
+      const inputAcompVisita = document.getElementById('drawerVisitaEmailsAcompanhantes');
+      if (inputAcompVisita) inputAcompVisita.value = acompVisitaStr;
+      const infoAcompVisita = document.getElementById('drawerVisitaAcompanhantesInfo');
+      if (infoAcompVisita) {
+        infoAcompVisita.textContent = acompVisitaStr ? acompVisitaStr : 'Apenas Atendente & Visitante (Padrão)';
+      }
+
       // Renderizar Visitantes
       const listaVis = document.getElementById('drawerVisitaListaVisitantes');
       listaVis.innerHTML = '';
@@ -4396,16 +4427,17 @@
             if (match) fileId = match[1] || match[0];
           }
           const downloadUrl = a.downloadUrl || (fileId ? 'https://drive.google.com/uc?export=download&id=' + fileId : a.url);
+          const safeNomeVisita = (a.nome || 'anexo').replace(/'/g, "\\'");
 
           listaAnexos.innerHTML += [
             '<div class="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">',
-            '  <a href="' + a.url + '" target="_blank" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2">',
+            '  <a href="javascript:void(0)" onclick="baixarArquivoDireto(\'' + (fileId || '') + '\', \'' + safeNomeVisita + '\', \'' + downloadUrl + '\')" class="flex items-center gap-2 text-slate-800 hover:text-brisa-blue font-semibold truncate mr-2" title="Baixar / Visualizar anexo da visita">',
             '    <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>',
             '    <span class="truncate">' + a.nome + '</span>',
             '  </a>',
-            '  <a href="' + downloadUrl + '" target="_blank" title="Baixar Arquivo" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0">',
+            '  <button type="button" onclick="baixarArquivoDireto(\'' + (fileId || '') + '\', \'' + safeNomeVisita + '\', \'' + downloadUrl + '\')" title="Baixar Arquivo Diretamente" class="px-3 py-1 bg-white border border-slate-200 hover:border-brisa-orange text-[11px] font-bold text-brisa-orange hover:bg-orange-50 rounded-lg transition-colors flex-shrink-0 flex items-center gap-1 cursor-pointer">',
             '    Baixar',
-            '  </a>',
+            '  </button>',
             '</div>'
           ].join('');
         });
@@ -4670,6 +4702,8 @@
     function executarDecisaoVisita(novoStatus) {
       if (!appState.visitaSelecionada) return;
       const motivo = document.getElementById('drawerVisitaParecerAdmin').value.trim();
+      const inputAcomp = document.getElementById('drawerVisitaEmailsAcompanhantes');
+      const emailsAcomp = inputAcomp ? inputAcomp.value.trim() : '';
 
       if (!motivo && novoStatus !== 'Aprovada') {
         alert('Por favor, informe a justificativa ou orientações no parecer administrativo.');
@@ -4696,6 +4730,14 @@
           if (res.sucesso) {
             alert('Decisão registrada com sucesso! Notificação enviada ao visitante.');
             appState.visitaSelecionada.status = novoStatus;
+            if (res.emailsAcompanhantes !== undefined) {
+              appState.visitaSelecionada.emailsAcompanhantes = res.emailsAcompanhantes;
+              const infoAcomp = document.getElementById('drawerVisitaAcompanhantesInfo');
+              if (infoAcomp) {
+                infoAcomp.textContent = res.emailsAcompanhantes ? res.emailsAcompanhantes : 'Apenas Atendente & Visitante (Padrão)';
+              }
+              if (inputAcomp) inputAcomp.value = res.emailsAcompanhantes || '';
+            }
             document.getElementById('drawerVisitaBadgeStatus').innerHTML = renderBadgeStatusVisita(novoStatus);
             carregarHistoricoVisita(appState.visitaSelecionada.idVisita, appState.visitaTokenAtual);
             if (appState.abaAtiva === 'visitas') {
@@ -4710,7 +4752,79 @@
         .withFailureHandler(function(err) {
           alert('Erro ao processar decisão: ' + err.message);
         })
-        .atualizarStatusVisita(appState.visitaSelecionada.idVisita, novoStatus, motivo, emailAtendente);
+        .atualizarStatusVisita(appState.visitaSelecionada.idVisita, novoStatus, motivo, emailAtendente, emailsAcomp);
+    }
+
+    function executarSalvarAcompanhantesVisita() {
+      if (!appState.visitaSelecionada) return;
+      const input = document.getElementById('drawerVisitaEmailsAcompanhantes');
+      const emails = input ? input.value : '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.sucesso) {
+            alert(res.mensagem || 'Acompanhantes da visita atualizados com sucesso!');
+            if (input) input.value = res.emailsAcompanhantes || '';
+            appState.visitaSelecionada.emailsAcompanhantes = res.emailsAcompanhantes || '';
+            const infoAcomp = document.getElementById('drawerVisitaAcompanhantesInfo');
+            if (infoAcomp) {
+              infoAcomp.textContent = res.emailsAcompanhantes ? res.emailsAcompanhantes : 'Apenas Atendente & Visitante (Padrão)';
+            }
+            if (appState.abaAtiva === 'visitas') carregarVisitas();
+          } else {
+            alert('Erro: ' + res.erro);
+          }
+        })
+        .withFailureHandler(function(err) {
+          alert('Erro ao salvar acompanhantes da visita: ' + err.message);
+        })
+        .atualizarAcompanhantesVisita(appState.visitaSelecionada.idVisita, emails);
+    }
+
+    /**
+     * Realiza download seguro de anexo diretamente pelo backend Apps Script (Blob/Base64),
+     * garantindo que todos os administradores e usuários autorizados baixem sem bloqueios de permissão do Drive.
+     */
+    function baixarArquivoDireto(fileId, nomeArquivo, fallbackUrl) {
+      if (!fileId) {
+        if (fallbackUrl) window.open(fallbackUrl, '_blank');
+        return;
+      }
+
+      const btn = (typeof event !== 'undefined' && event && event.target) ? event.target.closest('button, a') : null;
+      const textoOriginal = btn ? btn.innerHTML : '';
+      if (btn) {
+        btn.innerHTML = '<span class="animate-pulse font-semibold">Baixando...</span>';
+        btn.style.pointerEvents = 'none';
+      }
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (btn) {
+            btn.innerHTML = textoOriginal;
+            btn.style.pointerEvents = '';
+          }
+          if (res && res.sucesso && res.base64) {
+            const link = document.createElement('a');
+            link.href = res.base64;
+            link.download = res.nome || nomeArquivo || 'anexo';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+          } else {
+            if (fallbackUrl) window.open(fallbackUrl, '_blank');
+            else alert('Erro ao baixar anexo: ' + (res ? res.erro : 'Erro desconhecido.'));
+          }
+        })
+        .withFailureHandler(function(err) {
+          if (btn) {
+            btn.innerHTML = textoOriginal;
+            btn.style.pointerEvents = '';
+          }
+          if (fallbackUrl) window.open(fallbackUrl, '_blank');
+          else alert('Erro ao processar download: ' + err.message);
+        })
+        .obterArquivoParaDownload(fileId);
     }
 
     async function executarRespostaVisitante() {
