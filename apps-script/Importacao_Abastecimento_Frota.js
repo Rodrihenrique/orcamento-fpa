@@ -218,7 +218,7 @@ function importarDadosAbastecimento(lerDeProcessados) {
 
   var linhasParaInserir = [];
   var nomesIgnorados = {};
-  var linhasOutrosMesesQtd = 0;
+  var stats = { linhasOutrosMeses: 0, totalLidos: 0 };
   var totalArquivos = 0;
 
   while (arquivos.hasNext()) {
@@ -233,90 +233,23 @@ function importarDadosAbastecimento(lerDeProcessados) {
       }
 
       try {
-        var dados = extrairMatrizDeDados(arquivo);
+        var linhasArquivo = processarArquivoEmLotes(arquivo, 'ABASTECIMENTO', mapaColaboradores, mesAlvo, nomesIgnorados, stats);
 
-        if (dados && dados.length > 0) {
-          var cabecalho = dados.shift();
-
-          // Localiza índices das colunas
-          var indexMotorista = -1;
-          var indexValor = -1;
-          var indexData = -1;
-          var indexPeriodo = -1;
-
-          for (var c = 0; c < cabecalho.length; c++) {
-            var col = padronizarTexto(cabecalho[c]);
-
-            if (col === 'NOME MOTORISTA' || (indexMotorista === -1 && (col.indexOf('MOTORISTA') > -1 || col.indexOf('CONDUTOR') > -1))) {
-              indexMotorista = c;
-            }
-            if (col === 'VALOR EMISSAO' || (indexValor === -1 && (col.indexOf('VALOR EMISSAO') > -1 || col === 'VALOR TOTAL' || col === 'VALOR BRUTO' || col === 'VALOR'))) {
-              indexValor = c;
-            }
-            if (col === 'PERIODO' || col === 'PERIODO DE CONSUMO' || col === 'MES') {
-              indexPeriodo = c;
-            }
-            if (col === 'DATA TRANSACAO' || col === 'DATA/HORA TRANSACAO' || col === 'DATA HORA TRANSACAO' || col === 'DATA/HORA' || col === 'DATA HORA') {
-              indexData = c;
-            } else if (indexData === -1 && col.indexOf('DATA') > -1 && col.indexOf('VALOR') === -1 && col.indexOf('NASC') === -1) {
-              indexData = c;
-            }
+        if (linhasArquivo && linhasArquivo.length > 0) {
+          for (var k = 0; k < linhasArquivo.length; k++) {
+            linhasParaInserir.push(linhasArquivo[k]);
           }
-
-          if (indexMotorista === -1 || indexValor === -1) {
-            Logger.log("Colunas obrigatórias não encontradas no arquivo: " + nomeArquivo);
-            continue;
-          }
-
-          // Processar linhas com FILTROS DE COLABORADOR E MÊS
-          for (var r = 0; r < dados.length; r++) {
-            var linha = dados[r];
-            if (!linha || linha.length === 0) continue;
-
-            var nomeOriginal = linha[indexMotorista] ? linha[indexMotorista].toString().trim() : "";
-            if (!nomeOriginal) continue;
-
-            var nomePadronizado = padronizarTexto(nomeOriginal);
-
-            // 1º FILTRO: Colaborador precisa constar em Custos_Totais
-            if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
-              nomesIgnorados[nomeOriginal] = true;
-              continue;
-            }
-
-            var valorDataRaw = indexData !== -1 ? linha[indexData] : "";
-            var periodoCsv = indexPeriodo !== -1 ? (linha[indexPeriodo] || "").toString().trim() : "";
-
-            // Formatar data e extrair componentes
-            var infoData = formatarDataTransacao(valorDataRaw);
-
-            // 2º FILTRO: Apenas transações que pertencem ao mês da planilha
-            var ehDoMes = transacaoPertenceAoMes(infoData, periodoCsv, mesAlvo, nomeArquivo);
-            if (!ehDoMes) {
-              linhasOutrosMesesQtd++;
-              continue;
-            }
-
-            var valorFormatado = formatarValorNumerico(linha[indexValor]);
-
-            // [A: NOME MOTORISTA, B: VALOR EMISSAO, C: PERÍODO, D: DATA/HORA]
-            linhasParaInserir.push([
-              nomeOriginal,
-              valorFormatado,
-              mesAlvo.nome,
-              infoData.str
-            ]);
-          }
-
-          totalArquivos++;
+          linhasArquivo = null;
         }
+
+        totalArquivos++;
 
         if (!lerDeProcessados) {
           arquivo.moveTo(pastaProcessados);
         }
 
       } catch (e) {
-        Logger.log("Erro ao processar arquivo " + nomeArquivo + ": " + e.toString());
+        Logger.log("Erro ao processar abastecimento em " + nomeArquivo + ": " + e.toString());
       }
     }
   }
@@ -332,21 +265,24 @@ function importarDadosAbastecimento(lerDeProcessados) {
 
     // 2º: Garante cabeçalho se a aba estiver vazia
     if (abaDestino.getLastRow() === 0) {
-      abaDestino.getRange(1, 1, 1, 4).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', '']]);
+      abaDestino.getRange(1, 1, 1, 4).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', 'DATA/HORA']]);
     }
 
     // 3º: Grava os novos dados SEMPRE a partir da linha 2
     abaDestino.getRange(2, 1, linhasParaInserir.length, 4).setValues(linhasParaInserir);
 
-    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de " + mesAlvo.nome + " lançados na aba 'Base_Abastecimento'.\n\n" +
+    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de abastecimento de " + mesAlvo.nome + " lançados na aba 'Base_Abastecimento'.\n\n" +
                      "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
-                     "• " + linhasOutrosMesesQtd + " registros de outros meses foram filtrados e desconsiderados.";
+                     "• " + stats.linhasOutrosMeses + " registros de outros meses foram filtrados e desconsiderados.";
+    if (stats.totalLidos > 0) {
+      msgSucesso += "\n• Total de linhas analisadas no arquivo: " + stats.totalLidos + ".";
+    }
     Logger.log(msgSucesso);
     exibirAlerta(msgSucesso);
   } else {
     var msgVazia = "Processo finalizado. Nenhum lançamento correspondente ao mês de " + mesAlvo.nome + " foi encontrado nos arquivos.";
-    if (linhasOutrosMesesQtd > 0) {
-      msgVazia += "\n\n(Foram ignorados " + linhasOutrosMesesQtd + " registros pertencentes a outros meses).";
+    if (stats.linhasOutrosMeses > 0) {
+      msgVazia += "\n\n(Foram ignorados " + stats.linhasOutrosMeses + " registros pertencentes a outros meses).";
     }
     Logger.log(msgVazia);
     exibirAlerta(msgVazia);
@@ -413,7 +349,7 @@ function importarDadosManutencao(lerDeProcessados) {
 
   var linhasParaInserir = [];
   var nomesIgnorados = {};
-  var linhasOutrosMesesQtd = 0;
+  var stats = { linhasOutrosMeses: 0, totalLidos: 0 };
   var totalArquivos = 0;
 
   while (arquivos.hasNext()) {
@@ -428,90 +364,16 @@ function importarDadosManutencao(lerDeProcessados) {
       }
 
       try {
-        var dados = extrairMatrizDeDados(arquivo);
+        var linhasArquivo = processarArquivoEmLotes(arquivo, 'MANUTENCAO', mapaColaboradores, mesAlvo, nomesIgnorados, stats);
 
-        if (dados && dados.length > 0) {
-          var cabecalho = dados.shift();
-
-          // Localiza índices das colunas
-          var indexMotorista = -1;
-          var indexValor = -1;
-          var indexTipoEstabelecimento = -1;
-          var indexPeriodo = -1;
-          var indexData = -1;
-
-          for (var c = 0; c < cabecalho.length; c++) {
-            var col = padronizarTexto(cabecalho[c]);
-
-            if (col === 'NOME MOTORISTA' || (indexMotorista === -1 && (col.indexOf('MOTORISTA') > -1 || col.indexOf('CONDUTOR') > -1))) {
-              indexMotorista = c;
-            }
-            if (col === 'VALOR EMISSAO' || (indexValor === -1 && (col.indexOf('VALOR EMISSAO') > -1 || col === 'VALOR TOTAL' || col === 'VALOR BRUTO' || col === 'VALOR'))) {
-              indexValor = c;
-            }
-            if (col === 'TIPO ESTABELECIMENTO' || col === 'TIPO DE ESTABELECIMENTO') {
-              indexTipoEstabelecimento = c;
-            } else if (indexTipoEstabelecimento === -1 && (col.indexOf('ESTABELECIMENTO') > -1 || col.indexOf('RAMO') > -1 || col.indexOf('SEGMENTO') > -1)) {
-              indexTipoEstabelecimento = c;
-            }
-            if (col === 'PERIODO' || col === 'PERIODO DE CONSUMO' || col === 'MES') {
-              indexPeriodo = c;
-            }
-            if (col === 'DATA TRANSACAO' || col === 'DATA/HORA TRANSACAO' || col === 'DATA HORA TRANSACAO' || col === 'DATA/HORA' || col === 'DATA HORA') {
-              indexData = c;
-            } else if (indexData === -1 && col.indexOf('DATA') > -1 && col.indexOf('VALOR') === -1 && col.indexOf('NASC') === -1) {
-              indexData = c;
-            }
+        if (linhasArquivo && linhasArquivo.length > 0) {
+          for (var k = 0; k < linhasArquivo.length; k++) {
+            linhasParaInserir.push(linhasArquivo[k]);
           }
-
-          if (indexMotorista === -1 || indexValor === -1) {
-            Logger.log("Colunas obrigatórias não encontradas no arquivo: " + nomeArquivo);
-            continue;
-          }
-
-          // Processar linhas com FILTROS DE COLABORADOR E MÊS
-          for (var r = 0; r < dados.length; r++) {
-            var linha = dados[r];
-            if (!linha || linha.length === 0) continue;
-
-            var nomeOriginal = linha[indexMotorista] ? linha[indexMotorista].toString().trim() : "";
-            if (!nomeOriginal) continue;
-
-            var nomePadronizado = padronizarTexto(nomeOriginal);
-
-            // 1º FILTRO: Colaborador precisa constar em Custos_Totais
-            if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
-              nomesIgnorados[nomeOriginal] = true;
-              continue;
-            }
-
-            var valorDataRaw = indexData !== -1 ? linha[indexData] : "";
-            var periodoCsv = indexPeriodo !== -1 ? (linha[indexPeriodo] || "").toString().trim() : "";
-
-            var infoData = formatarDataTransacao(valorDataRaw);
-
-            // 2º FILTRO: Apenas transações do mês da planilha
-            var ehDoMes = transacaoPertenceAoMes(infoData, periodoCsv, mesAlvo, nomeArquivo);
-            if (!ehDoMes) {
-              linhasOutrosMesesQtd++;
-              continue;
-            }
-
-            var valorFormatado = formatarValorNumerico(linha[indexValor]);
-            var tipoEstabelecimento = indexTipoEstabelecimento !== -1 ? (linha[indexTipoEstabelecimento] || "").toString().trim() : "";
-
-            // [A: NOME MOTORISTA, B: VALOR EMISSAO, C: TIPO ESTABELECIMENTO, D: Período, E: DATA/HORA]
-            linhasParaInserir.push([
-              nomeOriginal,
-              valorFormatado,
-              tipoEstabelecimento,
-              mesAlvo.nome,
-              infoData.str
-            ]);
-          }
-
-          totalArquivos++;
+          linhasArquivo = null;
         }
+
+        totalArquivos++;
 
         if (!lerDeProcessados) {
           arquivo.moveTo(pastaProcessados);
@@ -532,20 +394,23 @@ function importarDadosManutencao(lerDeProcessados) {
     }
 
     if (abaDestino.getLastRow() === 0) {
-      abaDestino.getRange(1, 1, 1, 5).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'Período', '']]);
+      abaDestino.getRange(1, 1, 1, 5).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'PERÍODO', 'DATA/HORA']]);
     }
 
     abaDestino.getRange(2, 1, linhasParaInserir.length, 5).setValues(linhasParaInserir);
 
     var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de manutenção de " + mesAlvo.nome + " lançados na aba 'Base_Manutenção'.\n\n" +
                      "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
-                     "• " + linhasOutrosMesesQtd + " registros de outros meses foram filtrados e desconsiderados.";
+                     "• " + stats.linhasOutrosMeses + " registros de outros meses foram filtrados e desconsiderados.";
+    if (stats.totalLidos > 0) {
+      msgSucesso += "\n• Total de linhas analisadas no arquivo: " + stats.totalLidos + ".";
+    }
     Logger.log(msgSucesso);
     exibirAlerta(msgSucesso);
   } else {
     var msgVazia = "Processo finalizado. Nenhum lançamento de manutenção correspondente ao mês de " + mesAlvo.nome + " foi encontrado.";
-    if (linhasOutrosMesesQtd > 0) {
-      msgVazia += "\n\n(Foram ignorados " + linhasOutrosMesesQtd + " registros pertencentes a outros meses).";
+    if (stats.linhasOutrosMeses > 0) {
+      msgVazia += "\n\n(Foram ignorados " + stats.linhasOutrosMeses + " registros pertencentes a outros meses).";
     }
     Logger.log(msgVazia);
     exibirAlerta(msgVazia);
@@ -613,46 +478,260 @@ function testarConexoes() {
 // ============================================================================
 
 /**
- * Lê a matriz de dados tanto de arquivos Excel (.xlsx) quanto de arquivos CSV (.csv).
+ * Processa um arquivo (.xlsx ou .csv) em lotes com baixíssimo consumo de memória,
+ * filtrando diretamente os colaboradores do setor e o mês da planilha ativa.
  */
-function extrairMatrizDeDados(arquivo) {
-  var nomeLower = arquivo.getName().toLowerCase();
+function processarArquivoEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
+  var nomeArquivo = arquivo.getName();
+  var nomeLower = nomeArquivo.toLowerCase();
 
   if (nomeLower.indexOf('.xlsx') > -1) {
-    return converterExcelParaMatriz(arquivo);
-  } else {
-    var conteudoCsv = arquivo.getBlob().getDataAsString();
-    var primeiraLinha = conteudoCsv.split(/\r?\n/)[0];
-    var delimitador = detectarDelimitador(primeiraLinha);
-    return Utilities.parseCsv(conteudoCsv, delimitador);
+    return processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
+  } else if (nomeLower.indexOf('.csv') > -1) {
+    return processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
   }
+
+  return [];
 }
 
 /**
- * Converte arquivo Excel (.xlsx) em matriz de valores de forma compatível e segura.
+ * Processa arquivo Excel (.xlsx) convertendo para planilha temporária e lendo em blocos
+ * de linhas (chunks) para NUNCA estourar a memória do Google Apps Script.
  */
-function converterExcelParaMatriz(arquivo) {
+function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
+  var nomeArquivo = arquivo.getName();
+  var tempId = converterXlsxParaPlanilhaTemporaria(arquivo);
+  if (!tempId) {
+    throw new Error("Não foi possível processar o arquivo Excel (.xlsx). Verifique as permissões de acesso ao Google Drive.");
+  }
+
+  var linhasFiltradas = [];
+
+  try {
+    var tempPlanilha = SpreadsheetApp.openById(tempId);
+    var sheets = tempPlanilha.getSheets();
+    var sheet = sheets[0];
+
+    // Localiza a primeira aba que contenha dados
+    for (var s = 0; s < sheets.length; s++) {
+      if (sheets[s].getLastRow() > 1) {
+        sheet = sheets[s];
+        break;
+      }
+    }
+
+    var totalLinhas = sheet.getLastRow();
+    var totalColunas = sheet.getLastColumn();
+
+    if (totalLinhas <= 1 || totalColunas === 0) {
+      Logger.log("Arquivo sem registros ou vazio: " + nomeArquivo);
+      return [];
+    }
+
+    // 1. Lê APENAS a 1ª linha (cabeçalho) para descobrir os índices das colunas
+    var cabecalho = sheet.getRange(1, 1, 1, totalColunas).getValues()[0];
+    var idx = mapearIndicesColunas(cabecalho);
+
+    if (idx.indexMotorista === -1 || idx.indexValor === -1) {
+      Logger.log("Colunas obrigatórias não encontradas no arquivo Excel: " + nomeArquivo);
+      return [];
+    }
+
+    // 2. Lê os dados em blocos (chunks) de 2.000 linhas
+    // Esse particionamento evita carregar todo o arquivo na memória de uma só vez
+    var TAMANHO_LOTE = 2000;
+    for (var inicio = 2; inicio <= totalLinhas; inicio += TAMANHO_LOTE) {
+      var qtd = Math.min(TAMANHO_LOTE, totalLinhas - inicio + 1);
+      var bloco = sheet.getRange(inicio, 1, qtd, totalColunas).getValues();
+
+      for (var r = 0; r < bloco.length; r++) {
+        var linha = bloco[r];
+        if (!linha || linha.length === 0) continue;
+
+        stats.totalLidos++;
+
+        var nomeOriginal = linha[idx.indexMotorista] ? linha[idx.indexMotorista].toString().trim() : "";
+        if (!nomeOriginal) continue;
+
+        var nomePadronizado = padronizarTexto(nomeOriginal);
+
+        // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
+        if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
+          nomesIgnorados[nomeOriginal] = true;
+          continue;
+        }
+
+        var valorDataRaw = idx.indexData !== -1 ? linha[idx.indexData] : "";
+        var periodoStr = idx.indexPeriodo !== -1 ? (linha[idx.indexPeriodo] || "").toString().trim() : "";
+
+        var infoData = formatarDataTransacao(valorDataRaw);
+
+        // 2º FILTRO: Transação precisa pertencer ao mês da planilha
+        var ehDoMes = transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo);
+        if (!ehDoMes) {
+          stats.linhasOutrosMeses++;
+          continue;
+        }
+
+        var valorFormatado = formatarValorNumerico(linha[idx.indexValor]);
+
+        if (tipo === 'ABASTECIMENTO') {
+          // [A: NOME MOTORISTA, B: VALOR EMISSAO, C: PERÍODO, D: DATA/HORA]
+          linhasFiltradas.push([
+            nomeOriginal,
+            valorFormatado,
+            mesAlvo.nome,
+            infoData.str
+          ]);
+        } else {
+          // MANUTENCAO: [A: NOME MOTORISTA, B: VALOR EMISSAO, C: TIPO ESTABELECIMENTO, D: PERÍODO, E: DATA/HORA]
+          var tipoEstab = idx.indexTipoEstabelecimento !== -1 ? (linha[idx.indexTipoEstabelecimento] || "").toString().trim() : "";
+          linhasFiltradas.push([
+            nomeOriginal,
+            valorFormatado,
+            tipoEstab,
+            mesAlvo.nome,
+            infoData.str
+          ]);
+        }
+      }
+
+      bloco = null; // Permite coleta imediata pelo Garbage Collector
+    }
+
+  } finally {
+    // SEMPRE exclui a planilha temporária do Drive
+    try {
+      DriveApp.getFileById(tempId).setTrashed(true);
+    } catch (e) {
+      Logger.log("Aviso ao remover temporário: " + e.message);
+    }
+  }
+
+  return linhasFiltradas;
+}
+
+/**
+ * Processa arquivo CSV linha a linha sem carregar matrizes 2D gigantes em memória.
+ */
+function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
+  var nomeArquivo = arquivo.getName();
+  var blob = arquivo.getBlob();
+  var conteudoCsv = blob.getDataAsString();
+
+  if (!conteudoCsv || conteudoCsv.trim() === "") {
+    return [];
+  }
+
+  var linhasTexto = conteudoCsv.split(/\r?\n/);
+  conteudoCsv = null; // Libera a string completa da memória
+
+  if (linhasTexto.length <= 1) {
+    return [];
+  }
+
+  var delimitador = detectarDelimitador(linhasTexto[0]);
+  var cabecalho = Utilities.parseCsv(linhasTexto[0], delimitador)[0];
+  var idx = mapearIndicesColunas(cabecalho);
+
+  if (idx.indexMotorista === -1 || idx.indexValor === -1) {
+    Logger.log("Colunas obrigatórias não encontradas no CSV: " + nomeArquivo);
+    return [];
+  }
+
+  var linhasFiltradas = [];
+
+  for (var r = 1; r < linhasTexto.length; r++) {
+    var linhaStr = linhasTexto[r];
+    if (!linhaStr || linhaStr.trim() === "") continue;
+
+    var parsed = Utilities.parseCsv(linhaStr, delimitador);
+    if (!parsed || parsed.length === 0) continue;
+    var linhaArr = parsed[0];
+    if (!linhaArr || linhaArr.length === 0) continue;
+
+    stats.totalLidos++;
+
+    var nomeOriginal = linhaArr[idx.indexMotorista] ? linhaArr[idx.indexMotorista].toString().trim() : "";
+    if (!nomeOriginal) continue;
+
+    var nomePadronizado = padronizarTexto(nomeOriginal);
+
+    // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
+    if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
+      nomesIgnorados[nomeOriginal] = true;
+      continue;
+    }
+
+    var valorDataRaw = idx.indexData !== -1 ? linhaArr[idx.indexData] : "";
+    var periodoStr = idx.indexPeriodo !== -1 ? (linhaArr[idx.indexPeriodo] || "").toString().trim() : "";
+
+    var infoData = formatarDataTransacao(valorDataRaw);
+
+    // 2º FILTRO: Transação pertence ao mês da planilha
+    var ehDoMes = transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo);
+    if (!ehDoMes) {
+      stats.linhasOutrosMeses++;
+      continue;
+    }
+
+    var valorFormatado = formatarValorNumerico(linhaArr[idx.indexValor]);
+
+    if (tipo === 'ABASTECIMENTO') {
+      linhasFiltradas.push([
+        nomeOriginal,
+        valorFormatado,
+        mesAlvo.nome,
+        infoData.str
+      ]);
+    } else {
+      var tipoEstab = idx.indexTipoEstabelecimento !== -1 ? (linhaArr[idx.indexTipoEstabelecimento] || "").toString().trim() : "";
+      linhasFiltradas.push([
+        nomeOriginal,
+        valorFormatado,
+        tipoEstab,
+        mesAlvo.nome,
+        infoData.str
+      ]);
+    }
+  }
+
+  linhasTexto = null;
+  return linhasFiltradas;
+}
+
+/**
+ * Converte arquivo Excel (.xlsx) em planilha temporária do Google Sheets.
+ * Usa o serviço nativo do Drive ou UrlFetch com streaming direto de Blob (sem carregar getBytes na memória JS).
+ */
+function converterXlsxParaPlanilhaTemporaria(arquivo) {
   var blob = arquivo.getBlob();
   var tempId = null;
 
   // 1. Tenta usar o serviço avançado do Drive se estiver habilitado
-  if (typeof Drive !== 'undefined') {
+  if (typeof Drive !== 'undefined' && Drive.Files) {
     try {
-      if (Drive.Files && Drive.Files.create) {
-        var res = { name: '[TEMP_CONV] ' + arquivo.getName(), mimeType: MimeType.GOOGLE_SHEETS };
-        var novo = Drive.Files.create(res, blob);
-        tempId = novo.id;
-      } else if (Drive.Files && Drive.Files.insert) {
-        var res = { title: '[TEMP_CONV] ' + arquivo.getName(), mimeType: MimeType.GOOGLE_SHEETS };
+      if (Drive.Files.insert) {
+        var res = {
+          title: '[TEMP_CONV] ' + arquivo.getName(),
+          mimeType: MimeType.GOOGLE_SHEETS
+        };
         var novo = Drive.Files.insert(res, blob, { convert: true });
-        tempId = novo.id;
+        if (novo && novo.id) tempId = novo.id;
+      } else if (Drive.Files.create) {
+        var res = {
+          name: '[TEMP_CONV] ' + arquivo.getName(),
+          mimeType: MimeType.GOOGLE_SHEETS
+        };
+        var novo = Drive.Files.create(res, blob);
+        if (novo && novo.id) tempId = novo.id;
       }
     } catch (e) {
       Logger.log("Aviso: Falha ao converter via Drive Service: " + e.message);
     }
   }
 
-  // 2. Fallback direto via REST API do Drive (funciona sem precisar ativar serviço na barra lateral)
+  // 2. Fallback direto via REST API do Drive usando Blob direto (SEM blob.getBytes())
   if (!tempId) {
     try {
       var url = 'https://www.googleapis.com/upload/drive/v2/files?uploadType=media&convert=true';
@@ -661,38 +740,85 @@ function converterExcelParaMatriz(arquivo) {
         headers: {
           'Authorization': 'Bearer ' + ScriptApp.getOAuthToken()
         },
-        contentType: blob.getContentType(),
-        payload: blob.getBytes(),
+        contentType: blob.getContentType() || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        payload: blob, // Blob nativo: não aloca array de bytes na memória JavaScript do Apps Script
         muteHttpExceptions: true
       };
       var resposta = UrlFetchApp.fetch(url, params);
-      var json = JSON.parse(resposta.getContentText());
-      if (json && json.id) {
-        tempId = json.id;
+      var code = resposta.getResponseCode();
+      if (code >= 200 && code < 300) {
+        var json = JSON.parse(resposta.getContentText());
+        if (json && json.id) tempId = json.id;
+      } else {
+        Logger.log("Erro HTTP ao converter via UrlFetch: " + code + " - " + resposta.getContentText());
       }
     } catch (e) {
-      Logger.log("Aviso: Falha ao converter via UrlFetch: " + e.message);
+      Logger.log("Aviso ao converter via UrlFetch: " + e.message);
     }
   }
 
-  if (!tempId) {
-    throw new Error("Não foi possível ler o arquivo Excel (.xlsx). Verifique as permissões de acesso ao Google Drive.");
-  }
-
-  // Lê os dados da planilha temporária
-  var tempPlanilha = SpreadsheetApp.openById(tempId);
-  var dados = tempPlanilha.getSheets()[0].getDataRange().getValues();
-
-  // Exclui a planilha temporária
-  try {
-    DriveApp.getFileById(tempId).setTrashed(true);
-  } catch (e) {}
-
-  return dados;
+  return tempId;
 }
 
 /**
- * Formata valores de data aceitando tanto objetos Date nativos do Excel quanto strings de texto.
+ * Localiza os índices de todas as colunas obrigatórias e opcionais pelo cabeçalho.
+ */
+function mapearIndicesColunas(cabecalho) {
+  var indexMotorista = -1;
+  var indexValor = -1;
+  var indexTipoEstabelecimento = -1;
+  var indexPeriodo = -1;
+  var indexData = -1;
+
+  for (var c = 0; c < cabecalho.length; c++) {
+    var col = padronizarTexto(cabecalho[c]);
+    if (!col) continue;
+
+    // MOTORISTA / CONDUTOR
+    if (col === 'NOME MOTORISTA' || col === 'NOME DO MOTORISTA' || col === 'NOME CONDUTOR' || col === 'NOME DO CONDUTOR') {
+      indexMotorista = c;
+    } else if (indexMotorista === -1 && (col.indexOf('MOTORISTA') > -1 || col.indexOf('CONDUTOR') > -1)) {
+      indexMotorista = c;
+    }
+
+    // VALOR
+    if (col === 'VALOR EMISSAO' || col === 'VALOR TOTAL' || col === 'VALOR BRUTO' || col === 'VALOR LIQUIDO' || col === 'VALOR TRANSACAO' || col === 'VALOR TRANSACAO R$' || col === 'VALOR R$') {
+      indexValor = c;
+    } else if (indexValor === -1 && col.indexOf('VALOR') > -1 && col.indexOf('UNIT') === -1 && col.indexOf('LITRO') === -1) {
+      indexValor = c;
+    }
+
+    // TIPO ESTABELECIMENTO (para manutenção)
+    if (col === 'TIPO ESTABELECIMENTO' || col === 'TIPO DE ESTABELECIMENTO') {
+      indexTipoEstabelecimento = c;
+    } else if (indexTipoEstabelecimento === -1 && (col.indexOf('ESTABELECIMENTO') > -1 || col.indexOf('RAMO') > -1 || col.indexOf('SEGMENTO') > -1 || col.indexOf('SERVICO') > -1)) {
+      indexTipoEstabelecimento = c;
+    }
+
+    // PERÍODO
+    if (col === 'PERIODO' || col === 'PERIODO DE CONSUMO' || col === 'MES' || col === 'COMPETENCIA' || col === 'REFERENCIA') {
+      indexPeriodo = c;
+    }
+
+    // DATA / HORA
+    if (col === 'DATA TRANSACAO' || col === 'DATA/HORA TRANSACAO' || col === 'DATA HORA TRANSACAO' || col === 'DATA/HORA' || col === 'DATA HORA' || col === 'DATA EMISSAO') {
+      indexData = c;
+    } else if (indexData === -1 && col.indexOf('DATA') > -1 && col.indexOf('VALOR') === -1 && col.indexOf('NASC') === -1 && col.indexOf('VENC') === -1) {
+      indexData = c;
+    }
+  }
+
+  return {
+    indexMotorista: indexMotorista,
+    indexValor: indexValor,
+    indexTipoEstabelecimento: indexTipoEstabelecimento,
+    indexPeriodo: indexPeriodo,
+    indexData: indexData
+  };
+}
+
+/**
+ * Formata valores de data aceitando objetos Date do Excel, números seriais ou strings de texto.
  */
 function formatarDataTransacao(valorData) {
   if (valorData === undefined || valorData === null || valorData === "") {
@@ -705,6 +831,17 @@ function formatarDataTransacao(valorData) {
     var mes = Utilities.formatDate(valorData, 'America/Fortaleza', 'MM');
     var ano = Utilities.formatDate(valorData, 'America/Fortaleza', 'yyyy');
     return { str: strFormatada, mes: mes, ano: ano };
+  }
+
+  // Se for número serial do Excel (ex.: 45580.45)
+  if (typeof valorData === 'number' && valorData > 40000 && valorData < 60000) {
+    var dataObj = new Date(Math.round((valorData - 25569) * 86400 * 1000));
+    if (!isNaN(dataObj.getTime())) {
+      var strFormatada = Utilities.formatDate(dataObj, 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+      var mes = Utilities.formatDate(dataObj, 'America/Fortaleza', 'MM');
+      var ano = Utilities.formatDate(dataObj, 'America/Fortaleza', 'yyyy');
+      return { str: strFormatada, mes: mes, ano: ano };
+    }
   }
 
   // Se for string

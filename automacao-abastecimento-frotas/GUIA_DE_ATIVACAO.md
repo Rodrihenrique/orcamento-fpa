@@ -60,7 +60,13 @@ Manual passo a passo para configurar a importação automática de arquivos Exce
 {
   "timeZone": "America/Fortaleza",
   "dependencies": {
-    "enabledAdvancedServices": []
+    "enabledAdvancedServices": [
+      {
+        "userSymbol": "Drive",
+        "serviceId": "drive",
+        "version": "v2"
+      }
+    ]
   },
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
