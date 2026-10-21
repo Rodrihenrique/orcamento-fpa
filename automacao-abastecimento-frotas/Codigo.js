@@ -509,6 +509,7 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
 
   try {
     var tempPlanilha = SpreadsheetApp.openById(tempId);
+    var fusoTemp = tempPlanilha.getSpreadsheetTimeZone(); // Preserva fuso exato da conversão do Excel
     var sheets = tempPlanilha.getSheets();
     var sheet = sheets[0];
 
@@ -564,7 +565,8 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
         var valorDataRaw = idx.indexData !== -1 ? linha[idx.indexData] : "";
         var periodoStr = idx.indexPeriodo !== -1 ? (linha[idx.indexPeriodo] || "").toString().trim() : "";
 
-        var infoData = formatarDataTransacao(valorDataRaw);
+        // Formata data e horário preservando o fuso de origem do Excel (evita adiantar +4h)
+        var infoData = formatarDataTransacao(valorDataRaw, fusoTemp);
 
         // 2º FILTRO: Transação precisa pertencer ao mês da planilha
         var ehDoMes = transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo);
@@ -819,17 +821,24 @@ function mapearIndicesColunas(cabecalho) {
 
 /**
  * Formata valores de data aceitando objetos Date do Excel, números seriais ou strings de texto.
+ * Permite passar o fuso horário original da planilha convertida para não distorcer o horário com fusos externos.
  */
-function formatarDataTransacao(valorData) {
+function formatarDataTransacao(valorData, fusoOrigem) {
   if (valorData === undefined || valorData === null || valorData === "") {
     return { str: "", mes: null, ano: null };
   }
 
+  // Fuso horário: ao converter .xlsx para Google Sheets, o getValues() interpreta
+  // a data no fuso da planilha temporária (geralmente Pacific Time ou UTC).
+  // Para preservar o horário original exato do extrato (sem adiantar +4h),
+  // formatamos usando o mesmo fuso de origem da planilha temporária.
+  var fuso = fusoOrigem || 'America/Fortaleza';
+
   // Se for objeto Date do JavaScript (comum ao ler .xlsx convertido)
   if (valorData instanceof Date && !isNaN(valorData.getTime())) {
-    var strFormatada = Utilities.formatDate(valorData, 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
-    var mes = Utilities.formatDate(valorData, 'America/Fortaleza', 'MM');
-    var ano = Utilities.formatDate(valorData, 'America/Fortaleza', 'yyyy');
+    var strFormatada = Utilities.formatDate(valorData, fuso, 'dd/MM/yyyy HH:mm:ss');
+    var mes = Utilities.formatDate(valorData, fuso, 'MM');
+    var ano = Utilities.formatDate(valorData, fuso, 'yyyy');
     return { str: strFormatada, mes: mes, ano: ano };
   }
 
@@ -837,9 +846,9 @@ function formatarDataTransacao(valorData) {
   if (typeof valorData === 'number' && valorData > 40000 && valorData < 60000) {
     var dataObj = new Date(Math.round((valorData - 25569) * 86400 * 1000));
     if (!isNaN(dataObj.getTime())) {
-      var strFormatada = Utilities.formatDate(dataObj, 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
-      var mes = Utilities.formatDate(dataObj, 'America/Fortaleza', 'MM');
-      var ano = Utilities.formatDate(dataObj, 'America/Fortaleza', 'yyyy');
+      var strFormatada = Utilities.formatDate(dataObj, 'GMT', 'dd/MM/yyyy HH:mm:ss');
+      var mes = Utilities.formatDate(dataObj, 'GMT', 'MM');
+      var ano = Utilities.formatDate(dataObj, 'GMT', 'yyyy');
       return { str: strFormatada, mes: mes, ano: ano };
     }
   }
