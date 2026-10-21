@@ -2,33 +2,33 @@
  * ============================================================================
  * GESTÃO DE CUSTOS DE FROTA - OPERAÇÃO E MANUTENÇÃO DE REDES
  * ============================================================================
- * Automação de Importação de Abastecimento e Manutenção (CSV -> Google Sheets)
+ * Automação de Importação de Abastecimento e Manutenção (.xlsx / .csv -> Google Sheets)
  * 
  * Funcionalidades:
- * 1. Filtro Mensal Automático:
- *    - Detecta dinamicamente o mês e ano da planilha ativa (ex.: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
- *    - Filtra as linhas do CSV pela data da transação: importa APENAS dados de Outubro em Outubro,
- *      Novembro em Novembro, e assim sucessivamente. Transações de outros meses são ignoradas.
+ * 1. Suporte a Arquivos Excel (.xlsx) e CSV:
+ *    - Lê diretamente os arquivos no formato nativo .xlsx baixados dos sistemas de frota.
+ *    - Também mantém compatibilidade com arquivos .csv.
  * 
- * 2. Importação de Abastecimento (Aba: Base_Abastecimento - 4 colunas):
- *    - Coluna A: NOME MOTORISTA
- *    - Coluna B: VALOR EMISSAO (formato numérico/moeda)
- *    - Coluna C: PERÍODO (mês da competência, ex.: OUTUBRO)
- *    - Coluna D: DATA/HORA DA TRANSAÇÃO
+ * 2. Regra Estrita de Limpeza e Relançamento (Anti-Duplicação):
+ *    - Ao rodar a importação, os dados anteriores da aba (da linha 2 em diante) são
+ *      SEMPRE apagados, e os novos dados são gravados a partir da linha 2.
+ *    - Nunca duplica ou acumula linhas abaixo de importações antigas.
  * 
- * 3. Importação de Manutenção (Aba: Base_Manutenção - 5 colunas):
- *    - Coluna A: NOME MOTORISTA
- *    - Coluna B: VALOR EMISSAO (formato numérico/moeda)
- *    - Coluna C: TIPO ESTABELECIMENTO
- *    - Coluna D: PERÍODO (mês da competência, ex.: OUTUBRO)
- *    - Coluna E: DATA/HORA DA TRANSAÇÃO
+ * 3. Filtro Mensal Dinâmico:
+ *    - Identifica o mês e ano da planilha ativa (ex.: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
+ *    - Importa única e exclusivamente os lançamentos de Outubro em Outubro, Novembro em
+ *      Novembro, e assim por diante. Linhas de outros meses são ignoradas.
  * 
  * 4. Validação por Colaboradores:
- *    - Lê a Coluna A da aba 'Custos_Totais' da própria planilha mensal.
- *    - Filtra para trazer somente motoristas vinculados ao setor.
+ *    - Lê a lista de colaboradores na Coluna A da aba 'Custos_Totais'.
+ *    - Apenas lançamentos dos motoristas do setor são trazidos para a planilha.
  * 
- * 5. Menu Superior (onOpen):
- *    - Menu "🚗 Gestão de Frota" criado automaticamente ao abrir a planilha.
+ * 5. Colunas das Abas:
+ *    - Base_Abastecimento (4 colunas): NOME MOTORISTA | VALOR EMISSAO | PERÍODO | DATA/HORA
+ *    - Base_Manutenção (5 colunas): NOME MOTORISTA | VALOR EMISSAO | TIPO ESTABELECIMENTO | PERÍODO | DATA/HORA
+ * 
+ * 6. Menu Superior Automático (onOpen):
+ *    - Cria o menu "🚗 Gestão de Frota" na barra de ferramentas da planilha.
  * ============================================================================
  */
 
@@ -50,14 +50,10 @@ const CONFIG_FROTA = {
 
   // Nomes das Abas na Planilha
   ABA_CUSTOS_TOTAIS: 'Custos_Totais',
-  COLUNA_COLABORADORES: 1, // Coluna A (lista de colaboradores do setor)
+  COLUNA_COLABORADORES: 1, // Coluna A (onde estão os nomes dos colaboradores)
 
   ABA_ABASTECIMENTO: 'Base_Abastecimento',
-  ABA_MANUTENCAO: 'Base_Manutenção', // Aceita também Base_Manutencao
-
-  // Limpeza de dados antigos da aba (a partir da linha 2) antes de importar os novos
-  // Mantém 'true' para evitar duplicidades e remover linhas de outros meses
-  LIMPAR_DADOS_EXISTENTES: true
+  ABA_MANUTENCAO: 'Base_Manutenção' // Aceita também Base_Manutencao
 };
 
 
@@ -70,8 +66,8 @@ function onOpen() {
     ui.createMenu("🚗 Gestão de Frota")
       .addItem("⚡ Importar Dados da Aba Atual", "importarAbaAtiva")
       .addSeparator()
-      .addItem("⛽ Importar Abastecimento (Aba Base_Abastecimento)", "importarDadosAbastecimento")
-      .addItem("🔧 Importar Manutenção (Aba Base_Manutenção)", "importarDadosManutencao")
+      .addItem("⛽ Importar Abastecimento (.xlsx / .csv)", "importarDadosAbastecimento")
+      .addItem("🔧 Importar Manutenção (.xlsx / .csv)", "importarDadosManutencao")
       .addItem("🔄 Importar Tudo (Abastecimento + Manutenção)", "importarTodosOsCustos")
       .addSeparator()
       .addItem("📁 Reprocessar da Pasta 'Arquivos Processados'", "reprocessarArquivosHistorico")
@@ -85,7 +81,7 @@ function onOpen() {
 }
 
 /**
- * Identifica a aba em que o usuário está no momento e executa a importação correspondente.
+ * Identifica a aba atual e executa a importação correspondente.
  */
 function importarAbaAtiva() {
   var planilha = SpreadsheetApp.getActiveSpreadsheet();
@@ -106,7 +102,7 @@ function importarAbaAtiva() {
     var resposta = ui.alert(
       "Importação de Frota",
       "Você está na aba '" + abaAtiva.getName() + "'.\n\n" +
-      "Deseja importar ambos os extratos (Abastecimento e Manutenção) filtrados para o mês desta planilha?",
+      "Deseja importar ambos os extratos (Abastecimento e Manutenção) para o mês desta planilha?",
       ui.ButtonSet.YES_NO
     );
 
@@ -117,7 +113,7 @@ function importarAbaAtiva() {
 }
 
 /**
- * Importa tanto Abastecimento quanto Manutenção em uma única execução.
+ * Executa tanto Abastecimento quanto Manutenção em sequência.
  */
 function importarTodosOsCustos() {
   Logger.log("Iniciando importação completa (Abastecimento + Manutenção)...");
@@ -126,7 +122,7 @@ function importarTodosOsCustos() {
 }
 
 /**
- * Permite limpar manualmente a aba atual (da linha 2 em diante), preservando o cabeçalho.
+ * Limpa manualmente os dados da aba atual da linha 2 em diante.
  */
 function limparAbaAtualManual() {
   var planilha = SpreadsheetApp.getActiveSpreadsheet();
@@ -137,11 +133,12 @@ function limparAbaAtualManual() {
     var ui = SpreadsheetApp.getUi();
     var confirmacao = ui.alert(
       "Limpar Dados",
-      "Deseja limpar todos os dados da aba '" + aba.getName() + "' (a partir da linha 2)?",
+      "Deseja limpar todos os lançamentos da aba '" + aba.getName() + "' (a partir da linha 2)?",
       ui.ButtonSet.YES_NO
     );
     if (confirmacao === ui.Button.YES) {
       aba.getRange(2, 1, aba.getLastRow() - 1, aba.getLastColumn()).clearContent();
+      SpreadsheetApp.flush();
       exibirAlerta("Dados da aba '" + aba.getName() + "' limpos com sucesso.");
     }
   } else {
@@ -150,13 +147,13 @@ function limparAbaAtualManual() {
 }
 
 /**
- * Permite reprocessar os arquivos da pasta 'Arquivos Processados' filtrando pelo mês da planilha.
+ * Permite reprocessar arquivos que já estão na pasta 'Arquivos Processados'.
  */
 function reprocessarArquivosHistorico() {
   var ui = SpreadsheetApp.getUi();
   var resposta = ui.alert(
     "Reprocessar Histórico",
-    "Esta opção lerá os arquivos já processados no Drive e filtrará apenas as transações do mês da planilha atual.\n\nDeseja continuar?",
+    "Esta opção lerá os arquivos (.xlsx e .csv) já processados no Drive e filtrará apenas o mês da planilha atual.\n\nDeseja continuar?",
     ui.ButtonSet.YES_NO
   );
 
@@ -196,20 +193,19 @@ function importarDadosAbastecimento(lerDeProcessados) {
     return;
   }
 
-  // 3. Determinar pasta de leitura (Origem normal ou Processados para reprocessamento)
+  // 3. Obter pasta de origem
   var pastaOrigem = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_COMBUSTIVEL);
   var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_FROTA.PASTA_PROCESSADOS_COMBUSTIVEL);
 
   var pastaLeitura = (lerDeProcessados === true) ? pastaProcessados : pastaOrigem;
   var arquivos = pastaLeitura.getFiles();
 
-  // Se a pasta de origem estiver vazia e não for reprocessamento, pergunta se quer ler dos processados
   if (!arquivos.hasNext() && !lerDeProcessados) {
     var ui = SpreadsheetApp.getUi();
     var resp = ui.alert(
-      "Nenhum CSV Novo",
-      "Não há arquivos CSV novos na pasta 'Combustível - Frotas Telefonia'.\n\n" +
-      "Deseja buscar nos arquivos já processados para extrair apenas os registros de " + mesAlvo.nome + "?",
+      "Nenhum Arquivo Novo",
+      "Não há arquivos (.xlsx ou .csv) na pasta 'Combustível - Frotas Telefonia'.\n\n" +
+      "Deseja buscar nos arquivos já processados para extrair os lançamentos de " + mesAlvo.nome + "?",
       ui.ButtonSet.YES_NO
     );
     if (resp === ui.Button.YES) {
@@ -228,23 +224,21 @@ function importarDadosAbastecimento(lerDeProcessados) {
   while (arquivos.hasNext()) {
     var arquivo = arquivos.next();
     var nomeArquivo = arquivo.getName();
+    var nomeLower = nomeArquivo.toLowerCase();
 
-    if (nomeArquivo.toLowerCase().indexOf('.csv') > -1) {
+    if (nomeLower.indexOf('.xlsx') > -1 || nomeLower.indexOf('.csv') > -1) {
       if (arquivo.getSize() === 0) {
         Logger.log("Arquivo vazio ignorado: " + nomeArquivo);
         continue;
       }
 
       try {
-        var conteudoCsv = arquivo.getBlob().getDataAsString();
-        var primeiraLinha = conteudoCsv.split(/\r?\n/)[0];
-        var delimitador = detectarDelimitador(primeiraLinha);
-        var dados = Utilities.parseCsv(conteudoCsv, delimitador);
+        var dados = extrairMatrizDeDados(arquivo);
 
-        if (dados.length > 0) {
+        if (dados && dados.length > 0) {
           var cabecalho = dados.shift();
 
-          // Localiza índices das colunas no CSV
+          // Localiza índices das colunas
           var indexMotorista = -1;
           var indexValor = -1;
           var indexData = -1;
@@ -274,7 +268,7 @@ function importarDadosAbastecimento(lerDeProcessados) {
             continue;
           }
 
-          // Processar linhas do CSV com FILTRAGEM DE COLABORADOR E MÊS
+          // Processar linhas com FILTROS DE COLABORADOR E MÊS
           for (var r = 0; r < dados.length; r++) {
             var linha = dados[r];
             if (!linha || linha.length === 0) continue;
@@ -284,20 +278,23 @@ function importarDadosAbastecimento(lerDeProcessados) {
 
             var nomePadronizado = padronizarTexto(nomeOriginal);
 
-            // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
+            // 1º FILTRO: Colaborador precisa constar em Custos_Totais
             if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
               nomesIgnorados[nomeOriginal] = true;
               continue;
             }
 
-            var dataTransacao = indexData !== -1 ? (linha[indexData] || "").toString().trim() : "";
+            var valorDataRaw = indexData !== -1 ? linha[indexData] : "";
             var periodoCsv = indexPeriodo !== -1 ? (linha[indexPeriodo] || "").toString().trim() : "";
 
-            // 2º FILTRO: Validar se a transação pertence ao mês da planilha (ex.: OUTUBRO)
-            var ehDoMes = transacaoPertenceAoMes(dataTransacao, periodoCsv, mesAlvo, nomeArquivo);
+            // Formatar data e extrair componentes
+            var infoData = formatarDataTransacao(valorDataRaw);
+
+            // 2º FILTRO: Apenas transações que pertencem ao mês da planilha
+            var ehDoMes = transacaoPertenceAoMes(infoData, periodoCsv, mesAlvo, nomeArquivo);
             if (!ehDoMes) {
               linhasOutrosMesesQtd++;
-              continue; // Descarta lançamentos de outros meses!
+              continue;
             }
 
             var valorFormatado = formatarValorNumerico(linha[indexValor]);
@@ -306,15 +303,14 @@ function importarDadosAbastecimento(lerDeProcessados) {
             linhasParaInserir.push([
               nomeOriginal,
               valorFormatado,
-              mesAlvo.nome, // Força o nome do mês da competência (ex.: OUTUBRO)
-              dataTransacao
+              mesAlvo.nome,
+              infoData.str
             ]);
           }
 
           totalArquivos++;
         }
 
-        // Se estiver lendo da pasta de origem, move para processados
         if (!lerDeProcessados) {
           arquivo.moveTo(pastaProcessados);
         }
@@ -325,27 +321,30 @@ function importarDadosAbastecimento(lerDeProcessados) {
     }
   }
 
-  // 4. Inserir dados na aba Base_Abastecimento
+  // 4. REGRA DE LIMPEZA E RELANÇAMENTO (Sem acúmulo / sem duplicidade)
   if (linhasParaInserir.length > 0) {
-    if (CONFIG_FROTA.LIMPAR_DADOS_EXISTENTES && abaDestino.getLastRow() > 1) {
-      abaDestino.getRange(2, 1, abaDestino.getLastRow() - 1, 4).clearContent();
+    // 1º: Limpa SEMPRE todos os dados anteriores da linha 2 em diante
+    var linhasAtuais = abaDestino.getLastRow();
+    if (linhasAtuais > 1) {
+      abaDestino.getRange(2, 1, linhasAtuais - 1, abaDestino.getLastColumn()).clearContent();
+      SpreadsheetApp.flush();
     }
 
-    var ultimaLinha = abaDestino.getLastRow();
-    if (ultimaLinha === 0) {
+    // 2º: Garante cabeçalho se a aba estiver vazia
+    if (abaDestino.getLastRow() === 0) {
       abaDestino.getRange(1, 1, 1, 4).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', '']]);
-      ultimaLinha = 1;
     }
 
-    var linhaInicio = ultimaLinha + 1;
-    abaDestino.getRange(linhaInicio, 1, linhasParaInserir.length, 4).setValues(linhasParaInserir);
+    // 3º: Grava os novos dados SEMPRE a partir da linha 2
+    abaDestino.getRange(2, 1, linhasParaInserir.length, 4).setValues(linhasParaInserir);
 
-    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de " + mesAlvo.nome + " importados para a aba 'Base_Abastecimento'.\n\n" +
-                     "(" + linhasOutrosMesesQtd + " registros de outros meses foram filtrados e desconsiderados).";
+    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de " + mesAlvo.nome + " lançados na aba 'Base_Abastecimento'.\n\n" +
+                     "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
+                     "• " + linhasOutrosMesesQtd + " registros de outros meses foram filtrados e desconsiderados.";
     Logger.log(msgSucesso);
     exibirAlerta(msgSucesso);
   } else {
-    var msgVazia = "Processo finalizado. Nenhum lançamento correspondente ao mês de " + mesAlvo.nome + " foi encontrado nos arquivos CSV.";
+    var msgVazia = "Processo finalizado. Nenhum lançamento correspondente ao mês de " + mesAlvo.nome + " foi encontrado nos arquivos.";
     if (linhasOutrosMesesQtd > 0) {
       msgVazia += "\n\n(Foram ignorados " + linhasOutrosMesesQtd + " registros pertencentes a outros meses).";
     }
@@ -355,7 +354,7 @@ function importarDadosAbastecimento(lerDeProcessados) {
 
   var listaIgnorados = Object.keys(nomesIgnorados);
   if (listaIgnorados.length > 0) {
-    Logger.log("Motoristas no CSV que não constam em Custos_Totais: " + listaIgnorados.join(", "));
+    Logger.log("Motoristas nos arquivos que não constam em Custos_Totais: " + listaIgnorados.join(", "));
   }
 }
 
@@ -389,7 +388,7 @@ function importarDadosManutencao(lerDeProcessados) {
     return;
   }
 
-  // 3. Determinar pasta de leitura
+  // 3. Obter pasta de origem
   var pastaOrigem = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_MANUTENCAO);
   var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_FROTA.PASTA_PROCESSADOS_MANUTENCAO);
 
@@ -399,9 +398,9 @@ function importarDadosManutencao(lerDeProcessados) {
   if (!arquivos.hasNext() && !lerDeProcessados) {
     var ui = SpreadsheetApp.getUi();
     var resp = ui.alert(
-      "Nenhum CSV Novo",
-      "Não há arquivos CSV novos na pasta 'Manutenção - Frota Telefonia'.\n\n" +
-      "Deseja buscar nos arquivos já processados para extrair apenas os registros de " + mesAlvo.nome + "?",
+      "Nenhum Arquivo Novo",
+      "Não há arquivos (.xlsx ou .csv) na pasta 'Manutenção - Frota Telefonia'.\n\n" +
+      "Deseja buscar nos arquivos já processados para extrair os lançamentos de " + mesAlvo.nome + "?",
       ui.ButtonSet.YES_NO
     );
     if (resp === ui.Button.YES) {
@@ -420,23 +419,21 @@ function importarDadosManutencao(lerDeProcessados) {
   while (arquivos.hasNext()) {
     var arquivo = arquivos.next();
     var nomeArquivo = arquivo.getName();
+    var nomeLower = nomeArquivo.toLowerCase();
 
-    if (nomeArquivo.toLowerCase().indexOf('.csv') > -1) {
+    if (nomeLower.indexOf('.xlsx') > -1 || nomeLower.indexOf('.csv') > -1) {
       if (arquivo.getSize() === 0) {
         Logger.log("Arquivo vazio ignorado: " + nomeArquivo);
         continue;
       }
 
       try {
-        var conteudoCsv = arquivo.getBlob().getDataAsString();
-        var primeiraLinha = conteudoCsv.split(/\r?\n/)[0];
-        var delimitador = detectarDelimitador(primeiraLinha);
-        var dados = Utilities.parseCsv(conteudoCsv, delimitador);
+        var dados = extrairMatrizDeDados(arquivo);
 
-        if (dados.length > 0) {
+        if (dados && dados.length > 0) {
           var cabecalho = dados.shift();
 
-          // Localiza índices das colunas no CSV
+          // Localiza índices das colunas
           var indexMotorista = -1;
           var indexValor = -1;
           var indexTipoEstabelecimento = -1;
@@ -472,7 +469,7 @@ function importarDadosManutencao(lerDeProcessados) {
             continue;
           }
 
-          // Processar linhas do CSV com FILTRAGEM DE COLABORADOR E MÊS
+          // Processar linhas com FILTROS DE COLABORADOR E MÊS
           for (var r = 0; r < dados.length; r++) {
             var linha = dados[r];
             if (!linha || linha.length === 0) continue;
@@ -482,17 +479,19 @@ function importarDadosManutencao(lerDeProcessados) {
 
             var nomePadronizado = padronizarTexto(nomeOriginal);
 
-            // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
+            // 1º FILTRO: Colaborador precisa constar em Custos_Totais
             if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
               nomesIgnorados[nomeOriginal] = true;
               continue;
             }
 
-            var dataTransacao = indexData !== -1 ? (linha[indexData] || "").toString().trim() : "";
+            var valorDataRaw = indexData !== -1 ? linha[indexData] : "";
             var periodoCsv = indexPeriodo !== -1 ? (linha[indexPeriodo] || "").toString().trim() : "";
 
-            // 2º FILTRO: Validar se a transação pertence ao mês da planilha
-            var ehDoMes = transacaoPertenceAoMes(dataTransacao, periodoCsv, mesAlvo, nomeArquivo);
+            var infoData = formatarDataTransacao(valorDataRaw);
+
+            // 2º FILTRO: Apenas transações do mês da planilha
+            var ehDoMes = transacaoPertenceAoMes(infoData, periodoCsv, mesAlvo, nomeArquivo);
             if (!ehDoMes) {
               linhasOutrosMesesQtd++;
               continue;
@@ -507,7 +506,7 @@ function importarDadosManutencao(lerDeProcessados) {
               valorFormatado,
               tipoEstabelecimento,
               mesAlvo.nome,
-              dataTransacao
+              infoData.str
             ]);
           }
 
@@ -524,23 +523,23 @@ function importarDadosManutencao(lerDeProcessados) {
     }
   }
 
-  // 4. Inserir dados na aba Base_Manutenção
+  // 4. REGRA DE LIMPEZA E RELANÇAMENTO (Sem acúmulo / sem duplicidade)
   if (linhasParaInserir.length > 0) {
-    if (CONFIG_FROTA.LIMPAR_DADOS_EXISTENTES && abaDestino.getLastRow() > 1) {
-      abaDestino.getRange(2, 1, abaDestino.getLastRow() - 1, 5).clearContent();
+    var linhasAtuais = abaDestino.getLastRow();
+    if (linhasAtuais > 1) {
+      abaDestino.getRange(2, 1, linhasAtuais - 1, abaDestino.getLastColumn()).clearContent();
+      SpreadsheetApp.flush();
     }
 
-    var ultimaLinha = abaDestino.getLastRow();
-    if (ultimaLinha === 0) {
+    if (abaDestino.getLastRow() === 0) {
       abaDestino.getRange(1, 1, 1, 5).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'Período', '']]);
-      ultimaLinha = 1;
     }
 
-    var linhaInicio = ultimaLinha + 1;
-    abaDestino.getRange(linhaInicio, 1, linhasParaInserir.length, 5).setValues(linhasParaInserir);
+    abaDestino.getRange(2, 1, linhasParaInserir.length, 5).setValues(linhasParaInserir);
 
-    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de manutenção de " + mesAlvo.nome + " importados.\n\n" +
-                     "(" + linhasOutrosMesesQtd + " registros de outros meses foram filtrados e desconsiderados).";
+    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de manutenção de " + mesAlvo.nome + " lançados na aba 'Base_Manutenção'.\n\n" +
+                     "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
+                     "• " + linhasOutrosMesesQtd + " registros de outros meses foram filtrados e desconsiderados.";
     Logger.log(msgSucesso);
     exibirAlerta(msgSucesso);
   } else {
@@ -554,7 +553,7 @@ function importarDadosManutencao(lerDeProcessados) {
 
   var listaIgnorados = Object.keys(nomesIgnorados);
   if (listaIgnorados.length > 0) {
-    Logger.log("Motoristas no CSV que não constam em Custos_Totais: " + listaIgnorados.join(", "));
+    Logger.log("Motoristas nos arquivos que não constam em Custos_Totais: " + listaIgnorados.join(", "));
   }
 }
 
@@ -610,12 +609,116 @@ function testarConexoes() {
 
 
 // ============================================================================
-// 6. FUNÇÕES UTILITÁRIAS
+// 6. FUNÇÕES AUXILIARES DE SUPORTE (EXCEL, CSV E DATAS)
 // ============================================================================
 
 /**
- * Identifica o mês e o ano da planilha ativa a partir do título do arquivo.
- * Ex: "10. CUSTOS DO SETOR - OUTUBRO - 2026" -> { codigo: "10", nome: "OUTUBRO", ano: "2026" }
+ * Lê a matriz de dados tanto de arquivos Excel (.xlsx) quanto de arquivos CSV (.csv).
+ */
+function extrairMatrizDeDados(arquivo) {
+  var nomeLower = arquivo.getName().toLowerCase();
+
+  if (nomeLower.indexOf('.xlsx') > -1) {
+    return converterExcelParaMatriz(arquivo);
+  } else {
+    var conteudoCsv = arquivo.getBlob().getDataAsString();
+    var primeiraLinha = conteudoCsv.split(/\r?\n/)[0];
+    var delimitador = detectarDelimitador(primeiraLinha);
+    return Utilities.parseCsv(conteudoCsv, delimitador);
+  }
+}
+
+/**
+ * Converte arquivo Excel (.xlsx) em matriz de valores de forma compatível e segura.
+ */
+function converterExcelParaMatriz(arquivo) {
+  var blob = arquivo.getBlob();
+  var tempId = null;
+
+  // 1. Tenta usar o serviço avançado do Drive se estiver habilitado
+  if (typeof Drive !== 'undefined') {
+    try {
+      if (Drive.Files && Drive.Files.create) {
+        var res = { name: '[TEMP_CONV] ' + arquivo.getName(), mimeType: MimeType.GOOGLE_SHEETS };
+        var novo = Drive.Files.create(res, blob);
+        tempId = novo.id;
+      } else if (Drive.Files && Drive.Files.insert) {
+        var res = { title: '[TEMP_CONV] ' + arquivo.getName(), mimeType: MimeType.GOOGLE_SHEETS };
+        var novo = Drive.Files.insert(res, blob, { convert: true });
+        tempId = novo.id;
+      }
+    } catch (e) {
+      Logger.log("Aviso: Falha ao converter via Drive Service: " + e.message);
+    }
+  }
+
+  // 2. Fallback direto via REST API do Drive (funciona sem precisar ativar serviço na barra lateral)
+  if (!tempId) {
+    try {
+      var url = 'https://www.googleapis.com/upload/drive/v2/files?uploadType=media&convert=true';
+      var params = {
+        method: 'post',
+        headers: {
+          'Authorization': 'Bearer ' + ScriptApp.getOAuthToken()
+        },
+        contentType: blob.getContentType(),
+        payload: blob.getBytes(),
+        muteHttpExceptions: true
+      };
+      var resposta = UrlFetchApp.fetch(url, params);
+      var json = JSON.parse(resposta.getContentText());
+      if (json && json.id) {
+        tempId = json.id;
+      }
+    } catch (e) {
+      Logger.log("Aviso: Falha ao converter via UrlFetch: " + e.message);
+    }
+  }
+
+  if (!tempId) {
+    throw new Error("Não foi possível ler o arquivo Excel (.xlsx). Verifique as permissões de acesso ao Google Drive.");
+  }
+
+  // Lê os dados da planilha temporária
+  var tempPlanilha = SpreadsheetApp.openById(tempId);
+  var dados = tempPlanilha.getSheets()[0].getDataRange().getValues();
+
+  // Exclui a planilha temporária
+  try {
+    DriveApp.getFileById(tempId).setTrashed(true);
+  } catch (e) {}
+
+  return dados;
+}
+
+/**
+ * Formata valores de data aceitando tanto objetos Date nativos do Excel quanto strings de texto.
+ */
+function formatarDataTransacao(valorData) {
+  if (valorData === undefined || valorData === null || valorData === "") {
+    return { str: "", mes: null, ano: null };
+  }
+
+  // Se for objeto Date do JavaScript (comum ao ler .xlsx convertido)
+  if (valorData instanceof Date && !isNaN(valorData.getTime())) {
+    var strFormatada = Utilities.formatDate(valorData, 'America/Fortaleza', 'dd/MM/yyyy HH:mm:ss');
+    var mes = Utilities.formatDate(valorData, 'America/Fortaleza', 'MM');
+    var ano = Utilities.formatDate(valorData, 'America/Fortaleza', 'yyyy');
+    return { str: strFormatada, mes: mes, ano: ano };
+  }
+
+  // Se for string
+  var str = valorData.toString().trim();
+  var comp = extrairComponentesData(str);
+  if (comp) {
+    return { str: str, mes: comp.mes, ano: comp.ano };
+  }
+
+  return { str: str, mes: null, ano: null };
+}
+
+/**
+ * Identifica o mês e ano no título da planilha ativa.
  */
 function obterMesAlvoDaPlanilha(planilha) {
   var nomePlanilha = (planilha ? planilha.getName() : CONFIG_FROTA.NOME_PLANILHA_PADRAO).toUpperCase();
@@ -659,23 +762,20 @@ function obterMesAlvoDaPlanilha(planilha) {
 }
 
 /**
- * Valida se uma transação pertence ao mês da planilha com base na data da transação ou período.
+ * Valida se uma transação pertence ao mês da planilha ativa.
  */
-function transacaoPertenceAoMes(dataStr, periodoStr, mesAlvo, nomeArquivo) {
-  // 1. Validação pela data da transação (mais confiável)
-  if (dataStr) {
-    var comp = extrairComponentesData(dataStr);
-    if (comp) {
-      if (comp.mes === mesAlvo.codigo) {
-        if (!mesAlvo.ano || comp.ano === mesAlvo.ano) {
-          return true;
-        }
+function transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo) {
+  // 1. Validação pela data da transação
+  if (infoData && infoData.mes) {
+    if (infoData.mes === mesAlvo.codigo) {
+      if (!mesAlvo.ano || !infoData.ano || infoData.ano === mesAlvo.ano) {
+        return true;
       }
-      return false; // Tem data válida no formato e não pertence a este mês
     }
+    return false;
   }
 
-  // 2. Validação pela coluna de período (se informada)
+  // 2. Validação pela coluna período (se existir)
   if (periodoStr) {
     var pNorm = padronizarTexto(periodoStr);
     if (pNorm === mesAlvo.nome) return true;
@@ -690,7 +790,7 @@ function transacaoPertenceAoMes(dataStr, periodoStr, mesAlvo, nomeArquivo) {
     }
   }
 
-  // 3. Fallback: Se a linha não tiver data explícita, verifica data do arquivo
+  // 3. Validação pelo nome do arquivo como último recurso
   if (nomeArquivo) {
     var matchArq = nomeArquivo.match(/\d{4}(\d{2})\d{2}/);
     if (matchArq && matchArq[1] === mesAlvo.codigo) {
@@ -702,7 +802,7 @@ function transacaoPertenceAoMes(dataStr, periodoStr, mesAlvo, nomeArquivo) {
 }
 
 /**
- * Extrai dia, mês e ano de strings de data variadas (DD/MM/YYYY, YYYY-MM-DD, etc.)
+ * Extrai dia, mês e ano de strings variadas de data.
  */
 function extrairComponentesData(dataStr) {
   if (!dataStr) return null;

@@ -1,13 +1,13 @@
 # 🚗 Guia de Ativação: Importação de Abastecimento e Manutenção
 
-Manual passo a passo para configurar a importação automática de arquivos CSV de **Combustível** e **Manutenção** para a planilha mensal de custos da frota (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
+Manual passo a passo para configurar a importação automática de arquivos Excel (**`.xlsx`**) e **`.csv`** de **Combustível** e **Manutenção** para a planilha mensal de custos da frota (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
 
 ---
 
 ## 📌 Como Funciona o Fluxo
 
 ```
-[1. Upload do CSV no Drive]
+[1. Upload do Arquivo (.xlsx ou .csv) no Drive]
    - Manutenção: Pasta 'Manutenção - Frota Telefonia'
    - Combustível: Pasta 'Combustível - Frotas Telefonia'
          │
@@ -17,12 +17,13 @@ Manual passo a passo para configurar a importação automática de arquivos CSV 
    - Ou opções diretas de Abastecimento / Manutenção / Ambos
          │
          ▼
-[3. Processamento Automático]
-   ├── Detecta delimitador do CSV (, ou ;)
+[3. Processamento Automático e Limpeza Estrita]
+   ├── Lê arquivos .xlsx nativos e .csv
+   ├── Filtra estritamente pelo mês da planilha ativa (ex.: OUTUBRO)
    ├── Valida motoristas com a lista da aba 'Custos_Totais' (Coluna A)
-   ├── Extrai período (ex.: OUTUBRO) e formata valores monetários
-   ├── Insere os dados nas colunas solicitadas da aba correspondente
-   └── Move o CSV processado para a subpasta 'Arquivos Processados'
+   ├── LIMPEZA E RELANÇAMENTO: Limpa dados anteriores da aba (linha 2 em diante)
+   ├── Insere os novos dados a partir da linha 2 (sem duplicidades)
+   └── Move o arquivo processado para a subpasta 'Arquivos Processados'
 ```
 
 ---
@@ -65,7 +66,8 @@ Manual passo a passo para configurar a importação automática de arquivos CSV 
   "runtimeVersion": "V8",
   "oauthScopes": [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/script.external_request"
   ]
 }
 ```
