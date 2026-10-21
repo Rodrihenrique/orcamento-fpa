@@ -1,47 +1,35 @@
-# 🚗 Automação de Abastecimento e Custos de Frotas
+# 🚗 Automação de Abastecimento e Manutenção de Frotas
 
-Módulo de automação em **Google Apps Script** para importação, processamento e consolidação de extratos de faturamento de abastecimento (Ticket Log / `RFCV_*.csv`) e manutenção de veículos do setor **OPERAÇÃO E MANUTENÇÃO DE REDES** (Gerência Executiva de Telefonia - Brisanet).
-
----
-
-## 📂 Arquitetura do Módulo
-
-- **[`Codigo.js`](./Codigo.js)**: Código-fonte do Google Apps Script com a lógica completa de parsing de CSV, mapeamento de colunas, formatação de valores, identificação de mês/período, filtro de colaboradores, movimentação de arquivos e menu do Google Sheets.
-- **[`appsscript.json`](./appsscript.json)**: Manifesto de configuração do Apps Script com escopos OAuth necessários e fuso horário `America/Fortaleza`.
-- **[`GUIA_DE_ATIVACAO.md`](./GUIA_DE_ATIVACAO.md)**: Manual passo a passo detalhado para instalação, configuração dos IDs, concessão de permissões, execução manual e agendamento de gatilhos automáticos.
+Módulo em **Google Apps Script** para importação automática de extratos de faturamento de combustível e manutenção de veículos (arquivos `RFCV_*.csv`) para as planilhas de custos mensais da gerência (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
 
 ---
 
-## 🎯 Especificações de Dados (Aba `Base_Abastecimento`)
+## 🎯 Objetivo
 
-Os arquivos CSV recebidos contêm dados detalhados das transações de abastecimento. O script extrai e organiza os dados em 4 colunas canônicas:
+Eliminar o trabalho manual de cópia e tratamento de dados dos arquivos CSV baixados dos cartões de frota (Ticket Log / RFCV), alimentando diretamente as duas abas da planilha mensal:
+1. **`Base_Abastecimento`**: Lançamentos detalhados de combustível.
+2. **`Base_Manutenção`**: Lançamentos detalhados de oficinas, peças e lavagens com tipo de estabelecimento.
 
-| Coluna | Campo | Tipo | Descrição |
-| :---: | :--- | :---: | :--- |
-| **A** | `NOME MOTORISTA` | Texto | Nome completo do condutor associado à transação. |
-| **B** | `VALOR EMISSAO` | Moeda / Numérico | Valor financeiro do abastecimento (formatado com casas decimais). |
-| **C** | `PERÍODO` | Texto | Mês de competência por extenso (ex.: `OUTUBRO`). |
-| **D** | `DATA TRANSACAO` | Data/Hora | Data e hora exata da emissão do cupom (ex.: `01/10/2026 07:02:13`). |
+Os motoristas importados são filtrados automaticamente a partir da lista de colaboradores cadastrada na aba **`Custos_Totais`** (Coluna A) da própria planilha.
 
 ---
 
-## 🧭 Estrutura de Pastas e Destino no Google Drive
+## 📁 Arquitetura dos Arquivos
 
-```
-Drive: Compartilhados comigo
- └─ CUSTOS DO SETOR
-     └─ OPERAÇÃO E MANUTENÇÃO DE REDES
-         └─ 2026
-             ├─ 1. CUSTOS DO SETOR - JANEIRO - 2026
-             ├─ ...
-             ├─ 8. CUSTOS DO SETOR - AGOSTO- 2026
-             ├─ 9. CUSTOS DO SETOR - SETEMBRO- 2026
-             └─ 10. CUSTOS DO SETOR - OUTUBRO - 2026 ◄── [DESTINO ATUAL]
-                 └─ Aba: Base_Abastecimento
-```
+- **[`Codigo.js`](./Codigo.js)**: Código-fonte do Google Apps Script com as funções `importarDadosAbastecimento`, `importarDadosManutencao`, `testarConexoes` e utilitários de tratamento de CSV e conversão numérica.
+- **[`appsscript.json`](./appsscript.json)**: Manifesto de configuração do projeto com timezone `America/Fortaleza`.
+- **[`GUIA_DE_ATIVACAO.md`](./GUIA_DE_ATIVACAO.md)**: Manual detalhado de ativação, incluindo instruções de como criar os botões interativos nas abas da planilha.
 
 ---
 
-## 🚀 Como Começar
+## 🔗 Links das Pastas no Google Drive
 
-Siga as instruções passo a passo no [**Guia de Ativação**](./GUIA_DE_ATIVACAO.md).
+- **Pasta Raiz 2026 (Planilhas Mensais):** [Pasta 2026](https://drive.google.com/drive/folders/1P-QIZVEhADgyZk62snW9nDcV8E_4vLRU)
+- **Pasta CSV Combustível:** [Combustível - Frotas Telefonia](https://drive.google.com/drive/folders/1exK26bgZNurn4bh0Q5bv-f-WyM3f-fxs)
+- **Pasta CSV Manutenção:** [Manutenção - Frota Telefonia](https://drive.google.com/drive/folders/1zpsygbFL4d6PtsbjN9FMVITt2ZptR8f2)
+
+---
+
+## 🚀 Como Ativar
+
+Consulte as instruções passo a passo no [**`GUIA_DE_ATIVACAO.md`**](./GUIA_DE_ATIVACAO.md).
