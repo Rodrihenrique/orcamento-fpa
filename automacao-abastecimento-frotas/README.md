@@ -11,10 +11,11 @@ Eliminar o trabalho manual de cópia e tratamento de dados dos arquivos baixados
 2. **`Base_Manutenção`**: Lançamentos detalhados de oficinas, peças e lavagens com tipo de estabelecimento (5 colunas).
 
 ### 🔍 Funcionalidades de Precisão:
-- **Suporte Nativo a `.xlsx` e `.csv`**: Converte e processa diretamente planilhas Excel (.xlsx) e arquivos delimitados (.csv).
+- **Suporte Nativo a `.xlsx` e `.csv` em Lotes (Chunks)**: Processamento leve e rápido particionado em blocos de 2.000 linhas, eliminando estouro de memória e preservando o fuso horário real do cupom.
+- **Sincronização Multi-Planilhas (Julho em diante)**: Opção de sincronizar em um único clique todas as planilhas da pasta 2026 a partir do mês de **JULHO** (Julho a Outubro e próximos meses). Planilhas de Janeiro a Junho são preservadas sem alterações.
 - **Limpeza e Relançamento Estrito**: A cada execução, os dados anteriores da aba (a partir da linha 2) são completamente limpos e os novos dados são gravados a partir da linha 2. Nunca duplica ou empilha dados no fim da planilha.
-- **Filtro Mensal Dinâmico:** O script identifica o mês e ano no título da planilha aberta (ex.: `10. CUSTOS DO SETOR - OUTUBRO - 2026` -> Outubro/2026). As transações são validadas pela data do cupom: **apenas os registros do mês da planilha são importados**; transações de outros meses são automaticamente ignoradas.
-- **Filtro de Colaboradores:** Apenas colaboradores presentes na **Coluna A da aba `Custos_Totais`** têm seus lançamentos importados, garantindo que carros de outros setores não entrem na planilha.
+- **Filtro Mensal Dinâmico:** O script identifica o mês e ano da planilha (ex.: `10. CUSTOS DO SETOR - OUTUBRO - 2026` -> Outubro/2026). As transações são validadas pela data do cupom: **apenas os registros da competência correspondente são importados**.
+- **Filtro de Colaboradores:** Apenas colaboradores presentes na **Coluna A da aba `Custos_Totais`** de cada planilha mensal têm seus lançamentos importados.
 
 ---
 

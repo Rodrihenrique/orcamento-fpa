@@ -86,14 +86,29 @@ Manual passo a passo para configurar a importação automática de arquivos Exce
 A função **`onOpen()`** é executada automaticamente assim que a planilha é aberta ou recarregada (`F5`). Ela cria um menu na barra superior do Google Sheets:
 
 ### Itens do Menu **`🚗 Gestão de Frota`**:
+
+#### 📌 Para a Planilha Ativa (Mês Atual):
 1. **`⚡ Importar Dados da Aba Atual`**:
    - Detecta automaticamente em qual aba você está.
-   - Se você estiver na aba `Base_Abastecimento`, importa o combustível.
-   - Se você estiver na aba `Base_Manutenção`, importa a manutenção.
-2. **`⛽ Importar Abastecimento (Aba Base_Abastecimento)`**: Importa especificamente o CSV de combustível.
-3. **`🔧 Importar Manutenção (Aba Base_Manutenção)`**: Importa especificamente o CSV de manutenção.
-4. **`🔄 Importar Tudo (Abastecimento + Manutenção)`**: Roda ambas as importações de uma só vez.
-5. **`🔍 Testar Conexões e Colaboradores`**: Executa o teste de diagnóstico.
+   - Se você estiver na aba `Base_Abastecimento`, importa o combustível do mês.
+   - Se você estiver na aba `Base_Manutenção`, importa a manutenção do mês.
+2. **`⛽ Importar Abastecimento (Desta Planilha)`**: Importa especificamente o extrato de combustível para a planilha aberta.
+3. **`🔧 Importar Manutenção (Desta Planilha)`**: Importa especificamente o extrato de manutenção para a planilha aberta.
+4. **`🔄 Importar Tudo (Desta Planilha)`**: Roda ambas as importações para a planilha aberta.
+
+#### 🌐 Sincronização em Lote da Pasta 2026 (Julho em diante):
+5. **`🌐 Sincronizar Todas as Planilhas (Julho em diante)`**:
+   - Varre toda a pasta `2026` e identifica as planilhas de **JULHO a OUTUBRO (e próximos meses)**.
+   - Extrai e distribui os lançamentos de cada mês diretamente na sua respectiva planilha.
+   - Cada planilha é validada pela sua própria lista de colaboradores em `Custos_Totais`.
+   - **Planilhas de Janeiro a Junho são mantidas intactas** (formato antigo preservado).
+6. **`⛽ Sincronizar Abastecimento (Todas de Julho em diante)`**: Distribui combustível para todas as planilhas da pasta 2026.
+7. **`🔧 Sincronizar Manutenção (Todas de Julho em diante)`**: Distribui manutenção para todas as planilhas da pasta 2026.
+
+#### 🛠️ Utilitários:
+8. **`📁 Reprocessar da Pasta 'Arquivos Processados'`**: Permite reler o histórico já processado.
+9. **`🧹 Limpar Dados da Aba Atual`**: Limpa manualmente os lançamentos da aba atual (da linha 2 em diante).
+10. **`🔍 Testar Conexões e Diagnóstico`**: Lista conexões e exibe todas as planilhas elegíveis encontradas na pasta 2026.
 
 > **Dica:** Para fazer o menu aparecer pela primeira vez após colar o código, basta recarregar a planilha no navegador (`F5`) ou executar a função `onOpen` uma vez no editor do Apps Script.
 
