@@ -22,10 +22,9 @@
  *    - Lê os colaboradores cadastrados na aba 'Custos_Totais' (Coluna A).
  *    - Filtra as transações do CSV para importar apenas os colaboradores do setor.
  * 
- * 4. Disparo:
- *    - Pode ser disparado diretamente por botões inseridos nas abas da planilha
- *      (atribuindo as funções 'importarDadosAbastecimento' e 'importarDadosManutencao')
- *      ou pelo menu superior "🚗 Gestão de Frota".
+ * 4. Menu Superior Automático (onOpen):
+ *    - Cria o menu "🚗 Gestão de Frota" na barra superior do Google Sheets ao abrir a planilha.
+ *    - Permite executar a importação da aba atual, de abastecimento, de manutenção ou ambas.
  * 
  * 5. Histórico:
  *    - Ao finalizar o processamento, move o CSV para a subpasta "Arquivos Processados".
@@ -62,25 +61,74 @@ const CONFIG_FROTA = {
 
 
 // ============================================================================
-// 2. MENU SUPERIOR DO GOOGLE SHEETS
+// 2. MENU SUPERIOR DO GOOGLE SHEETS (onOpen)
 // ============================================================================
+/**
+ * Executada automaticamente ao abrir a planilha no Google Sheets.
+ * Adiciona o menu "🚗 Gestão de Frota" na barra de ferramentas superior.
+ */
 function onOpen() {
   try {
     const ui = SpreadsheetApp.getUi();
     ui.createMenu("🚗 Gestão de Frota")
-      .addItem("⛽ Importar Abastecimento (CSV)", "importarDadosAbastecimento")
-      .addItem("🔧 Importar Manutenção (CSV)", "importarDadosManutencao")
+      .addItem("⚡ Importar Dados da Aba Atual", "importarAbaAtiva")
       .addSeparator()
-      .addItem("🔍 Testar Conexões e Abas", "testarConexoes")
+      .addItem("⛽ Importar Abastecimento (Aba Base_Abastecimento)", "importarDadosAbastecimento")
+      .addItem("🔧 Importar Manutenção (Aba Base_Manutenção)", "importarDadosManutencao")
+      .addItem("🔄 Importar Tudo (Abastecimento + Manutenção)", "importarTodosOsCustos")
+      .addSeparator()
+      .addItem("🔍 Testar Conexões e Colaboradores", "testarConexoes")
       .addToUi();
   } catch (e) {
     Logger.log("Menu UI não carregado (contexto sem UI): " + e.message);
   }
 }
 
+/**
+ * Identifica a aba em que o usuário está visualizando no momento
+ * e aciona a importação correspondente automaticamente.
+ */
+function importarAbaAtiva() {
+  var planilha = SpreadsheetApp.getActiveSpreadsheet();
+  if (!planilha) {
+    exibirAlerta("Erro: Nenhuma planilha ativa detectada.");
+    return;
+  }
+
+  var abaAtiva = planilha.getActiveSheet();
+  var nomeAba = abaAtiva ? abaAtiva.getName().toLowerCase() : "";
+
+  if (nomeAba.indexOf("abastecimento") > -1) {
+    importarDadosAbastecimento();
+  } else if (nomeAba.indexOf("manuten") > -1) {
+    importarDadosManutencao();
+  } else {
+    var ui = SpreadsheetApp.getUi();
+    var resposta = ui.alert(
+      "Importação de Frota",
+      "Você está na aba '" + abaAtiva.getName() + "'.\n\n" +
+      "Deseja importar ambos os extratos (Abastecimento e Manutenção)?",
+      ui.ButtonSet.YES_NO
+    );
+
+    if (resposta === ui.Button.YES) {
+      importarTodosOsCustos();
+    }
+  }
+}
+
+/**
+ * Importa tanto Abastecimento quanto Manutenção em uma única execução.
+ */
+function importarTodosOsCustos() {
+  Logger.log("Iniciando importação completa (Abastecimento + Manutenção)...");
+  importarDadosAbastecimento();
+  importarDadosManutencao();
+}
+
 
 // ============================================================================
-// 3. FUNÇÃO PARA O BOTÃO DA ABA 'Base_Abastecimento'
+// 3. IMPORTAÇÃO DE ABASTECIMENTO (Aba: Base_Abastecimento)
 // ============================================================================
 function importarDadosAbastecimento() {
   Logger.log("Iniciando importação de ABASTECIMENTO...");
@@ -234,7 +282,6 @@ function importarDadosAbastecimento() {
     exibirAlerta(msgVazia);
   }
 
-  // Log de colaboradores ignorados
   var listaIgnorados = Object.keys(nomesIgnorados);
   if (listaIgnorados.length > 0) {
     Logger.log("Motoristas no CSV que não constam em Custos_Totais: " + listaIgnorados.join(", "));
@@ -243,7 +290,7 @@ function importarDadosAbastecimento() {
 
 
 // ============================================================================
-// 4. FUNÇÃO PARA O BOTÃO DA ABA 'Base_Manutenção'
+// 4. IMPORTAÇÃO DE MANUTENÇÃO (Aba: Base_Manutenção)
 // ============================================================================
 function importarDadosManutencao() {
   Logger.log("Iniciando importação de MANUTENÇÃO...");
@@ -464,7 +511,7 @@ function testarConexoes() {
 // ============================================================================
 
 /**
- * Obtém a planilha ativa (quando clicado via botão na planilha)
+ * Obtém a planilha ativa (quando clicado via menu na planilha)
  * ou localiza pelo nome na pasta 2026.
  */
 function obterPlanilhaAlvo() {
@@ -473,7 +520,7 @@ function obterPlanilhaAlvo() {
     if (ativa) return ativa;
   } catch (e) {}
 
-  // Se executado sem contexto ativo (ex: acionador de tempo), busca na pasta 2026
+  // Fallback se executado sem contexto ativo
   try {
     var pasta2026 = DriveApp.getFolderById(CONFIG_FROTA.PASTA_RAIZ_2026);
     var arquivos = pasta2026.getFilesByName(CONFIG_FROTA.NOME_PLANILHA_PADRAO);
@@ -484,7 +531,6 @@ function obterPlanilhaAlvo() {
     Logger.log("Erro ao buscar planilha na pasta 2026: " + e.message);
   }
 
-  // Fallback geral pelo nome no Drive
   var busca = DriveApp.getFilesByName(CONFIG_FROTA.NOME_PLANILHA_PADRAO);
   if (busca.hasNext()) {
     return SpreadsheetApp.open(busca.next());

@@ -7,14 +7,14 @@ Manual passo a passo para configurar a importação automática de arquivos CSV 
 ## 📌 Como Funciona o Fluxo
 
 ```
-[1. Upload do CSV]
+[1. Upload do CSV no Drive]
    - Manutenção: Pasta 'Manutenção - Frota Telefonia'
    - Combustível: Pasta 'Combustível - Frotas Telefonia'
          │
          ▼
-[2. Clique no Botão na Planilha]
-   - Na aba 'Base_Abastecimento' ──► Executa: importarDadosAbastecimento
-   - Na aba 'Base_Manutenção'    ──► Executa: importarDadosManutencao
+[2. Execução pelo Menu Superior (onOpen) ou Botão]
+   - Menu: 🚗 Gestão de Frota ──► ⚡ Importar Dados da Aba Atual
+   - Ou opções diretas de Abastecimento / Manutenção / Ambos
          │
          ▼
 [3. Processamento Automático]
@@ -43,7 +43,7 @@ Manual passo a passo para configurar a importação automática de arquivos CSV 
 
 1. Abra a planilha **`10. CUSTOS DO SETOR - OUTUBRO - 2026`** no Google Sheets.
 2. No menu superior, clique em **Extensões** > **Apps Script**.
-3. Renomeie o arquivo de script para **`Codigo.js`** (ou use `Codigo.gs`).
+3. Renomeie o arquivo de script para **`Codigo.js`** (ou mantenha `Codigo.gs`).
 4. Apague qualquer código existente e cole o conteúdo completo do arquivo [`Codigo.js`](./Codigo.js) deste repositório.
 5. Clique em **Salvar** (💾).
 
@@ -73,44 +73,43 @@ Manual passo a passo para configurar a importação automática de arquivos CSV 
 
 ---
 
-## 🔘 Passo 3: Criar os Botões nas Abas da Planilha
+## 🚗 Passo 3: Utilizando o Menu Superior (`onOpen`)
 
-Para acionar a importação com apenas um clique:
+A função **`onOpen()`** é executada automaticamente assim que a planilha é aberta ou recarregada (`F5`). Ela cria um menu na barra superior do Google Sheets:
 
-### Botão 1: Na Aba `Base_Abastecimento`
-1. Acesse a aba **`Base_Abastecimento`**.
-2. No menu superior da planilha, vá em: **Inserir** > **Desenho**.
-3. Desenhe um retângulo ou botão arredondado.
-4. Escreva dentro dele: **`⛽ Importar Abastecimento`** e formate as cores (ex.: fundo azul ou verde com texto em negrito).
-5. Clique em **Salvar e fechar**.
-6. Posicione o botão no topo da planilha (ao lado das colunas E ou F).
-7. Clique nos **3 pontinhos verticais** no canto superior direito do botão criado.
-8. Selecione **Atribuir script**.
-9. Digite exatamente:
-   ```
-   importarDadosAbastecimento
-   ```
-10. Clique em **OK**.
+### Itens do Menu **`🚗 Gestão de Frota`**:
+1. **`⚡ Importar Dados da Aba Atual`**:
+   - Detecta automaticamente em qual aba você está.
+   - Se você estiver na aba `Base_Abastecimento`, importa o combustível.
+   - Se você estiver na aba `Base_Manutenção`, importa a manutenção.
+2. **`⛽ Importar Abastecimento (Aba Base_Abastecimento)`**: Importa especificamente o CSV de combustível.
+3. **`🔧 Importar Manutenção (Aba Base_Manutenção)`**: Importa especificamente o CSV de manutenção.
+4. **`🔄 Importar Tudo (Abastecimento + Manutenção)`**: Roda ambas as importações de uma só vez.
+5. **`🔍 Testar Conexões e Colaboradores`**: Executa o teste de diagnóstico.
+
+> **Dica:** Para fazer o menu aparecer pela primeira vez após colar o código, basta recarregar a planilha no navegador (`F5`) ou executar a função `onOpen` uma vez no editor do Apps Script.
 
 ---
 
+## 🔘 Passo Opcional: Criar Botões Desenhados na Planilha
+
+Se preferir ter um botão físico desenhado dentro da própria planilha:
+
+### Botão 1: Na Aba `Base_Abastecimento`
+1. Vá em: **Inserir** > **Desenho**, crie uma forma com o texto **`⛽ Importar Abastecimento`** e salve.
+2. Clique nos 3 pontinhos do botão > **Atribuir script**.
+3. Digite: `importarDadosAbastecimento` e confirme.
+
 ### Botão 2: Na Aba `Base_Manutenção`
-1. Acesse a aba **`Base_Manutenção`**.
-2. Vá em: **Inserir** > **Desenho**.
-3. Crie um botão com o texto: **`🔧 Importar Manutenção`**.
-4. Clique em **Salvar e fechar** e posicione-o no topo da aba.
-5. Clique nos **3 pontinhos** do botão > **Atribuir script**.
-6. Digite exatamente:
-   ```
-   importarDadosManutencao
-   ```
-7. Clique em **OK**.
+1. Vá em: **Inserir** > **Desenho**, crie uma forma com o texto **`🔧 Importar Manutenção`** e salve.
+2. Clique nos 3 pontinhos do botão > **Atribuir script**.
+3. Digite: `importarDadosManutencao` e confirme.
 
 ---
 
 ## 🔐 Passo 4: Autorização Inicial de Permissões
 
-Na primeira vez em que você clicar no botão (ou testar a função):
+Na primeira vez em que você clicar no menu ou botão:
 
 1. Uma janela surgirá: **"Autorização necessária"** > Clique em **Continuar** / **Revisar permissões**.
 2. Escolha sua conta corporativa Google.
@@ -118,17 +117,6 @@ Na primeira vez em que você clicar no botão (ou testar a função):
    - Clique no link **Avançado** (canto inferior esquerdo).
    - Clique em **Acessar [Nome do Projeto] (não seguro)**.
 4. Clique em **Permitir**.
-
----
-
-## 🧪 Passo 5: Testar as Conexões
-
-Você pode testar se a planilha localiza as pastas e os colaboradores:
-1. No menu superior do Google Sheets, clique em: **`🚗 Gestão de Frota`** > **`🔍 Testar Conexões e Abas`**.
-2. A planilha exibirá um relatório confirmando:
-   - ✅ Planilha ativa identificada
-   - ✅ Quantidade de colaboradores lidos na Coluna A da aba `Custos_Totais`
-   - ✅ Pastas de Combustível e Manutenção conectadas com sucesso
 
 ---
 
