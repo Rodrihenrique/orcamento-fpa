@@ -4,21 +4,23 @@ Módulo em **Google Apps Script** para importação automática de extratos de f
 
 ---
 
-## 🎯 Objetivo
+## 🎯 Objetivo e Filtros Automáticos
 
 Eliminar o trabalho manual de cópia e tratamento de dados dos arquivos CSV baixados dos cartões de frota (Ticket Log / RFCV), alimentando diretamente as duas abas da planilha mensal:
-1. **`Base_Abastecimento`**: Lançamentos detalhados de combustível.
-2. **`Base_Manutenção`**: Lançamentos detalhados de oficinas, peças e lavagens com tipo de estabelecimento.
+1. **`Base_Abastecimento`**: Lançamentos detalhados de combustível (4 colunas).
+2. **`Base_Manutenção`**: Lançamentos detalhados de oficinas, peças e lavagens com tipo de estabelecimento (5 colunas).
 
-Os motoristas importados são filtrados automaticamente a partir da lista de colaboradores cadastrada na aba **`Custos_Totais`** (Coluna A) da própria planilha.
+### 🔍 Filtros de Precisão:
+- **Filtro Mensal Dinâmico:** O script identifica o mês e ano no título da planilha aberta (ex.: `10. CUSTOS DO SETOR - OUTUBRO - 2026` -> Outubro/2026). As transações do CSV são validadas pela data do cupom: **apenas os registros do mês da planilha são importados**; transações de outros meses são automaticamente ignoradas.
+- **Filtro de Colaboradores:** Apenas colaboradores presentes na **Coluna A da aba `Custos_Totais`** têm seus lançamentos importados, garantindo que carros de outros setores não entrem na planilha.
 
 ---
 
 ## 📁 Arquitetura dos Arquivos
 
-- **[`Codigo.js`](./Codigo.js)**: Código-fonte do Google Apps Script com as funções `importarDadosAbastecimento`, `importarDadosManutencao`, `testarConexoes` e utilitários de tratamento de CSV e conversão numérica.
+- **[`Codigo.js`](./Codigo.js)**: Código-fonte do Google Apps Script com as funções `importarDadosAbastecimento`, `importarDadosManutencao`, `testarConexoes`, menu `onOpen()`, filtros mensais e utilitários de tratamento de CSV e conversão numérica.
 - **[`appsscript.json`](./appsscript.json)**: Manifesto de configuração do projeto com timezone `America/Fortaleza`.
-- **[`GUIA_DE_ATIVACAO.md`](./GUIA_DE_ATIVACAO.md)**: Manual detalhado de ativação, incluindo instruções de como criar os botões interativos nas abas da planilha.
+- **[`GUIA_DE_ATIVACAO.md`](./GUIA_DE_ATIVACAO.md)**: Manual detalhado de ativação, incluindo instruções de uso do menu `🚗 Gestão de Frota`.
 
 ---
 
