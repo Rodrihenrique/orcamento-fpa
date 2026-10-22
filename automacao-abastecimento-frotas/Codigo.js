@@ -2,38 +2,56 @@
  * ============================================================================
  * GESTÃO DE CUSTOS DO SETOR - OPERAÇÃO E MANUTENÇÃO DE REDES
  * ============================================================================
- * Automação Integrada de Custos: Frota (Abastecimento / Manutenção) e Viagens (Alimentação / Hospedagem)
+ * Automação Integrada de Custos: Frota Unificada (Combustível e Manutenção)
+ * e Viagens (Alimentação e Hospedagem).
  * 
  * Funcionalidades:
- * 1. Módulo de Viagens (Alimentação e Hospedagem):
+ * 1. Módulo de Frota Unificada (Combustível e Manutenção em Arquivo Único):
+ *    - Origem: Pasta principal única no Google Drive contendo extratos (.xlsx ou .csv).
+ *    - Estrutura do Arquivo Unificado (39 colunas de A até AM):
+ *      • Coluna A (0):  CODIGO TRANSACAO
+ *      • Coluna B (1):  CODIGO CLIENTE
+ *      • Coluna C (2):  NOME REDUZIDO ('BRISANET ABASTECIMENTO' ou 'BRISANET MANUTENCAO')
+ *      • Coluna D (3):  DATA TRANSACAO (Data e Hora)
+ *      • Coluna E (4):  PLACA
+ *      • Coluna F (5):  TIPO FROTA
+ *      • Coluna G (6):  MODELO VEICULO
+ *      • Coluna H (7):  NUMERO FROTA
+ *      • Coluna I (8):  ANO
+ *      • Coluna J (9):  MATRICULA
+ *      • Coluna K (10): NOME MOTORISTA (Colaborador)
+ *      • Coluna L (11): SERVICO
+ *      • Coluna M (12): TIPO COMBUSTIVEL
+ *      • Coluna N (13): LITROS
+ *      • Coluna O (14): VL/LITRO
+ *      • Coluna P (15): HODOMETRO OU HORIMETRO
+ *      • Coluna Q (16): KM RODADOS OU HORAS TRABALHADAS
+ *      • Coluna R (17): KM/LITRO OU LITROS/HORA
+ *      • Coluna S (18): VALOR EMISSAO (Valor monetário)
+ *      • Coluna T (19): CODIGO ESTABELECIMENTO
+ *      • Coluna U (20): NOME ESTABELECIMENTO
+ *      • Coluna V (21): TIPO ESTABELECIMENTO
+ *      • Colunas W-AM:  ENDERECO, BAIRRO, CIDADE, UF, INFORMAÇÕES ADICIONAIS 1-5,
+ *                       FORMA TRANSACAO, CODIGO LIBERACAO, SERIE POS, NUMERO CARTAO,
+ *                       FAMILIA VEICULO, GRUPO RESTRICAO, CODIGO EMISSORA, RESPONSAVEL.
+ *    - Classificação Automática pela Coluna C (NOME REDUZIDO):
+ *      • 'BRISANET ABASTECIMENTO' -> grava na aba 'Base_Abastecimento'
+ *      • 'BRISANET MANUTENCAO'    -> grava na aba 'Base_Manutenção'
+ *    - Subpasta 'Arquivos Processados':
+ *      Criada dentro da pasta principal; os arquivos processados são movidos para ela
+ *      automaticamente para evitar duplicidade.
+ *    - Criação Dinâmica das Pastas: O próprio script cria e conecta a pasta no Drive.
+ * 
+ * 2. Módulo de Viagens (Alimentação e Hospedagem):
  *    - Origem: Planilha 'CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026'
- *    - Destino: Aba 'Base_Viagens'
- *    - Estrutura da Aba:
- *      • Linha 1: Cabeçalhos de Seção ('Alimentação' acima de A:C; 'Hospedagem' acima de F:H)
- *      • Linha 2: Cabeçalhos de Colunas (A: Colaborador, B: Valor Total, C: Mês Lançamento - SAP,
- *                 D: nome corrigido, E: [Espaço], F: Colaborador, G: Valor Diária, H: Mês Lançamento - SAP)
- *      • Linha 3 em diante: Lançamentos
- *    - Regra de Limpeza: Limpa rigorosamente da linha 3 em diante apenas nas colunas A:C e F:H.
- *      Preserva cabeçalhos (linhas 1 e 2), Coluna D ('nome corrigido') e Coluna E intactas.
- *    - Filtro por Colaborador: Apenas colaboradores listados na Coluna A da aba 'Custos_Totais'.
- *    - Filtro por Mês: Apenas lançamentos referentes ao mês da planilha (ex.: Outubro).
+ *    - Destino: Aba 'Base_Viagens' (A:C Alimentação, D mantida intacta, F:H Hospedagem)
+ *    - Gravação estrita a partir da linha 3, preservando cabeçalhos e fórmulas em A2/F2.
  * 
- * 2. Módulo de Frota (Abastecimento e Manutenção):
- *    - Suporte a Arquivos Excel (.xlsx) e CSV em Lotes (Chunks) com baixo consumo de memória.
- *    - Preservação do fuso de origem do Excel, garantindo a hora real do cupom fiscal.
- *    - Abas 'Base_Abastecimento' e 'Base_Manutenção' limpas e relançadas da linha 2 em diante.
- *    - Deduplicação por transação (Motorista + Valor + Data/Hora) entre múltiplos arquivos.
- * 
- * 3. Regra de Abrangência Temporal (Julho/2026 em diante):
- *    - Válido exclusivamente para as planilhas a partir de JULHO/2026 (Julho, Agosto, Setembro, Outubro, etc.).
- *    - Planilhas de Janeiro a Junho possuem formato antigo e são mantidas intactas.
- * 
- * 4. Sincronização Multi-Planilhas em Lote (Pasta 2026):
- *    - Permite sincronizar todas as planilhas da pasta 2026 (>= Julho) em uma única execução
- *      (Frota Completa, Viagens Completa ou Ambos).
- * 
- * 5. Menu Superior Automático (onOpen):
- *    - Cria o menu "💰 Gestão de Custos" integrando todas as opções em um só lugar.
+ * 3. Regras de Negócio e Filtros Estritos:
+ *    - Filtro de Colaborador: Apenas colaboradores na Coluna A de 'Custos_Totais'.
+ *    - Filtro Mensal Dinâmico: Apenas lançamentos do mês da planilha ativa (ex.: Outubro).
+ *    - Regra de Vigência: Válido de JULHO/2026 em diante (Janeiro a Junho intactos).
+ *    - Sincronização em Massa: Atualiza todas as planilhas da pasta 2026 de Julho em diante.
  * ============================================================================
  */
 
@@ -49,13 +67,18 @@ const CONFIG_GERAL = {
   // Planilhas anteriores a Julho possuem formato antigo e são preservadas intactas
   MES_INICIAL_REGRA: 7,
 
-  // Pastas de Combustível (Abastecimento)
-  PASTA_ORIGEM_COMBUSTIVEL: '1exK26bgZNurn4bh0Q5bv-f-WyM3f-fxs',
-  PASTA_PROCESSADOS_COMBUSTIVEL: '1FNAHGP3n2FZzIDC_NphwkG26G1CrQL0F',
+  // ==========================================================================
+  // NOVA ESTRUTURA UNIFICADA DE FROTAS (Combustível + Manutenção no mesmo arquivo)
+  // ==========================================================================
+  // Se os IDs estiverem vazios, o script busca em PropertiesService ou cria automaticamente no Drive
+  PASTA_ORIGEM_FROTA: '', 
+  PASTA_PROCESSADOS_FROTA: '',
+  NOME_PASTA_FROTA: 'Frota Telefonia - Combustível e Manutenção',
+  NOME_SUBPASTA_PROCESSADOS: 'Arquivos Processados',
 
-  // Pastas de Manutenção
-  PASTA_ORIGEM_MANUTENCAO: '1zpsygbFL4d6PtsbjN9FMVITt2ZptR8f2',
-  PASTA_PROCESSADOS_MANUTENCAO: '12q2UQwRaP6vxJXtiMVC1eCThI4WG6Ko2',
+  // Pastas legadas (utilizadas como referência de localização pai no Drive)
+  PASTA_ORIGEM_COMBUSTIVEL_LEGADA: '1exK26bgZNurn4bh0Q5bv-f-WyM3f-fxs',
+  PASTA_ORIGEM_MANUTENCAO_LEGADA: '1zpsygbFL4d6PtsbjN9FMVITt2ZptR8f2',
 
   // Planilha de Origem de Viagens (Alimentação e Hospedagem)
   ID_PLANILHA_VIAGENS_ORIGEM: '1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk',
@@ -84,15 +107,17 @@ function onOpen() {
     ui.createMenu("💰 Gestão de Custos")
       .addItem("⚡ Importar Dados da Aba Atual", "importarAbaAtiva")
       .addSeparator()
-      .addItem("⛽ Frota: Importar Abastecimento (Desta Planilha)", "importarDadosAbastecimento")
-      .addItem("🔧 Frota: Importar Manutenção (Desta Planilha)", "importarDadosManutencao")
+      .addItem("🚗 Frota: Importar Combustível e Manutenção (Arquivo Unificado)", "importarDadosFrotaUnificada")
+      .addItem("⛽ Frota: Importar Apenas Abastecimento", "importarDadosAbastecimento")
+      .addItem("🔧 Frota: Importar Apenas Manutenção", "importarDadosManutencao")
       .addItem("✈️ Viagens: Importar Alimentação e Hospedagem (Desta Planilha)", "importarDadosViagens")
       .addItem("🔄 Importar TUDO (Frota + Viagens - Desta Planilha)", "importarTodosOsCustos")
       .addSeparator()
       .addItem("🌐 Sincronizar TODAS as Planilhas (Frota + Viagens)", "sincronizarTodasPlanilhas")
-      .addItem("⛽ Sincronizar Apenas Frota em TODAS (Julho em diante)", "sincronizarFrotaTodas")
+      .addItem("🚗 Sincronizar Apenas Frota em TODAS (Julho em diante)", "sincronizarFrotaTodas")
       .addItem("✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)", "sincronizarViagensTodas")
       .addSeparator()
+      .addItem("📁 Criar / Verificar Pastas no Google Drive", "configurarEstruturaPastasDrive")
       .addItem("📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)", "reprocessarArquivosHistorico")
       .addItem("🧹 Limpar Dados da Aba Atual", "limparAbaAtualManual")
       .addSeparator()
@@ -116,10 +141,8 @@ function importarAbaAtiva() {
   var abaAtiva = planilha.getActiveSheet();
   var nomeAba = abaAtiva ? abaAtiva.getName().toLowerCase() : "";
 
-  if (nomeAba.indexOf("abastecimento") > -1) {
-    importarDadosAbastecimento();
-  } else if (nomeAba.indexOf("manuten") > -1) {
-    importarDadosManutencao();
+  if (nomeAba.indexOf("abastecimento") > -1 || nomeAba.indexOf("manuten") > -1) {
+    importarDadosFrotaUnificada();
   } else if (nomeAba.indexOf("viagen") > -1 || nomeAba.indexOf("viagem") > -1) {
     importarDadosViagens();
   } else {
@@ -127,7 +150,7 @@ function importarAbaAtiva() {
     var resposta = ui.alert(
       "Importação de Custos",
       "Você está na aba '" + abaAtiva.getName() + "'.\n\n" +
-      "Deseja importar TODOS os custos (Abastecimento, Manutenção e Viagens) para o mês desta planilha?",
+      "Deseja importar TODOS os custos (Frota Unificada e Viagens) para o mês desta planilha?",
       ui.ButtonSet.YES_NO
     );
 
@@ -138,12 +161,11 @@ function importarAbaAtiva() {
 }
 
 /**
- * Executa todas as importações (Abastecimento, Manutenção e Viagens) para a planilha atual.
+ * Executa todas as importações (Frota Unificada + Viagens) para a planilha atual.
  */
 function importarTodosOsCustos() {
-  Logger.log("Iniciando importação completa (Abastecimento + Manutenção + Viagens)...");
-  importarDadosAbastecimento();
-  importarDadosManutencao();
+  Logger.log("Iniciando importação completa (Frota Unificada + Viagens)...");
+  importarDadosFrotaUnificada();
   importarDadosViagens();
 }
 
@@ -205,298 +227,305 @@ function reprocessarArquivosHistorico() {
   var ui = SpreadsheetApp.getUi();
   var resposta = ui.alert(
     "Reprocessar Histórico de Frota",
-    "Esta opção lerá os arquivos (.xlsx e .csv) já processados no Drive e filtrará apenas o mês da planilha atual.\n\nDeseja continuar?",
+    "Esta opção lerá os arquivos (.xlsx e .csv) já processados na pasta de histórico e extrairá apenas os lançamentos do mês da planilha atual.\n\nDeseja continuar?",
     ui.ButtonSet.YES_NO
   );
 
   if (resposta === ui.Button.YES) {
-    importarDadosAbastecimento(true);
-    importarDadosManutencao(true);
+    importarDadosFrotaUnificada(true);
   }
+}
+
+/**
+ * Ação de menu para criar ou validar a estrutura de pastas no Drive.
+ */
+function configurarEstruturaPastasDrive() {
+  obterOuCriarEstruturaPastasFrota(true);
 }
 
 
 // ============================================================================
-// 3. IMPORTAÇÃO DE ABASTECIMENTO (Aba: Base_Abastecimento)
+// 3. GESTÃO DA ESTRUTURA DE PASTAS NO GOOGLE DRIVE
 // ============================================================================
+
+/**
+ * Obtém ou cria a nova estrutura de pastas do Google Drive para Frota:
+ * Pasta Principal: 'Frota Telefonia - Combustível e Manutenção' (recebe o arquivo unificado)
+ * Subpasta: 'Arquivos Processados' (recebe o arquivo após a importação para evitar duplicidade)
+ */
+function obterOuCriarEstruturaPastasFrota(exibirAlertaUsuario) {
+  var props = PropertiesService.getScriptProperties();
+  var idOrigem = CONFIG_GERAL.PASTA_ORIGEM_FROTA || props.getProperty('PASTA_ORIGEM_FROTA_UNIFICADA');
+  var idProcessados = CONFIG_GERAL.PASTA_PROCESSADOS_FROTA || props.getProperty('PASTA_PROCESSADOS_FROTA_UNIFICADA');
+
+  var pastaOrigem = null;
+  var pastaProcessados = null;
+  var criadaAgora = false;
+
+  // 1. Tenta recuperar pasta de origem por ID configurado ou salvo em Properties
+  if (idOrigem) {
+    try {
+      pastaOrigem = DriveApp.getFolderById(idOrigem);
+    } catch (e) {
+      Logger.log("Aviso: Pasta de origem salva não pôde ser aberta: " + e.message);
+      pastaOrigem = null;
+    }
+  }
+
+  // 2. Se não existir, descobre o local pai ideal e cria a pasta principal
+  if (!pastaOrigem) {
+    var pastaPai = null;
+
+    // Tenta encontrar a pasta pai onde ficavam as pastas anteriores de Combustível/Manutenção
+    var idsTentativas = [
+      CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL_LEGADA,
+      CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO_LEGADA,
+      CONFIG_GERAL.PASTA_RAIZ_2026
+    ];
+
+    for (var i = 0; i < idsTentativas.length; i++) {
+      if (!idsTentativas[i]) continue;
+      try {
+        var pRef = DriveApp.getFolderById(idsTentativas[i]);
+        var pais = pRef.getParents();
+        if (pais.hasNext()) {
+          pastaPai = pais.next();
+          break;
+        }
+      } catch (e) {}
+    }
+
+    // Se achou uma pasta pai, verifica se já existe uma pasta com o nome definido
+    if (pastaPai) {
+      var existentes = pastaPai.getFoldersByName(CONFIG_GERAL.NOME_PASTA_FROTA);
+      if (existentes.hasNext()) {
+        pastaOrigem = existentes.next();
+      } else {
+        pastaOrigem = pastaPai.createFolder(CONFIG_GERAL.NOME_PASTA_FROTA);
+        criadaAgora = true;
+      }
+    } else {
+      // Se não encontrou pai específico, busca ou cria na raiz do Drive
+      var raiz = DriveApp.getRootFolder();
+      var existentesRaiz = raiz.getFoldersByName(CONFIG_GERAL.NOME_PASTA_FROTA);
+      if (existentesRaiz.hasNext()) {
+        pastaOrigem = existentesRaiz.next();
+      } else {
+        pastaOrigem = raiz.createFolder(CONFIG_GERAL.NOME_PASTA_FROTA);
+        criadaAgora = true;
+      }
+    }
+
+    // Salva o ID da nova pasta de origem em PropertiesService
+    props.setProperty('PASTA_ORIGEM_FROTA_UNIFICADA', pastaOrigem.getId());
+  }
+
+  // 3. Obtém ou cria a subpasta 'Arquivos Processados' dentro da pasta de origem
+  if (idProcessados) {
+    try {
+      pastaProcessados = DriveApp.getFolderById(idProcessados);
+    } catch (e) {
+      pastaProcessados = null;
+    }
+  }
+
+  if (!pastaProcessados) {
+    var subExistentes = pastaOrigem.getFoldersByName(CONFIG_GERAL.NOME_SUBPASTA_PROCESSADOS);
+    if (subExistentes.hasNext()) {
+      pastaProcessados = subExistentes.next();
+    } else {
+      pastaProcessados = pastaOrigem.createFolder(CONFIG_GERAL.NOME_SUBPASTA_PROCESSADOS);
+    }
+    props.setProperty('PASTA_PROCESSADOS_FROTA_UNIFICADA', pastaProcessados.getId());
+  }
+
+  if (exibirAlertaUsuario) {
+    var msg = (criadaAgora ? "✨ Nova estrutura de pastas criada no Google Drive com sucesso!\n\n" : "📁 Estrutura de Pastas Unificada (Frota):\n\n") +
+              "• 📂 Pasta Principal (onde adicionar o arquivo único de Combustível + Manutenção):\n" +
+              "  Nome: " + pastaOrigem.getName() + "\n" +
+              "  ID: " + pastaOrigem.getId() + "\n" +
+              "  Link: " + pastaOrigem.getUrl() + "\n\n" +
+              "• 📁 Subpasta de Histórico (recebe o arquivo após importação):\n" +
+              "  Nome: " + pastaProcessados.getName() + "\n" +
+              "  ID: " + pastaProcessados.getId() + "\n" +
+              "  Link: " + pastaProcessados.getUrl() + "\n\n" +
+              "ℹ️ Os IDs foram salvos nas propriedades do projeto.";
+    Logger.log(msg);
+    exibirAlerta(msg);
+  }
+
+  return {
+    pastaOrigem: pastaOrigem,
+    pastaProcessados: pastaProcessados,
+    criadaAgora: criadaAgora
+  };
+}
+
+
+// ============================================================================
+// 4. IMPORTAÇÃO DE FROTA UNIFICADA (Combustível e Manutenção em Arquivo Único)
+// ============================================================================
+
+/**
+ * Importa o arquivo unificado contendo despesas de Combustível e Manutenção.
+ * - Classifica os registros pela Coluna C (NOME REDUZIDO: 'BRISANET ABASTECIMENTO' ou 'BRISANET MANUTENCAO')
+ * - Extrai o motorista da Coluna K
+ * - Grava na aba 'Base_Abastecimento' e na aba 'Base_Manutenção' da linha 2 em diante.
+ * - Move o arquivo processado para a subpasta 'Arquivos Processados'.
+ */
+function importarDadosFrotaUnificada(lerDeProcessados, tipoFiltroOpcional) {
+  Logger.log("Iniciando importação de FROTA UNIFICADA (Combustível e Manutenção)...");
+
+  // 1. Obter planilha e identificar mês/ano de competência
+  var planilha = obterPlanilhaAlvo();
+  if (!planilha) {
+    exibirAlerta("Erro: Não foi possível identificar a planilha de destino.");
+    return;
+  }
+
+  var mesAlvo = obterMesAlvoDaPlanilha(planilha);
+  Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
+
+  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
+    exibirAlerta(
+      "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
+      "A automação de custos está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
+      "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
+    );
+    return;
+  }
+
+  var abaAbast = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
+  var abaManut = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
+
+  if (!abaAbast && !abaManut) {
+    exibirAlerta("Erro: Nem a aba '" + CONFIG_GERAL.ABA_ABASTECIMENTO + "' nem a aba '" + CONFIG_GERAL.ABA_MANUTENCAO + "' foram encontradas nesta planilha.");
+    return;
+  }
+
+  // 2. Carregar colaboradores de referência da aba Custos_Totais (Coluna A)
+  var mapaColaboradores = carregarListaColaboradores(planilha);
+  if (Object.keys(mapaColaboradores).length === 0) {
+    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
+    return;
+  }
+
+  // 3. Obter ou criar a estrutura de pastas unificada da frota
+  var estruturaPastas = obterOuCriarEstruturaPastasFrota(false);
+  var pastaOrigem = estruturaPastas.pastaOrigem;
+  var pastaProcessados = estruturaPastas.pastaProcessados;
+
+  var pastaLeitura = (lerDeProcessados === true) ? pastaProcessados : pastaOrigem;
+  var arquivos = pastaLeitura.getFiles();
+
+  if (!arquivos.hasNext() && !lerDeProcessados) {
+    var ui = SpreadsheetApp.getUi();
+    var resp = ui.alert(
+      "Nenhum Arquivo Novo na Pasta Unificada",
+      "Não há arquivos (.xlsx ou .csv) na pasta unificada:\n'" + pastaOrigem.getName() + "'\n\n" +
+      "• Link da Pasta: " + pastaOrigem.getUrl() + "\n\n" +
+      "Deseja buscar nos arquivos já processados para extrair os lançamentos de " + mesAlvo.nome + "?",
+      ui.ButtonSet.YES_NO
+    );
+    if (resp === ui.Button.YES) {
+      importarDadosFrotaUnificada(true, tipoFiltroOpcional);
+      return;
+    } else {
+      return;
+    }
+  }
+
+  var linhasAbast = [];
+  var linhasManut = [];
+  var nomesIgnorados = {};
+  var stats = { linhasOutrosMeses: 0, totalLidos: 0 };
+  var totalArquivos = 0;
+
+  while (arquivos.hasNext()) {
+    var arquivo = arquivos.next();
+    var nomeArquivo = arquivo.getName();
+    var nomeLower = nomeArquivo.toLowerCase();
+
+    if (nomeLower.indexOf('.xlsx') > -1 || nomeLower.indexOf('.csv') > -1) {
+      if (arquivo.getSize() === 0) {
+        Logger.log("Arquivo vazio ignorado: " + nomeArquivo);
+        continue;
+      }
+
+      try {
+        var dadosLidos = processarArquivoFrotaUnificadaEmLotes(arquivo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
+
+        if (dadosLidos.abastecimento && dadosLidos.abastecimento.length > 0) {
+          for (var a = 0; a < dadosLidos.abastecimento.length; a++) {
+            linhasAbast.push(dadosLidos.abastecimento[a]);
+          }
+        }
+
+        if (dadosLidos.manutencao && dadosLidos.manutencao.length > 0) {
+          for (var m = 0; m < dadosLidos.manutencao.length; m++) {
+            linhasManut.push(dadosLidos.manutencao[m]);
+          }
+        }
+
+        totalArquivos++;
+
+        if (!lerDeProcessados) {
+          arquivo.moveTo(pastaProcessados);
+        }
+      } catch (e) {
+        Logger.log("Erro ao processar arquivo unificado " + nomeArquivo + ": " + e.toString());
+      }
+    }
+  }
+
+  // 4. REGRA DE LIMPEZA E RELANÇAMENTO (Sem acúmulo / sem duplicidade)
+  var atualizouAbast = false;
+  var atualizouManut = false;
+
+  if (abaAbast && (!tipoFiltroOpcional || tipoFiltroOpcional === 'ABASTECIMENTO' || tipoFiltroOpcional === 'AMBOS')) {
+    gravarLinhasNaAba(abaAbast, linhasAbast, 4, ['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', 'DATA/HORA']);
+    atualizouAbast = true;
+  }
+
+  if (abaManut && (!tipoFiltroOpcional || tipoFiltroOpcional === 'MANUTENCAO' || tipoFiltroOpcional === 'AMBOS')) {
+    gravarLinhasNaAba(abaManut, linhasManut, 5, ['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'PERÍODO', 'DATA/HORA']);
+    atualizouManut = true;
+  }
+
+  var msgSucesso = "✅ Importação de Frota Unificada Concluída para " + mesAlvo.nome + "!\n\n";
+  if (atualizouAbast) {
+    msgSucesso += "• ⛽ Abastecimento: " + linhasAbast.length + " registro(s) lançados em 'Base_Abastecimento'\n";
+  }
+  if (atualizouManut) {
+    msgSucesso += "• 🔧 Manutenção: " + linhasManut.length + " registro(s) lançados em 'Base_Manutenção'\n";
+  }
+  msgSucesso += "\n• Arquivos analisados: " + totalArquivos + "\n" +
+                "• Linhas totais analisadas: " + stats.totalLidos + "\n" +
+                "• Registros de outros meses desconsiderados: " + stats.linhasOutrosMeses;
+
+  Logger.log(msgSucesso);
+  exibirAlerta(msgSucesso);
+
+  var listaIgnorados = Object.keys(nomesIgnorados);
+  if (listaIgnorados.length > 0) {
+    Logger.log("Motoristas nos arquivos que não constam em Custos_Totais: " + listaIgnorados.join(", "));
+  }
+}
+
+/**
+ * Funções de compatibilidade para importar apenas Abastecimento ou apenas Manutenção
+ */
 function importarDadosAbastecimento(lerDeProcessados) {
-  Logger.log("Iniciando importação de ABASTECIMENTO...");
-
-  // 1. Obter planilha e identificar mês/ano de competência
-  var planilha = obterPlanilhaAlvo();
-  if (!planilha) {
-    exibirAlerta("Erro: Não foi possível identificar a planilha de destino.");
-    return;
-  }
-
-  var mesAlvo = obterMesAlvoDaPlanilha(planilha);
-  Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
-
-  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
-    exibirAlerta(
-      "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
-      "A automação de custos está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
-      "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
-    );
-    return;
-  }
-
-  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
-  if (!abaDestino) {
-    exibirAlerta("Erro: A aba '" + CONFIG_GERAL.ABA_ABASTECIMENTO + "' não foi encontrada na planilha atual.");
-    return;
-  }
-
-  // 2. Carregar colaboradores de referência da aba Custos_Totais (Coluna A)
-  var mapaColaboradores = carregarListaColaboradores(planilha);
-  if (Object.keys(mapaColaboradores).length === 0) {
-    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
-    return;
-  }
-
-  // 3. Obter pasta de origem
-  var pastaOrigem = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL);
-  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_GERAL.PASTA_PROCESSADOS_COMBUSTIVEL);
-
-  var pastaLeitura = (lerDeProcessados === true) ? pastaProcessados : pastaOrigem;
-  var arquivos = pastaLeitura.getFiles();
-
-  if (!arquivos.hasNext() && !lerDeProcessados) {
-    var ui = SpreadsheetApp.getUi();
-    var resp = ui.alert(
-      "Nenhum Arquivo Novo",
-      "Não há arquivos (.xlsx ou .csv) na pasta 'Combustível - Frotas Telefonia'.\n\n" +
-      "Deseja buscar nos arquivos já processados para extrair os lançamentos de " + mesAlvo.nome + "?",
-      ui.ButtonSet.YES_NO
-    );
-    if (resp === ui.Button.YES) {
-      importarDadosAbastecimento(true);
-      return;
-    } else {
-      return;
-    }
-  }
-
-  var linhasParaInserir = [];
-  var nomesIgnorados = {};
-  var stats = { linhasOutrosMeses: 0, totalLidos: 0 };
-  var totalArquivos = 0;
-
-  while (arquivos.hasNext()) {
-    var arquivo = arquivos.next();
-    var nomeArquivo = arquivo.getName();
-    var nomeLower = nomeArquivo.toLowerCase();
-
-    if (nomeLower.indexOf('.xlsx') > -1 || nomeLower.indexOf('.csv') > -1) {
-      if (arquivo.getSize() === 0) {
-        Logger.log("Arquivo vazio ignorado: " + nomeArquivo);
-        continue;
-      }
-
-      try {
-        var linhasArquivo = processarArquivoEmLotes(arquivo, 'ABASTECIMENTO', mapaColaboradores, mesAlvo, nomesIgnorados, stats);
-
-        if (linhasArquivo && linhasArquivo.length > 0) {
-          for (var k = 0; k < linhasArquivo.length; k++) {
-            linhasParaInserir.push(linhasArquivo[k]);
-          }
-          linhasArquivo = null;
-        }
-
-        totalArquivos++;
-
-        if (!lerDeProcessados) {
-          arquivo.moveTo(pastaProcessados);
-        }
-
-      } catch (e) {
-        Logger.log("Erro ao processar abastecimento em " + nomeArquivo + ": " + e.toString());
-      }
-    }
-  }
-
-  // 4. REGRA DE LIMPEZA E RELANÇAMENTO (Sem acúmulo / sem duplicidade)
-  if (linhasParaInserir.length > 0) {
-    // 1º: Limpa SEMPRE todos os dados anteriores da linha 2 em diante
-    var linhasAtuais = abaDestino.getLastRow();
-    if (linhasAtuais > 1) {
-      abaDestino.getRange(2, 1, linhasAtuais - 1, abaDestino.getLastColumn()).clearContent();
-      SpreadsheetApp.flush();
-    }
-
-    // 2º: Garante cabeçalho se a aba estiver vazia
-    if (abaDestino.getLastRow() === 0) {
-      abaDestino.getRange(1, 1, 1, 4).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', 'DATA/HORA']]);
-    }
-
-    // 3º: Grava os novos dados SEMPRE a partir da linha 2
-    abaDestino.getRange(2, 1, linhasParaInserir.length, 4).setValues(linhasParaInserir);
-    abaDestino.getRange(2, 2, linhasParaInserir.length, 1).setNumberFormat('"R$"\\ #,##0.00');
-
-    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de abastecimento de " + mesAlvo.nome + " lançados na aba 'Base_Abastecimento'.\n\n" +
-                     "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
-                     "• " + stats.linhasOutrosMeses + " registros de outros meses foram filtrados e desconsiderados.";
-    if (stats.totalLidos > 0) {
-      msgSucesso += "\n• Total de linhas analisadas no arquivo: " + stats.totalLidos + ".";
-    }
-    Logger.log(msgSucesso);
-    exibirAlerta(msgSucesso);
-  } else {
-    var msgVazia = "Processo finalizado. Nenhum lançamento correspondente ao mês de " + mesAlvo.nome + " foi encontrado nos arquivos.";
-    if (stats.linhasOutrosMeses > 0) {
-      msgVazia += "\n\n(Foram ignorados " + stats.linhasOutrosMeses + " registros pertencentes a outros meses).";
-    }
-    Logger.log(msgVazia);
-    exibirAlerta(msgVazia);
-  }
-
-  var listaIgnorados = Object.keys(nomesIgnorados);
-  if (listaIgnorados.length > 0) {
-    Logger.log("Motoristas nos arquivos que não constam em Custos_Totais: " + listaIgnorados.join(", "));
-  }
+  importarDadosFrotaUnificada(lerDeProcessados, 'ABASTECIMENTO');
 }
 
-
-// ============================================================================
-// 4. IMPORTAÇÃO DE MANUTENÇÃO (Aba: Base_Manutenção)
-// ============================================================================
 function importarDadosManutencao(lerDeProcessados) {
-  Logger.log("Iniciando importação de MANUTENÇÃO...");
-
-  // 1. Obter planilha e identificar mês/ano de competência
-  var planilha = obterPlanilhaAlvo();
-  if (!planilha) {
-    exibirAlerta("Erro: Não foi possível identificar a planilha de destino.");
-    return;
-  }
-
-  var mesAlvo = obterMesAlvoDaPlanilha(planilha);
-  Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
-
-  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
-    exibirAlerta(
-      "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
-      "A automação de custos está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
-      "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
-    );
-    return;
-  }
-
-  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
-  if (!abaDestino) {
-    exibirAlerta("Erro: A aba '" + CONFIG_GERAL.ABA_MANUTENCAO + "' não foi encontrada na planilha atual.");
-    return;
-  }
-
-  // 2. Carregar colaboradores de referência da aba Custos_Totais (Coluna A)
-  var mapaColaboradores = carregarListaColaboradores(planilha);
-  if (Object.keys(mapaColaboradores).length === 0) {
-    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
-    return;
-  }
-
-  // 3. Obter pasta de origem
-  var pastaOrigem = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO);
-  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_GERAL.PASTA_PROCESSADOS_MANUTENCAO);
-
-  var pastaLeitura = (lerDeProcessados === true) ? pastaProcessados : pastaOrigem;
-  var arquivos = pastaLeitura.getFiles();
-
-  if (!arquivos.hasNext() && !lerDeProcessados) {
-    var ui = SpreadsheetApp.getUi();
-    var resp = ui.alert(
-      "Nenhum Arquivo Novo",
-      "Não há arquivos (.xlsx ou .csv) na pasta 'Manutenção - Frota Telefonia'.\n\n" +
-      "Deseja buscar nos arquivos já processados para extrair os lançamentos de " + mesAlvo.nome + "?",
-      ui.ButtonSet.YES_NO
-    );
-    if (resp === ui.Button.YES) {
-      importarDadosManutencao(true);
-      return;
-    } else {
-      return;
-    }
-  }
-
-  var linhasParaInserir = [];
-  var nomesIgnorados = {};
-  var stats = { linhasOutrosMeses: 0, totalLidos: 0 };
-  var totalArquivos = 0;
-
-  while (arquivos.hasNext()) {
-    var arquivo = arquivos.next();
-    var nomeArquivo = arquivo.getName();
-    var nomeLower = nomeArquivo.toLowerCase();
-
-    if (nomeLower.indexOf('.xlsx') > -1 || nomeLower.indexOf('.csv') > -1) {
-      if (arquivo.getSize() === 0) {
-        Logger.log("Arquivo vazio ignorado: " + nomeArquivo);
-        continue;
-      }
-
-      try {
-        var linhasArquivo = processarArquivoEmLotes(arquivo, 'MANUTENCAO', mapaColaboradores, mesAlvo, nomesIgnorados, stats);
-
-        if (linhasArquivo && linhasArquivo.length > 0) {
-          for (var k = 0; k < linhasArquivo.length; k++) {
-            linhasParaInserir.push(linhasArquivo[k]);
-          }
-          linhasArquivo = null;
-        }
-
-        totalArquivos++;
-
-        if (!lerDeProcessados) {
-          arquivo.moveTo(pastaProcessados);
-        }
-
-      } catch (e) {
-        Logger.log("Erro ao processar manutenção em " + nomeArquivo + ": " + e.toString());
-      }
-    }
-  }
-
-  // 4. REGRA DE LIMPEZA E RELANÇAMENTO (Sem acúmulo / sem duplicidade)
-  if (linhasParaInserir.length > 0) {
-    var linhasAtuais = abaDestino.getLastRow();
-    if (linhasAtuais > 1) {
-      abaDestino.getRange(2, 1, linhasAtuais - 1, abaDestino.getLastColumn()).clearContent();
-      SpreadsheetApp.flush();
-    }
-
-    if (abaDestino.getLastRow() === 0) {
-      abaDestino.getRange(1, 1, 1, 5).setValues([['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'PERÍODO', 'DATA/HORA']]);
-    }
-
-    abaDestino.getRange(2, 1, linhasParaInserir.length, 5).setValues(linhasParaInserir);
-    abaDestino.getRange(2, 2, linhasParaInserir.length, 1).setNumberFormat('"R$"\\ #,##0.00');
-
-    var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de manutenção de " + mesAlvo.nome + " lançados na aba 'Base_Manutenção'.\n\n" +
-                     "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
-                     "• " + stats.linhasOutrosMeses + " registros de outros meses foram filtrados e desconsiderados.";
-    if (stats.totalLidos > 0) {
-      msgSucesso += "\n• Total de linhas analisadas no arquivo: " + stats.totalLidos + ".";
-    }
-    Logger.log(msgSucesso);
-    exibirAlerta(msgSucesso);
-  } else {
-    var msgVazia = "Processo finalizado. Nenhum lançamento de manutenção correspondente ao mês de " + mesAlvo.nome + " foi encontrado.";
-    if (stats.linhasOutrosMeses > 0) {
-      msgVazia += "\n\n(Foram ignorados " + stats.linhasOutrosMeses + " registros pertencentes a outros meses).";
-    }
-    Logger.log(msgVazia);
-    exibirAlerta(msgVazia);
-  }
-
-  var listaIgnorados = Object.keys(nomesIgnorados);
-  if (listaIgnorados.length > 0) {
-    Logger.log("Motoristas nos arquivos que não constam em Custos_Totais: " + listaIgnorados.join(", "));
-  }
+  importarDadosFrotaUnificada(lerDeProcessados, 'MANUTENCAO');
 }
 
 
 // ============================================================================
-// 5. IMPORTAÇÃO DE VIAGENS (Aba: Base_Viagens)
+// 5. IMPORTAÇÃO DE VIAGENS (Alimentação e Hospedagem - Aba: Base_Viagens)
 // ============================================================================
 
 /**
@@ -579,61 +608,36 @@ function importarDadosViagens(planilhaAlvo, silencioso) {
   var msgSucesso = "✅ Sucesso! Lançamentos de Viagens de " + mesAlvo.nome + " importados para 'Base_Viagens':\n\n" +
                    "🍽️ Alimentação (Colunas A a C): " + totalAlim + " registro(s)\n" +
                    "🏨 Hospedagem (Colunas F a H): " + totalHosp + " registro(s)\n\n" +
-                   "• Filtrados rigorosamente pelos colaboradores da aba 'Custos_Totais'.\n" +
-                   "• Linha 1 e 2 (Cabeçalhos) e Coluna D ('nome corrigido') mantidas intactas.\n" +
-                   "• Dados anteriores da linha 3 em diante foram limpos e relançados.";
+                   "• Linhas 1 e 2 (Cabeçalhos) e Coluna D ('nome corrigido') foram mantidas intactas.\n" +
+                   "• Registros filtrados exclusivamente pelos colaboradores de 'Custos_Totais' e competência de " + mesAlvo.nome + ".";
 
   Logger.log(msgSucesso);
-  if (!silencioso) {
-    exibirAlerta(msgSucesso);
-  }
+  if (!silencioso) exibirAlerta(msgSucesso);
 
-  return {
-    alimentacao: totalAlim,
-    hospedagem: totalHosp,
-    outrosMesesAlim: dadosAlimentacao.stats.linhasOutrosMeses,
-    outrosMesesHosp: dadosHospedagem.stats.linhasOutrosMeses
-  };
+  return { alimentacao: totalAlim, hospedagem: totalHosp };
 }
 
 /**
- * Extrai registros de uma aba da planilha de Viagens (Alimentação ou Hospedagem),
- * aplicando os filtros de mês e de colaboradores autorizados.
+ * Lê uma aba de origem da planilha de Viagens (Alimentação ou Hospedagem),
+ * filtra rigorosamente pelo colaborador e pelo mês da competência.
  */
 function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, mesAlvo, mapaColaboradores) {
   var aba = obterAbaPorNomes(ssOrigem, nomesPossiveisAba);
   if (!aba) {
-    Logger.log("Aba de origem para " + tipoViagem + " não encontrada na planilha de viagens.");
-    return { linhas: [], stats: { totalLidos: 0, linhasOutrosMeses: 0 } };
+    Logger.log("Aba de viagens '" + nomesPossiveisAba.join(" / ") + "' não encontrada na origem.");
+    return { linhas: [] };
   }
 
-  var lastRow = aba.getLastRow();
-  var lastCol = aba.getLastColumn();
-  if (lastRow <= 1 || lastCol === 0) {
-    return { linhas: [], stats: { totalLidos: 0, linhasOutrosMeses: 0 } };
+  var totalLinhas = aba.getLastRow();
+  var totalColunas = aba.getLastColumn();
+
+  if (totalLinhas <= 1 || totalColunas === 0) {
+    return { linhas: [] };
   }
 
-  var dados = aba.getRange(1, 1, lastRow, lastCol).getValues();
+  // 1. Mapeamento das colunas pelo cabeçalho
+  var cabecalho = aba.getRange(1, 1, 1, totalColunas).getValues()[0];
 
-  // Localiza a linha do cabeçalho (pode estar na linha 1 ou 2)
-  var linhaCabecalhoIdx = -1;
-  for (var r = 0; r < Math.min(5, dados.length); r++) {
-    var linha = dados[r];
-    for (var c = 0; c < linha.length; c++) {
-      var txt = padronizarTexto(linha[c]);
-      if (txt === 'COLABORADOR' || txt === 'NOME' || txt === 'FUNCIONARIO' || txt === 'SOLICITANTE' || txt === 'NOME COLABORADOR') {
-        linhaCabecalhoIdx = r;
-        break;
-      }
-    }
-    if (linhaCabecalhoIdx !== -1) break;
-  }
-
-  if (linhaCabecalhoIdx === -1) {
-    linhaCabecalhoIdx = 0;
-  }
-
-  var cabecalho = dados[linhaCabecalhoIdx];
   var idxColaborador = -1;
   var idxValorDiaria = -1;
   var idxValorTotal = -1;
@@ -669,8 +673,8 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
 
     // Identifica se a coluna é de quantidade ou número de dias (NUNCA deve ser tratada como valor em R$)
     var ehContagem = (
-      col.indexOf('QTD') > -1 ||
       col.indexOf('QUANTIDADE') > -1 ||
+      col.indexOf('QTD') > -1 ||
       col.indexOf('NUMERO') > -1 ||
       col.indexOf('NUM') > -1 ||
       col.indexOf('Nº') > -1 ||
@@ -705,239 +709,183 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
     }
   }
 
-  // Define a coluna de valor com prioridade estrita de acordo com o tipo
-  var idxValor = -1;
+  // Define a coluna correta de valor de acordo com o tipo da despesa
+  var idxValorEscolhido = -1;
   if (tipoViagem === 'HOSPEDAGEM') {
-    // Para Hospedagem, a coluna da aba de destino é 'VALOR DIÁRIA', portanto priorizamos VALOR DA DIÁRIA
+    // Na hospedagem, a prioridade máxima é a coluna de diária ('VALOR DIARIA')
     if (idxValorDiaria !== -1) {
-      idxValor = idxValorDiaria;
+      idxValorEscolhido = idxValorDiaria;
     } else if (idxValorTotal !== -1) {
-      idxValor = idxValorTotal;
-    } else if (idxValorGenerico !== -1) {
-      idxValor = idxValorGenerico;
+      idxValorEscolhido = idxValorTotal;
+    } else {
+      idxValorEscolhido = idxValorGenerico;
     }
   } else {
-    // Para Alimentação, priorizamos VALOR TOTAL
+    // Na alimentação, a prioridade é o valor total
     if (idxValorTotal !== -1) {
-      idxValor = idxValorTotal;
+      idxValorEscolhido = idxValorTotal;
     } else if (idxValorGenerico !== -1) {
-      idxValor = idxValorGenerico;
-    } else if (idxValorDiaria !== -1) {
-      idxValor = idxValorDiaria;
+      idxValorEscolhido = idxValorGenerico;
+    } else {
+      idxValorEscolhido = idxValorDiaria;
     }
   }
 
-  Logger.log("Mapeamento colunas " + tipoViagem + ": Colaborador=" + idxColaborador + " ('" + (idxColaborador !== -1 ? cabecalho[idxColaborador] : "NÃO") + "'), Valor=" + idxValor + " ('" + (idxValor !== -1 ? cabecalho[idxValor] : "NÃO") + "'), MesSAP=" + idxMesSap + " ('" + (idxMesSap !== -1 ? cabecalho[idxMesSap] : "NÃO") + "')");
+  if (idxColaborador === -1 || idxValorEscolhido === -1) {
+    Logger.log("Colunas essenciais não mapeadas na aba de viagens (" + tipoViagem + "). Colaborador=" + idxColaborador + ", Valor=" + idxValorEscolhido);
+    return { linhas: [] };
+  }
+
+  var idxMesEscolhido = idxMesSap !== -1 ? idxMesSap : idxMesRef;
 
   var linhasFiltradas = [];
-  var stats = { totalLidos: 0, linhasOutrosMeses: 0 };
 
-  for (var i = linhaCabecalhoIdx + 1; i < dados.length; i++) {
-    var row = dados[i];
-    if (!row || row.length === 0) continue;
+  // 2. Leitura em lotes de 2.000 linhas
+  var TAMANHO_LOTE = 2000;
+  for (var inicio = 2; inicio <= totalLinhas; inicio += TAMANHO_LOTE) {
+    var qtd = Math.min(TAMANHO_LOTE, totalLinhas - inicio + 1);
+    var bloco = aba.getRange(inicio, 1, qtd, totalColunas).getValues();
 
-    var nomeRaw = idxColaborador !== -1 && row[idxColaborador] ? row[idxColaborador].toString().trim() : "";
-    if (!nomeRaw) continue;
+    for (var r = 0; r < bloco.length; r++) {
+      var linha = bloco[r];
+      if (!linha || linha.length === 0) continue;
 
-    stats.totalLidos++;
+      var nomeOriginal = linha[idxColaborador] ? linha[idxColaborador].toString().trim() : "";
+      if (!nomeOriginal) continue;
 
-    // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
-    var nomePadrao = padronizarTexto(nomeRaw);
-    if (!mapaColaboradores.hasOwnProperty(nomePadrao)) {
-      continue;
-    }
+      var nomePadronizado = padronizarTexto(nomeOriginal);
 
-    // 2º FILTRO: Mês de competência
-    var valorMesSap = idxMesSap !== -1 ? row[idxMesSap] : "";
-    var valorMesRef = idxMesRef !== -1 ? row[idxMesRef] : "";
-
-    var ehDoMes = false;
-    if (valorMesSap) {
-      ehDoMes = valorPertenceAoMesViagens(valorMesSap, mesAlvo);
-    }
-    if (!ehDoMes && valorMesRef) {
-      ehDoMes = valorPertenceAoMesViagens(valorMesRef, mesAlvo);
-    }
-
-    if (!ehDoMes) {
-      stats.linhasOutrosMeses++;
-      continue;
-    }
-
-    // Extrai o valor monetário correto
-    var valorRaw = 0;
-    if (tipoViagem === 'HOSPEDAGEM') {
-      if (idxValorDiaria !== -1 && row[idxValorDiaria] !== undefined && row[idxValorDiaria] !== null && row[idxValorDiaria] !== "") {
-        valorRaw = row[idxValorDiaria];
-      } else if (idxValorTotal !== -1 && row[idxValorTotal] !== undefined && row[idxValorTotal] !== null && row[idxValorTotal] !== "") {
-        valorRaw = row[idxValorTotal];
-      } else if (idxValor !== -1 && row[idxValor] !== undefined && row[idxValor] !== null && row[idxValor] !== "") {
-        valorRaw = row[idxValor];
+      // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
+      if (!mapaColaboradores.hasOwnProperty(nomePadronizado)) {
+        continue;
       }
-    } else {
-      if (idxValorTotal !== -1 && row[idxValorTotal] !== undefined && row[idxValorTotal] !== null && row[idxValorTotal] !== "") {
-        valorRaw = row[idxValorTotal];
-      } else if (idxValor !== -1 && row[idxValor] !== undefined && row[idxValor] !== null && row[idxValor] !== "") {
-        valorRaw = row[idxValor];
+
+      // 2º FILTRO: Mês do Lançamento SAP (ou Referência)
+      var mesRaw = idxMesEscolhido !== -1 ? linha[idxMesEscolhido] : "";
+      var ehDoMes = valorPertenceAoMesViagens(mesRaw, mesAlvo);
+
+      if (!ehDoMes) {
+        continue;
       }
+
+      var valorRaw = linha[idxValorEscolhido];
+      var valorFormatado = formatarValorNumerico(valorRaw);
+
+      if (valorFormatado === 0 && (valorRaw === "" || valorRaw === null || valorRaw === undefined)) {
+        continue;
+      }
+
+      var mesSapStr = mesRaw ? mesRaw.toString().trim() : mesAlvo.nome;
+
+      linhasFiltradas.push([
+        nomeOriginal,
+        valorFormatado,
+        mesSapStr
+      ]);
     }
 
-    var valorFormatado = formatarValorNumerico(valorRaw);
-
-    // Formata o mês em Title Case (ex.: 'Outubro') para ficar exatamente como no padrão da planilha
-    var mesTexto = "Outubro";
-    if (valorMesSap && typeof valorMesSap === 'string' && valorMesSap.trim() !== "") {
-      var vSapTrim = valorMesSap.trim();
-      if (vSapTrim.length > 2 && vSapTrim.toLowerCase().indexOf(mesAlvo.nome.toLowerCase()) > -1) {
-        mesTexto = vSapTrim.charAt(0).toUpperCase() + vSapTrim.slice(1).toLowerCase();
-      } else {
-        mesTexto = vSapTrim;
-      }
-    } else if (mesAlvo && mesAlvo.nome) {
-      mesTexto = mesAlvo.nome.charAt(0).toUpperCase() + mesAlvo.nome.slice(1).toLowerCase();
-    }
-
-    // Linha de saída: [COLABORADOR, VALOR, MÊS]
-    linhasFiltradas.push([
-      nomeRaw,
-      valorFormatado,
-      mesTexto
-    ]);
+    bloco = null;
   }
 
-  return { linhas: linhasFiltradas, stats: stats };
+  return { linhas: linhasFiltradas };
 }
 
 /**
- * Limpa e grava os lançamentos de Alimentação e Hospedagem na aba 'Base_Viagens'.
- * Garante que a Coluna D ('nome corrigido') e a Coluna E não sejam tocadas.
+ * Grava os lançamentos de Alimentação e Hospedagem na aba 'Base_Viagens'.
+ * - Limpa rigorosamente da linha 3 em diante em A:C e F:H.
+ * - Preserva cabeçalhos (linhas 1 e 2), Coluna D ('nome corrigido') e Coluna E intactas.
  */
 function gravarDadosNaAbaViagens(abaViagens, linhasAlimentacao, linhasHospedagem) {
-  var lastRow = abaViagens.getLastRow();
+  var lastRowAtual = abaViagens.getLastRow();
 
-  // 1. Limpa os dados anteriores da linha 3 em diante em A:C e F:H
-  if (lastRow > 2) {
-    var qtdParaLimpar = lastRow - 2;
-    abaViagens.getRange(3, 1, qtdParaLimpar, 3).clearContent();
-    abaViagens.getRange(3, 6, qtdParaLimpar, 3).clearContent();
+  // 1. Limpa dados anteriores da linha 3 em diante (apenas A:C e F:H)
+  if (lastRowAtual > 2) {
+    abaViagens.getRange(3, 1, lastRowAtual - 2, 3).clearContent(); // A:C (Alimentação)
+    abaViagens.getRange(3, 6, lastRowAtual - 2, 3).clearContent(); // F:H (Hospedagem)
     SpreadsheetApp.flush();
   }
 
-  // 2. Garante cabeçalhos de seção na linha 1 caso não existam
-  var a1Val = abaViagens.getRange(1, 1).getValue();
-  var g1Val = abaViagens.getRange(1, 7).getValue();
-  if (!a1Val) abaViagens.getRange(1, 1).setValue('Alimentação');
-  if (!g1Val) abaViagens.getRange(1, 7).setValue('Hospedagem');
-
-  // 3. Garante cabeçalhos limpos de texto puro na linha 2
-  // Isso remove qualquer fórmula residual antiga (como IMPORTRANGE ou QUERY) que cause erro #REF! em A2 e F2
-  abaViagens.getRange(2, 1, 1, 3).setValues([
-    ['COLABORADOR', 'VALOR TOTAL', 'MÊS DO LANÇAMENTO - SAP']
-  ]);
-  abaViagens.getRange(2, 6, 1, 3).setValues([
-    ['COLABORADOR', 'VALOR DIÁRIA', 'MÊS DE LANÇAMENTO - SAP']
-  ]);
-
-  // Se D2 ou I2 ('nome corrigido') estiverem vazios, preenche o cabeçalho
-  if (!abaViagens.getRange(2, 4).getValue()) {
-    abaViagens.getRange(2, 4).setValue('nome corrigido');
-  }
-  if (!abaViagens.getRange(2, 9).getValue()) {
-    abaViagens.getRange(2, 9).setValue('nome corrigido');
+  // 2. Garante cabeçalhos estruturais se a aba estiver em branco
+  if (abaViagens.getLastRow() === 0) {
+    abaViagens.getRange(1, 1, 1, 3).setValues([['Alimentação', '', '']]);
+    abaViagens.getRange(1, 6, 1, 3).setValues([['Hospedagem', '', '']]);
+    abaViagens.getRange(2, 1, 1, 8).setValues([[
+      'COLABORADOR', 'VALOR TOTAL', 'MÊS DO LANÇAMENTO - SAP',
+      'nome corrigido', '',
+      'COLABORADOR', 'VALOR DIÁRIA', 'MÊS DO LANÇAMENTO - SAP'
+    ]]);
   }
 
-  // 4. Grava Alimentação em A:C a partir da linha 3
+  // 3. Grava Alimentação (Colunas A, B, C a partir da linha 3)
   if (linhasAlimentacao && linhasAlimentacao.length > 0) {
     abaViagens.getRange(3, 1, linhasAlimentacao.length, 3).setValues(linhasAlimentacao);
     abaViagens.getRange(3, 2, linhasAlimentacao.length, 1).setNumberFormat('"R$"\\ #,##0.00');
   }
 
-  // 5. Grava Hospedagem em F:H a partir da linha 3
+  // 4. Grava Hospedagem (Colunas F, G, H a partir da linha 3)
   if (linhasHospedagem && linhasHospedagem.length > 0) {
     abaViagens.getRange(3, 6, linhasHospedagem.length, 3).setValues(linhasHospedagem);
     abaViagens.getRange(3, 7, linhasHospedagem.length, 1).setNumberFormat('"R$"\\ #,##0.00');
   }
-
-  SpreadsheetApp.flush();
 }
 
 /**
- * Validador altamente flexível para verificar se um valor de mês da planilha de viagens
- * pertence ao mês da planilha de destino (aceita texto, código numérico, datas, etc.).
+ * Valida se um valor de mês da planilha de viagens corresponde ao mês alvo.
  */
 function valorPertenceAoMesViagens(valorRaw, mesAlvo) {
-  if (valorRaw === undefined || valorRaw === null || valorRaw === "") return false;
+  if (valorRaw === null || valorRaw === undefined || valorRaw === "") return false;
 
-  // 1. Objeto Date
-  if (valorRaw instanceof Date && !isNaN(valorRaw.getTime())) {
-    var mesDate = Utilities.formatDate(valorRaw, 'GMT', 'MM');
-    var anoDate = Utilities.formatDate(valorRaw, 'GMT', 'yyyy');
-    if (mesDate === mesAlvo.codigo && (!mesAlvo.ano || anoDate === mesAlvo.ano)) {
-      return true;
-    }
-    return false;
+  // Se for Date
+  if (Object.prototype.toString.call(valorRaw) === '[object Date]') {
+    var mesZeroIdx = valorRaw.getMonth();
+    var mesCod = String(mesZeroIdx + 1);
+    if (mesCod.length === 1) mesCod = '0' + mesCod;
+    return mesCod === mesAlvo.codigo;
   }
 
-  // 2. Número (código simples do mês ou número serial do Excel)
-  if (typeof valorRaw === 'number') {
-    if (valorRaw === parseInt(mesAlvo.codigo, 10)) {
-      return true;
-    }
-    if (valorRaw > 40000 && valorRaw < 60000) {
-      var dObj = new Date(Math.round((valorRaw - 25569) * 86400 * 1000));
-      if (!isNaN(dObj.getTime())) {
-        var mSerial = Utilities.formatDate(dObj, 'GMT', 'MM');
-        var aSerial = Utilities.formatDate(dObj, 'GMT', 'yyyy');
-        return (mSerial === mesAlvo.codigo && (!mesAlvo.ano || aSerial === mesAlvo.ano));
-      }
-    }
-  }
-
-  // 3. String de texto
-  var str = valorRaw.toString().trim();
+  var str = padronizarTexto(valorRaw);
   if (!str) return false;
 
-  var norm = padronizarTexto(str);
+  // 1. Busca pelo nome do mês
+  if (str.indexOf(mesAlvo.nome) > -1) return true;
 
-  // Nome completo do mês (ex.: OUTUBRO)
-  if (norm === mesAlvo.nome || norm.indexOf(mesAlvo.nome) > -1) {
-    var matchAno = str.match(/\b(20\d{2})\b/);
-    if (matchAno && mesAlvo.ano && matchAno[1] !== mesAlvo.ano) {
-      return false;
-    }
+  // 2. Busca pelo código de 2 dígitos (ex: /10/ ou -10- ou 10/2026)
+  if (str.indexOf('/' + mesAlvo.codigo + '/') > -1 ||
+      str.indexOf('-' + mesAlvo.codigo + '-') > -1 ||
+      str.indexOf('/' + mesAlvo.codigo) > -1 ||
+      str.indexOf(mesAlvo.codigo + '/') > -1) {
     return true;
   }
 
-  // Abreviação de 3 letras
-  var mapaAbrev = {
-    '01': 'JAN', '02': 'FEV', '03': 'MAR', '04': 'ABR',
-    '05': 'MAI', '06': 'JUN', '07': 'JUL', '08': 'AGO',
-    '09': 'SET', '10': 'OUT', '11': 'NOV', '12': 'DEZ'
-  };
-  var abrev = mapaAbrev[mesAlvo.codigo];
-  if (abrev) {
-    if (norm === abrev || norm.indexOf(abrev + '/') > -1 || norm.indexOf(abrev + ' ') > -1 || norm.indexOf(abrev + '-') > -1) {
-      var matchAnoAbr = str.match(/\b(20\d{2})\b/);
-      if (matchAnoAbr && mesAlvo.ano && matchAnoAbr[1] !== mesAlvo.ano) {
-        return false;
+  // 3. Verificação de número isolado
+  var num = parseInt(str, 10);
+  if (!isNaN(num) && num === parseInt(mesAlvo.codigo, 10)) {
+    return true;
+  }
+
+  // 4. Mapeamento de nomes de meses em texto
+  var mesesNomes = [
+    { cod: '01', nomes: ['JANEIRO', 'JAN'] },
+    { cod: '02', nomes: ['FEVEREIRO', 'FEV'] },
+    { cod: '03', nomes: ['MARCO', 'MAR'] },
+    { cod: '04', nomes: ['ABRIL', 'ABR'] },
+    { cod: '05', nomes: ['MAIO', 'MAI'] },
+    { cod: '06', nomes: ['JUNHO', 'JUN'] },
+    { cod: '07', nomes: ['JULHO', 'JUL'] },
+    { cod: '08', nomes: ['AGOSTO', 'AGO'] },
+    { cod: '09', nomes: ['SETEMBRO', 'SET'] },
+    { cod: '10', nomes: ['OUTUBRO', 'OUT'] },
+    { cod: '11', nomes: ['NOVEMBRO', 'NOV'] },
+    { cod: '12', nomes: ['DEZEMBRO', 'DEZ'] }
+  ];
+
+  for (var m = 0; m < mesesNomes.length; m++) {
+    var item = mesesNomes[m];
+    for (var n = 0; n < item.nomes.length; n++) {
+      if (str.indexOf(item.nomes[n]) > -1) {
+        return item.cod === mesAlvo.codigo;
       }
-      return true;
     }
-  }
-
-  // Padrão numérico: DD/MM/YYYY ou MM/YYYY ou YYYY-MM
-  var matchBr = str.match(/(?:^|[^\d])(\d{1,2})[\/\-](\d{2,4})(?:[^\d]|$)/);
-  if (matchBr) {
-    var m = matchBr[1].length === 1 ? '0' + matchBr[1] : matchBr[1];
-    var a = matchBr[2].length === 2 ? '20' + matchBr[2] : matchBr[2];
-    if (m === mesAlvo.codigo && (!mesAlvo.ano || a === mesAlvo.ano)) {
-      return true;
-    }
-  }
-
-  // Código isolado: "10"
-  if (str === mesAlvo.codigo || str === parseInt(mesAlvo.codigo, 10).toString()) {
-    return true;
   }
 
   return false;
@@ -945,7 +893,7 @@ function valorPertenceAoMesViagens(valorRaw, mesAlvo) {
 
 
 // ============================================================================
-// 6. SINCRONIZAÇÃO MULTI-PLANILHAS (PASTA 2026 - JULHO EM DIANTE)
+// 6. SINCRONIZAÇÃO EM MASSA MULTI-PLANILHAS (PASTA 2026)
 // ============================================================================
 
 /**
@@ -956,9 +904,8 @@ function sincronizarTodasPlanilhas() {
   var confirmacao = ui.alert(
     "🌐 Sincronização Completa de Custos (Pasta 2026)",
     "Esta ação sincronizará TODOS os custos em TODAS as planilhas da pasta 2026 do mês de JULHO em diante:\n\n" +
-    "• ⛽ Combustível (Base_Abastecimento)\n" +
-    "• 🔧 Manutenção (Base_Manutenção)\n" +
-    "• ✈️ Viagens (Base_Viagens: Alimentação e Hospedagem)\n\n" +
+    "• 🚗 Frota Unificada (Combustível e Manutenção)\n" +
+    "• ✈️ Viagens (Alimentação e Hospedagem)\n\n" +
     "• As planilhas anteriores a Julho/2026 serão mantidas intactas.\n" +
     "• Coluna D ('nome corrigido') da aba Base_Viagens será mantida intacta.\n\n" +
     "Deseja iniciar a sincronização completa?",
@@ -971,7 +918,7 @@ function sincronizarTodasPlanilhas() {
   var relatorioViagens = sincronizarViagensTodas(true);
 
   var msgFinal = "🎉 Sincronização Completa Finalizada!\n\n" +
-                 "--- 🚗 FROTA ---\n" + (relatorioFrota && relatorioFrota.length > 0 ? relatorioFrota.join("\n") : "Concluído") + "\n\n" +
+                 "--- 🚗 FROTA UNIFICADA ---\n" + (relatorioFrota && relatorioFrota.length > 0 ? relatorioFrota.join("\n") : "Concluído") + "\n\n" +
                  "--- ✈️ VIAGENS ---\n" + (relatorioViagens && relatorioViagens.length > 0 ? relatorioViagens.join("\n") : "Concluído") + "\n\n" +
                  "ℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.";
   Logger.log(msgFinal);
@@ -979,7 +926,7 @@ function sincronizarTodasPlanilhas() {
 }
 
 /**
- * Ponto de entrada: Sincroniza apenas Frota (Abastecimento e Manutenção) em todas as planilhas da pasta 2026 (>= Julho).
+ * Ponto de entrada: Sincroniza apenas Frota em todas as planilhas da pasta 2026 (>= Julho).
  */
 function sincronizarFrotaTodas() {
   sincronizarPlanilhasPasta2026('AMBOS');
@@ -1089,17 +1036,17 @@ function sincronizarViagensTodas(modoSilencioso) {
 }
 
 /**
- * Localiza todas as planilhas da pasta 2026 a partir de Julho/2026 e preenche suas abas de frota.
- * Preserva intactas as planilhas de meses anteriores (Janeiro a Junho).
+ * Localiza todas as planilhas da pasta 2026 a partir de Julho/2026 e preenche suas abas de frota
+ * a partir do arquivo unificado no Drive. Preserva as de Janeiro a Junho intactas.
  */
 function sincronizarPlanilhasPasta2026(tipo, modoSilencioso) {
-  var tipoLabel = (tipo === 'ABASTECIMENTO') ? "Abastecimento" : (tipo === 'MANUTENCAO' ? "Manutenção" : "Abastecimento e Manutenção");
+  var tipoLabel = (tipo === 'ABASTECIMENTO') ? "Abastecimento" : (tipo === 'MANUTENCAO' ? "Manutenção" : "Frota Unificada (Combustível e Manutenção)");
 
   if (!modoSilencioso) {
     var ui = SpreadsheetApp.getUi();
     var confirmacao = ui.alert(
       "🌐 Sincronização Multi-Planilhas de Frota (Pasta 2026)",
-      "Esta ação identificará as planilhas da pasta 2026 do mês de JULHO em diante (Julho a Outubro e próximos meses) e preencherá automaticamente os dados de " + tipoLabel + ".\n\n" +
+      "Esta ação identificará as planilhas da pasta 2026 do mês de JULHO em diante (Julho a Outubro e próximos meses) e preencherá automaticamente os dados de " + tipoLabel + " a partir do arquivo unificado.\n\n" +
       "• As planilhas anteriores a Julho/2026 serão mantidas intactas.\n" +
       "• Cada mês receberá apenas os seus lançamentos, validados pelos colaboradores daquela planilha.\n" +
       "• Os dados anteriores de cada aba serão limpos e relançados a partir da linha 2.\n\n" +
@@ -1119,7 +1066,6 @@ function sincronizarPlanilhasPasta2026(tipo, modoSilencioso) {
     return [errPasta];
   }
 
-  // 1. Localizar planilhas elegíveis (de Julho em diante)
   var arquivosPasta = pasta2026.getFiles();
   var planilhasElegiveis = [];
 
@@ -1144,12 +1090,11 @@ function sincronizarPlanilhasPasta2026(tipo, modoSilencioso) {
     return [errSemPlanilhas];
   }
 
-  // Ordena por mês: 07, 08, 09, 10, 11, 12...
   planilhasElegiveis.sort(function(a, b) {
     return parseInt(a.mesInfo.codigo, 10) - parseInt(b.mesInfo.codigo, 10);
   });
 
-  // 2. Montar estruturas de meses e carregar colaboradores de cada planilha
+  // Montar estruturas de meses e carregar colaboradores de cada planilha
   var mesesAlvoMap = {};
   var colaboradoresPorMes = {};
   var planilhasInstancias = {};
@@ -1171,60 +1116,44 @@ function sincronizarPlanilhasPasta2026(tipo, modoSilencioso) {
 
   var relatorio = [];
 
-  // 3. Processar ABASTECIMENTO
-  if (tipo === 'ABASTECIMENTO' || tipo === 'AMBOS') {
-    var dadosAbast = processarExtratosParaMultiMeses(
-      CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL,
-      CONFIG_GERAL.PASTA_PROCESSADOS_COMBUSTIVEL,
-      'ABASTECIMENTO',
-      mesesAlvoMap,
-      colaboradoresPorMes
-    );
+  // Obter pastas da frota unificada
+  var estruturaPastas = obterOuCriarEstruturaPastasFrota(false);
+  var dadosFrota = processarExtratosUnificadosMultiMeses(
+    estruturaPastas.pastaOrigem,
+    estruturaPastas.pastaProcessados,
+    mesesAlvoMap,
+    colaboradoresPorMes
+  );
 
-    for (var a = 0; a < planilhasElegiveis.length; a++) {
-      var codA = planilhasElegiveis[a].mesInfo.codigo;
-      var nomeA = planilhasElegiveis[a].mesInfo.nome;
-      var ssA = planilhasInstancias[codA];
-      if (!ssA) continue;
+  for (var i = 0; i < planilhasElegiveis.length; i++) {
+    var codMes = planilhasElegiveis[i].mesInfo.codigo;
+    var nomeMes = planilhasElegiveis[i].mesInfo.nome;
+    var ssPlanilha = planilhasInstancias[codMes];
+    if (!ssPlanilha) continue;
 
-      var abaAbast = obterAbaPorNomes(ssA, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
-      if (!abaAbast) {
-        relatorio.push("⚠️ " + nomeA + ": Aba '" + CONFIG_GERAL.ABA_ABASTECIMENTO + "' não encontrada.");
-        continue;
+    var resumoMes = [];
+
+    // Grava Abastecimento
+    if (tipo === 'ABASTECIMENTO' || tipo === 'AMBOS') {
+      var abaAbast = obterAbaPorNomes(ssPlanilha, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
+      if (abaAbast) {
+        var linhasA = dadosFrota.abastecimento[codMes] || [];
+        gravarLinhasNaAba(abaAbast, linhasA, 4, ['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', 'DATA/HORA']);
+        resumoMes.push("⛽ " + linhasA.length + " abastecimentos");
       }
-
-      var linhasA = dadosAbast[codA] || [];
-      gravarLinhasNaAba(abaAbast, linhasA, 4, ['NOME MOTORISTA', 'VALOR EMISSAO', 'PERÍODO', 'DATA/HORA']);
-      relatorio.push("⛽ " + nomeA + ": " + linhasA.length + " abastecimentos lançados.");
     }
-  }
 
-  // 4. Processar MANUTENÇÃO
-  if (tipo === 'MANUTENCAO' || tipo === 'AMBOS') {
-    var dadosManut = processarExtratosParaMultiMeses(
-      CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO,
-      CONFIG_GERAL.PASTA_PROCESSADOS_MANUTENCAO,
-      'MANUTENCAO',
-      mesesAlvoMap,
-      colaboradoresPorMes
-    );
-
-    for (var m = 0; m < planilhasElegiveis.length; m++) {
-      var codM = planilhasElegiveis[m].mesInfo.codigo;
-      var nomeM = planilhasElegiveis[m].mesInfo.nome;
-      var ssM = planilhasInstancias[codM];
-      if (!ssM) continue;
-
-      var abaManut = obterAbaPorNomes(ssM, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
-      if (!abaManut) {
-        relatorio.push("⚠️ " + nomeM + ": Aba '" + CONFIG_GERAL.ABA_MANUTENCAO + "' não encontrada.");
-        continue;
+    // Grava Manutenção
+    if (tipo === 'MANUTENCAO' || tipo === 'AMBOS') {
+      var abaManut = obterAbaPorNomes(ssPlanilha, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
+      if (abaManut) {
+        var linhasM = dadosFrota.manutencao[codMes] || [];
+        gravarLinhasNaAba(abaManut, linhasM, 5, ['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'PERÍODO', 'DATA/HORA']);
+        resumoMes.push("🔧 " + linhasM.length + " manutenções");
       }
-
-      var linhasM = dadosManut[codM] || [];
-      gravarLinhasNaAba(abaManut, linhasM, 5, ['NOME MOTORISTA', 'VALOR EMISSAO', 'TIPO ESTABELECIMENTO', 'PERÍODO', 'DATA/HORA']);
-      relatorio.push("🔧 " + nomeM + ": " + linhasM.length + " manutenções lançadas.");
     }
+
+    relatorio.push("🚗 " + nomeMes + ": " + (resumoMes.length > 0 ? resumoMes.join(" | ") : "Nenhum dado lançado"));
   }
 
   if (!modoSilencioso) {
@@ -1239,24 +1168,26 @@ function sincronizarPlanilhasPasta2026(tipo, modoSilencioso) {
 }
 
 /**
- * Lê os arquivos novos e processados de uma pasta e distribui os lançamentos por mês.
+ * Lê os arquivos unificados novos e processados da pasta de Frota e distribui os lançamentos por mês e tipo.
  */
-function processarExtratosParaMultiMeses(idPastaOrigem, idPastaProcessados, tipo, mesesAlvoMap, colaboradoresPorMes) {
-  var linhasPorMes = {};
+function processarExtratosUnificadosMultiMeses(pastaOrigem, pastaProcessados, mesesAlvoMap, colaboradoresPorMes) {
+  var linhasPorMes = {
+    abastecimento: {},
+    manutencao: {}
+  };
+
   for (var cod in mesesAlvoMap) {
-    linhasPorMes[cod] = [];
+    linhasPorMes.abastecimento[cod] = [];
+    linhasPorMes.manutencao[cod] = [];
   }
 
   var chavesDeduplicacao = {};
-
-  var pastaOrigem = DriveApp.getFolderById(idPastaOrigem);
-  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, idPastaProcessados);
-
   var arquivosParaLer = [];
   var arquivosParaMover = [];
   var idsLidos = {};
 
   function coletarArquivos(pasta, ehOrigem) {
+    if (!pasta) return;
     var files = pasta.getFiles();
     while (files.hasNext()) {
       var f = files.next();
@@ -1277,7 +1208,7 @@ function processarExtratosParaMultiMeses(idPastaOrigem, idPastaProcessados, tipo
 
   for (var i = 0; i < arquivosParaLer.length; i++) {
     var arq = arquivosParaLer[i];
-    processarArquivoMultiMesesEmLotes(arq, tipo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao);
+    processarArquivoUnificadoMultiMesesEmLotes(arq, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao);
   }
 
   // Move novos arquivos para processados
@@ -1295,19 +1226,19 @@ function processarExtratosParaMultiMeses(idPastaOrigem, idPastaProcessados, tipo
 /**
  * Roteia o processamento multi-meses por tipo de arquivo (.xlsx ou .csv).
  */
-function processarArquivoMultiMesesEmLotes(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao) {
+function processarArquivoUnificadoMultiMesesEmLotes(arquivo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao) {
   var nomeLower = arquivo.getName().toLowerCase();
   if (nomeLower.indexOf('.xlsx') > -1) {
-    processarXlsxMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao);
+    processarXlsxUnificadoMultiMeses(arquivo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao);
   } else if (nomeLower.indexOf('.csv') > -1) {
-    processarCsvMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao);
+    processarCsvUnificadoMultiMeses(arquivo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao);
   }
 }
 
 /**
- * Lê arquivo Excel (.xlsx) particionado em lotes e distribui as transações por mês.
+ * Lê arquivo Excel (.xlsx) unificado em lotes e distribui as transações por mês e tipo.
  */
-function processarXlsxMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao) {
+function processarXlsxUnificadoMultiMeses(arquivo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao) {
   var nomeArquivo = arquivo.getName();
   var tempId = converterXlsxParaPlanilhaTemporaria(arquivo);
   if (!tempId) return;
@@ -1356,26 +1287,24 @@ function processarXlsxMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMe
           if (mComp) mesCod = mComp.mes;
         }
 
-        // Se o mês não faz parte da regra (ex.: Jan a Junho), ignora
         if (!mesCod || !mesesAlvoMap[mesCod]) continue;
 
         var mapaColabMes = colaboradoresPorMes[mesCod] || {};
         var nomePadronizado = padronizarTexto(nomeOriginal);
-
-        // Valida se colaborador pertence a esse mês
         if (!mapaColabMes.hasOwnProperty(nomePadronizado)) continue;
 
+        var tipoTransacao = classificarTipoTransacao(linha, idx);
         var valorFormatado = formatarValorNumerico(linha[idx.indexValor]);
 
         // Anti-duplicação por transação
-        var chaveTransacao = mesCod + '|' + nomePadronizado + '|' + valorFormatado + '|' + infoData.str;
+        var chaveTransacao = mesCod + '|' + tipoTransacao + '|' + nomePadronizado + '|' + valorFormatado + '|' + infoData.str;
         if (chavesDeduplicacao[chaveTransacao]) continue;
         chavesDeduplicacao[chaveTransacao] = true;
 
         var mesNome = mesesAlvoMap[mesCod].nome;
 
-        if (tipo === 'ABASTECIMENTO') {
-          linhasPorMes[mesCod].push([
+        if (tipoTransacao === 'ABASTECIMENTO') {
+          linhasPorMes.abastecimento[mesCod].push([
             nomeOriginal,
             valorFormatado,
             mesNome,
@@ -1383,7 +1312,7 @@ function processarXlsxMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMe
           ]);
         } else {
           var tipoEstab = idx.indexTipoEstabelecimento !== -1 ? (linha[idx.indexTipoEstabelecimento] || "").toString().trim() : "";
-          linhasPorMes[mesCod].push([
+          linhasPorMes.manutencao[mesCod].push([
             nomeOriginal,
             valorFormatado,
             tipoEstab,
@@ -1404,9 +1333,9 @@ function processarXlsxMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMe
 }
 
 /**
- * Lê arquivo CSV linha a linha e distribui as transações por mês.
+ * Lê arquivo CSV unificado linha a linha e distribui as transações por mês e tipo.
  */
-function processarCsvMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao) {
+function processarCsvUnificadoMultiMeses(arquivo, mesesAlvoMap, colaboradoresPorMes, linhasPorMes, chavesDeduplicacao) {
   var nomeArquivo = arquivo.getName();
   var blob = arquivo.getBlob();
   var conteudoCsv = blob.getDataAsString();
@@ -1452,16 +1381,17 @@ function processarCsvMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes
     var nomePadronizado = padronizarTexto(nomeOriginal);
     if (!mapaColabMes.hasOwnProperty(nomePadronizado)) continue;
 
+    var tipoTransacao = classificarTipoTransacao(linhaArr, idx);
     var valorFormatado = formatarValorNumerico(linhaArr[idx.indexValor]);
 
-    var chaveTransacao = mesCod + '|' + nomePadronizado + '|' + valorFormatado + '|' + infoData.str;
+    var chaveTransacao = mesCod + '|' + tipoTransacao + '|' + nomePadronizado + '|' + valorFormatado + '|' + infoData.str;
     if (chavesDeduplicacao[chaveTransacao]) continue;
     chavesDeduplicacao[chaveTransacao] = true;
 
     var mesNome = mesesAlvoMap[mesCod].nome;
 
-    if (tipo === 'ABASTECIMENTO') {
-      linhasPorMes[mesCod].push([
+    if (tipoTransacao === 'ABASTECIMENTO') {
+      linhasPorMes.abastecimento[mesCod].push([
         nomeOriginal,
         valorFormatado,
         mesNome,
@@ -1469,7 +1399,7 @@ function processarCsvMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes
       ]);
     } else {
       var tipoEstab = idx.indexTipoEstabelecimento !== -1 ? (linhaArr[idx.indexTipoEstabelecimento] || "").toString().trim() : "";
-      linhasPorMes[mesCod].push([
+      linhasPorMes.manutencao[mesCod].push([
         nomeOriginal,
         valorFormatado,
         tipoEstab,
@@ -1483,16 +1413,16 @@ function processarCsvMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes
 }
 
 /**
- * Limpa dados existentes da linha 2 em diante e grava novos dados na aba de destino (para frota).
+ * Função utilitária para gravar matriz em aba, limpando da linha 2 em diante e formatando como moeda.
  */
 function gravarLinhasNaAba(abaDestino, linhasParaInserir, qtdColunas, cabecalhoPadrao) {
   var linhasAtuais = abaDestino.getLastRow();
   if (linhasAtuais > 1) {
-    abaDestino.getRange(2, 1, linhasAtuais - 1, Math.max(abaDestino.getLastColumn(), qtdColunas)).clearContent();
+    abaDestino.getRange(2, 1, linhasAtuais - 1, abaDestino.getLastColumn()).clearContent();
     SpreadsheetApp.flush();
   }
 
-  if (abaDestino.getLastRow() === 0 && cabecalhoPadrao) {
+  if (abaDestino.getLastRow() === 0) {
     abaDestino.getRange(1, 1, 1, qtdColunas).setValues([cabecalhoPadrao]);
   }
 
@@ -1504,8 +1434,12 @@ function gravarLinhasNaAba(abaDestino, linhasParaInserir, qtdColunas, cabecalhoP
 
 
 // ============================================================================
-// 7. TESTE DE CONEXÕES E DIAGNÓSTICO
+// 7. DIAGNÓSTICO E TESTES DE CONEXÃO
 // ============================================================================
+
+/**
+ * Executa testes completos nas pastas do Drive, planilhas e abas de destino.
+ */
 function testarConexoes() {
   var relatorio = [];
 
@@ -1544,8 +1478,7 @@ function testarConexoes() {
     var abaAlim = obterAbaPorNomes(ssViagens, [CONFIG_GERAL.ABA_ORIGEM_ALIMENTACAO, 'Alimentação 2026', 'Alimentacao 2026', 'Alimentação', 'Alimentacao']);
     if (abaAlim) {
       var cabAlim = abaAlim.getRange(1, 1, 1, abaAlim.getLastColumn()).getValues()[0].filter(function(x){ return x !== ""; }).join(" | ");
-      relatorio.push("  • Aba Alimentação: " + abaAlim.getLastRow() + " linhas");
-      relatorio.push("    Colunas: " + cabAlim);
+      relatorio.push("  • Aba Alimentação: " + abaAlim.getLastRow() + " linhas (Colunas: " + cabAlim + ")");
     } else {
       relatorio.push("  ❌ Aba Alimentação NÃO encontrada");
     }
@@ -1553,8 +1486,7 @@ function testarConexoes() {
     var abaHosp = obterAbaPorNomes(ssViagens, [CONFIG_GERAL.ABA_ORIGEM_HOSPEDAGEM, 'Hospedagem 2026', 'Hospedagem', 'Hospedagens 2026', 'Hospedagens']);
     if (abaHosp) {
       var cabHosp = abaHosp.getRange(1, 1, 1, abaHosp.getLastColumn()).getValues()[0].filter(function(x){ return x !== ""; }).join(" | ");
-      relatorio.push("  • Aba Hospedagem: " + abaHosp.getLastRow() + " linhas");
-      relatorio.push("    Colunas: " + cabHosp);
+      relatorio.push("  • Aba Hospedagem: " + abaHosp.getLastRow() + " linhas (Colunas: " + cabHosp + ")");
     } else {
       relatorio.push("  ❌ Aba Hospedagem NÃO encontrada");
     }
@@ -1581,19 +1513,33 @@ function testarConexoes() {
     relatorio.push("❌ Erro ao listar pasta 2026: " + e.message);
   }
 
-  // Pastas de Combustível e Manutenção
+  // Nova Estrutura Unificada de Frota no Drive
   try {
-    var pComb = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL);
-    relatorio.push("✅ Pasta Origem Combustível: " + pComb.getName());
-  } catch (e) {
-    relatorio.push("❌ Erro Pasta Combustível: " + e.message);
-  }
+    var estruturaPastas = obterOuCriarEstruturaPastasFrota(false);
+    var pOrigem = estruturaPastas.pastaOrigem;
+    var pProcessados = estruturaPastas.pastaProcessados;
 
-  try {
-    var pManut = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO);
-    relatorio.push("✅ Pasta Origem Manutenção: " + pManut.getName());
+    relatorio.push("✅ Pasta Frota Unificada (Entrada): '" + pOrigem.getName() + "' (ID: " + pOrigem.getId() + ")");
+    relatorio.push("✅ Subpasta Histórico (Processados): '" + pProcessados.getName() + "' (ID: " + pProcessados.getId() + ")");
+
+    var arqsNovos = pOrigem.getFiles();
+    var qtdNovos = 0;
+    while (arqsNovos.hasNext()) {
+      var fn = arqsNovos.next().getName().toLowerCase();
+      if (fn.indexOf('.xlsx') > -1 || fn.indexOf('.csv') > -1) qtdNovos++;
+    }
+    relatorio.push("  • Arquivos novos aguardando importação: " + qtdNovos);
+
+    var arqsProc = pProcessados.getFiles();
+    var qtdProc = 0;
+    while (arqsProc.hasNext()) {
+      var fp = arqsProc.next().getName().toLowerCase();
+      if (fp.indexOf('.xlsx') > -1 || fp.indexOf('.csv') > -1) qtdProc++;
+    }
+    relatorio.push("  • Arquivos já arquivados em processados: " + qtdProc);
+
   } catch (e) {
-    relatorio.push("❌ Erro Pasta Manutenção: " + e.message);
+    relatorio.push("❌ Erro ao validar estrutura de pastas de Frota: " + e.message);
   }
 
   var msg = relatorio.join("\n");
@@ -1603,38 +1549,41 @@ function testarConexoes() {
 
 
 // ============================================================================
-// 8. FUNÇÕES AUXILIARES DE SUPORTE (EXCEL, CSV, DATAS E FORMATAÇÃO)
+// 8. MOTOR DE PROCESSAMENTO EM LOTES (.XLSX / .CSV UNIFICADO)
 // ============================================================================
 
 /**
- * Processa um arquivo (.xlsx ou .csv) em lotes com baixíssimo consumo de memória,
- * filtrando diretamente os colaboradores do setor e o mês da planilha ativa.
+ * Processa um arquivo unificado (.xlsx ou .csv) em lotes, classificando cada linha
+ * em 'ABASTECIMENTO' ou 'MANUTENCAO' com base na Coluna C (NOME REDUZIDO).
  */
-function processarArquivoEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
+function processarArquivoFrotaUnificadaEmLotes(arquivo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
   var nomeArquivo = arquivo.getName();
   var nomeLower = nomeArquivo.toLowerCase();
 
   if (nomeLower.indexOf('.xlsx') > -1) {
-    return processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
+    return processarXlsxFrotaUnificadaEmLotes(arquivo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
   } else if (nomeLower.indexOf('.csv') > -1) {
-    return processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
+    return processarCsvFrotaUnificadaEmLotes(arquivo, mapaColaboradores, mesAlvo, nomesIgnorados, stats);
   }
 
-  return [];
+  return { abastecimento: [], manutencao: [] };
 }
 
 /**
  * Processa arquivo Excel (.xlsx) convertendo para planilha temporária e lendo em blocos
  * de linhas (chunks) para NUNCA estourar a memória do Google Apps Script.
  */
-function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
+function processarXlsxFrotaUnificadaEmLotes(arquivo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
   var nomeArquivo = arquivo.getName();
   var tempId = converterXlsxParaPlanilhaTemporaria(arquivo);
   if (!tempId) {
     throw new Error("Não foi possível processar o arquivo Excel (.xlsx). Verifique as permissões de acesso ao Google Drive.");
   }
 
-  var linhasFiltradas = [];
+  var resultado = {
+    abastecimento: [],
+    manutencao: []
+  };
 
   try {
     var tempPlanilha = SpreadsheetApp.openById(tempId);
@@ -1655,7 +1604,7 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
 
     if (totalLinhas <= 1 || totalColunas === 0) {
       Logger.log("Arquivo sem registros ou vazio: " + nomeArquivo);
-      return [];
+      return resultado;
     }
 
     // 1. Lê APENAS a 1ª linha (cabeçalho) para descobrir os índices das colunas
@@ -1664,7 +1613,7 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
 
     if (idx.indexMotorista === -1 || idx.indexValor === -1) {
       Logger.log("Colunas obrigatórias não encontradas no arquivo Excel: " + nomeArquivo);
-      return [];
+      return resultado;
     }
 
     // 2. Lê os dados em blocos (chunks) de 2.000 linhas
@@ -1704,10 +1653,11 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
         }
 
         var valorFormatado = formatarValorNumerico(linha[idx.indexValor]);
+        var tipoTransacao = classificarTipoTransacao(linha, idx);
 
-        if (tipo === 'ABASTECIMENTO') {
+        if (tipoTransacao === 'ABASTECIMENTO') {
           // [A: NOME MOTORISTA, B: VALOR EMISSAO, C: PERÍODO, D: DATA/HORA]
-          linhasFiltradas.push([
+          resultado.abastecimento.push([
             nomeOriginal,
             valorFormatado,
             mesAlvo.nome,
@@ -1716,7 +1666,7 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
         } else {
           // MANUTENCAO: [A: NOME MOTORISTA, B: VALOR EMISSAO, C: TIPO ESTABELECIMENTO, D: PERÍODO, E: DATA/HORA]
           var tipoEstab = idx.indexTipoEstabelecimento !== -1 ? (linha[idx.indexTipoEstabelecimento] || "").toString().trim() : "";
-          linhasFiltradas.push([
+          resultado.manutencao.push([
             nomeOriginal,
             valorFormatado,
             tipoEstab,
@@ -1737,26 +1687,31 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
     }
   }
 
-  return linhasFiltradas;
+  return resultado;
 }
 
 /**
  * Processa arquivo CSV linha a linha sem carregar matrizes 2D gigantes em memória.
  */
-function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
+function processarCsvFrotaUnificadaEmLotes(arquivo, mapaColaboradores, mesAlvo, nomesIgnorados, stats) {
   var nomeArquivo = arquivo.getName();
   var blob = arquivo.getBlob();
   var conteudoCsv = blob.getDataAsString();
 
+  var resultado = {
+    abastecimento: [],
+    manutencao: []
+  };
+
   if (!conteudoCsv || conteudoCsv.trim() === "") {
-    return [];
+    return resultado;
   }
 
   var linhasTexto = conteudoCsv.split(/\r?\n/);
   conteudoCsv = null;
 
   if (linhasTexto.length <= 1) {
-    return [];
+    return resultado;
   }
 
   var delimitador = detectarDelimitador(linhasTexto[0]);
@@ -1765,10 +1720,8 @@ function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgn
 
   if (idx.indexMotorista === -1 || idx.indexValor === -1) {
     Logger.log("Colunas obrigatórias não encontradas no CSV: " + nomeArquivo);
-    return [];
+    return resultado;
   }
-
-  var linhasFiltradas = [];
 
   for (var r = 1; r < linhasTexto.length; r++) {
     var linhaStr = linhasTexto[r];
@@ -1805,9 +1758,10 @@ function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgn
     }
 
     var valorFormatado = formatarValorNumerico(linhaArr[idx.indexValor]);
+    var tipoTransacao = classificarTipoTransacao(linhaArr, idx);
 
-    if (tipo === 'ABASTECIMENTO') {
-      linhasFiltradas.push([
+    if (tipoTransacao === 'ABASTECIMENTO') {
+      resultado.abastecimento.push([
         nomeOriginal,
         valorFormatado,
         mesAlvo.nome,
@@ -1815,7 +1769,7 @@ function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgn
       ]);
     } else {
       var tipoEstab = idx.indexTipoEstabelecimento !== -1 ? (linhaArr[idx.indexTipoEstabelecimento] || "").toString().trim() : "";
-      linhasFiltradas.push([
+      resultado.manutencao.push([
         nomeOriginal,
         valorFormatado,
         tipoEstab,
@@ -1826,7 +1780,7 @@ function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgn
   }
 
   linhasTexto = null;
-  return linhasFiltradas;
+  return resultado;
 }
 
 /**
@@ -1890,7 +1844,8 @@ function converterXlsxParaPlanilhaTemporaria(arquivo) {
 }
 
 /**
- * Localiza os índices de todas as colunas obrigatórias e opcionais pelo cabeçalho.
+ * Localiza os índices de todas as colunas obrigatórias e opcionais pelo cabeçalho
+ * para o layout unificado de 39 colunas (A até AM).
  */
 function mapearIndicesColunas(cabecalho) {
   var indexMotorista = -1;
@@ -1898,43 +1853,70 @@ function mapearIndicesColunas(cabecalho) {
   var indexTipoEstabelecimento = -1;
   var indexPeriodo = -1;
   var indexData = -1;
+  var indexNomeReduzido = -1;
+  var indexServico = -1;
+  var indexPlaca = -1;
 
   for (var c = 0; c < cabecalho.length; c++) {
     var col = padronizarTexto(cabecalho[c]);
     if (!col) continue;
 
-    // MOTORISTA / CONDUTOR
+    // NOME REDUZIDO (Coluna C - Identifica 'BRISANET ABASTECIMENTO' ou 'BRISANET MANUTENCAO')
+    if (col === 'NOME REDUZIDO' || col === 'REDUZIDO' || col.indexOf('NOME REDUZIDO') > -1) {
+      if (indexNomeReduzido === -1) indexNomeReduzido = c;
+    }
+
+    // MOTORISTA / CONDUTOR (Coluna K)
     if (col === 'NOME MOTORISTA' || col === 'NOME DO MOTORISTA' || col === 'NOME CONDUTOR' || col === 'NOME DO CONDUTOR') {
-      indexMotorista = c;
+      if (indexMotorista === -1) indexMotorista = c;
     } else if (indexMotorista === -1 && (col.indexOf('MOTORISTA') > -1 || col.indexOf('CONDUTOR') > -1)) {
       indexMotorista = c;
     }
 
-    // VALOR
-    if (col === 'VALOR EMISSAO' || col === 'VALOR TOTAL' || col === 'VALOR BRUTO' || col === 'VALOR LIQUIDO' || col === 'VALOR TRANSACAO' || col === 'VALOR TRANSACAO R$' || col === 'VALOR R$') {
-      indexValor = c;
-    } else if (indexValor === -1 && col.indexOf('VALOR') > -1 && col.indexOf('UNIT') === -1 && col.indexOf('LITRO') === -1) {
+    // VALOR EMISSÃO / VALOR TOTAL (Coluna S)
+    if (col === 'VALOR EMISSAO' || col === 'VALOR DA EMISSAO' || col === 'VALOR TOTAL' || col === 'VALOR BRUTO' || col === 'VALOR LIQUIDO' || col === 'VALOR TRANSACAO') {
+      if (indexValor === -1) indexValor = c;
+    } else if (indexValor === -1 && col.indexOf('VALOR') > -1 && col.indexOf('UNIT') === -1 && col.indexOf('LITRO') === -1 && col.indexOf('VL/') === -1) {
       indexValor = c;
     }
 
-    // TIPO ESTABELECIMENTO (para manutenção)
+    // TIPO ESTABELECIMENTO (Coluna V)
     if (col === 'TIPO ESTABELECIMENTO' || col === 'TIPO DE ESTABELECIMENTO') {
+      if (indexTipoEstabelecimento === -1) indexTipoEstabelecimento = c;
+    } else if (indexTipoEstabelecimento === -1 && (col.indexOf('ESTABELECIMENTO') > -1 || col.indexOf('RAMO') > -1 || col.indexOf('SEGMENTO') > -1)) {
       indexTipoEstabelecimento = c;
-    } else if (indexTipoEstabelecimento === -1 && (col.indexOf('ESTABELECIMENTO') > -1 || col.indexOf('RAMO') > -1 || col.indexOf('SEGMENTO') > -1 || col.indexOf('SERVICO') > -1)) {
-      indexTipoEstabelecimento = c;
+    }
+
+    // DATA / HORA (Coluna D)
+    if (col === 'DATA TRANSACAO' || col === 'DATA/HORA TRANSACAO' || col === 'DATA HORA TRANSACAO' || col === 'DATA/HORA' || col === 'DATA HORA' || col === 'DATA EMISSAO') {
+      if (indexData === -1) indexData = c;
+    } else if (indexData === -1 && col.indexOf('DATA') > -1 && col.indexOf('VALOR') === -1 && col.indexOf('NASC') === -1 && col.indexOf('VENC') === -1) {
+      indexData = c;
     }
 
     // PERÍODO
     if (col === 'PERIODO' || col === 'PERIODO DE CONSUMO' || col === 'MES' || col === 'COMPETENCIA' || col === 'REFERENCIA') {
-      indexPeriodo = c;
+      if (indexPeriodo === -1) indexPeriodo = c;
     }
 
-    // DATA / HORA
-    if (col === 'DATA TRANSACAO' || col === 'DATA/HORA TRANSACAO' || col === 'DATA HORA TRANSACAO' || col === 'DATA/HORA' || col === 'DATA HORA' || col === 'DATA EMISSAO') {
-      indexData = c;
-    } else if (indexData === -1 && col.indexOf('DATA') > -1 && col.indexOf('VALOR') === -1 && col.indexOf('NASC') === -1 && col.indexOf('VENC') === -1) {
-      indexData = c;
+    // SERVICO (Coluna L)
+    if (col === 'SERVICO' || col === 'SERVICOS' || col === 'TIPO SERVICO') {
+      if (indexServico === -1) indexServico = c;
     }
+
+    // PLACA (Coluna E)
+    if (col === 'PLACA' || col === 'PLACA VEICULO') {
+      if (indexPlaca === -1) indexPlaca = c;
+    }
+  }
+
+  // Fallback posicional estrito para o layout oficial padrão de 39 colunas
+  if (cabecalho.length >= 22) {
+    if (indexNomeReduzido === -1 && cabecalho.length > 2) indexNomeReduzido = 2; // Coluna C (idx 2)
+    if (indexData === -1 && cabecalho.length > 3) indexData = 3;                 // Coluna D (idx 3)
+    if (indexMotorista === -1 && cabecalho.length > 10) indexMotorista = 10;     // Coluna K (idx 10)
+    if (indexValor === -1 && cabecalho.length > 18) indexValor = 18;             // Coluna S (idx 18)
+    if (indexTipoEstabelecimento === -1 && cabecalho.length > 21) indexTipoEstabelecimento = 21; // Coluna V (idx 21)
   }
 
   return {
@@ -1942,8 +1924,36 @@ function mapearIndicesColunas(cabecalho) {
     indexValor: indexValor,
     indexTipoEstabelecimento: indexTipoEstabelecimento,
     indexPeriodo: indexPeriodo,
-    indexData: indexData
+    indexData: indexData,
+    indexNomeReduzido: indexNomeReduzido,
+    indexServico: indexServico,
+    indexPlaca: indexPlaca
   };
+}
+
+/**
+ * Classifica a linha entre 'ABASTECIMENTO' e 'MANUTENCAO' com base na Coluna C (NOME REDUZIDO).
+ */
+function classificarTipoTransacao(linha, idx) {
+  var textoReduzido = (idx.indexNomeReduzido !== -1 && linha[idx.indexNomeReduzido]) ? padronizarTexto(linha[idx.indexNomeReduzido]) : "";
+
+  if (textoReduzido.indexOf('ABASTECIMENTO') > -1) {
+    return 'ABASTECIMENTO';
+  }
+  if (textoReduzido.indexOf('MANUTENCAO') > -1 || textoReduzido.indexOf('MANUT') > -1) {
+    return 'MANUTENCAO';
+  }
+
+  // Fallbacks complementares (caso a coluna NOME REDUZIDO venha em branco ou diferente)
+  var servico = (idx.indexServico !== -1 && linha[idx.indexServico]) ? padronizarTexto(linha[idx.indexServico]) : "";
+  if (servico.indexOf('ABASTECIMENTO') > -1 || servico.indexOf('COMBUST') > -1) {
+    return 'ABASTECIMENTO';
+  }
+  if (servico.indexOf('MANUTENCAO') > -1 || servico.indexOf('PECA') > -1 || servico.indexOf('OFICINA') > -1 || servico.indexOf('MECANICA') > -1) {
+    return 'MANUTENCAO';
+  }
+
+  return 'ABASTECIMENTO';
 }
 
 /**
@@ -1958,121 +1968,138 @@ function formatarDataTransacao(valorData, fusoOrigem) {
   var fuso = fusoOrigem || 'America/Fortaleza';
 
   // Se for objeto Date do JavaScript
-  if (valorData instanceof Date && !isNaN(valorData.getTime())) {
-    var strFormatada = Utilities.formatDate(valorData, fuso, 'dd/MM/yyyy HH:mm:ss');
-    var mes = Utilities.formatDate(valorData, fuso, 'MM');
-    var ano = Utilities.formatDate(valorData, fuso, 'yyyy');
-    return { str: strFormatada, mes: mes, ano: ano };
+  if (Object.prototype.toString.call(valorData) === '[object Date]') {
+    var dataStr = Utilities.formatDate(valorData, fuso, "dd/MM/yyyy HH:mm:ss");
+    var m = Utilities.formatDate(valorData, fuso, "MM");
+    var a = Utilities.formatDate(valorData, fuso, "yyyy");
+    return { str: dataStr, mes: m, ano: a };
   }
 
-  // Se for número serial do Excel (ex.: 45580.45)
-  if (typeof valorData === 'number' && valorData > 40000 && valorData < 60000) {
-    var dataObj = new Date(Math.round((valorData - 25569) * 86400 * 1000));
-    if (!isNaN(dataObj.getTime())) {
-      var strFormatadaNum = Utilities.formatDate(dataObj, 'GMT', 'dd/MM/yyyy HH:mm:ss');
-      var mesNum = Utilities.formatDate(dataObj, 'GMT', 'MM');
-      var anoNum = Utilities.formatDate(dataObj, 'GMT', 'yyyy');
-      return { str: strFormatadaNum, mes: mesNum, ano: anoNum };
-    }
+  // Se for número serial do Excel (ex: 45566.523)
+  if (typeof valorData === 'number') {
+    var dataBase = new Date(1899, 11, 30);
+    var milissegundos = Math.round(valorData * 86400000);
+    var dataObj = new Date(dataBase.getTime() + milissegundos);
+    var dStr = Utilities.formatDate(dataObj, fuso, "dd/MM/yyyy HH:mm:ss");
+    var mesNum = Utilities.formatDate(dataObj, fuso, "MM");
+    var anoNum = Utilities.formatDate(dataObj, fuso, "yyyy");
+    return { str: dStr, mes: mesNum, ano: anoNum };
   }
 
-  // Se for string
-  var str = valorData.toString().trim();
-  var comp = extrairComponentesData(str);
-  if (comp) {
-    return { str: str, mes: comp.mes, ano: comp.ano };
+  // Se for texto / string
+  var s = valorData.toString().trim();
+  var componentes = extrairComponentesData(s);
+  if (componentes) {
+    return {
+      str: s,
+      mes: componentes.mes,
+      ano: componentes.ano
+    };
   }
 
-  return { str: str, mes: null, ano: null };
+  return { str: s, mes: null, ano: null };
 }
 
 /**
- * Extrai código do mês ('01'..'12'), nome oficial e ano a partir de uma string ou título de planilha.
+ * Extrai o mês e ano do nome da planilha de destino (ex: "10. CUSTOS DO SETOR - OUTUBRO - 2026").
  */
 function extrairMesDeTexto(texto) {
   if (!texto) return null;
-  var str = texto.toString();
-  var padrao = padronizarTexto(str);
+  var txt = padronizarTexto(texto);
 
-  var mapaMeses = {
-    'JANEIRO': '01',
-    'FEVEREIRO': '02',
-    'MARCO': '03',
-    'MARÇO': '03',
-    'ABRIL': '04',
-    'MAIO': '05',
-    'JUNHO': '06',
-    'JULHO': '07',
-    'AGOSTO': '08',
-    'SETEMBRO': '09',
-    'OUTUBRO': '10',
-    'NOVEMBRO': '11',
-    'DEZEMBRO': '12'
-  };
+  var meses = [
+    { nome: 'JANEIRO', codigo: '01' },
+    { nome: 'FEVEREIRO', codigo: '02' },
+    { nome: 'MARCO', codigo: '03' },
+    { nome: 'ABRIL', codigo: '04' },
+    { nome: 'MAIO', codigo: '05' },
+    { nome: 'JUNHO', codigo: '06' },
+    { nome: 'JULHO', codigo: '07' },
+    { nome: 'AGOSTO', codigo: '08' },
+    { nome: 'SETEMBRO', codigo: '09' },
+    { nome: 'OUTUBRO', codigo: '10' },
+    { nome: 'NOVEMBRO', codigo: '11' },
+    { nome: 'DEZEMBRO', codigo: '12' }
+  ];
 
-  for (var mNome in mapaMeses) {
-    if (padrao.indexOf(mNome) > -1) {
-      var matchAno = str.match(/\b(20\d{2})\b/);
-      var ano = matchAno ? matchAno[1] : '2026';
+  for (var i = 0; i < meses.length; i++) {
+    if (txt.indexOf(meses[i].nome) > -1) {
+      var matchAno = txt.match(/20\d{2}/);
       return {
-        codigo: mapaMeses[mNome],
-        nome: (mNome === 'MARCO') ? 'MARÇO' : mNome,
-        ano: ano
+        nome: meses[i].nome,
+        codigo: meses[i].codigo,
+        ano: matchAno ? matchAno[0] : "2026"
       };
     }
+  }
+
+  var matchNum = txt.match(/(?:^|\D)(0[1-9]|1[0-2])(?:\D|$)/);
+  if (matchNum) {
+    var cod = matchNum[1];
+    var idx = parseInt(cod, 10) - 1;
+    var matchAno2 = txt.match(/20\d{2}/);
+    return {
+      nome: meses[idx].nome,
+      codigo: cod,
+      ano: matchAno2 ? matchAno2[0] : "2026"
+    };
   }
 
   return null;
 }
 
 /**
- * Identifica o mês e ano no título da planilha ativa.
+ * Identifica o mês de competência a partir do nome da planilha.
  */
 function obterMesAlvoDaPlanilha(planilha) {
-  var nomePlanilha = (planilha ? planilha.getName() : CONFIG_GERAL.NOME_PLANILHA_PADRAO);
+  var nomePlanilha = planilha ? planilha.getName() : "";
   var mesInfo = extrairMesDeTexto(nomePlanilha);
-  if (mesInfo) return mesInfo;
 
+  if (mesInfo) {
+    return mesInfo;
+  }
+
+  // Fallback padrão: Outubro/2026
   return {
-    codigo: '10',
     nome: 'OUTUBRO',
+    codigo: '10',
     ano: '2026'
   };
 }
 
 /**
- * Valida se uma transação pertence ao mês da planilha ativa (para frota).
+ * Valida com rigor se a transação do extrato pertence à competência da planilha.
  */
 function transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo) {
-  // 1. Validação pela data da transação
+  // 1. Checa pela data/hora da transação
   if (infoData && infoData.mes) {
     if (infoData.mes === mesAlvo.codigo) {
-      if (!mesAlvo.ano || !infoData.ano || infoData.ano === mesAlvo.ano) {
-        return true;
+      if (infoData.ano && mesAlvo.ano && infoData.ano !== mesAlvo.ano) {
+        return false;
       }
+      return true;
+    } else {
+      return false;
     }
-    return false;
   }
 
-  // 2. Validação pela coluna período (se existir)
+  // 2. Se a data não pôde ser analisada, checa pela coluna de período
   if (periodoStr) {
-    var pNorm = padronizarTexto(periodoStr);
-    if (pNorm === mesAlvo.nome) return true;
+    var compPeriodo = extrairComponentesData(periodoStr);
+    if (compPeriodo && compPeriodo.mes) {
+      return compPeriodo.mes === mesAlvo.codigo;
+    }
 
-    var mPeriodo = periodoStr.toString().match(/(\d{1,2})[\/\-](\d{4})/);
-    if (mPeriodo) {
-      var mesP = mPeriodo[1].length === 1 ? '0' + mPeriodo[1] : mPeriodo[1];
-      var anoP = mPeriodo[2];
-      if (mesP === mesAlvo.codigo && (!mesAlvo.ano || anoP === mesAlvo.ano)) {
-        return true;
-      }
+    var periodoNorm = padronizarTexto(periodoStr);
+    if (periodoNorm.indexOf(mesAlvo.nome) > -1 || periodoNorm.indexOf('/' + mesAlvo.codigo) > -1) {
+      return true;
     }
   }
 
-  // 3. Validação pelo nome do arquivo como último recurso
+  // 3. Fallback: Se o próprio arquivo for segregado mensalmente
   if (nomeArquivo) {
-    var matchArq = nomeArquivo.match(/\d{4}(\d{2})\d{2}/);
-    if (matchArq && matchArq[1] === mesAlvo.codigo) {
+    var mesArquivo = extrairMesDeTexto(nomeArquivo);
+    if (mesArquivo && mesArquivo.codigo === mesAlvo.codigo) {
       return true;
     }
   }
@@ -2081,35 +2108,39 @@ function transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo) {
 }
 
 /**
- * Extrai dia, mês e ano de strings variadas de data.
+ * Extrai mês e ano de padrões dd/mm/aaaa ou aaaa-mm-dd.
  */
 function extrairComponentesData(dataStr) {
   if (!dataStr) return null;
-  var str = dataStr.toString().trim();
 
-  // Formato brasileiro: DD/MM/YYYY ou DD/MM/YY
-  var matchBr = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
-  if (matchBr) {
-    var dia = matchBr[1].length === 1 ? '0' + matchBr[1] : matchBr[1];
-    var mes = matchBr[2].length === 1 ? '0' + matchBr[2] : matchBr[2];
-    var ano = matchBr[3].length === 2 ? '20' + matchBr[3] : matchBr[3];
-    return { dia: dia, mes: mes, ano: ano };
+  // Formato dd/mm/aaaa ou d/m/aaaa
+  var matchBR = dataStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if (matchBR) {
+    var mesBR = matchBR[2].length === 1 ? '0' + matchBR[2] : matchBR[2];
+    var anoBR = matchBR[3].length === 2 ? '20' + matchBR[3] : matchBR[3];
+    return { dia: matchBR[1], mes: mesBR, ano: anoBR };
   }
 
-  // Formato ISO: YYYY-MM-DD
-  var matchIso = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (matchIso) {
-    var anoIso = matchIso[1];
-    var mesIso = matchIso[2].length === 1 ? '0' + matchIso[2] : matchIso[2];
-    var diaIso = matchIso[3].length === 1 ? '0' + matchIso[3] : matchIso[3];
-    return { dia: diaIso, mes: mesIso, ano: anoIso };
+  // Formato aaaa-mm-dd
+  var matchISO = dataStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (matchISO) {
+    var mesISO = matchISO[2].length === 1 ? '0' + matchISO[2] : matchISO[2];
+    return { dia: matchISO[3], mes: mesISO, ano: matchISO[1] };
+  }
+
+  // Formato mm/aaaa
+  var matchMesAno = dataStr.match(/^(\d{1,2})\/(\d{2,4})$/);
+  if (matchMesAno) {
+    var mesMA = matchMesAno[1].length === 1 ? '0' + matchMesAno[1] : matchMesAno[1];
+    var anoMA = matchMesAno[2].length === 2 ? '20' + matchMesAno[2] : matchMesAno[2];
+    return { dia: '01', mes: mesMA, ano: anoMA };
   }
 
   return null;
 }
 
 /**
- * Obtém a planilha ativa ou localiza pelo nome na pasta 2026.
+ * Retorna a planilha de destino correta (a ativa no momento, ou por ID).
  */
 function obterPlanilhaAlvo() {
   try {
@@ -2117,85 +2148,68 @@ function obterPlanilhaAlvo() {
     if (ativa) return ativa;
   } catch (e) {}
 
-  try {
-    var pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
-    var arquivos = pasta2026.getFilesByName(CONFIG_GERAL.NOME_PLANILHA_PADRAO);
-    if (arquivos.hasNext()) {
-      return SpreadsheetApp.open(arquivos.next());
-    }
-  } catch (e) {
-    Logger.log("Erro ao buscar planilha na pasta 2026: " + e.message);
+  var arquivos = DriveApp.getFilesByName(CONFIG_GERAL.NOME_PLANILHA_PADRAO);
+  if (arquivos.hasNext()) {
+    var arquivo = arquivos.next();
+    return SpreadsheetApp.openById(arquivo.getId());
   }
 
-  var busca = DriveApp.getFilesByName(CONFIG_GERAL.NOME_PLANILHA_PADRAO);
-  if (busca.hasNext()) {
-    return SpreadsheetApp.open(busca.next());
-  }
+  try {
+    var pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
+    var arqsPasta = pasta2026.getFiles();
+    while (arqsPasta.hasNext()) {
+      var arq = arqsPasta.next();
+      if (arq.getMimeType() === MimeType.GOOGLE_SHEETS) {
+        return SpreadsheetApp.openById(arq.getId());
+      }
+    }
+  } catch (e) {}
 
   return null;
 }
 
 /**
- * Carrega a lista de colaboradores da aba 'Custos_Totais' (Coluna A).
+ * Carrega os colaboradores oficiais da Coluna A da aba 'Custos_Totais'.
  */
 function carregarListaColaboradores(planilha) {
   var mapa = {};
   if (!planilha) return mapa;
 
-  var aba = planilha.getSheetByName(CONFIG_GERAL.ABA_CUSTOS_TOTAIS);
-  if (!aba) return mapa;
+  var abaCustos = planilha.getSheetByName(CONFIG_GERAL.ABA_CUSTOS_TOTAIS);
+  if (!abaCustos) {
+    Logger.log("Aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' não encontrada na planilha.");
+    return mapa;
+  }
 
-  var ultimaLinha = aba.getLastRow();
-  if (ultimaLinha < 1) return mapa;
+  var ultimaLinha = abaCustos.getLastRow();
+  if (ultimaLinha <= 1) return mapa;
 
-  var valores = aba.getRange(1, CONFIG_GERAL.COLUNA_COLABORADORES, ultimaLinha, 1).getValues();
-  var cabecalhos = ['NOME', 'COLABORADOR', 'NOME COLABORADOR', 'FUNCIONARIO', 'MOTORISTA', 'CONDUTOR', 'COLABORADORES', 'NOMES'];
+  var valores = abaCustos.getRange(2, CONFIG_GERAL.COLUNA_COLABORADORES, ultimaLinha - 1, 1).getValues();
 
   for (var i = 0; i < valores.length; i++) {
     var nome = valores[i][0];
-    if (!nome) continue;
-
-    var nomePadrao = padronizarTexto(nome);
-    if (!nomePadrao) continue;
-
-    if (i === 0 && cabecalhos.indexOf(nomePadrao) > -1) {
-      continue;
+    if (nome) {
+      var nomeLimpo = nome.toString().trim();
+      var padronizado = padronizarTexto(nomeLimpo);
+      if (padronizado && padronizado !== "NOME" && padronizado !== "COLABORADOR" && padronizado !== "TOTAL") {
+        mapa[padronizado] = nomeLimpo;
+      }
     }
-
-    mapa[nomePadrao] = true;
   }
 
-  Logger.log("Carregados " + Object.keys(mapa).length + " colaboradores de '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "'.");
   return mapa;
 }
 
 /**
- * Busca uma aba na planilha testando múltiplos nomes (com/sem acento).
+ * Retorna a primeira aba que coincida com um dos nomes alternativos fornecidos.
  */
 function obterAbaPorNomes(planilha, nomes) {
+  if (!planilha || !nomes) return null;
   for (var i = 0; i < nomes.length; i++) {
     var aba = planilha.getSheetByName(nomes[i]);
     if (aba) return aba;
   }
   return null;
-}
-
-/**
- * Obtém a pasta 'Arquivos Processados' por ID ou cria automaticamente dentro da pasta de origem.
- */
-function obterOuCriarPastaProcessados(pastaOrigem, idSugerido) {
-  if (idSugerido) {
-    try {
-      return DriveApp.getFolderById(idSugerido);
-    } catch (e) {}
-  }
-
-  var subpastas = pastaOrigem.getFoldersByName("Arquivos Processados");
-  if (subpastas.hasNext()) {
-    return subpastas.next();
-  }
-
-  return pastaOrigem.createFolder("Arquivos Processados");
 }
 
 /**
@@ -2207,40 +2221,43 @@ function padronizarTexto(texto) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
-    .toUpperCase()
-    .replace(/\s+/g, ' ');
+    .toUpperCase();
 }
 
 /**
- * Converte valor string (ex: "253,85" ou "2.148,00") para número real no Sheets.
+ * Converte qualquer valor em número decimal real (Float).
  */
 function formatarValorNumerico(valor) {
-  if (valor === undefined || valor === null || valor === "") return "";
+  if (valor === undefined || valor === null || valor === "") return 0;
   if (typeof valor === 'number') return valor;
-  var str = valor.toString().trim().replace(/^R\$\s*/i, '');
-  if (str.indexOf(',') > -1) {
+
+  var str = valor.toString().replace(/R\$/g, '').trim();
+  if (str.indexOf(',') > -1 && str.indexOf('.') > -1) {
     str = str.replace(/\./g, '').replace(',', '.');
+  } else if (str.indexOf(',') > -1) {
+    str = str.replace(',', '.');
   }
+
   var num = parseFloat(str);
-  return isNaN(num) ? valor : num;
+  return isNaN(num) ? 0 : num;
 }
 
 /**
- * Detecta se o CSV é delimitado por vírgula ou ponto e vírgula.
+ * Detecta automaticamente o delimitador de um arquivo CSV (; ou ,).
  */
 function detectarDelimitador(linhaCabecalho) {
   var virgulas = (linhaCabecalho.match(/,/g) || []).length;
-  var pontoEVirgulas = (linhaCabecalho.match(/;/g) || []).length;
-  return pontoEVirgulas > virgulas ? ';' : ',';
+  var pontoVirgulas = (linhaCabecalho.match(/;/g) || []).length;
+  return pontoVirgulas >= virgulas ? ";" : ",";
 }
 
 /**
- * Exibe alerta na interface ou registra no Logger.
+ * Exibe alerta visual se executado no Sheets ou grava no Logger se for em segundo plano.
  */
 function exibirAlerta(msg) {
   try {
     SpreadsheetApp.getUi().alert(msg);
   } catch (e) {
-    Logger.log("Alerta: " + msg);
+    Logger.log(msg);
   }
 }

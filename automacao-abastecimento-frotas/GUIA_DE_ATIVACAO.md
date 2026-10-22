@@ -1,6 +1,6 @@
 # 💰 Guia de Ativação: Gestão de Custos (Frota e Viagens)
 
-Manual passo a passo para configurar a importação automática de **Combustível**, **Manutenção** e **Viagens (Alimentação e Hospedagem)** para as planilhas de custos mensais da gerência (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
+Manual passo a passo para configurar a importação automática de **Frota Unificada (Combustível e Manutenção)** e **Viagens (Alimentação e Hospedagem)** para as planilhas de custos mensais da gerência (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
 
 ---
 
@@ -8,38 +8,42 @@ Manual passo a passo para configurar a importação automática de **Combustíve
 
 ```
 [1. Origens dos Dados]
-   ├── Frota (Combustível): Pasta 'Combustível - Frotas Telefonia' (.xlsx ou .csv)
-   ├── Frota (Manutenção): Pasta 'Manutenção - Frota Telefonia' (.xlsx ou .csv)
+   ├── Frota (Arquivo Único): Pasta 'Frota Telefonia - Combustível e Manutenção' (.xlsx ou .csv)
+   │     └── Contém 39 colunas (A até AM), com Combustível e Manutenção juntos
+   │           ├── Coluna C: 'BRISANET ABASTECIMENTO' ──► Base_Abastecimento
+   │           └── Coluna C: 'BRISANET MANUTENCAO'    ──► Base_Manutenção
    └── Viagens: Planilha 'CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026'
-         │
-         ▼
+         └── Alimentação (A:C) e Hospedagem (F:H)     ──► Base_Viagens
+               │
+               ▼
 [2. Execução pelo Menu Superior (onOpen)]
    - Menu: 💰 Gestão de Custos ──► ⚡ Importar Dados da Aba Atual
-   - Ou opções diretas para Frota, Viagens ou Ambos
-         │
-         ▼
+   - Ou opções diretas para Frota Unificada, Viagens ou Ambos
+               │
+               ▼
 [3. Tratamento e Regras Estritas]
    ├── Filtro de Mês: Apenas lançamentos do mês da planilha ativa (ex.: OUTUBRO)
    ├── Filtro de Colaborador: Apenas quem está na Coluna A da aba 'Custos_Totais'
-   ├── Base_Abastecimento & Base_Manutenção: Linha 2 em diante limpa e relançada
-   ├── Base_Viagens: Linha 3 em diante limpa e relançada em A:C e F:H
-   │   └── Coluna D ('nome corrigido') mantida intacta
+   ├── Base_Abastecimento: Linha 2 em diante limpa e relançada (Col K, Col S, Mês, Col D)
+   ├── Base_Manutenção: Linha 2 em diante limpa e relançada (Col K, Col S, Col V, Mês, Col D)
+   ├── Base_Viagens: Linha 3 em diante limpa e relançada em A:C e F:H (Coluna D mantida intacta)
+   ├── Arquivo Processado: Movido automaticamente para 'Arquivos Processados' (sem duplicidade)
    └── Formatação Monetária automática em R$ #,##0.00
 ```
 
 ---
 
-## 📂 Links e IDs Oficiais
+## 📂 Pastas e Links Oficiais
 
-1. **Pasta 2026 (Planilhas Mensais de Custos):**
+1. **Pasta Raiz 2026 (Planilhas Mensais de Custos):**
    - Link: [Pasta 2026](https://drive.google.com/drive/folders/1P-QIZVEhADgyZk62snW9nDcV8E_4vLRU)
    - Exemplo: `10. CUSTOS DO SETOR - OUTUBRO - 2026`
-2. **Planilha de Origem de Viagens:**
+2. **Pasta Unificada de Frota (Entrada de Arquivos):**
+   - Nome: `Frota Telefonia - Combustível e Manutenção`
+   - Subpasta de Histórico: `Arquivos Processados` (criada dentro da pasta principal)
+   - *Observação:* Se você ainda não criou essa pasta no Drive, o próprio script cria automaticamente ao clicar em **`📁 Criar / Verificar Pastas no Google Drive`** no menu da planilha!
+3. **Planilha de Origem de Viagens:**
    - Link: [CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026](https://docs.google.com/spreadsheets/d/1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk/edit?gid=1863439256)
-3. **Pasta de Combustível (Frota):**
-   - Link: [Combustível - Frotas Telefonia](https://drive.google.com/drive/folders/1exK26bgZNurn4bh0Q5bv-f-WyM3f-fxs)
-4. **Pasta de Manutenção (Frota):**
-   - Link: [Manutenção - Frota Telefonia](https://drive.google.com/drive/folders/1zpsygbFL4d6PtsbjN9FMVITt2ZptR8f2)
 
 ---
 
@@ -91,38 +95,34 @@ Ao abrir ou recarregar a planilha (`F5`), o menu **`💰 Gestão de Custos`** ap
 
 ### 📌 Importações na Planilha Atual:
 1. **`⚡ Importar Dados da Aba Atual`**:
-   - Se estiver na aba `Base_Abastecimento`: importa o combustível do mês.
-   - Se estiver na aba `Base_Manutenção`: importa a manutenção do mês.
+   - Se estiver na aba `Base_Abastecimento` ou `Base_Manutenção`: importa o extrato unificado de frota do mês.
    - Se estiver na aba `Base_Viagens`: importa a alimentação e hospedagem do mês.
    - Se estiver em outra aba: pergunta se deseja importar todos os custos.
-2. **`⛽ Frota: Importar Abastecimento (Desta Planilha)`**: Importa apenas o extrato de combustível.
-3. **`🔧 Frota: Importar Manutenção (Desta Planilha)`**: Importa apenas o extrato de manutenção.
-4. **`✈️ Viagens: Importar Alimentação e Hospedagem (Desta Planilha)`**: Importa as viagens do mês direto para a aba `Base_Viagens`.
-5. **`🔄 Importar TUDO (Frota + Viagens - Desta Planilha)`**: Executa as 3 importações em sequência para o mês atual.
+2. **`🚗 Frota: Importar Combustível e Manutenção (Arquivo Unificado)`**:
+   - Lê o arquivo único na pasta do Drive, classifica as linhas automaticamente e preenche tanto `Base_Abastecimento` quanto `Base_Manutenção` de uma só vez!
+3. **`⛽ Frota: Importar Apenas Abastecimento`**: Atualiza apenas a aba de abastecimento.
+4. **`🔧 Frota: Importar Apenas Manutenção`**: Atualiza apenas a aba de manutenção.
+5. **`✈️ Viagens: Importar Alimentação e Hospedagem (Desta Planilha)`**: Importa as viagens do mês direto para a aba `Base_Viagens`.
+6. **`🔄 Importar TUDO (Frota + Viagens - Desta Planilha)`**: Executa a importação unificada completa para a planilha ativa.
 
 ### 🌐 Sincronização em Lote (Pasta 2026 - Julho em diante):
-6. **`🌐 Sincronizar TODAS as Planilhas (Frota + Viagens)`**: Sincroniza Combustível, Manutenção e Viagens em todas as planilhas da pasta 2026 de Julho em diante em um só comando.
-7. **`⛽ Sincronizar Apenas Frota em TODAS (Julho em diante)`**: Sincroniza apenas Abastecimento e Manutenção.
-8. **`✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)`**: Sincroniza apenas Viagens em todas as planilhas elegíveis.
+7. **`🌐 Sincronizar TODAS as Planilhas (Frota + Viagens)`**: Sincroniza Frota e Viagens em todas as planilhas da pasta 2026 de Julho em diante em um só comando.
+8. **`🚗 Sincronizar Apenas Frota em TODAS (Julho em diante)`**: Sincroniza apenas os dados de frota unificada em todas as planilhas elegíveis.
+9. **`✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)`**: Sincroniza apenas Viagens em todas as planilhas elegíveis.
 
-### 🛠️ Utilidades e Diagnóstico:
-9. **`📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)`**: Reprocessa extratos de frota já arquivados.
-10. **`🧹 Limpar Dados da Aba Atual`**: Limpa os dados da aba atual de forma segura (na aba `Base_Viagens`, preserva a Coluna D e cabeçalhos).
-11. **`🔍 Testar Conexões e Diagnóstico`**: Valida o acesso às pastas do Drive, à planilha de viagens e aos colaboradores de referência.
+### 🛠️ Pastas, Utilidades e Diagnóstico:
+10. **`📁 Criar / Verificar Pastas no Google Drive`**: Cria automaticamente (ou localiza) a pasta principal `Frota Telefonia - Combustível e Manutenção` e a subpasta `Arquivos Processados`, exibindo os links na tela.
+11. **`📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)`**: Reprocessa extratos de frota já arquivados.
+12. **`🧹 Limpar Dados da Aba Atual`**: Limpa os dados da aba atual de forma segura (na aba `Base_Viagens`, preserva a Coluna D e cabeçalhos).
+13. **`🔍 Testar Conexões e Diagnóstico`**: Valida o acesso à nova pasta unificada, à planilha de viagens, à pasta 2026 e à lista de colaboradores.
 
 ---
 
-## 📋 Estrutura da Aba `Base_Viagens`
+## 🚗 Layout das 39 Colunas do Arquivo Unificado
 
-| Coluna | Campo | Regra / Tratamento |
-|---|---|---|
-| **A** | `COLABORADOR` | Nome do colaborador (validado em `Custos_Totais`) |
-| **B** | `VALOR TOTAL` | Valor monetário de Alimentação formatado em R$ |
-| **C** | `MÊS DO LANÇAMENTO - SAP` | Mês oficial da competência (ex.: `OUTUBRO`) |
-| **D** | `nome corrigido` | **Preservada intacta / Nunca sobrescrita** |
-| **E** | *(Espaço em branco)* | Coluna separadora mantida vazia |
-| **F** | `COLABORADOR` | Nome do colaborador (validado em `Custos_Totais`) |
-| **G** | `VALOR DIÁRIA` | Valor monetário de Hospedagem formatado em R$ |
-| **H** | `MÊS DO LANÇAMENTO - SAP` | Mês oficial da competência (ex.: `OUTUBRO`) |
-
-> **Nota:** As linhas 1 e 2 são os cabeçalhos de seção e colunas. Os dados são lançados **sempre a partir da linha 3**.
+O arquivo único de frota deve conter as colunas de A até AM:
+* **Coluna C (`NOME REDUZIDO`):** Define o destino (`BRISANET ABASTECIMENTO` -> `Base_Abastecimento`; `BRISANET MANUTENCAO` -> `Base_Manutenção`).
+* **Coluna D (`DATA TRANSACAO`):** Extrai a data e hora oficial da transação.
+* **Coluna K (`NOME MOTORISTA`):** Nome do colaborador, validado contra a Coluna A de `Custos_Totais`.
+* **Coluna S (`VALOR EMISSAO`):** Valor monetário em R$.
+* **Coluna V (`TIPO ESTABELECIMENTO`):** Tipo/ramo do estabelecimento (para a `Base_Manutenção`).
