@@ -1,48 +1,51 @@
 /**
  * ============================================================================
- * GESTÃO DE CUSTOS DE FROTA - OPERAÇÃO E MANUTENÇÃO DE REDES
+ * GESTÃO DE CUSTOS DO SETOR - OPERAÇÃO E MANUTENÇÃO DE REDES
  * ============================================================================
- * Automação de Importação de Abastecimento e Manutenção (.xlsx / .csv -> Google Sheets)
+ * Automação Integrada de Custos: Frota (Abastecimento / Manutenção) e Viagens (Alimentação / Hospedagem)
  * 
  * Funcionalidades:
- * 1. Suporte a Arquivos Excel (.xlsx) e CSV em Lotes (Chunks):
- *    - Processamento em lotes com baixo consumo de memória (previne estouro de RAM).
+ * 1. Módulo de Viagens (Alimentação e Hospedagem):
+ *    - Origem: Planilha 'CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026'
+ *    - Destino: Aba 'Base_Viagens'
+ *    - Estrutura da Aba:
+ *      • Linha 1: Cabeçalhos de Seção ('Alimentação' acima de A:C; 'Hospedagem' acima de F:H)
+ *      • Linha 2: Cabeçalhos de Colunas (A: Colaborador, B: Valor Total, C: Mês Lançamento - SAP,
+ *                 D: nome corrigido, E: [Espaço], F: Colaborador, G: Valor Diária, H: Mês Lançamento - SAP)
+ *      • Linha 3 em diante: Lançamentos
+ *    - Regra de Limpeza: Limpa rigorosamente da linha 3 em diante apenas nas colunas A:C e F:H.
+ *      Preserva cabeçalhos (linhas 1 e 2), Coluna D ('nome corrigido') e Coluna E intactas.
+ *    - Filtro por Colaborador: Apenas colaboradores listados na Coluna A da aba 'Custos_Totais'.
+ *    - Filtro por Mês: Apenas lançamentos referentes ao mês da planilha (ex.: Outubro).
+ * 
+ * 2. Módulo de Frota (Abastecimento e Manutenção):
+ *    - Suporte a Arquivos Excel (.xlsx) e CSV em Lotes (Chunks) com baixo consumo de memória.
  *    - Preservação do fuso de origem do Excel, garantindo a hora real do cupom fiscal.
- * 
- * 2. Regra de Abrangência Temporal (Julho/2026 em diante):
- *    - Válido para as planilhas a partir de JULHO/2026 (Julho, Agosto, Setembro, Outubro, etc.).
- *    - Planilhas de Janeiro a Junho possuem formato antigo e são mantidas intactas.
- * 
- * 3. Sincronização Multi-Planilhas em Lote (Pasta 2026):
- *    - Permite sincronizar todas as planilhas da pasta 2026 (>= Julho) em uma única execução.
- *    - Cada planilha mensal recebe os lançamentos do seu mês, validados por seus colaboradores.
- * 
- * 4. Regra Estrita de Limpeza e Relançamento (Anti-Duplicação):
- *    - Ao rodar a importação, os dados anteriores da aba (linha 2 em diante) são apagados,
- *      e os novos dados são gravados a partir da linha 2.
+ *    - Abas 'Base_Abastecimento' e 'Base_Manutenção' limpas e relançadas da linha 2 em diante.
  *    - Deduplicação por transação (Motorista + Valor + Data/Hora) entre múltiplos arquivos.
  * 
- * 5. Validação por Colaboradores:
- *    - Lê a lista de colaboradores na Coluna A da aba 'Custos_Totais' da planilha correspondente.
+ * 3. Regra de Abrangência Temporal (Julho/2026 em diante):
+ *    - Válido exclusivamente para as planilhas a partir de JULHO/2026 (Julho, Agosto, Setembro, Outubro, etc.).
+ *    - Planilhas de Janeiro a Junho possuem formato antigo e são mantidas intactas.
  * 
- * 6. Colunas das Abas:
- *    - Base_Abastecimento (4 colunas): NOME MOTORISTA | VALOR EMISSAO | PERÍODO | DATA/HORA
- *    - Base_Manutenção (5 colunas): NOME MOTORISTA | VALOR EMISSAO | TIPO ESTABELECIMENTO | PERÍODO | DATA/HORA
+ * 4. Sincronização Multi-Planilhas em Lote (Pasta 2026):
+ *    - Permite sincronizar todas as planilhas da pasta 2026 (>= Julho) em uma única execução
+ *      (Frota Completa, Viagens Completa ou Ambos).
  * 
- * 7. Menu Superior Automático (onOpen):
- *    - Cria o menu "🚗 Gestão de Frota" com opções individuais e sincronização multi-planilhas.
+ * 5. Menu Superior Automático (onOpen):
+ *    - Cria o menu "💰 Gestão de Custos" integrando todas as opções em um só lugar.
  * ============================================================================
  */
 
 // ============================================================================
 // 1. CONFIGURAÇÕES GERAIS
 // ============================================================================
-const CONFIG_FROTA = {
-  // Pasta Raiz 2026 (onde ficam as planilhas mensais)
+const CONFIG_GERAL = {
+  // Pasta Raiz 2026 (onde ficam as planilhas mensais de custos do setor)
   PASTA_RAIZ_2026: '1P-QIZVEhADgyZk62snW9nDcV8E_4vLRU',
   NOME_PLANILHA_PADRAO: '10. CUSTOS DO SETOR - OUTUBRO - 2026',
 
-  // Mês inicial de vigência da regra de frota (Julho/2026 = 7)
+  // Mês inicial de vigência da regra automatizada (Julho/2026 = 7)
   // Planilhas anteriores a Julho possuem formato antigo e são preservadas intactas
   MES_INICIAL_REGRA: 7,
 
@@ -54,13 +57,22 @@ const CONFIG_FROTA = {
   PASTA_ORIGEM_MANUTENCAO: '1zpsygbFL4d6PtsbjN9FMVITt2ZptR8f2',
   PASTA_PROCESSADOS_MANUTENCAO: '12q2UQwRaP6vxJXtiMVC1eCThI4WG6Ko2',
 
-  // Nomes das Abas na Planilha
+  // Planilha de Origem de Viagens (Alimentação e Hospedagem)
+  ID_PLANILHA_VIAGENS_ORIGEM: '1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk',
+  ABA_ORIGEM_ALIMENTACAO: 'Alimentação 2026',
+  ABA_ORIGEM_HOSPEDAGEM: 'Hospedagem 2026',
+
+  // Nomes das Abas na Planilha Mensal de Destino
   ABA_CUSTOS_TOTAIS: 'Custos_Totais',
-  COLUNA_COLABORADORES: 1, // Coluna A (onde estão os nomes dos colaboradores)
+  COLUNA_COLABORADORES: 1, // Coluna A (onde estão os nomes oficiais dos colaboradores)
 
   ABA_ABASTECIMENTO: 'Base_Abastecimento',
-  ABA_MANUTENCAO: 'Base_Manutenção' // Aceita também Base_Manutencao
+  ABA_MANUTENCAO: 'Base_Manutenção', // Aceita também Base_Manutencao
+  ABA_VIAGENS: 'Base_Viagens'
 };
+
+// Alias de retrocompatibilidade
+const CONFIG_FROTA = CONFIG_GERAL;
 
 
 // ============================================================================
@@ -69,18 +81,19 @@ const CONFIG_FROTA = {
 function onOpen() {
   try {
     const ui = SpreadsheetApp.getUi();
-    ui.createMenu("🚗 Gestão de Frota")
+    ui.createMenu("💰 Gestão de Custos")
       .addItem("⚡ Importar Dados da Aba Atual", "importarAbaAtiva")
       .addSeparator()
-      .addItem("⛽ Importar Abastecimento (Desta Planilha)", "importarDadosAbastecimento")
-      .addItem("🔧 Importar Manutenção (Desta Planilha)", "importarDadosManutencao")
-      .addItem("🔄 Importar Tudo (Desta Planilha)", "importarTodosOsCustos")
+      .addItem("⛽ Frota: Importar Abastecimento (Desta Planilha)", "importarDadosAbastecimento")
+      .addItem("🔧 Frota: Importar Manutenção (Desta Planilha)", "importarDadosManutencao")
+      .addItem("✈️ Viagens: Importar Alimentação e Hospedagem (Desta Planilha)", "importarDadosViagens")
+      .addItem("🔄 Importar TUDO (Frota + Viagens - Desta Planilha)", "importarTodosOsCustos")
       .addSeparator()
-      .addItem("🌐 Sincronizar Todas as Planilhas (Julho em diante)", "sincronizarTodasPlanilhas")
-      .addItem("⛽ Sincronizar Abastecimento (Todas de Julho em diante)", "sincronizarAbastecimentoTodas")
-      .addItem("🔧 Sincronizar Manutenção (Todas de Julho em diante)", "sincronizarManutencaoTodas")
+      .addItem("🌐 Sincronizar TODAS as Planilhas (Frota + Viagens)", "sincronizarTodasPlanilhas")
+      .addItem("⛽ Sincronizar Apenas Frota em TODAS (Julho em diante)", "sincronizarFrotaTodas")
+      .addItem("✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)", "sincronizarViagensTodas")
       .addSeparator()
-      .addItem("📁 Reprocessar da Pasta 'Arquivos Processados'", "reprocessarArquivosHistorico")
+      .addItem("📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)", "reprocessarArquivosHistorico")
       .addItem("🧹 Limpar Dados da Aba Atual", "limparAbaAtualManual")
       .addSeparator()
       .addItem("🔍 Testar Conexões e Diagnóstico", "testarConexoes")
@@ -107,12 +120,14 @@ function importarAbaAtiva() {
     importarDadosAbastecimento();
   } else if (nomeAba.indexOf("manuten") > -1) {
     importarDadosManutencao();
+  } else if (nomeAba.indexOf("viagen") > -1 || nomeAba.indexOf("viagem") > -1) {
+    importarDadosViagens();
   } else {
     var ui = SpreadsheetApp.getUi();
     var resposta = ui.alert(
-      "Importação de Frota",
+      "Importação de Custos",
       "Você está na aba '" + abaAtiva.getName() + "'.\n\n" +
-      "Deseja importar ambos os extratos (Abastecimento e Manutenção) para o mês desta planilha?",
+      "Deseja importar TODOS os custos (Abastecimento, Manutenção e Viagens) para o mês desta planilha?",
       ui.ButtonSet.YES_NO
     );
 
@@ -123,46 +138,73 @@ function importarAbaAtiva() {
 }
 
 /**
- * Executa tanto Abastecimento quanto Manutenção em sequência.
+ * Executa todas as importações (Abastecimento, Manutenção e Viagens) para a planilha atual.
  */
 function importarTodosOsCustos() {
-  Logger.log("Iniciando importação completa (Abastecimento + Manutenção)...");
+  Logger.log("Iniciando importação completa (Abastecimento + Manutenção + Viagens)...");
   importarDadosAbastecimento();
   importarDadosManutencao();
+  importarDadosViagens();
 }
 
 /**
- * Limpa manualmente os dados da aba atual da linha 2 em diante.
+ * Limpa manualmente os dados da aba atual de forma inteligente e segura.
+ * - Para Base_Viagens: limpa apenas da linha 3 em diante em A:C e F:H, preservando Coluna D ('nome corrigido') e Coluna E.
+ * - Para outras abas: limpa da linha 2 em diante.
  */
 function limparAbaAtualManual() {
   var planilha = SpreadsheetApp.getActiveSpreadsheet();
   if (!planilha) return;
 
   var aba = planilha.getActiveSheet();
-  if (aba.getLastRow() > 1) {
-    var ui = SpreadsheetApp.getUi();
+  var nomeAba = aba ? aba.getName().toLowerCase() : "";
+  var lastRow = aba.getLastRow();
+
+  if (lastRow <= 1) {
+    exibirAlerta("A aba '" + aba.getName() + "' já está vazia.");
+    return;
+  }
+
+  var ui = SpreadsheetApp.getUi();
+
+  if (nomeAba.indexOf("viagen") > -1 || nomeAba.indexOf("viagem") > -1) {
+    if (lastRow <= 2) {
+      exibirAlerta("A aba '" + aba.getName() + "' já contém apenas os cabeçalhos.");
+      return;
+    }
     var confirmacao = ui.alert(
+      "Limpar Dados de Viagens",
+      "Deseja limpar os lançamentos de Alimentação (A:C) e Hospedagem (F:H) da aba '" + aba.getName() + "' a partir da linha 3?\n\n" +
+      "• Linhas 1 e 2 (Cabeçalhos) e Coluna D ('nome corrigido') serão mantidas intactas.",
+      ui.ButtonSet.YES_NO
+    );
+    if (confirmacao === ui.Button.YES) {
+      aba.getRange(3, 1, lastRow - 2, 3).clearContent();
+      aba.getRange(3, 6, lastRow - 2, 3).clearContent();
+      SpreadsheetApp.flush();
+      exibirAlerta("Dados de Alimentação e Hospedagem da aba '" + aba.getName() + "' limpos com sucesso. Coluna D mantida intacta.");
+    }
+  } else {
+    var confirmacao2 = ui.alert(
       "Limpar Dados",
       "Deseja limpar todos os lançamentos da aba '" + aba.getName() + "' (a partir da linha 2)?",
       ui.ButtonSet.YES_NO
     );
-    if (confirmacao === ui.Button.YES) {
-      aba.getRange(2, 1, aba.getLastRow() - 1, aba.getLastColumn()).clearContent();
+    if (confirmacao2 === ui.Button.YES) {
+      aba.getRange(2, 1, lastRow - 1, aba.getLastColumn()).clearContent();
       SpreadsheetApp.flush();
       exibirAlerta("Dados da aba '" + aba.getName() + "' limpos com sucesso.");
     }
-  } else {
-    exibirAlerta("A aba '" + aba.getName() + "' já está vazia.");
   }
 }
 
 /**
- * Permite reprocessar arquivos que já estão na pasta 'Arquivos Processados'.
+ * Permite reprocessar arquivos de frota que já estão na pasta 'Arquivos Processados'.
  */
 function reprocessarArquivosHistorico() {
   var ui = SpreadsheetApp.getUi();
   var resposta = ui.alert(
-    "Reprocessar Histórico",
+    "Reprocessar Histórico de Frota",
     "Esta opção lerá os arquivos (.xlsx e .csv) já processados no Drive e filtrará apenas o mês da planilha atual.\n\nDeseja continuar?",
     ui.ButtonSet.YES_NO
   );
@@ -190,31 +232,31 @@ function importarDadosAbastecimento(lerDeProcessados) {
   var mesAlvo = obterMesAlvoDaPlanilha(planilha);
   Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
 
-  if (parseInt(mesAlvo.codigo, 10) < CONFIG_FROTA.MES_INICIAL_REGRA) {
+  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
     exibirAlerta(
       "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
-      "A automação de custos de frota está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
+      "A automação de custos está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
       "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
     );
     return;
   }
 
-  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_FROTA.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
+  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
   if (!abaDestino) {
-    exibirAlerta("Erro: A aba '" + CONFIG_FROTA.ABA_ABASTECIMENTO + "' não foi encontrada na planilha atual.");
+    exibirAlerta("Erro: A aba '" + CONFIG_GERAL.ABA_ABASTECIMENTO + "' não foi encontrada na planilha atual.");
     return;
   }
 
   // 2. Carregar colaboradores de referência da aba Custos_Totais (Coluna A)
   var mapaColaboradores = carregarListaColaboradores(planilha);
   if (Object.keys(mapaColaboradores).length === 0) {
-    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_FROTA.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
+    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
     return;
   }
 
   // 3. Obter pasta de origem
-  var pastaOrigem = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_COMBUSTIVEL);
-  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_FROTA.PASTA_PROCESSADOS_COMBUSTIVEL);
+  var pastaOrigem = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL);
+  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_GERAL.PASTA_PROCESSADOS_COMBUSTIVEL);
 
   var pastaLeitura = (lerDeProcessados === true) ? pastaProcessados : pastaOrigem;
   var arquivos = pastaLeitura.getFiles();
@@ -289,6 +331,7 @@ function importarDadosAbastecimento(lerDeProcessados) {
 
     // 3º: Grava os novos dados SEMPRE a partir da linha 2
     abaDestino.getRange(2, 1, linhasParaInserir.length, 4).setValues(linhasParaInserir);
+    abaDestino.getRange(2, 2, linhasParaInserir.length, 1).setNumberFormat('"R$"\\ #,##0.00');
 
     var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de abastecimento de " + mesAlvo.nome + " lançados na aba 'Base_Abastecimento'.\n\n" +
                      "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
@@ -330,31 +373,31 @@ function importarDadosManutencao(lerDeProcessados) {
   var mesAlvo = obterMesAlvoDaPlanilha(planilha);
   Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
 
-  if (parseInt(mesAlvo.codigo, 10) < CONFIG_FROTA.MES_INICIAL_REGRA) {
+  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
     exibirAlerta(
       "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
-      "A automação de custos de frota está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
+      "A automação de custos está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
       "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
     );
     return;
   }
 
-  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_FROTA.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
+  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
   if (!abaDestino) {
-    exibirAlerta("Erro: A aba '" + CONFIG_FROTA.ABA_MANUTENCAO + "' não foi encontrada na planilha atual.");
+    exibirAlerta("Erro: A aba '" + CONFIG_GERAL.ABA_MANUTENCAO + "' não foi encontrada na planilha atual.");
     return;
   }
 
   // 2. Carregar colaboradores de referência da aba Custos_Totais (Coluna A)
   var mapaColaboradores = carregarListaColaboradores(planilha);
   if (Object.keys(mapaColaboradores).length === 0) {
-    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_FROTA.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
+    exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
     return;
   }
 
   // 3. Obter pasta de origem
-  var pastaOrigem = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_MANUTENCAO);
-  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_FROTA.PASTA_PROCESSADOS_MANUTENCAO);
+  var pastaOrigem = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO);
+  var pastaProcessados = obterOuCriarPastaProcessados(pastaOrigem, CONFIG_GERAL.PASTA_PROCESSADOS_MANUTENCAO);
 
   var pastaLeitura = (lerDeProcessados === true) ? pastaProcessados : pastaOrigem;
   var arquivos = pastaLeitura.getFiles();
@@ -426,6 +469,7 @@ function importarDadosManutencao(lerDeProcessados) {
     }
 
     abaDestino.getRange(2, 1, linhasParaInserir.length, 5).setValues(linhasParaInserir);
+    abaDestino.getRange(2, 2, linhasParaInserir.length, 1).setNumberFormat('"R$"\\ #,##0.00');
 
     var msgSucesso = "✅ Sucesso! " + linhasParaInserir.length + " registro(s) de manutenção de " + mesAlvo.nome + " lançados na aba 'Base_Manutenção'.\n\n" +
                      "• Os dados anteriores foram limpos e relançados com sucesso.\n" +
@@ -452,13 +496,399 @@ function importarDadosManutencao(lerDeProcessados) {
 
 
 // ============================================================================
-// 5. SINCRONIZAÇÃO MULTI-PLANILHAS (PASTA 2026 - JULHO EM DIANTE)
+// 5. IMPORTAÇÃO DE VIAGENS (Aba: Base_Viagens)
 // ============================================================================
 
 /**
- * Ponto de entrada: Sincroniza Abastecimento e Manutenção em todas as planilhas da pasta 2026 (>= Julho).
+ * Importa os custos de Alimentação e Hospedagem da planilha de Viagens
+ * para a aba 'Base_Viagens' da planilha mensal ativa.
+ */
+function importarDadosViagens(planilhaAlvo, silencioso) {
+  Logger.log("Iniciando importação de VIAGENS (Alimentação e Hospedagem)...");
+
+  var planilha = planilhaAlvo || obterPlanilhaAlvo();
+  if (!planilha) {
+    if (!silencioso) exibirAlerta("Erro: Não foi possível identificar a planilha de destino.");
+    return { alimentacao: 0, hospedagem: 0, erro: "Planilha alvo não encontrada" };
+  }
+
+  var mesAlvo = obterMesAlvoDaPlanilha(planilha);
+  Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
+
+  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
+    if (!silencioso) {
+      exibirAlerta(
+        "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
+        "A automação de custos de viagens está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
+        "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
+      );
+    }
+    return { alimentacao: 0, hospedagem: 0, erro: "Mês anterior a Julho" };
+  }
+
+  var abaDestino = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_VIAGENS, 'Base_Viagens', 'Base Viagens', 'Viagens']);
+  if (!abaDestino) {
+    if (!silencioso) exibirAlerta("Erro: A aba '" + CONFIG_GERAL.ABA_VIAGENS + "' não foi encontrada na planilha '" + planilha.getName() + "'.");
+    return { alimentacao: 0, hospedagem: 0, erro: "Aba Base_Viagens não encontrada" };
+  }
+
+  // 1. Carregar lista de colaboradores de referência da aba Custos_Totais (Coluna A)
+  var mapaColaboradores = carregarListaColaboradores(planilha);
+  if (Object.keys(mapaColaboradores).length === 0) {
+    if (!silencioso) {
+      exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' (Coluna A).\nVerifique se a aba está preenchida.");
+    }
+    return { alimentacao: 0, hospedagem: 0, erro: "Sem colaboradores em Custos_Totais" };
+  }
+
+  // 2. Conectar à planilha de origem de Viagens
+  var ssOrigem;
+  try {
+    ssOrigem = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_VIAGENS_ORIGEM);
+  } catch (e) {
+    var errOrigem = "Erro ao acessar a planilha de viagens de origem (" + CONFIG_GERAL.ID_PLANILHA_VIAGENS_ORIGEM + "): " + e.message;
+    Logger.log(errOrigem);
+    if (!silencioso) exibirAlerta(errOrigem);
+    return { alimentacao: 0, hospedagem: 0, erro: errOrigem };
+  }
+
+  // 3. Extrair dados de Alimentação
+  var dadosAlimentacao = extrairRegistrosViagensOrigem(
+    ssOrigem,
+    [CONFIG_GERAL.ABA_ORIGEM_ALIMENTACAO, 'Alimentação 2026', 'Alimentacao 2026', 'Alimentação', 'Alimentacao'],
+    'ALIMENTACAO',
+    mesAlvo,
+    mapaColaboradores
+  );
+
+  // 4. Extrair dados de Hospedagem
+  var dadosHospedagem = extrairRegistrosViagensOrigem(
+    ssOrigem,
+    [CONFIG_GERAL.ABA_ORIGEM_HOSPEDAGEM, 'Hospedagem 2026', 'Hospedagem', 'Hospedagens 2026', 'Hospedagens'],
+    'HOSPEDAGEM',
+    mesAlvo,
+    mapaColaboradores
+  );
+
+  // 5. Gravar dados na aba Base_Viagens (limpando linha 3+ em A:C e F:H e mantendo Coluna D intacta)
+  gravarDadosNaAbaViagens(abaDestino, dadosAlimentacao.linhas, dadosHospedagem.linhas);
+
+  var totalAlim = dadosAlimentacao.linhas.length;
+  var totalHosp = dadosHospedagem.linhas.length;
+
+  var msgSucesso = "✅ Sucesso! Lançamentos de Viagens de " + mesAlvo.nome + " importados para 'Base_Viagens':\n\n" +
+                   "🍽️ Alimentação (Colunas A a C): " + totalAlim + " registro(s)\n" +
+                   "🏨 Hospedagem (Colunas F a H): " + totalHosp + " registro(s)\n\n" +
+                   "• Filtrados rigorosamente pelos colaboradores da aba 'Custos_Totais'.\n" +
+                   "• Linha 1 e 2 (Cabeçalhos) e Coluna D ('nome corrigido') mantidas intactas.\n" +
+                   "• Dados anteriores da linha 3 em diante foram limpos e relançados.";
+
+  Logger.log(msgSucesso);
+  if (!silencioso) {
+    exibirAlerta(msgSucesso);
+  }
+
+  return {
+    alimentacao: totalAlim,
+    hospedagem: totalHosp,
+    outrosMesesAlim: dadosAlimentacao.stats.linhasOutrosMeses,
+    outrosMesesHosp: dadosHospedagem.stats.linhasOutrosMeses
+  };
+}
+
+/**
+ * Extrai registros de uma aba da planilha de Viagens (Alimentação ou Hospedagem),
+ * aplicando os filtros de mês e de colaboradores autorizados.
+ */
+function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, mesAlvo, mapaColaboradores) {
+  var aba = obterAbaPorNomes(ssOrigem, nomesPossiveisAba);
+  if (!aba) {
+    Logger.log("Aba de origem para " + tipoViagem + " não encontrada na planilha de viagens.");
+    return { linhas: [], stats: { totalLidos: 0, linhasOutrosMeses: 0 } };
+  }
+
+  var lastRow = aba.getLastRow();
+  var lastCol = aba.getLastColumn();
+  if (lastRow <= 1 || lastCol === 0) {
+    return { linhas: [], stats: { totalLidos: 0, linhasOutrosMeses: 0 } };
+  }
+
+  var dados = aba.getRange(1, 1, lastRow, lastCol).getValues();
+
+  // Localiza a linha do cabeçalho (pode estar na linha 1 ou 2)
+  var linhaCabecalhoIdx = -1;
+  for (var r = 0; r < Math.min(5, dados.length); r++) {
+    var linha = dados[r];
+    for (var c = 0; c < linha.length; c++) {
+      var txt = padronizarTexto(linha[c]);
+      if (txt === 'COLABORADOR' || txt === 'NOME' || txt === 'FUNCIONARIO' || txt === 'SOLICITANTE' || txt === 'NOME COLABORADOR') {
+        linhaCabecalhoIdx = r;
+        break;
+      }
+    }
+    if (linhaCabecalhoIdx !== -1) break;
+  }
+
+  if (linhaCabecalhoIdx === -1) {
+    linhaCabecalhoIdx = 0;
+  }
+
+  var cabecalho = dados[linhaCabecalhoIdx];
+  var idxColaborador = -1;
+  var idxValor = -1;
+  var idxMesSap = -1;
+  var idxMesRef = -1;
+
+  for (var c = 0; c < cabecalho.length; c++) {
+    var col = padronizarTexto(cabecalho[c]);
+    if (!col) continue;
+
+    // Colaborador / Solicitante
+    if (col === 'COLABORADOR' || col === 'NOME' || col === 'SOLICITANTE' || col === 'FUNCIONARIO' || col === 'NOME COLABORADOR' || col === 'NOME DO COLABORADOR') {
+      if (idxColaborador === -1) idxColaborador = c;
+    } else if (idxColaborador === -1 && col.indexOf('COLABORADOR') > -1) {
+      idxColaborador = c;
+    }
+
+    // Valor (Total ou Diária)
+    if (tipoViagem === 'HOSPEDAGEM') {
+      if (col === 'VALOR DIARIA' || col === 'VALOR DIÁRIA' || col === 'VALOR TOTAL' || col === 'VALOR PAGO' || col === 'VALOR') {
+        if (idxValor === -1) idxValor = c;
+      } else if (idxValor === -1 && (col.indexOf('DIARIA') > -1 || col.indexOf('DIÁRIA') > -1 || col.indexOf('VALOR') > -1)) {
+        idxValor = c;
+      }
+    } else {
+      if (col === 'VALOR TOTAL' || col === 'VALOR' || col === 'VALOR PAGO' || col === 'TOTAL') {
+        if (idxValor === -1) idxValor = c;
+      } else if (idxValor === -1 && col.indexOf('VALOR') > -1) {
+        idxValor = c;
+      }
+    }
+
+    // Mês do Lançamento SAP
+    if (col.indexOf('SAP') > -1 || col.indexOf('LANCAMENTO') > -1 || col.indexOf('LANÇAMENTO') > -1) {
+      if (idxMesSap === -1) idxMesSap = c;
+    }
+
+    // Mês de Referência (fallback)
+    if (col.indexOf('REFERENCIA') > -1 || col.indexOf('REFERÊNCIA') > -1 || col.indexOf('PERIODO') > -1 || col.indexOf('PERÍODO') > -1 || col === 'MES' || col === 'MÊS') {
+      if (idxMesRef === -1) idxMesRef = c;
+    }
+  }
+
+  Logger.log("Mapeamento colunas " + tipoViagem + ": Colaborador=" + idxColaborador + ", Valor=" + idxValor + ", MesSAP=" + idxMesSap + ", MesRef=" + idxMesRef);
+
+  var linhasFiltradas = [];
+  var stats = { totalLidos: 0, linhasOutrosMeses: 0 };
+
+  for (var i = linhaCabecalhoIdx + 1; i < dados.length; i++) {
+    var row = dados[i];
+    if (!row || row.length === 0) continue;
+
+    var nomeRaw = idxColaborador !== -1 && row[idxColaborador] ? row[idxColaborador].toString().trim() : "";
+    if (!nomeRaw) continue;
+
+    stats.totalLidos++;
+
+    // 1º FILTRO: Colaborador precisa constar na aba Custos_Totais
+    var nomePadrao = padronizarTexto(nomeRaw);
+    if (!mapaColaboradores.hasOwnProperty(nomePadrao)) {
+      continue;
+    }
+
+    // 2º FILTRO: Mês de competência
+    var valorMesSap = idxMesSap !== -1 ? row[idxMesSap] : "";
+    var valorMesRef = idxMesRef !== -1 ? row[idxMesRef] : "";
+
+    var ehDoMes = false;
+    if (valorMesSap) {
+      ehDoMes = valorPertenceAoMesViagens(valorMesSap, mesAlvo);
+    }
+    if (!ehDoMes && valorMesRef) {
+      ehDoMes = valorPertenceAoMesViagens(valorMesRef, mesAlvo);
+    }
+
+    if (!ehDoMes) {
+      stats.linhasOutrosMeses++;
+      continue;
+    }
+
+    var valorRaw = idxValor !== -1 ? row[idxValor] : 0;
+    var valorFormatado = formatarValorNumerico(valorRaw);
+    var mesTexto = mesAlvo.nome;
+
+    // Linha de saída: [COLABORADOR, VALOR, MÊS]
+    linhasFiltradas.push([
+      nomeRaw,
+      valorFormatado,
+      mesTexto
+    ]);
+  }
+
+  return { linhas: linhasFiltradas, stats: stats };
+}
+
+/**
+ * Limpa e grava os lançamentos de Alimentação e Hospedagem na aba 'Base_Viagens'.
+ * Garante que a Coluna D ('nome corrigido') e a Coluna E não sejam tocadas.
+ */
+function gravarDadosNaAbaViagens(abaViagens, linhasAlimentacao, linhasHospedagem) {
+  var lastRow = abaViagens.getLastRow();
+
+  // 1. Limpa os dados anteriores da linha 3 em diante em A:C e F:H
+  if (lastRow > 2) {
+    var qtdParaLimpar = lastRow - 2;
+    abaViagens.getRange(3, 1, qtdParaLimpar, 3).clearContent();
+    abaViagens.getRange(3, 6, qtdParaLimpar, 3).clearContent();
+    SpreadsheetApp.flush();
+  }
+
+  // 2. Garante cabeçalhos padrão caso a aba esteja vazia
+  if (abaViagens.getLastRow() < 2) {
+    abaViagens.getRange(1, 1, 1, 8).setValues([
+      ['Alimentação', '', '', 'nome corrigido', '', 'Hospedagem', '', '']
+    ]);
+    abaViagens.getRange(2, 1, 1, 8).setValues([
+      ['COLABORADOR', 'VALOR TOTAL', 'MÊS DO LANÇAMENTO - SAP', '', '', 'COLABORADOR', 'VALOR DIÁRIA', 'MÊS DO LANÇAMENTO - SAP']
+    ]);
+  }
+
+  // 3. Grava Alimentação em A:C a partir da linha 3
+  if (linhasAlimentacao && linhasAlimentacao.length > 0) {
+    abaViagens.getRange(3, 1, linhasAlimentacao.length, 3).setValues(linhasAlimentacao);
+    abaViagens.getRange(3, 2, linhasAlimentacao.length, 1).setNumberFormat('"R$"\\ #,##0.00');
+  }
+
+  // 4. Grava Hospedagem em F:H a partir da linha 3
+  if (linhasHospedagem && linhasHospedagem.length > 0) {
+    abaViagens.getRange(3, 6, linhasHospedagem.length, 3).setValues(linhasHospedagem);
+    abaViagens.getRange(3, 7, linhasHospedagem.length, 1).setNumberFormat('"R$"\\ #,##0.00');
+  }
+
+  SpreadsheetApp.flush();
+}
+
+/**
+ * Validador altamente flexível para verificar se um valor de mês da planilha de viagens
+ * pertence ao mês da planilha de destino (aceita texto, código numérico, datas, etc.).
+ */
+function valorPertenceAoMesViagens(valorRaw, mesAlvo) {
+  if (valorRaw === undefined || valorRaw === null || valorRaw === "") return false;
+
+  // 1. Objeto Date
+  if (valorRaw instanceof Date && !isNaN(valorRaw.getTime())) {
+    var mesDate = Utilities.formatDate(valorRaw, 'GMT', 'MM');
+    var anoDate = Utilities.formatDate(valorRaw, 'GMT', 'yyyy');
+    if (mesDate === mesAlvo.codigo && (!mesAlvo.ano || anoDate === mesAlvo.ano)) {
+      return true;
+    }
+    return false;
+  }
+
+  // 2. Número (código simples do mês ou número serial do Excel)
+  if (typeof valorRaw === 'number') {
+    if (valorRaw === parseInt(mesAlvo.codigo, 10)) {
+      return true;
+    }
+    if (valorRaw > 40000 && valorRaw < 60000) {
+      var dObj = new Date(Math.round((valorRaw - 25569) * 86400 * 1000));
+      if (!isNaN(dObj.getTime())) {
+        var mSerial = Utilities.formatDate(dObj, 'GMT', 'MM');
+        var aSerial = Utilities.formatDate(dObj, 'GMT', 'yyyy');
+        return (mSerial === mesAlvo.codigo && (!mesAlvo.ano || aSerial === mesAlvo.ano));
+      }
+    }
+  }
+
+  // 3. String de texto
+  var str = valorRaw.toString().trim();
+  if (!str) return false;
+
+  var norm = padronizarTexto(str);
+
+  // Nome completo do mês (ex.: OUTUBRO)
+  if (norm === mesAlvo.nome || norm.indexOf(mesAlvo.nome) > -1) {
+    var matchAno = str.match(/\b(20\d{2})\b/);
+    if (matchAno && mesAlvo.ano && matchAno[1] !== mesAlvo.ano) {
+      return false;
+    }
+    return true;
+  }
+
+  // Abreviação de 3 letras
+  var mapaAbrev = {
+    '01': 'JAN', '02': 'FEV', '03': 'MAR', '04': 'ABR',
+    '05': 'MAI', '06': 'JUN', '07': 'JUL', '08': 'AGO',
+    '09': 'SET', '10': 'OUT', '11': 'NOV', '12': 'DEZ'
+  };
+  var abrev = mapaAbrev[mesAlvo.codigo];
+  if (abrev) {
+    if (norm === abrev || norm.indexOf(abrev + '/') > -1 || norm.indexOf(abrev + ' ') > -1 || norm.indexOf(abrev + '-') > -1) {
+      var matchAnoAbr = str.match(/\b(20\d{2})\b/);
+      if (matchAnoAbr && mesAlvo.ano && matchAnoAbr[1] !== mesAlvo.ano) {
+        return false;
+      }
+      return true;
+    }
+  }
+
+  // Padrão numérico: DD/MM/YYYY ou MM/YYYY ou YYYY-MM
+  var matchBr = str.match(/(?:^|[^\d])(\d{1,2})[\/\-](\d{2,4})(?:[^\d]|$)/);
+  if (matchBr) {
+    var m = matchBr[1].length === 1 ? '0' + matchBr[1] : matchBr[1];
+    var a = matchBr[2].length === 2 ? '20' + matchBr[2] : matchBr[2];
+    if (m === mesAlvo.codigo && (!mesAlvo.ano || a === mesAlvo.ano)) {
+      return true;
+    }
+  }
+
+  // Código isolado: "10"
+  if (str === mesAlvo.codigo || str === parseInt(mesAlvo.codigo, 10).toString()) {
+    return true;
+  }
+
+  return false;
+}
+
+
+// ============================================================================
+// 6. SINCRONIZAÇÃO MULTI-PLANILHAS (PASTA 2026 - JULHO EM DIANTE)
+// ============================================================================
+
+/**
+ * Ponto de entrada: Sincroniza Frota e Viagens em todas as planilhas da pasta 2026 (>= Julho).
  */
 function sincronizarTodasPlanilhas() {
+  var ui = SpreadsheetApp.getUi();
+  var confirmacao = ui.alert(
+    "🌐 Sincronização Completa de Custos (Pasta 2026)",
+    "Esta ação sincronizará TODOS os custos em TODAS as planilhas da pasta 2026 do mês de JULHO em diante:\n\n" +
+    "• ⛽ Combustível (Base_Abastecimento)\n" +
+    "• 🔧 Manutenção (Base_Manutenção)\n" +
+    "• ✈️ Viagens (Base_Viagens: Alimentação e Hospedagem)\n\n" +
+    "• As planilhas anteriores a Julho/2026 serão mantidas intactas.\n" +
+    "• Coluna D ('nome corrigido') da aba Base_Viagens será mantida intacta.\n\n" +
+    "Deseja iniciar a sincronização completa?",
+    ui.ButtonSet.YES_NO
+  );
+
+  if (confirmacao !== ui.Button.YES) return;
+
+  var relatorioFrota = sincronizarPlanilhasPasta2026('AMBOS', true);
+  var relatorioViagens = sincronizarViagensTodas(true);
+
+  var msgFinal = "🎉 Sincronização Completa Finalizada!\n\n" +
+                 "--- 🚗 FROTA ---\n" + (relatorioFrota && relatorioFrota.length > 0 ? relatorioFrota.join("\n") : "Concluído") + "\n\n" +
+                 "--- ✈️ VIAGENS ---\n" + (relatorioViagens && relatorioViagens.length > 0 ? relatorioViagens.join("\n") : "Concluído") + "\n\n" +
+                 "ℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.";
+  Logger.log(msgFinal);
+  exibirAlerta(msgFinal);
+}
+
+/**
+ * Ponto de entrada: Sincroniza apenas Frota (Abastecimento e Manutenção) em todas as planilhas da pasta 2026 (>= Julho).
+ */
+function sincronizarFrotaTodas() {
   sincronizarPlanilhasPasta2026('AMBOS');
 }
 
@@ -477,31 +907,123 @@ function sincronizarManutencaoTodas() {
 }
 
 /**
- * Localiza todas as planilhas da pasta 2026 a partir de Julho/2026 e preenche suas abas.
- * Preserva intactas as planilhas de meses anteriores (Janeiro a Junho).
+ * Ponto de entrada: Sincroniza Viagens (Alimentação e Hospedagem) em todas as planilhas da pasta 2026 (>= Julho).
  */
-function sincronizarPlanilhasPasta2026(tipo) {
-  var ui = SpreadsheetApp.getUi();
-  var tipoLabel = (tipo === 'ABASTECIMENTO') ? "Abastecimento" : (tipo === 'MANUTENCAO' ? "Manutenção" : "Abastecimento e Manutenção");
-
-  var confirmacao = ui.alert(
-    "🌐 Sincronização Multi-Planilhas (Pasta 2026)",
-    "Esta ação identificará as planilhas da pasta 2026 do mês de JULHO em diante (Julho a Outubro e próximos meses) e preencherá automaticamente os dados de " + tipoLabel + ".\n\n" +
-    "• As planilhas anteriores a Julho/2026 serão mantidas intactas.\n" +
-    "• Cada mês receberá apenas os seus lançamentos, validados pelos colaboradores daquela planilha.\n" +
-    "• Os dados anteriores de cada aba serão limpos e relançados a partir da linha 2.\n\n" +
-    "Deseja iniciar a sincronização agora?",
-    ui.ButtonSet.YES_NO
-  );
-
-  if (confirmacao !== ui.Button.YES) return;
+function sincronizarViagensTodas(modoSilencioso) {
+  if (!modoSilencioso) {
+    var ui = SpreadsheetApp.getUi();
+    var confirmacao = ui.alert(
+      "✈️ Sincronização de Viagens (Pasta 2026)",
+      "Esta ação identificará as planilhas da pasta 2026 de JULHO em diante e preencherá automaticamente a aba 'Base_Viagens' com Alimentação e Hospedagem.\n\n" +
+      "• Origem: Planilha CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026.\n" +
+      "• Filtro: Apenas os colaboradores da aba 'Custos_Totais' de cada planilha.\n" +
+      "• Coluna D ('nome corrigido') será mantida intacta.\n" +
+      "• Planilhas anteriores a Julho/2026 serão mantidas intactas.\n\n" +
+      "Deseja iniciar a sincronização agora?",
+      ui.ButtonSet.YES_NO
+    );
+    if (confirmacao !== ui.Button.YES) return [];
+  }
 
   var pasta2026;
   try {
-    pasta2026 = DriveApp.getFolderById(CONFIG_FROTA.PASTA_RAIZ_2026);
+    pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
   } catch (e) {
-    exibirAlerta("Erro ao acessar a pasta 2026 no Google Drive: " + e.message);
-    return;
+    var errPasta = "Erro ao acessar a pasta 2026: " + e.message;
+    if (!modoSilencioso) exibirAlerta(errPasta);
+    return [errPasta];
+  }
+
+  var arquivosPasta = pasta2026.getFiles();
+  var planilhasElegiveis = [];
+
+  while (arquivosPasta.hasNext()) {
+    var arq = arquivosPasta.next();
+    if (arq.getMimeType() === MimeType.GOOGLE_SHEETS) {
+      var nomeArq = arq.getName();
+      var mesInfo = extrairMesDeTexto(nomeArq);
+      if (mesInfo && parseInt(mesInfo.codigo, 10) >= CONFIG_GERAL.MES_INICIAL_REGRA) {
+        planilhasElegiveis.push({
+          id: arq.getId(),
+          nome: nomeArq,
+          mesInfo: mesInfo
+        });
+      }
+    }
+  }
+
+  if (planilhasElegiveis.length === 0) {
+    var errSemPlanilhas = "Nenhuma planilha elegível (de JULHO em diante) foi encontrada na pasta 2026.";
+    if (!modoSilencioso) exibirAlerta(errSemPlanilhas);
+    return [errSemPlanilhas];
+  }
+
+  planilhasElegiveis.sort(function(a, b) {
+    return parseInt(a.mesInfo.codigo, 10) - parseInt(b.mesInfo.codigo, 10);
+  });
+
+  var relatorio = [];
+
+  for (var i = 0; i < planilhasElegiveis.length; i++) {
+    var item = planilhasElegiveis[i];
+    var mesInfo = item.mesInfo;
+    var nomeMes = mesInfo.nome;
+
+    try {
+      var ssTarget = SpreadsheetApp.openById(item.id);
+      var res = importarDadosViagens(ssTarget, true);
+      if (res && !res.erro) {
+        relatorio.push("✈️ " + nomeMes + ": " + res.alimentacao + " alimentações | " + res.hospedagem + " hospedagens lançadas.");
+      } else {
+        relatorio.push("⚠️ " + nomeMes + ": " + (res.erro || "Falha na importação"));
+      }
+    } catch (e) {
+      Logger.log("Erro ao sincronizar viagens para " + item.nome + ": " + e.message);
+      relatorio.push("❌ " + nomeMes + ": Erro (" + e.message + ")");
+    }
+  }
+
+  if (!modoSilencioso) {
+    var msgFinal = "🎉 Sincronização de Viagens Concluída!\n\n" +
+                   relatorio.join("\n") +
+                   "\n\nℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.\n" +
+                   "ℹ️ Coluna D ('nome corrigido') mantida intacta.";
+    Logger.log(msgFinal);
+    exibirAlerta(msgFinal);
+  }
+
+  return relatorio;
+}
+
+/**
+ * Localiza todas as planilhas da pasta 2026 a partir de Julho/2026 e preenche suas abas de frota.
+ * Preserva intactas as planilhas de meses anteriores (Janeiro a Junho).
+ */
+function sincronizarPlanilhasPasta2026(tipo, modoSilencioso) {
+  var tipoLabel = (tipo === 'ABASTECIMENTO') ? "Abastecimento" : (tipo === 'MANUTENCAO' ? "Manutenção" : "Abastecimento e Manutenção");
+
+  if (!modoSilencioso) {
+    var ui = SpreadsheetApp.getUi();
+    var confirmacao = ui.alert(
+      "🌐 Sincronização Multi-Planilhas de Frota (Pasta 2026)",
+      "Esta ação identificará as planilhas da pasta 2026 do mês de JULHO em diante (Julho a Outubro e próximos meses) e preencherá automaticamente os dados de " + tipoLabel + ".\n\n" +
+      "• As planilhas anteriores a Julho/2026 serão mantidas intactas.\n" +
+      "• Cada mês receberá apenas os seus lançamentos, validados pelos colaboradores daquela planilha.\n" +
+      "• Os dados anteriores de cada aba serão limpos e relançados a partir da linha 2.\n\n" +
+      "Deseja iniciar a sincronização agora?",
+      ui.ButtonSet.YES_NO
+    );
+
+    if (confirmacao !== ui.Button.YES) return [];
+  }
+
+  var pasta2026;
+  try {
+    pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
+  } catch (e) {
+    var errPasta = "Erro ao acessar a pasta 2026 no Google Drive: " + e.message;
+    if (!modoSilencioso) exibirAlerta(errPasta);
+    return [errPasta];
   }
 
   // 1. Localizar planilhas elegíveis (de Julho em diante)
@@ -513,7 +1035,7 @@ function sincronizarPlanilhasPasta2026(tipo) {
     if (arq.getMimeType() === MimeType.GOOGLE_SHEETS) {
       var nomeArq = arq.getName();
       var mesInfo = extrairMesDeTexto(nomeArq);
-      if (mesInfo && parseInt(mesInfo.codigo, 10) >= CONFIG_FROTA.MES_INICIAL_REGRA) {
+      if (mesInfo && parseInt(mesInfo.codigo, 10) >= CONFIG_GERAL.MES_INICIAL_REGRA) {
         planilhasElegiveis.push({
           id: arq.getId(),
           nome: nomeArq,
@@ -524,8 +1046,9 @@ function sincronizarPlanilhasPasta2026(tipo) {
   }
 
   if (planilhasElegiveis.length === 0) {
-    exibirAlerta("Nenhuma planilha elegível (de JULHO em diante) foi encontrada na pasta 2026.");
-    return;
+    var errSemPlanilhas = "Nenhuma planilha elegível (de JULHO em diante) foi encontrada na pasta 2026.";
+    if (!modoSilencioso) exibirAlerta(errSemPlanilhas);
+    return [errSemPlanilhas];
   }
 
   // Ordena por mês: 07, 08, 09, 10, 11, 12...
@@ -558,8 +1081,8 @@ function sincronizarPlanilhasPasta2026(tipo) {
   // 3. Processar ABASTECIMENTO
   if (tipo === 'ABASTECIMENTO' || tipo === 'AMBOS') {
     var dadosAbast = processarExtratosParaMultiMeses(
-      CONFIG_FROTA.PASTA_ORIGEM_COMBUSTIVEL,
-      CONFIG_FROTA.PASTA_PROCESSADOS_COMBUSTIVEL,
+      CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL,
+      CONFIG_GERAL.PASTA_PROCESSADOS_COMBUSTIVEL,
       'ABASTECIMENTO',
       mesesAlvoMap,
       colaboradoresPorMes
@@ -571,9 +1094,9 @@ function sincronizarPlanilhasPasta2026(tipo) {
       var ssA = planilhasInstancias[codA];
       if (!ssA) continue;
 
-      var abaAbast = obterAbaPorNomes(ssA, [CONFIG_FROTA.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
+      var abaAbast = obterAbaPorNomes(ssA, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
       if (!abaAbast) {
-        relatorio.push("⚠️ " + nomeA + ": Aba '" + CONFIG_FROTA.ABA_ABASTECIMENTO + "' não encontrada.");
+        relatorio.push("⚠️ " + nomeA + ": Aba '" + CONFIG_GERAL.ABA_ABASTECIMENTO + "' não encontrada.");
         continue;
       }
 
@@ -586,8 +1109,8 @@ function sincronizarPlanilhasPasta2026(tipo) {
   // 4. Processar MANUTENÇÃO
   if (tipo === 'MANUTENCAO' || tipo === 'AMBOS') {
     var dadosManut = processarExtratosParaMultiMeses(
-      CONFIG_FROTA.PASTA_ORIGEM_MANUTENCAO,
-      CONFIG_FROTA.PASTA_PROCESSADOS_MANUTENCAO,
+      CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO,
+      CONFIG_GERAL.PASTA_PROCESSADOS_MANUTENCAO,
       'MANUTENCAO',
       mesesAlvoMap,
       colaboradoresPorMes
@@ -599,9 +1122,9 @@ function sincronizarPlanilhasPasta2026(tipo) {
       var ssM = planilhasInstancias[codM];
       if (!ssM) continue;
 
-      var abaManut = obterAbaPorNomes(ssM, [CONFIG_FROTA.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
+      var abaManut = obterAbaPorNomes(ssM, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao', 'Base Manutenção']);
       if (!abaManut) {
-        relatorio.push("⚠️ " + nomeM + ": Aba '" + CONFIG_FROTA.ABA_MANUTENCAO + "' não encontrada.");
+        relatorio.push("⚠️ " + nomeM + ": Aba '" + CONFIG_GERAL.ABA_MANUTENCAO + "' não encontrada.");
         continue;
       }
 
@@ -611,11 +1134,15 @@ function sincronizarPlanilhasPasta2026(tipo) {
     }
   }
 
-  var msgFinal = "🎉 Sincronização de Planilhas Concluída!\n\n" +
-                 relatorio.join("\n") +
-                 "\n\nℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.";
-  Logger.log(msgFinal);
-  exibirAlerta(msgFinal);
+  if (!modoSilencioso) {
+    var msgFinal = "🎉 Sincronização de Frota Concluída!\n\n" +
+                   relatorio.join("\n") +
+                   "\n\nℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.";
+    Logger.log(msgFinal);
+    exibirAlerta(msgFinal);
+  }
+
+  return relatorio;
 }
 
 /**
@@ -863,7 +1390,7 @@ function processarCsvMultiMeses(arquivo, tipo, mesesAlvoMap, colaboradoresPorMes
 }
 
 /**
- * Limpa dados existentes da linha 2 em diante e grava novos dados na aba de destino.
+ * Limpa dados existentes da linha 2 em diante e grava novos dados na aba de destino (para frota).
  */
 function gravarLinhasNaAba(abaDestino, linhasParaInserir, qtdColunas, cabecalhoPadrao) {
   var linhasAtuais = abaDestino.getLastRow();
@@ -878,12 +1405,13 @@ function gravarLinhasNaAba(abaDestino, linhasParaInserir, qtdColunas, cabecalhoP
 
   if (linhasParaInserir && linhasParaInserir.length > 0) {
     abaDestino.getRange(2, 1, linhasParaInserir.length, qtdColunas).setValues(linhasParaInserir);
+    abaDestino.getRange(2, 2, linhasParaInserir.length, 1).setNumberFormat('"R$"\\ #,##0.00');
   }
 }
 
 
 // ============================================================================
-// 6. TESTE DE CONEXÕES E DIAGNÓSTICO
+// 7. TESTE DE CONEXÕES E DIAGNÓSTICO
 // ============================================================================
 function testarConexoes() {
   var relatorio = [];
@@ -894,33 +1422,51 @@ function testarConexoes() {
     relatorio.push("✅ Planilha ativa: " + planilha.getName());
     relatorio.push("📅 Mês de competência identificado: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
 
-    var aColab = planilha.getSheetByName(CONFIG_FROTA.ABA_CUSTOS_TOTAIS);
+    var aColab = planilha.getSheetByName(CONFIG_GERAL.ABA_CUSTOS_TOTAIS);
     if (aColab) {
       var mapa = carregarListaColaboradores(planilha);
       var total = Object.keys(mapa).length;
-      relatorio.push("✅ Aba '" + CONFIG_FROTA.ABA_CUSTOS_TOTAIS + "': " + total + " colaboradores carregados na Coluna A.");
+      relatorio.push("✅ Aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "': " + total + " colaboradores carregados na Coluna A.");
     } else {
-      relatorio.push("❌ Aba '" + CONFIG_FROTA.ABA_CUSTOS_TOTAIS + "' NÃO encontrada na planilha.");
+      relatorio.push("❌ Aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "' NÃO encontrada na planilha.");
     }
 
-    var aAbast = obterAbaPorNomes(planilha, [CONFIG_FROTA.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
-    relatorio.push(aAbast ? "✅ Aba de Abastecimento encontrada." : "❌ Aba '" + CONFIG_FROTA.ABA_ABASTECIMENTO + "' NÃO encontrada.");
+    var aAbast = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_ABASTECIMENTO, 'Base_Abastecimento', 'Base Abastecimento']);
+    relatorio.push(aAbast ? "✅ Aba de Abastecimento encontrada." : "❌ Aba '" + CONFIG_GERAL.ABA_ABASTECIMENTO + "' NÃO encontrada.");
 
-    var aManut = obterAbaPorNomes(planilha, [CONFIG_FROTA.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao']);
-    relatorio.push(aManut ? "✅ Aba de Manutenção encontrada." : "❌ Aba '" + CONFIG_FROTA.ABA_MANUTENCAO + "' NÃO encontrada.");
+    var aManut = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_MANUTENCAO, 'Base_Manutenção', 'Base_Manutencao']);
+    relatorio.push(aManut ? "✅ Aba de Manutenção encontrada." : "❌ Aba '" + CONFIG_GERAL.ABA_MANUTENCAO + "' NÃO encontrada.");
+
+    var aViagens = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_VIAGENS, 'Base_Viagens', 'Base Viagens', 'Viagens']);
+    relatorio.push(aViagens ? "✅ Aba de Viagens ('Base_Viagens') encontrada." : "❌ Aba '" + CONFIG_GERAL.ABA_VIAGENS + "' NÃO encontrada.");
   } else {
     relatorio.push("❌ Planilha não identificada.");
   }
 
+  // Conexão com a planilha de origem de Viagens
   try {
-    var pasta2026 = DriveApp.getFolderById(CONFIG_FROTA.PASTA_RAIZ_2026);
+    var ssViagens = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_VIAGENS_ORIGEM);
+    relatorio.push("✅ Planilha Origem Viagens conectada: '" + ssViagens.getName() + "'");
+
+    var abaAlim = obterAbaPorNomes(ssViagens, [CONFIG_GERAL.ABA_ORIGEM_ALIMENTACAO, 'Alimentação 2026', 'Alimentacao 2026', 'Alimentação', 'Alimentacao']);
+    relatorio.push(abaAlim ? "  • Aba Alimentação encontrada (" + abaAlim.getLastRow() + " linhas)" : "  ❌ Aba Alimentação NÃO encontrada");
+
+    var abaHosp = obterAbaPorNomes(ssViagens, [CONFIG_GERAL.ABA_ORIGEM_HOSPEDAGEM, 'Hospedagem 2026', 'Hospedagem', 'Hospedagens 2026', 'Hospedagens']);
+    relatorio.push(abaHosp ? "  • Aba Hospedagem encontrada (" + abaHosp.getLastRow() + " linhas)" : "  ❌ Aba Hospedagem NÃO encontrada");
+  } catch (e) {
+    relatorio.push("❌ Erro ao acessar Planilha Origem Viagens: " + e.message);
+  }
+
+  // Listagem da Pasta 2026
+  try {
+    var pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
     var arqs = pasta2026.getFiles();
     var planilhasIdentificadas = [];
     while (arqs.hasNext()) {
       var a = arqs.next();
       if (a.getMimeType() === MimeType.GOOGLE_SHEETS) {
         var m = extrairMesDeTexto(a.getName());
-        if (m && parseInt(m.codigo, 10) >= CONFIG_FROTA.MES_INICIAL_REGRA) {
+        if (m && parseInt(m.codigo, 10) >= CONFIG_GERAL.MES_INICIAL_REGRA) {
           planilhasIdentificadas.push(m.nome + " (" + a.getName() + ")");
         }
       }
@@ -930,15 +1476,16 @@ function testarConexoes() {
     relatorio.push("❌ Erro ao listar pasta 2026: " + e.message);
   }
 
+  // Pastas de Combustível e Manutenção
   try {
-    var pComb = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_COMBUSTIVEL);
+    var pComb = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_COMBUSTIVEL);
     relatorio.push("✅ Pasta Origem Combustível: " + pComb.getName());
   } catch (e) {
     relatorio.push("❌ Erro Pasta Combustível: " + e.message);
   }
 
   try {
-    var pManut = DriveApp.getFolderById(CONFIG_FROTA.PASTA_ORIGEM_MANUTENCAO);
+    var pManut = DriveApp.getFolderById(CONFIG_GERAL.PASTA_ORIGEM_MANUTENCAO);
     relatorio.push("✅ Pasta Origem Manutenção: " + pManut.getName());
   } catch (e) {
     relatorio.push("❌ Erro Pasta Manutenção: " + e.message);
@@ -946,12 +1493,12 @@ function testarConexoes() {
 
   var msg = relatorio.join("\n");
   Logger.log(msg);
-  exibirAlerta("Diagnóstico de Conexões:\n\n" + msg);
+  exibirAlerta("Diagnóstico de Conexões e Estruturas:\n\n" + msg);
 }
 
 
 // ============================================================================
-// 6. FUNÇÕES AUXILIARES DE SUPORTE (EXCEL, CSV E DATAS)
+// 8. FUNÇÕES AUXILIARES DE SUPORTE (EXCEL, CSV, DATAS E FORMATAÇÃO)
 // ============================================================================
 
 /**
@@ -1016,7 +1563,6 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
     }
 
     // 2. Lê os dados em blocos (chunks) de 2.000 linhas
-    // Esse particionamento evita carregar todo o arquivo na memória de uma só vez
     var TAMANHO_LOTE = 2000;
     for (var inicio = 2; inicio <= totalLinhas; inicio += TAMANHO_LOTE) {
       var qtd = Math.min(TAMANHO_LOTE, totalLinhas - inicio + 1);
@@ -1042,7 +1588,7 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
         var valorDataRaw = idx.indexData !== -1 ? linha[idx.indexData] : "";
         var periodoStr = idx.indexPeriodo !== -1 ? (linha[idx.indexPeriodo] || "").toString().trim() : "";
 
-        // Formata data e horário preservando o fuso de origem do Excel (evita adiantar +4h)
+        // Formata data e horário preservando o fuso de origem do Excel
         var infoData = formatarDataTransacao(valorDataRaw, fusoTemp);
 
         // 2º FILTRO: Transação precisa pertencer ao mês da planilha
@@ -1075,11 +1621,10 @@ function processarXlsxEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIg
         }
       }
 
-      bloco = null; // Permite coleta imediata pelo Garbage Collector
+      bloco = null;
     }
 
   } finally {
-    // SEMPRE exclui a planilha temporária do Drive
     try {
       DriveApp.getFileById(tempId).setTrashed(true);
     } catch (e) {
@@ -1103,7 +1648,7 @@ function processarCsvEmLotes(arquivo, tipo, mapaColaboradores, mesAlvo, nomesIgn
   }
 
   var linhasTexto = conteudoCsv.split(/\r?\n/);
-  conteudoCsv = null; // Libera a string completa da memória
+  conteudoCsv = null;
 
   if (linhasTexto.length <= 1) {
     return [];
@@ -1198,12 +1743,12 @@ function converterXlsxParaPlanilhaTemporaria(arquivo) {
         var novo = Drive.Files.insert(res, blob, { convert: true });
         if (novo && novo.id) tempId = novo.id;
       } else if (Drive.Files.create) {
-        var res = {
+        var resCreate = {
           name: '[TEMP_CONV] ' + arquivo.getName(),
           mimeType: MimeType.GOOGLE_SHEETS
         };
-        var novo = Drive.Files.create(res, blob);
-        if (novo && novo.id) tempId = novo.id;
+        var novoCreate = Drive.Files.create(resCreate, blob);
+        if (novoCreate && novoCreate.id) tempId = novoCreate.id;
       }
     } catch (e) {
       Logger.log("Aviso: Falha ao converter via Drive Service: " + e.message);
@@ -1220,7 +1765,7 @@ function converterXlsxParaPlanilhaTemporaria(arquivo) {
           'Authorization': 'Bearer ' + ScriptApp.getOAuthToken()
         },
         contentType: blob.getContentType() || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        payload: blob, // Blob nativo: não aloca array de bytes na memória JavaScript do Apps Script
+        payload: blob,
         muteHttpExceptions: true
       };
       var resposta = UrlFetchApp.fetch(url, params);
@@ -1305,13 +1850,9 @@ function formatarDataTransacao(valorData, fusoOrigem) {
     return { str: "", mes: null, ano: null };
   }
 
-  // Fuso horário: ao converter .xlsx para Google Sheets, o getValues() interpreta
-  // a data no fuso da planilha temporária (geralmente Pacific Time ou UTC).
-  // Para preservar o horário original exato do extrato (sem adiantar +4h),
-  // formatamos usando o mesmo fuso de origem da planilha temporária.
   var fuso = fusoOrigem || 'America/Fortaleza';
 
-  // Se for objeto Date do JavaScript (comum ao ler .xlsx convertido)
+  // Se for objeto Date do JavaScript
   if (valorData instanceof Date && !isNaN(valorData.getTime())) {
     var strFormatada = Utilities.formatDate(valorData, fuso, 'dd/MM/yyyy HH:mm:ss');
     var mes = Utilities.formatDate(valorData, fuso, 'MM');
@@ -1323,10 +1864,10 @@ function formatarDataTransacao(valorData, fusoOrigem) {
   if (typeof valorData === 'number' && valorData > 40000 && valorData < 60000) {
     var dataObj = new Date(Math.round((valorData - 25569) * 86400 * 1000));
     if (!isNaN(dataObj.getTime())) {
-      var strFormatada = Utilities.formatDate(dataObj, 'GMT', 'dd/MM/yyyy HH:mm:ss');
-      var mes = Utilities.formatDate(dataObj, 'GMT', 'MM');
-      var ano = Utilities.formatDate(dataObj, 'GMT', 'yyyy');
-      return { str: strFormatada, mes: mes, ano: ano };
+      var strFormatadaNum = Utilities.formatDate(dataObj, 'GMT', 'dd/MM/yyyy HH:mm:ss');
+      var mesNum = Utilities.formatDate(dataObj, 'GMT', 'MM');
+      var anoNum = Utilities.formatDate(dataObj, 'GMT', 'yyyy');
+      return { str: strFormatadaNum, mes: mesNum, ano: anoNum };
     }
   }
 
@@ -1383,7 +1924,7 @@ function extrairMesDeTexto(texto) {
  * Identifica o mês e ano no título da planilha ativa.
  */
 function obterMesAlvoDaPlanilha(planilha) {
-  var nomePlanilha = (planilha ? planilha.getName() : CONFIG_FROTA.NOME_PLANILHA_PADRAO);
+  var nomePlanilha = (planilha ? planilha.getName() : CONFIG_GERAL.NOME_PLANILHA_PADRAO);
   var mesInfo = extrairMesDeTexto(nomePlanilha);
   if (mesInfo) return mesInfo;
 
@@ -1395,7 +1936,7 @@ function obterMesAlvoDaPlanilha(planilha) {
 }
 
 /**
- * Valida se uma transação pertence ao mês da planilha ativa.
+ * Valida se uma transação pertence ao mês da planilha ativa (para frota).
  */
 function transacaoPertenceAoMes(infoData, periodoStr, mesAlvo, nomeArquivo) {
   // 1. Validação pela data da transação
@@ -1472,8 +2013,8 @@ function obterPlanilhaAlvo() {
   } catch (e) {}
 
   try {
-    var pasta2026 = DriveApp.getFolderById(CONFIG_FROTA.PASTA_RAIZ_2026);
-    var arquivos = pasta2026.getFilesByName(CONFIG_FROTA.NOME_PLANILHA_PADRAO);
+    var pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
+    var arquivos = pasta2026.getFilesByName(CONFIG_GERAL.NOME_PLANILHA_PADRAO);
     if (arquivos.hasNext()) {
       return SpreadsheetApp.open(arquivos.next());
     }
@@ -1481,7 +2022,7 @@ function obterPlanilhaAlvo() {
     Logger.log("Erro ao buscar planilha na pasta 2026: " + e.message);
   }
 
-  var busca = DriveApp.getFilesByName(CONFIG_FROTA.NOME_PLANILHA_PADRAO);
+  var busca = DriveApp.getFilesByName(CONFIG_GERAL.NOME_PLANILHA_PADRAO);
   if (busca.hasNext()) {
     return SpreadsheetApp.open(busca.next());
   }
@@ -1496,13 +2037,13 @@ function carregarListaColaboradores(planilha) {
   var mapa = {};
   if (!planilha) return mapa;
 
-  var aba = planilha.getSheetByName(CONFIG_FROTA.ABA_CUSTOS_TOTAIS);
+  var aba = planilha.getSheetByName(CONFIG_GERAL.ABA_CUSTOS_TOTAIS);
   if (!aba) return mapa;
 
   var ultimaLinha = aba.getLastRow();
   if (ultimaLinha < 1) return mapa;
 
-  var valores = aba.getRange(1, CONFIG_FROTA.COLUNA_COLABORADORES, ultimaLinha, 1).getValues();
+  var valores = aba.getRange(1, CONFIG_GERAL.COLUNA_COLABORADORES, ultimaLinha, 1).getValues();
   var cabecalhos = ['NOME', 'COLABORADOR', 'NOME COLABORADOR', 'FUNCIONARIO', 'MOTORISTA', 'CONDUTOR', 'COLABORADORES', 'NOMES'];
 
   for (var i = 0; i < valores.length; i++) {
@@ -1519,7 +2060,7 @@ function carregarListaColaboradores(planilha) {
     mapa[nomePadrao] = true;
   }
 
-  Logger.log("Carregados " + Object.keys(mapa).length + " colaboradores de '" + CONFIG_FROTA.ABA_CUSTOS_TOTAIS + "'.");
+  Logger.log("Carregados " + Object.keys(mapa).length + " colaboradores de '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "'.");
   return mapa;
 }
 
