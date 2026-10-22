@@ -635,7 +635,9 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
 
   var cabecalho = dados[linhaCabecalhoIdx];
   var idxColaborador = -1;
-  var idxValor = -1;
+  var idxValorDiaria = -1;
+  var idxValorTotal = -1;
+  var idxValorGenerico = -1;
   var idxMesSap = -1;
   var idxMesRef = -1;
 
@@ -650,18 +652,30 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
       idxColaborador = c;
     }
 
-    // Valor (Total ou Diária)
-    if (tipoViagem === 'HOSPEDAGEM') {
-      if (col === 'VALOR DIARIA' || col === 'VALOR DIÁRIA' || col === 'VALOR TOTAL' || col === 'VALOR PAGO' || col === 'VALOR') {
-        if (idxValor === -1) idxValor = c;
-      } else if (idxValor === -1 && (col.indexOf('DIARIA') > -1 || col.indexOf('DIÁRIA') > -1 || col.indexOf('VALOR') > -1)) {
-        idxValor = c;
+    // Identifica se a coluna é de quantidade ou número de dias (NUNCA deve ser tratada como valor em R$)
+    var ehContagem = (
+      col.indexOf('QTD') > -1 ||
+      col.indexOf('QUANTIDADE') > -1 ||
+      col.indexOf('NUMERO') > -1 ||
+      col.indexOf('NUM') > -1 ||
+      col.indexOf('Nº') > -1 ||
+      col === 'DIAS' ||
+      col === 'DIARIAS' ||
+      col === 'DIARIA'
+    );
+
+    if (!ehContagem) {
+      // 1. VALOR DA DIÁRIA (específico de hospedagem: 'VALOR DIARIA', 'VALOR DA DIARIA', 'VALOR DE DIARIA')
+      if (col.indexOf('VALOR') > -1 && col.indexOf('DIAR') > -1) {
+        if (idxValorDiaria === -1) idxValorDiaria = c;
       }
-    } else {
-      if (col === 'VALOR TOTAL' || col === 'VALOR' || col === 'VALOR PAGO' || col === 'TOTAL') {
-        if (idxValor === -1) idxValor = c;
-      } else if (idxValor === -1 && col.indexOf('VALOR') > -1) {
-        idxValor = c;
+      // 2. VALOR TOTAL (ex: 'VALOR TOTAL', 'TOTAL SOLICITADO', 'TOTAL PAGO', 'TOTAL')
+      else if (col === 'VALOR TOTAL' || col.indexOf('VALOR TOTAL') > -1 || col === 'TOTAL' || col.indexOf('TOTAL') > -1) {
+        if (idxValorTotal === -1) idxValorTotal = c;
+      }
+      // 3. VALOR GENÉRICO (ex: 'VALOR', 'VALOR PAGO', 'VALOR LIQUIDO', 'VALOR SOLICITADO')
+      else if (col.indexOf('VALOR') > -1) {
+        if (idxValorGenerico === -1) idxValorGenerico = c;
       }
     }
 
@@ -676,7 +690,29 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
     }
   }
 
-  Logger.log("Mapeamento colunas " + tipoViagem + ": Colaborador=" + idxColaborador + ", Valor=" + idxValor + ", MesSAP=" + idxMesSap + ", MesRef=" + idxMesRef);
+  // Define a coluna de valor com prioridade estrita de acordo com o tipo
+  var idxValor = -1;
+  if (tipoViagem === 'HOSPEDAGEM') {
+    // Para Hospedagem, a coluna da aba de destino é 'VALOR DIÁRIA', portanto priorizamos VALOR DA DIÁRIA
+    if (idxValorDiaria !== -1) {
+      idxValor = idxValorDiaria;
+    } else if (idxValorTotal !== -1) {
+      idxValor = idxValorTotal;
+    } else if (idxValorGenerico !== -1) {
+      idxValor = idxValorGenerico;
+    }
+  } else {
+    // Para Alimentação, priorizamos VALOR TOTAL
+    if (idxValorTotal !== -1) {
+      idxValor = idxValorTotal;
+    } else if (idxValorGenerico !== -1) {
+      idxValor = idxValorGenerico;
+    } else if (idxValorDiaria !== -1) {
+      idxValor = idxValorDiaria;
+    }
+  }
+
+  Logger.log("Mapeamento colunas " + tipoViagem + ": Colaborador=" + idxColaborador + " ('" + (idxColaborador !== -1 ? cabecalho[idxColaborador] : "NÃO") + "'), Valor=" + idxValor + " ('" + (idxValor !== -1 ? cabecalho[idxValor] : "NÃO") + "'), MesSAP=" + idxMesSap + " ('" + (idxMesSap !== -1 ? cabecalho[idxMesSap] : "NÃO") + "')");
 
   var linhasFiltradas = [];
   var stats = { totalLidos: 0, linhasOutrosMeses: 0 };
@@ -713,9 +749,38 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
       continue;
     }
 
-    var valorRaw = idxValor !== -1 ? row[idxValor] : 0;
+    // Extrai o valor monetário correto
+    var valorRaw = 0;
+    if (tipoViagem === 'HOSPEDAGEM') {
+      if (idxValorDiaria !== -1 && row[idxValorDiaria] !== undefined && row[idxValorDiaria] !== null && row[idxValorDiaria] !== "") {
+        valorRaw = row[idxValorDiaria];
+      } else if (idxValorTotal !== -1 && row[idxValorTotal] !== undefined && row[idxValorTotal] !== null && row[idxValorTotal] !== "") {
+        valorRaw = row[idxValorTotal];
+      } else if (idxValor !== -1 && row[idxValor] !== undefined && row[idxValor] !== null && row[idxValor] !== "") {
+        valorRaw = row[idxValor];
+      }
+    } else {
+      if (idxValorTotal !== -1 && row[idxValorTotal] !== undefined && row[idxValorTotal] !== null && row[idxValorTotal] !== "") {
+        valorRaw = row[idxValorTotal];
+      } else if (idxValor !== -1 && row[idxValor] !== undefined && row[idxValor] !== null && row[idxValor] !== "") {
+        valorRaw = row[idxValor];
+      }
+    }
+
     var valorFormatado = formatarValorNumerico(valorRaw);
-    var mesTexto = mesAlvo.nome;
+
+    // Formata o mês em Title Case (ex.: 'Outubro') para ficar exatamente como no padrão da planilha
+    var mesTexto = "Outubro";
+    if (valorMesSap && typeof valorMesSap === 'string' && valorMesSap.trim() !== "") {
+      var vSapTrim = valorMesSap.trim();
+      if (vSapTrim.length > 2 && vSapTrim.toLowerCase().indexOf(mesAlvo.nome.toLowerCase()) > -1) {
+        mesTexto = vSapTrim.charAt(0).toUpperCase() + vSapTrim.slice(1).toLowerCase();
+      } else {
+        mesTexto = vSapTrim;
+      }
+    } else if (mesAlvo && mesAlvo.nome) {
+      mesTexto = mesAlvo.nome.charAt(0).toUpperCase() + mesAlvo.nome.slice(1).toLowerCase();
+    }
 
     // Linha de saída: [COLABORADOR, VALOR, MÊS]
     linhasFiltradas.push([
@@ -743,23 +808,36 @@ function gravarDadosNaAbaViagens(abaViagens, linhasAlimentacao, linhasHospedagem
     SpreadsheetApp.flush();
   }
 
-  // 2. Garante cabeçalhos padrão caso a aba esteja vazia
-  if (abaViagens.getLastRow() < 2) {
-    abaViagens.getRange(1, 1, 1, 8).setValues([
-      ['Alimentação', '', '', 'nome corrigido', '', 'Hospedagem', '', '']
-    ]);
-    abaViagens.getRange(2, 1, 1, 8).setValues([
-      ['COLABORADOR', 'VALOR TOTAL', 'MÊS DO LANÇAMENTO - SAP', '', '', 'COLABORADOR', 'VALOR DIÁRIA', 'MÊS DO LANÇAMENTO - SAP']
-    ]);
+  // 2. Garante cabeçalhos de seção na linha 1 caso não existam
+  var a1Val = abaViagens.getRange(1, 1).getValue();
+  var g1Val = abaViagens.getRange(1, 7).getValue();
+  if (!a1Val) abaViagens.getRange(1, 1).setValue('Alimentação');
+  if (!g1Val) abaViagens.getRange(1, 7).setValue('Hospedagem');
+
+  // 3. Garante cabeçalhos limpos de texto puro na linha 2
+  // Isso remove qualquer fórmula residual antiga (como IMPORTRANGE ou QUERY) que cause erro #REF! em A2 e F2
+  abaViagens.getRange(2, 1, 1, 3).setValues([
+    ['COLABORADOR', 'VALOR TOTAL', 'MÊS DO LANÇAMENTO - SAP']
+  ]);
+  abaViagens.getRange(2, 6, 1, 3).setValues([
+    ['COLABORADOR', 'VALOR DIÁRIA', 'MÊS DE LANÇAMENTO - SAP']
+  ]);
+
+  // Se D2 ou I2 ('nome corrigido') estiverem vazios, preenche o cabeçalho
+  if (!abaViagens.getRange(2, 4).getValue()) {
+    abaViagens.getRange(2, 4).setValue('nome corrigido');
+  }
+  if (!abaViagens.getRange(2, 9).getValue()) {
+    abaViagens.getRange(2, 9).setValue('nome corrigido');
   }
 
-  // 3. Grava Alimentação em A:C a partir da linha 3
+  // 4. Grava Alimentação em A:C a partir da linha 3
   if (linhasAlimentacao && linhasAlimentacao.length > 0) {
     abaViagens.getRange(3, 1, linhasAlimentacao.length, 3).setValues(linhasAlimentacao);
     abaViagens.getRange(3, 2, linhasAlimentacao.length, 1).setNumberFormat('"R$"\\ #,##0.00');
   }
 
-  // 4. Grava Hospedagem em F:H a partir da linha 3
+  // 5. Grava Hospedagem em F:H a partir da linha 3
   if (linhasHospedagem && linhasHospedagem.length > 0) {
     abaViagens.getRange(3, 6, linhasHospedagem.length, 3).setValues(linhasHospedagem);
     abaViagens.getRange(3, 7, linhasHospedagem.length, 1).setNumberFormat('"R$"\\ #,##0.00');
@@ -1449,10 +1527,22 @@ function testarConexoes() {
     relatorio.push("✅ Planilha Origem Viagens conectada: '" + ssViagens.getName() + "'");
 
     var abaAlim = obterAbaPorNomes(ssViagens, [CONFIG_GERAL.ABA_ORIGEM_ALIMENTACAO, 'Alimentação 2026', 'Alimentacao 2026', 'Alimentação', 'Alimentacao']);
-    relatorio.push(abaAlim ? "  • Aba Alimentação encontrada (" + abaAlim.getLastRow() + " linhas)" : "  ❌ Aba Alimentação NÃO encontrada");
+    if (abaAlim) {
+      var cabAlim = abaAlim.getRange(1, 1, 1, abaAlim.getLastColumn()).getValues()[0].filter(function(x){ return x !== ""; }).join(" | ");
+      relatorio.push("  • Aba Alimentação: " + abaAlim.getLastRow() + " linhas");
+      relatorio.push("    Colunas: " + cabAlim);
+    } else {
+      relatorio.push("  ❌ Aba Alimentação NÃO encontrada");
+    }
 
     var abaHosp = obterAbaPorNomes(ssViagens, [CONFIG_GERAL.ABA_ORIGEM_HOSPEDAGEM, 'Hospedagem 2026', 'Hospedagem', 'Hospedagens 2026', 'Hospedagens']);
-    relatorio.push(abaHosp ? "  • Aba Hospedagem encontrada (" + abaHosp.getLastRow() + " linhas)" : "  ❌ Aba Hospedagem NÃO encontrada");
+    if (abaHosp) {
+      var cabHosp = abaHosp.getRange(1, 1, 1, abaHosp.getLastColumn()).getValues()[0].filter(function(x){ return x !== ""; }).join(" | ");
+      relatorio.push("  • Aba Hospedagem: " + abaHosp.getLastRow() + " linhas");
+      relatorio.push("    Colunas: " + cabHosp);
+    } else {
+      relatorio.push("  ❌ Aba Hospedagem NÃO encontrada");
+    }
   } catch (e) {
     relatorio.push("❌ Erro ao acessar Planilha Origem Viagens: " + e.message);
   }
