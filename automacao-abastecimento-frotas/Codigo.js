@@ -645,11 +645,26 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
     var col = padronizarTexto(cabecalho[c]);
     if (!col) continue;
 
-    // Colaborador / Solicitante
-    if (col === 'COLABORADOR' || col === 'NOME' || col === 'SOLICITANTE' || col === 'FUNCIONARIO' || col === 'NOME COLABORADOR' || col === 'NOME DO COLABORADOR') {
-      if (idxColaborador === -1) idxColaborador = c;
-    } else if (idxColaborador === -1 && col.indexOf('COLABORADOR') > -1) {
+    // 1. Mapeamento exato pelos nomes oficiais da planilha
+    if (col === 'COLABORADOR') {
       idxColaborador = c;
+    } else if (col === 'VALOR DIARIA') {
+      idxValorDiaria = c;
+    } else if (col === 'VALOR TOTAL') {
+      idxValorTotal = c;
+    } else if (col === 'MES DE LANCAMENTO - SAP' || col === 'MES DO LANCAMENTO - SAP') {
+      idxMesSap = c;
+    } else if (col === 'MES DE REFERENCIA') {
+      idxMesRef = c;
+    }
+
+    // 2. Mapeamentos complementares e flexíveis
+    if (idxColaborador === -1) {
+      if (col === 'NOME' || col === 'SOLICITANTE' || col === 'FUNCIONARIO' || col === 'NOME COLABORADOR' || col === 'NOME DO COLABORADOR') {
+        idxColaborador = c;
+      } else if (col.indexOf('COLABORADOR') > -1) {
+        idxColaborador = c;
+      }
     }
 
     // Identifica se a coluna é de quantidade ou número de dias (NUNCA deve ser tratada como valor em R$)
@@ -659,34 +674,34 @@ function extrairRegistrosViagensOrigem(ssOrigem, nomesPossiveisAba, tipoViagem, 
       col.indexOf('NUMERO') > -1 ||
       col.indexOf('NUM') > -1 ||
       col.indexOf('Nº') > -1 ||
-      col === 'DIAS' ||
-      col === 'DIARIAS' ||
-      col === 'DIARIA'
+      col.indexOf('TOTAL DIAR') > -1 ||
+      (col.indexOf('DIAR') > -1 && col.indexOf('VALOR') === -1) ||
+      (col.indexOf('DIAS') > -1 && col.indexOf('VALOR') === -1)
     );
 
     if (!ehContagem) {
-      // 1. VALOR DA DIÁRIA (específico de hospedagem: 'VALOR DIARIA', 'VALOR DA DIARIA', 'VALOR DE DIARIA')
-      if (col.indexOf('VALOR') > -1 && col.indexOf('DIAR') > -1) {
-        if (idxValorDiaria === -1) idxValorDiaria = c;
+      // VALOR DA DIÁRIA (específico de hospedagem: 'VALOR DIARIA', 'VALOR DA DIARIA', 'VALOR DE DIARIA')
+      if (idxValorDiaria === -1 && col.indexOf('VALOR') > -1 && col.indexOf('DIAR') > -1) {
+        idxValorDiaria = c;
       }
-      // 2. VALOR TOTAL (ex: 'VALOR TOTAL', 'TOTAL SOLICITADO', 'TOTAL PAGO', 'TOTAL')
-      else if (col === 'VALOR TOTAL' || col.indexOf('VALOR TOTAL') > -1 || col === 'TOTAL' || col.indexOf('TOTAL') > -1) {
-        if (idxValorTotal === -1) idxValorTotal = c;
+      // VALOR TOTAL (ex: 'VALOR TOTAL', 'TOTAL SOLICITADO', 'TOTAL PAGO')
+      else if (idxValorTotal === -1 && (col === 'VALOR TOTAL' || col.indexOf('VALOR TOTAL') > -1)) {
+        idxValorTotal = c;
       }
-      // 3. VALOR GENÉRICO (ex: 'VALOR', 'VALOR PAGO', 'VALOR LIQUIDO', 'VALOR SOLICITADO')
-      else if (col.indexOf('VALOR') > -1) {
-        if (idxValorGenerico === -1) idxValorGenerico = c;
+      // VALOR GENÉRICO (ex: 'VALOR', 'VALOR PAGO', 'VALOR LIQUIDO', 'VALOR SOLICITADO')
+      else if (idxValorGenerico === -1 && col.indexOf('VALOR') > -1) {
+        idxValorGenerico = c;
       }
     }
 
     // Mês do Lançamento SAP
-    if (col.indexOf('SAP') > -1 || col.indexOf('LANCAMENTO') > -1 || col.indexOf('LANÇAMENTO') > -1) {
-      if (idxMesSap === -1) idxMesSap = c;
+    if (idxMesSap === -1 && (col.indexOf('SAP') > -1 || col.indexOf('LANCAMENTO') > -1 || col.indexOf('LANÇAMENTO') > -1)) {
+      idxMesSap = c;
     }
 
     // Mês de Referência (fallback)
-    if (col.indexOf('REFERENCIA') > -1 || col.indexOf('REFERÊNCIA') > -1 || col.indexOf('PERIODO') > -1 || col.indexOf('PERÍODO') > -1 || col === 'MES' || col === 'MÊS') {
-      if (idxMesRef === -1) idxMesRef = c;
+    if (idxMesRef === -1 && (col.indexOf('REFERENCIA') > -1 || col.indexOf('REFERÊNCIA') > -1 || col.indexOf('PERIODO') > -1 || col.indexOf('PERÍODO') > -1 || col === 'MES' || col === 'MÊS')) {
+      idxMesRef = c;
     }
   }
 
