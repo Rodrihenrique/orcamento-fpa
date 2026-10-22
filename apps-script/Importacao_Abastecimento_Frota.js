@@ -1880,11 +1880,14 @@ function mapearIndicesColunas(cabecalho) {
       indexValor = c;
     }
 
-    // TIPO ESTABELECIMENTO (Coluna V)
-    if (col === 'TIPO ESTABELECIMENTO' || col === 'TIPO DE ESTABELECIMENTO') {
-      if (indexTipoEstabelecimento === -1) indexTipoEstabelecimento = c;
-    } else if (indexTipoEstabelecimento === -1 && (col.indexOf('ESTABELECIMENTO') > -1 || col.indexOf('RAMO') > -1 || col.indexOf('SEGMENTO') > -1)) {
-      indexTipoEstabelecimento = c;
+    // TIPO ESTABELECIMENTO (Coluna V / índice 21)
+    var ehCodigoOuNomeEstab = (col.indexOf('CODIGO') > -1 || col.indexOf('COD') > -1 || col.indexOf('NOME') > -1);
+    if (!ehCodigoOuNomeEstab) {
+      if (col === 'TIPO ESTABELECIMENTO' || col === 'TIPO DE ESTABELECIMENTO' || (col.indexOf('TIPO') > -1 && col.indexOf('ESTABELECIMENTO') > -1)) {
+        indexTipoEstabelecimento = c;
+      } else if (indexTipoEstabelecimento === -1 && (col === 'RAMO' || col.indexOf('RAMO') > -1 || col === 'SEGMENTO' || col.indexOf('SEGMENTO') > -1)) {
+        indexTipoEstabelecimento = c;
+      }
     }
 
     // DATA / HORA (Coluna D)
@@ -1916,7 +1919,9 @@ function mapearIndicesColunas(cabecalho) {
     if (indexData === -1 && cabecalho.length > 3) indexData = 3;                 // Coluna D (idx 3)
     if (indexMotorista === -1 && cabecalho.length > 10) indexMotorista = 10;     // Coluna K (idx 10)
     if (indexValor === -1 && cabecalho.length > 18) indexValor = 18;             // Coluna S (idx 18)
-    if (indexTipoEstabelecimento === -1 && cabecalho.length > 21) indexTipoEstabelecimento = 21; // Coluna V (idx 21)
+    if ((indexTipoEstabelecimento === -1 || indexTipoEstabelecimento === 19 || indexTipoEstabelecimento === 20) && cabecalho.length > 21) {
+      indexTipoEstabelecimento = 21; // Coluna V (idx 21 - TIPO ESTABELECIMENTO)
+    }
   }
 
   return {
