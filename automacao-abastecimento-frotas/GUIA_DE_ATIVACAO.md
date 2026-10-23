@@ -1,6 +1,6 @@
-# 💰 Guia de Ativação: Gestão de Custos (Frota e Viagens)
+# 💰 Guia de Ativação: Gestão de Custos (Frota, Viagens e Atividades)
 
-Manual passo a passo para configurar a importação automática de **Frota Unificada (Combustível e Manutenção)** e **Viagens (Alimentação e Hospedagem)** para as planilhas de custos mensais da gerência (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
+Manual passo a passo para configurar a importação automática de **Frota Unificada (Combustível e Manutenção)**, **Viagens (Alimentação e Hospedagem)** e **Atividades (Chamados de Manutenção)** para as planilhas de custos mensais da gerência (**OPERAÇÃO E MANUTENÇÃO DE REDES**).
 
 ---
 
@@ -12,13 +12,15 @@ Manual passo a passo para configurar a importação automática de **Frota Unifi
    │     └── Contém 39 colunas (A até AM), com Combustível e Manutenção juntos
    │           ├── Coluna C: 'BRISANET ABASTECIMENTO' ──► Base_Abastecimento
    │           └── Coluna C: 'BRISANET MANUTENCAO'    ──► Base_Manutenção
-   └── Viagens: Planilha 'CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026'
-         └── Alimentação (A:C) e Hospedagem (F:H)     ──► Base_Viagens
+   ├── Viagens: Planilha 'CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026'
+   │     └── Alimentação (A:C) e Hospedagem (F:H)     ──► Base_Viagens
+   └── Atividades: Planilha 'CHAMADOS'
+         └── Chamados de Manutenção (Col A até L)     ──► Atividades
                │
                ▼
 [2. Execução pelo Menu Superior (onOpen)]
    - Menu: 💰 Gestão de Custos ──► ⚡ Importar Dados da Aba Atual
-   - Ou opções diretas para Frota Unificada, Viagens ou Ambos
+   - Ou opções diretas para Frota Unificada, Viagens, Atividades ou Todos
                │
                ▼
 [3. Tratamento e Regras Estritas]
@@ -27,8 +29,9 @@ Manual passo a passo para configurar a importação automática de **Frota Unifi
    ├── Base_Abastecimento: Linha 2 em diante limpa e relançada (Col K, Col S, Mês, Col D)
    ├── Base_Manutenção: Linha 2 em diante limpa e relançada (Col K, Col S, Col V, Mês, Col D)
    ├── Base_Viagens: Linha 3 em diante limpa e relançada em A:C e F:H (Coluna D mantida intacta)
+   ├── Atividades: Linha 3 em diante atualizada com chamados de Manutenção (Expansões mantidas intactas)
    ├── Arquivo Processado: Movido automaticamente para 'Arquivos Processados' (sem duplicidade)
-   └── Formatação Monetária automática em R$ #,##0.00
+   └── Formatação Monetária e de SLA automáticas
 ```
 
 ---
@@ -97,24 +100,27 @@ Ao abrir ou recarregar a planilha (`F5`), o menu **`💰 Gestão de Custos`** ap
 1. **`⚡ Importar Dados da Aba Atual`**:
    - Se estiver na aba `Base_Abastecimento` ou `Base_Manutenção`: importa o extrato unificado de frota do mês.
    - Se estiver na aba `Base_Viagens`: importa a alimentação e hospedagem do mês.
-   - Se estiver em outra aba: pergunta se deseja importar todos os custos.
+   - Se estiver na aba `Atividades`: importa os chamados de manutenção do mês da planilha CHAMADOS.
+   - Se estiver em outra aba: pergunta se deseja importar todos os custos e atividades.
 2. **`🚗 Frota: Importar Combustível e Manutenção (Arquivo Unificado)`**:
    - Lê o arquivo único na pasta do Drive, classifica as linhas automaticamente e preenche tanto `Base_Abastecimento` quanto `Base_Manutenção` de uma só vez!
 3. **`⛽ Frota: Importar Apenas Abastecimento`**: Atualiza apenas a aba de abastecimento.
 4. **`🔧 Frota: Importar Apenas Manutenção`**: Atualiza apenas a aba de manutenção.
 5. **`✈️ Viagens: Importar Alimentação e Hospedagem (Desta Planilha)`**: Importa as viagens do mês direto para a aba `Base_Viagens`.
-6. **`🔄 Importar TUDO (Frota + Viagens - Desta Planilha)`**: Executa a importação unificada completa para a planilha ativa.
+6. **`📋 Atividades: Importar Chamados de Manutenção (Desta Planilha)`**: Extrai os chamados de manutenção da planilha oficial `CHAMADOS` e preenche a aba `Atividades`, preservando as linhas de Expansão (Placas).
+7. **`🔄 Importar TUDO (Frota + Viagens + Atividades - Desta Planilha)`**: Executa a importação unificada completa (Frota + Viagens + Chamados) para a planilha ativa.
 
 ### 🌐 Sincronização em Lote (Pasta 2026 - Julho em diante):
-7. **`🌐 Sincronizar TODAS as Planilhas (Frota + Viagens)`**: Sincroniza Frota e Viagens em todas as planilhas da pasta 2026 de Julho em diante em um só comando.
-8. **`🚗 Sincronizar Apenas Frota em TODAS (Julho em diante)`**: Sincroniza apenas os dados de frota unificada em todas as planilhas elegíveis.
-9. **`✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)`**: Sincroniza apenas Viagens em todas as planilhas elegíveis.
+8. **`🌐 Sincronizar TODAS as Planilhas (Frota + Viagens + Atividades)`**: Sincroniza Frota, Viagens e Chamados em todas as planilhas da pasta 2026 de Julho em diante em um só comando.
+9. **`🚗 Sincronizar Apenas Frota em TODAS (Julho em diante)`**: Sincroniza apenas os dados de frota unificada em todas as planilhas elegíveis.
+10. **`✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)`**: Sincroniza apenas Viagens em todas as planilhas elegíveis.
+11. **`📋 Sincronizar Apenas Chamados em TODAS (Julho em diante)`**: Sincroniza apenas Chamados (Aba Atividades) em todas as planilhas elegíveis.
 
 ### 🛠️ Pastas, Utilidades e Diagnóstico:
-10. **`📁 Criar / Verificar Pastas no Google Drive`**: Cria automaticamente (ou localiza) a pasta principal `Frota Telefonia - Combustível e Manutenção` e a subpasta `Arquivos Processados`, exibindo os links na tela.
-11. **`📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)`**: Reprocessa extratos de frota já arquivados.
-12. **`🧹 Limpar Dados da Aba Atual`**: Limpa os dados da aba atual de forma segura (na aba `Base_Viagens`, preserva a Coluna D e cabeçalhos).
-13. **`🔍 Testar Conexões e Diagnóstico`**: Valida o acesso à nova pasta unificada, à planilha de viagens, à pasta 2026 e à lista de colaboradores.
+12. **`📁 Criar / Verificar Pastas no Google Drive`**: Cria automaticamente (ou localiza) a pasta principal `Frota Telefonia - Combustível e Manutenção` e a subpasta `Arquivos Processados`, exibindo os links na tela.
+13. **`📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)`**: Reprocessa extratos de frota já arquivados.
+14. **`🧹 Limpar Dados da Aba Atual`**: Limpa os dados da aba atual de forma segura (na aba `Base_Viagens`, preserva a Coluna D e cabeçalhos; na aba `Atividades`, preserva linhas de Expansão).
+15. **`🔍 Testar Conexões e Diagnóstico`**: Valida o acesso à pasta unificada de frota, à planilha de viagens, à planilha de chamados, à pasta 2026 e à lista de colaboradores.
 
 ---
 

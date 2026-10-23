@@ -1,8 +1,9 @@
-# 💰 Gestão de Custos do Setor: Frota e Viagens
+# 💰 Gestão de Custos do Setor: Frota, Viagens e Atividades
 
 Módulo integrado em **Google Apps Script** para importação e tratamento automatizado de custos mensais da gerência (**OPERAÇÃO E MANUTENÇÃO DE REDES**):
 1. **Frota Unificada (Combustível e Manutenção)**: Leitura de arquivo único `.xlsx` ou `.csv` contendo todas as despesas da frota em uma pasta principal do Google Drive, com separação automática para as bases de abastecimento e manutenção.
 2. **Viagens (Alimentação e Hospedagem)**: Extração e tratamento de despesas a partir da planilha oficial `CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026`.
+3. **Atividades (Chamados de Manutenção)**: Extração e tratamento de ordens de serviço e chamados de manutenção a partir da planilha oficial `CHAMADOS`, alimentando a aba `Atividades`.
 
 ---
 
@@ -35,6 +36,25 @@ Módulo integrado em **Google Apps Script** para importação e tratamento autom
     - **H:** `MÊS DO LANÇAMENTO - SAP`
   - **Linha 3 em diante:** Lançamentos das despesas.
 - **Regra de Limpeza:** Limpa rigorosamente da **linha 3 em diante** apenas nas colunas **A:C** e **F:H**. Cabeçalhos (linhas 1 e 2) e Coluna D (`nome corrigido`) permanecem intactos.
+
+### 4. `Atividades` (Chamados de Manutenção)
+- **Origem:** Planilha [CHAMADOS](https://docs.google.com/spreadsheets/d/1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU/edit?gid=854802008#gid=854802008) (Aba `CHAMADOS`).
+- **Destino:** Aba `Atividades` da planilha de custos mensais (da linha 3 em diante).
+- **Mapeamento de Colunas (12 Colunas - A até L):**
+  - **A (`Serviço`):** Coluna R (`CATEGORIA`) da aba CHAMADOS.
+  - **B (`Tipo`):** `"Manutenção"` estrito (todas as ordens de serviço vindas de CHAMADOS são de manutenção).
+  - **C (`Categoria`):** `"CAPEX"` padronizado.
+  - **D (`Site`):** Coluna B (`SITE`).
+  - **E (`Estado`):** Coluna G (`UF`).
+  - **F (`Projeto`):** Mapeado automaticamente a partir da UF (`CE01`, `RN01`, `PB01`, `PE01`, `PI01`).
+  - **G (`Diagrama de Rede`):** Mapeado automaticamente a partir do Projeto (`4023987 0020`, `4023989 0020`, `4023990 0020`, `4023995 0020`, `4023991 0020`).
+  - **H (`Responsável Equipe`):** Coluna V (`EQUIPE`), com fallback automático para a equipe cadastrada do colaborador na aba `Custos_Totais` caso a coluna V esteja `#N/A` ou em branco.
+  - **I (`Responsável Técnico`):** Coluna U (`COLABORADOR`).
+  - **J (`SLA Hora`):** Coluna N (`HORAS TRABALHADAS`), convertida em fração decimal de dia e formatada como `[h]:mm:ss`.
+  - **K (`SLA Decimal`):** Fórmula `=J{linha}` formatada como decimal.
+  - **L (`Horas Totais`):** Fórmula `=K{linha}` formatada como decimal.
+- **Preservação de Expansão:** As linhas com `Tipo` igual a `"Expansão"` (lançamentos de Placas/Expansões provenientes de outras fontes) e os cabeçalhos das linhas 1 e 2 são **preservados rigorosamente intactos**.
+
 
 ---
 
@@ -105,3 +125,4 @@ O arquivo único de extrato contém 39 colunas padronizadas:
 - **Pasta Raiz 2026 (Planilhas Mensais):** [Pasta 2026](https://drive.google.com/drive/folders/1P-QIZVEhADgyZk62snW9nDcV8E_4vLRU)
 - **Planilha Exemplo (Outubro/2026):** [10. CUSTOS DO SETOR - OUTUBRO - 2026](https://docs.google.com/spreadsheets/d/1wdaKA7fKHSlqMGAdK9fLvppLeGqY0GWe9pF9cOYFQHI/edit?gid=392571569)
 - **Planilha Origem de Viagens:** [CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026](https://docs.google.com/spreadsheets/d/1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk/edit?gid=1863439256)
+- **Planilha Origem de Chamados:** [CHAMADOS](https://docs.google.com/spreadsheets/d/1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU/edit?gid=854802008#gid=854802008)

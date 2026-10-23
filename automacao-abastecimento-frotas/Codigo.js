@@ -47,7 +47,18 @@
  *    - Destino: Aba 'Base_Viagens' (A:C Alimentação, D mantida intacta, F:H Hospedagem)
  *    - Gravação estrita a partir da linha 3, preservando cabeçalhos e fórmulas em A2/F2.
  * 
- * 3. Regras de Negócio e Filtros Estritos:
+ * 3. Módulo de Chamados / Atividades de Manutenção:
+ *    - Origem: Planilha 'CHAMADOS' (ID: 1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU, gid 854802008).
+ *    - Destino: Aba 'Atividades' (Colunas A até L).
+ *    - Regras de Negócio:
+ *      • Tipo fixado estritamente como 'Manutenção' (Expansões vindas de outras fontes são preservadas).
+ *      • Categoria padronizada como 'CAPEX'.
+ *      • Responsável Equipe: Coluna V (EQUIPE), com fallback inteligente para 'Custos_Totais' (Col A/B).
+ *      • Responsável Técnico: Coluna U (COLABORADOR).
+ *      • SLA / Horas: Coluna N (HORAS TRABALHADAS) em Col J, com fórmulas automáticas em Col K (=J) e L (=K).
+ *      • Preservação Estrita: Linhas de 'Expansão' e cabeçalhos (linhas 1 e 2) são mantidos 100% intactos.
+ * 
+ * 4. Regras de Negócio e Filtros Estritos:
  *    - Filtro de Colaborador: Apenas colaboradores na Coluna A de 'Custos_Totais'.
  *    - Filtro Mensal Dinâmico: Apenas lançamentos do mês da planilha ativa (ex.: Outubro).
  *    - Regra de Vigência: Válido de JULHO/2026 em diante (Janeiro a Junho intactos).
@@ -85,6 +96,12 @@ const CONFIG_GERAL = {
   ABA_ORIGEM_ALIMENTACAO: 'Alimentação 2026',
   ABA_ORIGEM_HOSPEDAGEM: 'Hospedagem 2026',
 
+  // Planilha de Origem de Chamados (Atividades de Manutenção)
+  ID_PLANILHA_CHAMADOS_ORIGEM: '1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU',
+  ABA_ORIGEM_CHAMADOS: 'CHAMADOS',
+  ABA_DESTINO_ATIVIDADES: 'Atividades',
+  FILTRAR_CHAMADOS_POR_COLABORADORES: true, // Se true, importa apenas chamados dos colaboradores de Custos_Totais
+
   // Nomes das Abas na Planilha Mensal de Destino
   ABA_CUSTOS_TOTAIS: 'Custos_Totais',
   COLUNA_COLABORADORES: 1, // Coluna A (onde estão os nomes oficiais dos colaboradores)
@@ -111,11 +128,13 @@ function onOpen() {
       .addItem("⛽ Frota: Importar Apenas Abastecimento", "importarDadosAbastecimento")
       .addItem("🔧 Frota: Importar Apenas Manutenção", "importarDadosManutencao")
       .addItem("✈️ Viagens: Importar Alimentação e Hospedagem (Desta Planilha)", "importarDadosViagens")
-      .addItem("🔄 Importar TUDO (Frota + Viagens - Desta Planilha)", "importarTodosOsCustos")
+      .addItem("📋 Atividades: Importar Chamados de Manutenção (Desta Planilha)", "importarDadosChamadosAtividades")
+      .addItem("🔄 Importar TUDO (Frota + Viagens + Atividades - Desta Planilha)", "importarTodosOsCustos")
       .addSeparator()
-      .addItem("🌐 Sincronizar TODAS as Planilhas (Frota + Viagens)", "sincronizarTodasPlanilhas")
+      .addItem("🌐 Sincronizar TODAS as Planilhas (Frota + Viagens + Atividades)", "sincronizarTodasPlanilhas")
       .addItem("🚗 Sincronizar Apenas Frota em TODAS (Julho em diante)", "sincronizarFrotaTodas")
       .addItem("✈️ Sincronizar Apenas Viagens em TODAS (Julho em diante)", "sincronizarViagensTodas")
+      .addItem("📋 Sincronizar Apenas Chamados em TODAS (Julho em diante)", "sincronizarChamadosTodas")
       .addSeparator()
       .addItem("📁 Criar / Verificar Pastas no Google Drive", "configurarEstruturaPastasDrive")
       .addItem("📁 Reprocessar da Pasta 'Arquivos Processados' (Frota)", "reprocessarArquivosHistorico")
@@ -145,12 +164,14 @@ function importarAbaAtiva() {
     importarDadosFrotaUnificada();
   } else if (nomeAba.indexOf("viagen") > -1 || nomeAba.indexOf("viagem") > -1) {
     importarDadosViagens();
+  } else if (nomeAba.indexOf("atividade") > -1) {
+    importarDadosChamadosAtividades();
   } else {
     var ui = SpreadsheetApp.getUi();
     var resposta = ui.alert(
-      "Importação de Custos",
+      "Importação de Custos e Atividades",
       "Você está na aba '" + abaAtiva.getName() + "'.\n\n" +
-      "Deseja importar TODOS os custos (Frota Unificada e Viagens) para o mês desta planilha?",
+      "Deseja importar TODOS os dados (Frota Unificada, Viagens e Chamados de Atividades) para o mês desta planilha?",
       ui.ButtonSet.YES_NO
     );
 
@@ -164,9 +185,10 @@ function importarAbaAtiva() {
  * Executa todas as importações (Frota Unificada + Viagens) para a planilha atual.
  */
 function importarTodosOsCustos() {
-  Logger.log("Iniciando importação completa (Frota Unificada + Viagens)...");
+  Logger.log("Iniciando importação completa (Frota Unificada + Viagens + Chamados Atividades)...");
   importarDadosFrotaUnificada();
   importarDadosViagens();
+  importarDadosChamadosAtividades();
 }
 
 /**
@@ -205,6 +227,22 @@ function limparAbaAtualManual() {
       aba.getRange(3, 6, lastRow - 2, 3).clearContent();
       SpreadsheetApp.flush();
       exibirAlerta("Dados de Alimentação e Hospedagem da aba '" + aba.getName() + "' limpos com sucesso. Coluna D mantida intacta.");
+    }
+  } else if (nomeAba.indexOf("atividade") > -1) {
+    if (lastRow <= 2) {
+      exibirAlerta("A aba '" + aba.getName() + "' já contém apenas os cabeçalhos.");
+      return;
+    }
+    var confirmacaoAtiv = ui.alert(
+      "Limpar Dados de Atividades",
+      "Deseja limpar os lançamentos de Manutenção da aba '" + aba.getName() + "' a partir da linha 3?\n\n" +
+      "• Linhas 1 e 2 (Cabeçalhos) e lançamentos de 'Expansão' serão mantidos intactos.",
+      ui.ButtonSet.YES_NO
+    );
+    if (confirmacaoAtiv === ui.Button.YES) {
+      gravarDadosNaAbaAtividades(aba, []);
+      SpreadsheetApp.flush();
+      exibirAlerta("Chamados de Manutenção da aba '" + aba.getName() + "' limpos com sucesso. Expansões mantidas intactas.");
     }
   } else {
     var confirmacao2 = ui.alert(
@@ -892,8 +930,448 @@ function valorPertenceAoMesViagens(valorRaw, mesAlvo) {
 }
 
 
+
 // ============================================================================
-// 6. SINCRONIZAÇÃO EM MASSA MULTI-PLANILHAS (PASTA 2026)
+// 6. IMPORTAÇÃO DE CHAMADOS / ATIVIDADES DE MANUTENÇÃO (Aba: Atividades)
+// ============================================================================
+
+/**
+ * Mapeamento de Estados/UFs para Código de Projeto e Diagrama de Rede do Setor.
+ */
+const MAPA_UF_PROJETO_ATIVIDADES = {
+  'CEARA': { proj: 'CE01', diag: '4023987 0020', estado: 'Ceará' },
+  'CE': { proj: 'CE01', diag: '4023987 0020', estado: 'Ceará' },
+  'RIO GRANDE DO NORTE': { proj: 'RN01', diag: '4023989 0020', estado: 'Rio Grande do Norte' },
+  'RN': { proj: 'RN01', diag: '4023989 0020', estado: 'Rio Grande do Norte' },
+  'PARAIBA': { proj: 'PB01', diag: '4023990 0020', estado: 'Paraíba' },
+  'PB': { proj: 'PB01', diag: '4023990 0020', estado: 'Paraíba' },
+  'PERNAMBUCO': { proj: 'PE01', diag: '4023995 0020', estado: 'Pernambuco' },
+  'PE': { proj: 'PE01', diag: '4023995 0020', estado: 'Pernambuco' },
+  'PIAUI': { proj: 'PI01', diag: '4023991 0020', estado: 'Piauí' },
+  'PI': { proj: 'PI01', diag: '4023991 0020', estado: 'Piauí' }
+};
+
+/**
+ * Importa os chamados de manutenção da planilha de Chamados
+ * para a aba 'Atividades' da planilha mensal ativa.
+ */
+function importarDadosChamadosAtividades(planilhaAlvo, silencioso) {
+  Logger.log("Iniciando importação de CHAMADOS (Aba Atividades)...");
+
+  var planilha = planilhaAlvo || obterPlanilhaAlvo();
+  if (!planilha) {
+    if (!silencioso) exibirAlerta("Erro: Não foi possível identificar a planilha de destino.");
+    return { chamados: 0, expansao: 0, erro: "Planilha alvo não encontrada" };
+  }
+
+  var mesAlvo = obterMesAlvoDaPlanilha(planilha);
+  Logger.log("Mês alvo identificado na planilha: " + mesAlvo.nome + " (" + mesAlvo.codigo + "/" + mesAlvo.ano + ")");
+
+  if (parseInt(mesAlvo.codigo, 10) < CONFIG_GERAL.MES_INICIAL_REGRA) {
+    if (!silencioso) {
+      exibirAlerta(
+        "Atenção: A planilha ativa refere-se a " + mesAlvo.nome + ".\n\n" +
+        "A automação de atividades está configurada exclusivamente para planilhas a partir de JULHO/2026.\n" +
+        "As planilhas de meses anteriores possuem um formato diferente e foram mantidas intactas."
+      );
+    }
+    return { chamados: 0, expansao: 0, erro: "Mês anterior a Julho" };
+  }
+
+  var abaAtividades = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_DESTINO_ATIVIDADES, 'Atividades', 'ATIVIDADES']);
+  if (!abaAtividades) {
+    if (!silencioso) exibirAlerta("Erro: A aba '" + CONFIG_GERAL.ABA_DESTINO_ATIVIDADES + "' não foi encontrada na planilha '" + planilha.getName() + "'.");
+    return { chamados: 0, expansao: 0, erro: "Aba Atividades não encontrada" };
+  }
+
+  // 1. Carregar colaboradores e equipes da aba Custos_Totais
+  var mapaColaboradoresEquipes = carregarMapaEquipesColaboradores(planilha);
+  if (Object.keys(mapaColaboradoresEquipes).length === 0) {
+    if (!silencioso) {
+      exibirAlerta("Atenção: Nenhum colaborador foi encontrado na aba '" + CONFIG_GERAL.ABA_CUSTOS_TOTAIS + "'.\nVerifique se a aba está preenchida.");
+    }
+    return { chamados: 0, expansao: 0, erro: "Sem colaboradores em Custos_Totais" };
+  }
+
+  // 2. Conectar à planilha de origem de Chamados
+  var ssOrigem;
+  try {
+    ssOrigem = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_CHAMADOS_ORIGEM);
+  } catch (e) {
+    var errOrigem = "Erro ao acessar a planilha de chamados de origem (" + CONFIG_GERAL.ID_PLANILHA_CHAMADOS_ORIGEM + "): " + e.message;
+    Logger.log(errOrigem);
+    if (!silencioso) exibirAlerta(errOrigem);
+    return { chamados: 0, expansao: 0, erro: errOrigem };
+  }
+
+  // 3. Extrair chamados de manutenção para o mês alvo
+  var registrosChamados;
+  try {
+    registrosChamados = extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes);
+  } catch (e) {
+    var errExtrair = "Erro ao extrair chamados da aba '" + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + "': " + e.message;
+    Logger.log(errExtrair);
+    if (!silencioso) exibirAlerta(errExtrair);
+    return { chamados: 0, expansao: 0, erro: errExtrair };
+  }
+
+  // 4. Gravar na aba Atividades (preservando linhas de Expansão)
+  var resultadoGravacao = gravarDadosNaAbaAtividades(abaAtividades, registrosChamados);
+
+  SpreadsheetApp.flush();
+
+  var resumo = "🎉 Importação de Atividades Concluída!\n\n" +
+               "Planilha: " + planilha.getName() + "\n" +
+               "Mês: " + mesAlvo.nome + "/" + mesAlvo.ano + "\n\n" +
+               "• 📋 Chamados de Manutenção importados: " + resultadoGravacao.manutencaoInserida + "\n" +
+               "• 🏗️ Linhas de Expansão preservadas: " + resultadoGravacao.expansaoPreservada + "\n" +
+               "• 📊 Total de atividades na aba: " + resultadoGravacao.totalGravado + "\n\n" +
+               "ℹ️ Todos os chamados foram classificados como Tipo 'Manutenção' e Categoria 'CAPEX'.";
+
+  Logger.log(resumo);
+  if (!silencioso) {
+    exibirAlerta(resumo);
+  }
+
+  return {
+    chamados: resultadoGravacao.manutencaoInserida,
+    expansao: resultadoGravacao.expansaoPreservada,
+    total: resultadoGravacao.totalGravado
+  };
+}
+
+/**
+ * Extrai e filtra os chamados da planilha de origem para o mês da planilha alvo.
+ */
+function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes) {
+  var abaChamados = obterAbaPorNomes(ssOrigem, [CONFIG_GERAL.ABA_ORIGEM_CHAMADOS, 'CHAMADOS', 'Chamados']);
+  if (!abaChamados) {
+    throw new Error("Aba '" + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + "' não encontrada na planilha de origem.");
+  }
+
+  var valores = abaChamados.getDataRange().getValues();
+  if (!valores || valores.length <= 1) {
+    return [];
+  }
+
+  // 1. Identificar a linha de cabeçalho dinamicamente nas primeiras 5 linhas
+  var linhaCabecalho = -1;
+  var colMap = {
+    chamado: 0,
+    site: 1,
+    uf: 6,
+    horasTrabalhadas: 13,
+    mes: 14,
+    ano: 15,
+    categoria: 17,
+    colaborador: 20,
+    equipe: 21,
+    abertura: 7,
+    atendimento: 9
+  };
+
+  for (var r = 0; r < Math.min(5, valores.length); r++) {
+    var linha = valores[r];
+    var linhaTxt = linha.map(function(c) { return padronizarTexto(c); });
+    var achouChamado = false;
+    for (var c = 0; c < linhaTxt.length; c++) {
+      var h = linhaTxt[c];
+      if (h.indexOf("CHAMADO") > -1) { colMap.chamado = c; achouChamado = true; }
+      else if (h === "SITE") { colMap.site = c; }
+      else if (h === "UF" || h === "ESTADO") { colMap.uf = c; }
+      else if (h.indexOf("HORAS TRABALHADA") > -1 || h === "HORAS") { colMap.horasTrabalhadas = c; }
+      else if (h === "MES") { colMap.mes = c; }
+      else if (h === "ANO") { colMap.ano = c; }
+      else if (h === "CATEGORIA" || h.indexOf("SERVICO") > -1) { colMap.categoria = c; }
+      else if (h === "COLABORADOR" || h.indexOf("TECNICO") > -1) { colMap.colaborador = c; }
+      else if (h === "EQUIPE") { colMap.equipe = c; }
+      else if (h.indexOf("ABERTURA") > -1) { colMap.abertura = c; }
+      else if (h.indexOf("ATENDIMENTO") > -1) { colMap.atendimento = c; }
+    }
+    if (achouChamado) {
+      linhaCabecalho = r;
+      break;
+    }
+  }
+
+  var inicioDados = linhaCabecalho >= 0 ? linhaCabecalho + 1 : 2;
+  var registros = [];
+
+  for (var i = inicioDados; i < valores.length; i++) {
+    var row = valores[i];
+    var chamado = row[colMap.chamado];
+    var site = row[colMap.site];
+    var categoria = row[colMap.categoria];
+
+    // Pula linhas totalmente vazias
+    if ((chamado === undefined || chamado === null || chamado === "") &&
+        (!site || site.toString().trim() === "") &&
+        (!categoria || categoria.toString().trim() === "")) {
+      continue;
+    }
+
+    // Validação de Mês e Ano
+    var mesStr = row[colMap.mes] ? row[colMap.mes].toString().trim() : "";
+    var anoStr = row[colMap.ano] ? row[colMap.ano].toString().replace('.0', '').trim() : "";
+    var pertenceAoMes = false;
+
+    if (mesStr && anoStr) {
+      var mesPad = padronizarTexto(mesStr);
+      if (mesPad.indexOf(mesAlvo.nome) > -1 && anoStr === mesAlvo.ano) {
+        pertenceAoMes = true;
+      }
+    } else {
+      // Fallback por data de abertura ou atendimento se mes/ano estiverem em branco
+      var dataRef = row[colMap.atendimento] || row[colMap.abertura];
+      if (dataRef instanceof Date) {
+        var codMes = ("0" + (dataRef.getMonth() + 1)).slice(-2);
+        var anoRef = dataRef.getFullYear().toString();
+        if (codMes === mesAlvo.codigo && anoRef === mesAlvo.ano) {
+          pertenceAoMes = true;
+        }
+      }
+    }
+
+    if (!pertenceAoMes) {
+      continue;
+    }
+
+    // Colaborador (Coluna U)
+    var colabRaw = row[colMap.colaborador] ? row[colMap.colaborador].toString().trim() : "";
+    var colabPad = padronizarTexto(colabRaw);
+
+    // Validação de Colaborador (se configurado para filtrar por Custos_Totais)
+    if (CONFIG_GERAL.FILTRAR_CHAMADOS_POR_COLABORADORES) {
+      if (mapaColaboradoresEquipes && Object.keys(mapaColaboradoresEquipes).length > 0) {
+        if (!colabPad || !mapaColaboradoresEquipes[colabPad]) {
+          // Colaborador não pertence a este setor/planilha de custos
+          continue;
+        }
+      }
+    }
+
+    // Resolução de Equipe (Coluna V com fallback para Custos_Totais)
+    var equipeRaw = row[colMap.equipe] ? row[colMap.equipe].toString().trim() : "";
+    var equipeFinal = "";
+
+    if (equipeRaw && equipeRaw !== "#N/A" && equipeRaw !== "#REF!" && equipeRaw !== "-") {
+      equipeFinal = equipeRaw;
+      if (equipeFinal.indexOf("-") > -1) {
+        equipeFinal = equipeFinal.split("-")[0].trim();
+      }
+    } else if (mapaColaboradoresEquipes && mapaColaboradoresEquipes[colabPad]) {
+      equipeFinal = mapaColaboradoresEquipes[colabPad].equipe || "";
+    }
+
+    if (!equipeFinal) {
+      equipeFinal = "A DEFINIR";
+    }
+
+    // UF, Projeto e Diagrama
+    var ufRaw = row[colMap.uf] ? row[colMap.uf].toString().trim() : "";
+    var infoProj = mapearProjetoEDiagrama(ufRaw);
+
+    // Horas Trabalhadas (SLA Hora)
+    var horasRaw = row[colMap.horasTrabalhadas];
+    var horasTratadas = tratarHorasTrabalhadasChamado(horasRaw);
+
+    // Mapeamento dos 10 campos base da linha de Atividades
+    var servico = categoria ? categoria.toString().trim() : "OUTROS";
+    var tipo = "Manutenção"; // Regra 1: tudo que vem de CHAMADOS é Manutenção
+    var categoriaAtiv = "CAPEX"; // Regra 2: padronizado CAPEX
+    var siteStr = site ? site.toString().trim() : "";
+    var responsavelTecnico = (mapaColaboradoresEquipes && mapaColaboradoresEquipes[colabPad])
+      ? mapaColaboradoresEquipes[colabPad].nomeOficial
+      : colabRaw;
+
+    registros.push([
+      servico,             // Col A: Serviço
+      tipo,                // Col B: Tipo
+      categoriaAtiv,       // Col C: Categoria
+      siteStr,             // Col D: Site
+      infoProj.estado,     // Col E: Estado
+      infoProj.proj,       // Col F: Projeto
+      infoProj.diag,       // Col G: Diagrama de Rede
+      equipeFinal,         // Col H: Responsável Equipe
+      responsavelTecnico,  // Col I: Responsável Técnico
+      horasTratadas        // Col J: SLA Hora
+    ]);
+  }
+
+  return registros;
+}
+
+/**
+ * Grava os chamados de manutenção na aba 'Atividades', preservando
+ * estritamente as linhas existentes de 'Expansão'.
+ */
+function gravarDadosNaAbaAtividades(abaAtividades, linhasManutencaoNovas) {
+  var ultimaLinhaExistente = abaAtividades.getLastRow();
+  var linhasExpansaoPreservadas = [];
+
+  if (ultimaLinhaExistente >= 3) {
+    var numLinhasExistentes = ultimaLinhaExistente - 2;
+    var valoresExistentes = abaAtividades.getRange(3, 1, numLinhasExistentes, 12).getValues();
+    var formulasExistentes = abaAtividades.getRange(3, 1, numLinhasExistentes, 12).getFormulas();
+
+    for (var i = 0; i < valoresExistentes.length; i++) {
+      var tipo = valoresExistentes[i][1] ? valoresExistentes[i][1].toString().trim() : "";
+      var servico = valoresExistentes[i][0] ? valoresExistentes[i][0].toString().trim() : "";
+
+      // Preserva linhas que NÃO sejam "Manutenção" e que tenham conteúdo (ex: Expansão)
+      if (tipo && tipo.toLowerCase() !== "manutenção" && tipo.toLowerCase() !== "manutencao" && servico !== "") {
+        var linhaPreservada = [];
+        for (var c = 0; c < 12; c++) {
+          var formula = formulasExistentes[i][c];
+          linhaPreservada.push(formula ? formula : valoresExistentes[i][c]);
+        }
+        linhasExpansaoPreservadas.push(linhaPreservada);
+      }
+    }
+  }
+
+  // Montar array consolidado final
+  var dadosFinais = [];
+  var linhaAtualNaPlanilha = 3;
+
+  // 1. Inserir primeiro as linhas de Expansão (reajustando fórmulas de linha)
+  for (var e = 0; e < linhasExpansaoPreservadas.length; e++) {
+    var linhaExp = linhasExpansaoPreservadas[e].slice();
+    linhaExp[10] = "=J" + linhaAtualNaPlanilha;
+    linhaExp[11] = "=K" + linhaAtualNaPlanilha;
+    dadosFinais.push(linhaExp);
+    linhaAtualNaPlanilha++;
+  }
+
+  // 2. Inserir as novas linhas de Manutenção extraídas da aba CHAMADOS
+  for (var m = 0; m < linhasManutencaoNovas.length; m++) {
+    var linhaManut = linhasManutencaoNovas[m].slice();
+    var horasVal = linhaManut[9]; // SLA Hora
+    var linhaCompleta = [
+      linhaManut[0], // A: Serviço
+      linhaManut[1], // B: Tipo ("Manutenção")
+      linhaManut[2], // C: Categoria ("CAPEX")
+      linhaManut[3], // D: Site
+      linhaManut[4], // E: Estado
+      linhaManut[5], // F: Projeto
+      linhaManut[6], // G: Diagrama de Rede
+      linhaManut[7], // H: Responsável Equipe
+      linhaManut[8], // I: Responsável Técnico
+      horasVal,      // J: SLA Hora
+      "=J" + linhaAtualNaPlanilha, // K: SLA Decimal
+      "=K" + linhaAtualNaPlanilha  // L: Horas Totais
+    ];
+    dadosFinais.push(linhaCompleta);
+    linhaAtualNaPlanilha++;
+  }
+
+  // Se houver linhas antigas para limpar além das novas
+  if (ultimaLinhaExistente >= 3) {
+    var rangeLimpar = abaAtividades.getRange(3, 1, Math.max(ultimaLinhaExistente - 2, dadosFinais.length > 0 ? dadosFinais.length : 1), 12);
+    rangeLimpar.clearContent();
+  }
+
+  if (dadosFinais.length > 0) {
+    var rangeDestino = abaAtividades.getRange(3, 1, dadosFinais.length, 12);
+    rangeDestino.setValues(dadosFinais);
+
+    // Formatar coluna J como tempo e K/L como decimais
+    abaAtividades.getRange(3, 10, dadosFinais.length, 1).setNumberFormat("[h]:mm:ss");
+    abaAtividades.getRange(3, 11, dadosFinais.length, 2).setNumberFormat("0.0000000000");
+  }
+
+  return {
+    totalGravado: dadosFinais.length,
+    expansaoPreservada: linhasExpansaoPreservadas.length,
+    manutencaoInserida: linhasManutencaoNovas.length
+  };
+}
+
+/**
+ * Converte qualquer formato de hora/duração em fração decimal de dia (compatível com formato de hora do Sheets).
+ */
+function tratarHorasTrabalhadasChamado(val) {
+  if (val === undefined || val === null || val === '') return 0;
+  if (typeof val === 'number') return val;
+  if (val instanceof Date) {
+    var hours = val.getHours();
+    var minutes = val.getMinutes();
+    var seconds = val.getSeconds();
+    return (hours + minutes / 60 + seconds / 3600) / 24;
+  }
+  if (typeof val === 'string') {
+    var str = val.trim();
+    if (str.indexOf(':') > -1) {
+      var parts = str.split(':');
+      var h = parseFloat(parts[0]) || 0;
+      var m = parseFloat(parts[1]) || 0;
+      var s = parseFloat(parts[2]) || 0;
+      return (h + m / 60 + s / 3600) / 24;
+    }
+    var num = parseFloat(str.replace(',', '.'));
+    return isNaN(num) ? 0 : num;
+  }
+  return 0;
+}
+
+/**
+ * Mapeia o Estado/UF para o Projeto e Diagrama de Rede correspondente.
+ */
+function mapearProjetoEDiagrama(ufBruta) {
+  if (!ufBruta) return { estado: '', proj: 'N/A', diag: 'N/A' };
+  var ufPad = padronizarTexto(ufBruta);
+  if (MAPA_UF_PROJETO_ATIVIDADES[ufPad]) {
+    return MAPA_UF_PROJETO_ATIVIDADES[ufPad];
+  }
+  var estadoFormatado = ufBruta.toString().trim();
+  return {
+    estado: estadoFormatado,
+    proj: estadoFormatado.length === 2 ? estadoFormatado.toUpperCase() + '01' : 'N/A',
+    diag: 'N/A'
+  };
+}
+
+/**
+ * Carrega mapa de colaboradores e equipes da aba 'Custos_Totais' (Colunas A e B).
+ */
+function carregarMapaEquipesColaboradores(planilha) {
+  var mapa = {};
+  if (!planilha) return mapa;
+
+  var abaCustos = planilha.getSheetByName(CONFIG_GERAL.ABA_CUSTOS_TOTAIS);
+  if (!abaCustos) return mapa;
+
+  var ultimaLinha = abaCustos.getLastRow();
+  if (ultimaLinha <= 2) return mapa;
+
+  var valores = abaCustos.getRange(3, 1, ultimaLinha - 2, 2).getValues();
+
+  for (var i = 0; i < valores.length; i++) {
+    var nome = valores[i][0];
+    var equipe = valores[i][1];
+    if (nome) {
+      var padronizado = padronizarTexto(nome);
+      if (padronizado && padronizado !== "COLABORADOR" && padronizado !== "TOTAL") {
+        var equipeLimpa = "";
+        if (equipe) {
+          equipeLimpa = equipe.toString().trim();
+          if (equipeLimpa.indexOf("-") > -1) {
+            equipeLimpa = equipeLimpa.split("-")[0].trim();
+          }
+        }
+        mapa[padronizado] = {
+          nomeOficial: nome.toString().trim(),
+          equipe: equipeLimpa
+        };
+      }
+    }
+  }
+
+  return mapa;
+}
+
+// ============================================================================
+// 7. SINCRONIZAÇÃO EM MASSA MULTI-PLANILHAS (PASTA 2026)
 // ============================================================================
 
 /**
@@ -916,11 +1394,14 @@ function sincronizarTodasPlanilhas() {
 
   var relatorioFrota = sincronizarPlanilhasPasta2026('AMBOS', true);
   var relatorioViagens = sincronizarViagensTodas(true);
+  var relatorioChamados = sincronizarChamadosTodas(true);
 
   var msgFinal = "🎉 Sincronização Completa Finalizada!\n\n" +
                  "--- 🚗 FROTA UNIFICADA ---\n" + (relatorioFrota && relatorioFrota.length > 0 ? relatorioFrota.join("\n") : "Concluído") + "\n\n" +
                  "--- ✈️ VIAGENS ---\n" + (relatorioViagens && relatorioViagens.length > 0 ? relatorioViagens.join("\n") : "Concluído") + "\n\n" +
-                 "ℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.";
+                 "--- 📋 ATIVIDADES (CHAMADOS) ---\n" + (relatorioChamados && relatorioChamados.length > 0 ? relatorioChamados.join("\n") : "Concluído") + "\n\n" +
+                 "ℹ️ Planilhas de Janeiro a Junho foram mantidas intactas.\n" +
+                 "ℹ️ Linhas de Expansão foram preservadas intactas.";
   Logger.log(msgFinal);
   exibirAlerta(msgFinal);
 }
@@ -1034,6 +1515,90 @@ function sincronizarViagensTodas(modoSilencioso) {
 
   return relatorio;
 }
+
+/**
+ * Ponto de entrada: Sincroniza Chamados (Aba Atividades) em todas as planilhas da pasta 2026 (>= Julho).
+ */
+function sincronizarChamadosTodas(modoSilencioso) {
+  if (!modoSilencioso) {
+    var ui = SpreadsheetApp.getUi();
+    var confirmacao = ui.alert(
+      "📋 Sincronização de Chamados / Atividades (Pasta 2026)",
+      "Esta ação identificará as planilhas da pasta 2026 de JULHO em diante e preencherá automaticamente a aba 'Atividades' com os chamados de manutenção.\n\n" +
+      "• Origem: Planilha CHAMADOS.\n" +
+      "• Tipo: 'Manutenção' e Categoria: 'CAPEX'.\n" +
+      "• Linhas de 'Expansão' existentes serão mantidas intactas.\n" +
+      "• Planilhas anteriores a Julho/2026 serão mantidas intactas.\n\n" +
+      "Deseja iniciar a sincronização agora?",
+      ui.ButtonSet.YES_NO
+    );
+    if (confirmacao !== ui.Button.YES) return [];
+  }
+
+  var pasta2026;
+  try {
+    pasta2026 = DriveApp.getFolderById(CONFIG_GERAL.PASTA_RAIZ_2026);
+  } catch (e) {
+    var errPasta = "Erro ao acessar pasta raiz 2026 no Google Drive: " + e.message;
+    if (!modoSilencioso) exibirAlerta(errPasta);
+    return [errPasta];
+  }
+
+  var arquivos = pasta2026.getFiles();
+  var planilhasElegiveis = [];
+
+  while (arquivos.hasNext()) {
+    var arq = arquivos.next();
+    if (arq.getMimeType() === MimeType.GOOGLE_SHEETS) {
+      var nomeArq = arq.getName();
+      var mesInfo = extrairMesDeTexto(nomeArq);
+      if (mesInfo && parseInt(mesInfo.codigo, 10) >= CONFIG_GERAL.MES_INICIAL_REGRA) {
+        planilhasElegiveis.push({
+          id: arq.getId(),
+          nome: nomeArq,
+          mesInfo: mesInfo
+        });
+      }
+    }
+  }
+
+  if (planilhasElegiveis.length === 0) {
+    var msgVazia = "Nenhuma planilha elegível (Julho em diante) encontrada na pasta 2026.";
+    if (!modoSilencioso) exibirAlerta(msgVazia);
+    return [msgVazia];
+  }
+
+  planilhasElegiveis.sort(function(a, b) {
+    return parseInt(a.mesInfo.codigo, 10) - parseInt(b.mesInfo.codigo, 10);
+  });
+
+  var relatorio = [];
+  for (var i = 0; i < planilhasElegiveis.length; i++) {
+    var item = planilhasElegiveis[i];
+    try {
+      var ss = SpreadsheetApp.openById(item.id);
+      var res = importarDadosChamadosAtividades(ss, true);
+      if (res.erro) {
+        relatorio.push("• " + item.mesInfo.nome + ": Erro (" + res.erro + ")");
+      } else {
+        relatorio.push("• " + item.mesInfo.nome + ": " + res.chamados + " chamados importados (" + res.expansao + " expansões mantidas)");
+      }
+    } catch (err) {
+      relatorio.push("• " + item.mesInfo.nome + ": Falha na execução (" + err.message + ")");
+    }
+  }
+
+  if (!modoSilencioso) {
+    var msgFinal = "🎉 Sincronização de Chamados Concluída!\n\n" +
+                   "--- 📋 RESULTADO POR PLANILHA ---\n" +
+                   relatorio.join("\n") + "\n\n" +
+                   "ℹ️ Linhas de Expansão foram preservadas intactas.";
+    exibirAlerta(msgFinal);
+  }
+
+  return relatorio;
+}
+
 
 /**
  * Localiza todas as planilhas da pasta 2026 a partir de Julho/2026 e preenche suas abas de frota
@@ -1466,6 +2031,9 @@ function testarConexoes() {
 
     var aViagens = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_VIAGENS, 'Base_Viagens', 'Base Viagens', 'Viagens']);
     relatorio.push(aViagens ? "✅ Aba de Viagens ('Base_Viagens') encontrada." : "❌ Aba '" + CONFIG_GERAL.ABA_VIAGENS + "' NÃO encontrada.");
+
+    var aAtividades = obterAbaPorNomes(planilha, [CONFIG_GERAL.ABA_DESTINO_ATIVIDADES, 'Atividades', 'ATIVIDADES']);
+    relatorio.push(aAtividades ? "✅ Aba de Atividades ('Atividades') encontrada (" + Math.max(0, aAtividades.getLastRow() - 2) + " linhas de dados)." : "❌ Aba '" + CONFIG_GERAL.ABA_DESTINO_ATIVIDADES + "' NÃO encontrada.");
   } else {
     relatorio.push("❌ Planilha não identificada.");
   }
@@ -1492,6 +2060,21 @@ function testarConexoes() {
     }
   } catch (e) {
     relatorio.push("❌ Erro ao acessar Planilha Origem Viagens: " + e.message);
+  }
+
+  // Conexão com a planilha de origem de Chamados
+  try {
+    var ssChamados = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_CHAMADOS_ORIGEM);
+    relatorio.push("✅ Planilha Origem Chamados conectada: '" + ssChamados.getName() + "'");
+
+    var abaChamados = obterAbaPorNomes(ssChamados, [CONFIG_GERAL.ABA_ORIGEM_CHAMADOS, 'CHAMADOS', 'Chamados']);
+    if (abaChamados) {
+      relatorio.push("  • Aba CHAMADOS: " + abaChamados.getLastRow() + " linhas totais.");
+    } else {
+      relatorio.push("  ❌ Aba CHAMADOS NÃO encontrada.");
+    }
+  } catch (e) {
+    relatorio.push("❌ Erro ao acessar Planilha Origem Chamados: " + e.message);
   }
 
   // Listagem da Pasta 2026
