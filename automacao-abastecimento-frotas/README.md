@@ -54,6 +54,7 @@ Módulo integrado em **Google Apps Script** para importação e tratamento autom
   - **K (`SLA Decimal`):** Fórmula `=J{linha}` formatada como decimal.
   - **L (`Horas Totais`):** Fórmula `=K{linha}` formatada como decimal.
 - **Preservação de Expansão:** As linhas com `Tipo` igual a `"Expansão"` (lançamentos de Placas/Expansões provenientes de outras fontes) e os cabeçalhos das linhas 1 e 2 são **preservados rigorosamente intactos**.
+- **Filtro de Exclusão de Equipe Interna:** Chamados atribuídos à `EQUIPE MNT. - INTERNA.` (Coluna V) são desconsiderados e não entram na importação.
 
 
 ---

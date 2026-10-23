@@ -1076,17 +1076,20 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
     var achouChamado = false;
     for (var c = 0; c < linhaTxt.length; c++) {
       var h = linhaTxt[c];
-      if (h.indexOf("CHAMADO") > -1) { colMap.chamado = c; achouChamado = true; }
+      if (h === "NO DO CHAMADO" || h === "Nº DO CHAMADO" || h === "NUMERO DO CHAMADO" || h === "CHAMADO" || (h.indexOf("CHAMADO") > -1 && h.indexOf("ORIGEM") === -1 && h.indexOf("FINALIZADO") === -1)) {
+        colMap.chamado = c;
+        achouChamado = true;
+      }
       else if (h === "SITE") { colMap.site = c; }
       else if (h === "UF" || h === "ESTADO") { colMap.uf = c; }
       else if (h.indexOf("HORAS TRABALHADA") > -1 || h === "HORAS") { colMap.horasTrabalhadas = c; }
       else if (h === "MES") { colMap.mes = c; }
       else if (h === "ANO") { colMap.ano = c; }
-      else if (h === "CATEGORIA" || h.indexOf("SERVICO") > -1) { colMap.categoria = c; }
+      else if (h === "CATEGORIA") { colMap.categoria = c; }
       else if (h === "COLABORADOR" || h.indexOf("TECNICO") > -1) { colMap.colaborador = c; }
       else if (h === "EQUIPE") { colMap.equipe = c; }
-      else if (h.indexOf("ABERTURA") > -1) { colMap.abertura = c; }
-      else if (h.indexOf("ATENDIMENTO") > -1) { colMap.atendimento = c; }
+      else if (h.indexOf("ABERTURA") > -1 && h.indexOf("DATA") > -1) { colMap.abertura = c; }
+      else if (h.indexOf("ATENDIMENTO") > -1 && h.indexOf("DATA") > -1) { colMap.atendimento = c; }
     }
     if (achouChamado) {
       linhaCabecalho = r;
@@ -1101,7 +1104,8 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
     var row = valores[i];
     var chamado = row[colMap.chamado];
     var site = row[colMap.site];
-    var categoria = row[colMap.categoria];
+    var catIndex = (colMap.categoria !== undefined && colMap.categoria !== null && colMap.categoria >= 0) ? colMap.categoria : 17;
+    var categoria = row[catIndex];
 
     // Pula linhas totalmente vazias
     if ((chamado === undefined || chamado === null || chamado === "") &&
@@ -1152,6 +1156,14 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
 
     // Resolução de Equipe (Coluna V com fallback para Custos_Totais)
     var equipeRaw = row[colMap.equipe] ? row[colMap.equipe].toString().trim() : "";
+    var equipePad = padronizarTexto(equipeRaw);
+
+    // REGRA DE EXCLUSÃO: Remover chamados atribuídos a EQUIPE MNT. - INTERNA (Coluna V)
+    if (equipePad.indexOf("INTERNA") > -1) {
+      Logger.log("Chamado ignorado (EQUIPE MNT. - INTERNA na Coluna V): " + chamado + " | Colaborador: " + colabRaw);
+      continue;
+    }
+
     var equipeFinal = "";
 
     if (equipeRaw && equipeRaw !== "#N/A" && equipeRaw !== "#REF!" && equipeRaw !== "-") {
@@ -1161,6 +1173,13 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
       }
     } else if (mapaColaboradoresEquipes && mapaColaboradoresEquipes[colabPad]) {
       equipeFinal = mapaColaboradoresEquipes[colabPad].equipe || "";
+    }
+
+    // Validação de segurança: se a equipe resolvida também for interna, ignora
+    var equipeFinalPad = padronizarTexto(equipeFinal);
+    if (equipeFinalPad.indexOf("INTERNA") > -1) {
+      Logger.log("Chamado ignorado (Equipe resolvida como INTERNA): " + chamado + " | Equipe: " + equipeFinal);
+      continue;
     }
 
     if (!equipeFinal) {
@@ -1176,7 +1195,7 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
     var horasTratadas = tratarHorasTrabalhadasChamado(horasRaw);
 
     // Mapeamento dos 10 campos base da linha de Atividades
-    var servico = categoria ? categoria.toString().trim() : "OUTROS";
+    var servico = (categoria !== undefined && categoria !== null && categoria.toString().trim() !== "") ? categoria.toString().trim() : "OUTROS";
     var tipo = "Manutenção"; // Regra 1: tudo que vem de CHAMADOS é Manutenção
     var categoriaAtiv = "CAPEX"; // Regra 2: padronizado CAPEX
     var siteStr = site ? site.toString().trim() : "";

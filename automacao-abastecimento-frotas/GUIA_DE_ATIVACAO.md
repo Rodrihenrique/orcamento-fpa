@@ -29,7 +29,7 @@ Manual passo a passo para configurar a importação automática de **Frota Unifi
    ├── Base_Abastecimento: Linha 2 em diante limpa e relançada (Col K, Col S, Mês, Col D)
    ├── Base_Manutenção: Linha 2 em diante limpa e relançada (Col K, Col S, Col V, Mês, Col D)
    ├── Base_Viagens: Linha 3 em diante limpa e relançada em A:C e F:H (Coluna D mantida intacta)
-   ├── Atividades: Linha 3 em diante atualizada com chamados de Manutenção (Expansões mantidas intactas)
+   ├── Atividades: Linha 3 em diante atualizada com chamados de Manutenção (Expansões mantidas intactas e desconsiderando EQUIPE MNT. - INTERNA)
    ├── Arquivo Processado: Movido automaticamente para 'Arquivos Processados' (sem duplicidade)
    └── Formatação Monetária e de SLA automáticas
 ```
