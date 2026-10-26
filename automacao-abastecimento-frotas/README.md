@@ -48,7 +48,7 @@ Módulo integrado em **Google Apps Script** para importação e tratamento autom
   - **E (`Estado`):** Coluna G (`UF`).
   - **F (`Projeto`):** Mapeado automaticamente a partir da UF (`CE01`, `RN01`, `PB01`, `PE01`, `PI01`).
   - **G (`Diagrama de Rede`):** Mapeado automaticamente a partir do Projeto (`4023987 0020`, `4023989 0020`, `4023990 0020`, `4023995 0020`, `4023991 0020`).
-  - **H (`Responsável Equipe`):** Coluna V (`EQUIPE`), com fallback automático para a equipe cadastrada do colaborador na aba `Custos_Totais` caso a coluna V esteja `#N/A` ou em branco.
+  - **H (`Responsável Equipe`):** Coluna V (`EQUIPE`), com remoção automática do texto `"MNT."` e padronização no formato `"EQUIPE - 01"`, `"EQUIPE - 02"`, etc. (com fallback automático para `Custos_Totais` caso esteja `#N/A` ou em branco).
   - **I (`Responsável Técnico`):** Coluna U (`COLABORADOR`).
   - **J (`SLA Hora`):** Coluna N (`HORAS TRABALHADAS`), convertida em fração decimal de dia e formatada como `[h]:mm:ss`.
   - **K (`SLA Decimal`):** Fórmula `=J{linha}` formatada como decimal.

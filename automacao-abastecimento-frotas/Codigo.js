@@ -1173,21 +1173,18 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
     var equipeRaw = row[colMap.equipe] ? row[colMap.equipe].toString().trim() : "";
     var equipePad = padronizarTexto(equipeRaw);
 
-    // REGRA DE EXCLUSÃO: Remover chamados atribuídos a EQUIPE MNT. - INTERNA (Coluna V)
+    // REGRA DE EXCLUSÃO 2: Remover chamados atribuídos a EQUIPE MNT. INTERNA (Coluna V)
     if (equipePad.indexOf("INTERNA") > -1) {
-      Logger.log("Chamado ignorado (EQUIPE MNT. - INTERNA na Coluna V): " + chamado + " | Colaborador: " + colabRaw);
+      Logger.log("Chamado ignorado (EQUIPE MNT. INTERNA na Coluna V): " + chamado + " | Colaborador: " + colabRaw);
       continue;
     }
 
     var equipeFinal = "";
 
     if (equipeRaw && equipeRaw !== "#N/A" && equipeRaw !== "#REF!" && equipeRaw !== "-") {
-      equipeFinal = equipeRaw;
-      if (equipeFinal.indexOf("-") > -1) {
-        equipeFinal = equipeFinal.split("-")[0].trim();
-      }
+      equipeFinal = formatarNomeEquipe(equipeRaw);
     } else if (mapaColaboradoresEquipes && mapaColaboradoresEquipes[colabPad]) {
-      equipeFinal = mapaColaboradoresEquipes[colabPad].equipe || "";
+      equipeFinal = formatarNomeEquipe(mapaColaboradoresEquipes[colabPad].equipe || "");
     }
 
     // Validação de segurança: se a equipe resolvida também for interna, ignora
@@ -1366,6 +1363,29 @@ function mapearProjetoEDiagrama(ufBruta) {
 }
 
 /**
+ * Formata o nome da equipe removendo o texto 'MNT.' e padronizando para 'EQUIPE - 01', 'EQUIPE - 02', etc.
+ */
+function formatarNomeEquipe(equipeBruta) {
+  if (!equipeBruta) return "";
+  var str = equipeBruta.toString().trim();
+
+  // Remove variações de MNT. ou MNT
+  str = str.replace(/MNT\.?/gi, "").trim();
+
+  // Extrai número da equipe se houver (ex.: 01, 02, 1, 2)
+  var matchNum = str.match(/(?:EQUIPE\s*[-–—]?\s*)?(\d+)/i);
+  if (matchNum) {
+    var num = matchNum[1];
+    var numPad = num.length === 1 ? "0" + num : num;
+    return "EQUIPE - " + numPad;
+  }
+
+  // Normaliza hífens e espaços extras
+  str = str.replace(/\s*-\s*/g, " - ").replace(/\s+/g, " ").trim();
+  return str;
+}
+
+/**
  * Carrega mapa de colaboradores e equipes da aba 'Custos_Totais' (Colunas A e B).
  */
 function carregarMapaEquipesColaboradores(planilha) {
@@ -1388,10 +1408,7 @@ function carregarMapaEquipesColaboradores(planilha) {
       if (padronizado && padronizado !== "COLABORADOR" && padronizado !== "TOTAL") {
         var equipeLimpa = "";
         if (equipe) {
-          equipeLimpa = equipe.toString().trim();
-          if (equipeLimpa.indexOf("-") > -1) {
-            equipeLimpa = equipeLimpa.split("-")[0].trim();
-          }
+          equipeLimpa = formatarNomeEquipe(equipe);
         }
         mapa[padronizado] = {
           nomeOficial: nome.toString().trim(),
