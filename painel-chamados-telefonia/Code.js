@@ -629,8 +629,11 @@ function sanitizarEmailsAcompanhantes(strEmails) {
     if (limpo && regexEmail.test(limpo)) {
       if (limpo.indexOf('nao-responda') === -1 &&
           limpo.indexOf('mailer-daemon') === -1 &&
-          limpo.indexOf('delivery subsystem') === -1 &&
+          limpo.indexOf('delivery') === -1 &&
+          limpo.indexOf('subsystem') === -1 &&
           limpo.indexOf('googlemail.com') === -1 &&
+          limpo.indexOf('postmaster') === -1 &&
+          limpo.indexOf('daemon') === -1 &&
           limpo.indexOf('telefonia@') === -1) {
         if (emailsValidos.indexOf(limpo) === -1) {
           emailsValidos.push(limpo);
@@ -1933,14 +1936,55 @@ function enviarEmailNotificacao(params) {
     (linkChamado ? 'Para responder ou anexar arquivos, acesse o link:\n' + linkChamado : 'Acesse a aba Meus Chamados no Painel Web para interagir.')
   ].join('\n');
 
+  // 4. Validação rigorosa dos destinatários: impede o envio para robôs de erro ou e-mails inexistentes
+  const destPrincipal = String(params.destinatario || '').trim().toLowerCase();
+  if (!destPrincipal ||
+      !destPrincipal.includes('@') ||
+      destPrincipal.indexOf('mailer-daemon') !== -1 ||
+      destPrincipal.indexOf('googlemail.com') !== -1 ||
+      destPrincipal.indexOf('delivery') !== -1 ||
+      destPrincipal.indexOf('subsystem') !== -1 ||
+      destPrincipal.indexOf('postmaster') !== -1 ||
+      destPrincipal.indexOf('daemon') !== -1 ||
+      destPrincipal.indexOf('nao-responda') !== -1 ||
+      destPrincipal.indexOf('telefonia@') !== -1) {
+    Logger.log('Envio de e-mail cancelado: destinatário inválido ou robô (' + destPrincipal + ')');
+    return;
+  }
+
+  // Sanitiza a lista de acompanhantes em CC (excluindo o destinatário principal se estiver repetido)
+  const ccList = [];
+  if (listaCc) {
+    listaCc.split(/[,;\s]+/).forEach(function(em) {
+      const emLimpo = em.trim().toLowerCase();
+      if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1 && emLimpo !== destPrincipal) {
+        if (emLimpo.indexOf('nao-responda') === -1 &&
+            emLimpo.indexOf('mailer-daemon') === -1 &&
+            emLimpo.indexOf('delivery') === -1 &&
+            emLimpo.indexOf('subsystem') === -1 &&
+            emLimpo.indexOf('googlemail.com') === -1 &&
+            emLimpo.indexOf('postmaster') === -1 &&
+            emLimpo.indexOf('daemon') === -1 &&
+            emLimpo.indexOf('telefonia@') === -1) {
+          ccList.push(emLimpo);
+        }
+      }
+    });
+  }
+  const ccFinal = ccList.join(', ');
+
+  const replyToFinal = (emailAtendente && emailAtendente.includes('@') && emailAtendente.indexOf('telefonia@') === -1 && emailAtendente.indexOf('mailer-daemon') === -1)
+    ? emailAtendente.trim().toLowerCase()
+    : obterEmailAdminPadrao();
+
   const options = {
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-    replyTo: emailAtendente
+    replyTo: replyToFinal
   };
 
-  if (listaCc) {
-    options.cc = listaCc;
+  if (ccFinal) {
+    options.cc = ccFinal;
   }
 
   if (blobsAnexos.length > 0) {
@@ -1948,162 +1992,29 @@ function enviarEmailNotificacao(params) {
   }
 
   const mailAppOptions = {
-    to: params.destinatario,
+    to: destPrincipal,
     subject: assuntoUnificado,
     body: textoPlano,
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-    replyTo: emailAtendente
+    replyTo: replyToFinal
   };
 
-  if (listaCc) {
-    mailAppOptions.cc = listaCc;
+  if (ccFinal) {
+    mailAppOptions.cc = ccFinal;
   }
 
   if (blobsAnexos.length > 0) {
     mailAppOptions.attachments = blobsAnexos;
   }
 
-  // 4. Envio agrupado na mesma conversa (Thread) no Gmail
+  // 5. Envio limpo e agrupado na conversa do Gmail pelo assunto unificado
   let enviado = false;
-
   try {
-    // Busca exclusivamente pela thread institucional oficial do chamado
-    let threads = GmailApp.search('subject:' + idChamado, 0, 10);
-    if (!threads || threads.length === 0) {
-      threads = GmailApp.search('"' + idChamado + '"', 0, 10);
-    }
-    if (!threads || threads.length === 0) {
-      threads = GmailApp.search(idChamado, 0, 10);
-    }
-
-    let threadEncontrada = null;
-    let mensagemAlvo = null;
-
-    if (threads && threads.length > 0) {
-      for (let t = 0; t < threads.length; t++) {
-        const thread = threads[t];
-        const subj = (thread.getFirstMessageSubject() || '').trim();
-        const subjLower = subj.toLowerCase();
-
-        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou notificações de erro de entrega
-        if (subjLower.indexOf('compartilhada') !== -1 ||
-            subjLower.indexOf('google drive') !== -1 ||
-            subjLower.indexOf('delivery status notification') !== -1 ||
-            subjLower.indexOf('undelivered mail') !== -1 ||
-            subjLower.indexOf('failure notice') !== -1) {
-          continue;
-        }
-
-        if (subj.indexOf(idChamado) === -1) {
-          continue;
-        }
-
-        // Procura a última mensagem humana válida na thread (ignorando robôs de entrega mailer-daemon)
-        const msgsThread = thread.getMessages();
-        for (let m = msgsThread.length - 1; m >= 0; m--) {
-          const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
-          if (fromMsg.indexOf('mailer-daemon') === -1 &&
-              fromMsg.indexOf('delivery subsystem') === -1 &&
-              fromMsg.indexOf('nao-responda') === -1 &&
-              fromMsg.indexOf('telefonia@') === -1) {
-            mensagemAlvo = msgsThread[m];
-            threadEncontrada = thread;
-            break;
-          }
-        }
-
-        if (threadEncontrada && mensagemAlvo) {
-          break;
-        }
-      }
-    }
-
-    if (threadEncontrada && mensagemAlvo) {
-      const replyOpts = {
-        htmlBody: htmlCorpo,
-        name: nomeFormatado + ' | Gestão de Telefonia brisanet',
-        replyTo: emailAtendente
-      };
-      if (blobsAnexos.length > 0) {
-        replyOpts.attachments = blobsAnexos;
-      }
-
-      const ccList = [];
-      if (listaCc) {
-        listaCc.split(/[,;\s]+/).forEach(function(em) {
-          const emLimpo = em.trim().toLowerCase();
-          if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
-            if (emLimpo.indexOf('nao-responda') === -1 &&
-                emLimpo.indexOf('mailer-daemon') === -1 &&
-                emLimpo.indexOf('delivery subsystem') === -1 &&
-                emLimpo.indexOf('googlemail.com') === -1 &&
-                emLimpo.indexOf('telefonia@') === -1) {
-              ccList.push(emLimpo);
-            }
-          }
-        });
-      }
-
-      const toMsgAlvo = (mensagemAlvo.getTo() || '').toLowerCase();
-      const fromMsgAlvo = (mensagemAlvo.getFrom() || '').toLowerCase();
-      const ccMsgAlvo = (mensagemAlvo.getCc() || '').toLowerCase();
-      const destPrincipal = String(params.destinatario || '').toLowerCase().trim();
-
-      const contemLixoOriginal = (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('nao-responda') !== -1 ||
-                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1 ||
-                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('telefonia@') !== -1;
-
-      if (contemLixoOriginal) {
-        // Mensagem com resquício de endereços inválidos (telefonia@, nao-responda, mailer-daemon) em To/Cc:
-        // usa reply() simples ao remetente humano e adiciona os demais em CC limpo,
-        // garantindo que o Gmail NÃO tente entregar a telefonia@ ou robôs.
-        if (destPrincipal &&
-            destPrincipal.indexOf('nao-responda') === -1 &&
-            destPrincipal.indexOf('mailer-daemon') === -1 &&
-            destPrincipal.indexOf('telefonia@') === -1) {
-          if (fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
-            ccList.push(destPrincipal);
-          }
-        }
-        if (ccList.length > 0) {
-          replyOpts.cc = ccList.join(', ');
-        }
-        mensagemAlvo.reply(textoPlano, replyOpts);
-        enviado = true;
-      } else {
-        // Mensagem limpa: replyAll
-        if (destPrincipal &&
-            destPrincipal.indexOf('nao-responda') === -1 &&
-            destPrincipal.indexOf('mailer-daemon') === -1 &&
-            destPrincipal.indexOf('telefonia@') === -1) {
-          if (toMsgAlvo.indexOf(destPrincipal) === -1 && fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
-            ccList.push(destPrincipal);
-          }
-        }
-        if (ccList.length > 0) {
-          replyOpts.cc = ccList.join(', ');
-        }
-        mensagemAlvo.replyAll(textoPlano, replyOpts);
-        enviado = true;
-      }
-    }
-  } catch (errThread) {
-    Logger.log('Aviso ao tentar responder na thread do chamado: ' + errThread.message);
-  }
-
-  // Fallback 1: Envia novo e-mail com o assunto padronizado caso seja o primeiro e-mail do chamado
-  if (!enviado) {
-    try {
-      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
-      enviado = true;
-    } catch (errGmail) {
-      Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
-    }
-  }
-
-  // Fallback 2: MailApp caso GmailApp falhe
-  if (!enviado) {
+    GmailApp.sendEmail(destPrincipal, assuntoUnificado, textoPlano, options);
+    enviado = true;
+  } catch (errGmail) {
+    Logger.log('Aviso GmailApp: ' + errGmail.message + ' - utilizando MailApp...');
     try {
       MailApp.sendEmail(mailAppOptions);
       enviado = true;
@@ -2148,7 +2059,7 @@ function montarObjetoChamado(linha) {
     observacoesAdmin: String(linha[16] || ''),
     dataStatusAguardando: formatarData(linha[17]),
     aviso4DiasEnviado: linha[18] === 'SIM' || linha[18] === true,
-    emailsAcompanhantes: String(linha[19] || '').trim()
+    emailsAcompanhantes: sanitizarEmailsAcompanhantes(String(linha[19] || ''))
   };
 }
 
@@ -2278,7 +2189,7 @@ function montarObjetoVisita(linha) {
     tokenAcesso: String(linha[17] || ''),
     dataDecisao: formatarData(linha[18]),
     motivoDecisao: String(linha[19] || ''),
-    emailsAcompanhantes: String(linha[20] || '').trim()
+    emailsAcompanhantes: sanitizarEmailsAcompanhantes(String(linha[20] || ''))
   };
 }
 
@@ -3500,171 +3411,87 @@ function enviarEmailNotificacaoVisita(params) {
     (link ? 'Para responder ou anexar arquivos, acesse o link:\n' + link : 'Acesse o Portal de Visitas no Painel Web.')
   ].join('\n');
 
+  const assuntoUnificado = '[brisanet] Visita ' + idVisita + ' - ' + empresaTitulo;
+
+  // 4. Validação rigorosa dos destinatários: impede o envio para robôs de erro ou e-mails inexistentes
+  const destPrincipal = String(params.destinatario || '').trim().toLowerCase();
+  if (!destPrincipal ||
+      !destPrincipal.includes('@') ||
+      destPrincipal.indexOf('mailer-daemon') !== -1 ||
+      destPrincipal.indexOf('googlemail.com') !== -1 ||
+      destPrincipal.indexOf('delivery') !== -1 ||
+      destPrincipal.indexOf('subsystem') !== -1 ||
+      destPrincipal.indexOf('postmaster') !== -1 ||
+      destPrincipal.indexOf('daemon') !== -1 ||
+      destPrincipal.indexOf('nao-responda') !== -1 ||
+      destPrincipal.indexOf('telefonia@') !== -1) {
+    Logger.log('Envio de e-mail de visita cancelado: destinatário inválido ou robô (' + destPrincipal + ')');
+    return;
+  }
+
+  // Sanitiza a lista de acompanhantes em CC (excluindo o destinatário principal se estiver repetido)
+  const ccList = [];
+  if (listaCc) {
+    listaCc.split(/[,;\s]+/).forEach(function(em) {
+      const emLimpo = em.trim().toLowerCase();
+      if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1 && emLimpo !== destPrincipal) {
+        if (emLimpo.indexOf('nao-responda') === -1 &&
+            emLimpo.indexOf('mailer-daemon') === -1 &&
+            emLimpo.indexOf('delivery') === -1 &&
+            emLimpo.indexOf('subsystem') === -1 &&
+            emLimpo.indexOf('googlemail.com') === -1 &&
+            emLimpo.indexOf('postmaster') === -1 &&
+            emLimpo.indexOf('daemon') === -1 &&
+            emLimpo.indexOf('telefonia@') === -1) {
+          ccList.push(emLimpo);
+        }
+      }
+    });
+  }
+  const ccFinal = ccList.join(', ');
+
+  const replyToFinal = (emailAutor && emailAutor.includes('@') && emailAutor.indexOf('telefonia@') === -1 && emailAutor.indexOf('mailer-daemon') === -1)
+    ? emailAutor.trim().toLowerCase()
+    : obterEmailAdminPadrao();
+
   const options = {
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Visitas brisanet',
-    replyTo: emailAutor
+    replyTo: replyToFinal
   };
-  if (listaCc) options.cc = listaCc;
+  if (ccFinal) options.cc = ccFinal;
   if (blobsAnexos.length > 0) options.attachments = blobsAnexos;
 
   const mailAppOptions = {
-    to: params.destinatario,
-    subject: '[brisanet] Visita ' + idVisita + ' - ' + empresaTitulo,
+    to: destPrincipal,
+    subject: assuntoUnificado,
     body: textoPlano,
     htmlBody: htmlCorpo,
     name: nomeFormatado + ' | Gestão de Visitas brisanet',
-    replyTo: emailAutor
+    replyTo: replyToFinal
   };
-  if (listaCc) mailAppOptions.cc = listaCc;
+  if (ccFinal) mailAppOptions.cc = ccFinal;
   if (blobsAnexos.length > 0) mailAppOptions.attachments = blobsAnexos;
 
-  const assuntoUnificado = '[brisanet] Visita ' + idVisita + ' - ' + empresaTitulo;
-
-  // 4. Envio agrupado na mesma conversa (Thread) no Gmail
+  // 5. Envio limpo e agrupado na conversa do Gmail pelo assunto unificado
   let enviado = false;
-
   try {
-    let threads = GmailApp.search('subject:' + idVisita, 0, 10);
-    if (!threads || threads.length === 0) {
-      threads = GmailApp.search('"' + idVisita + '"', 0, 10);
-    }
-    if (!threads || threads.length === 0) {
-      threads = GmailApp.search(idVisita, 0, 10);
-    }
-
-    let threadEncontrada = null;
-    let mensagemAlvo = null;
-
-    if (threads && threads.length > 0) {
-      for (let t = 0; t < threads.length; t++) {
-        const thread = threads[t];
-        const subj = (thread.getFirstMessageSubject() || '').trim();
-        const subjLower = subj.toLowerCase();
-
-        // IGNORAR explicitamente qualquer e-mail do Google Drive, compartilhamento de pastas ou notificações de erro de entrega
-        if (subjLower.indexOf('compartilhada') !== -1 ||
-            subjLower.indexOf('google drive') !== -1 ||
-            subjLower.indexOf('delivery status notification') !== -1 ||
-            subjLower.indexOf('undelivered mail') !== -1 ||
-            subjLower.indexOf('failure notice') !== -1) {
-          continue;
-        }
-
-        if (subj.indexOf(idVisita) === -1) {
-          continue;
-        }
-
-        // Procura a última mensagem humana válida na thread (ignorando robôs de entrega mailer-daemon e e-mails inexistentes)
-        const msgsThread = thread.getMessages();
-        for (let m = msgsThread.length - 1; m >= 0; m--) {
-          const fromMsg = (msgsThread[m].getFrom() || '').toLowerCase();
-          if (fromMsg.indexOf('mailer-daemon') === -1 &&
-              fromMsg.indexOf('delivery subsystem') === -1 &&
-              fromMsg.indexOf('nao-responda') === -1 &&
-              fromMsg.indexOf('telefonia@') === -1) {
-            mensagemAlvo = msgsThread[m];
-            threadEncontrada = thread;
-            break;
-          }
-        }
-
-        if (threadEncontrada && mensagemAlvo) {
-          break;
-        }
-      }
-    }
-
-    if (threadEncontrada && mensagemAlvo) {
-      const replyOpts = {
-        htmlBody: htmlCorpo,
-        name: nomeFormatado + ' | Gestão de Visitas brisanet',
-        replyTo: emailAutor
-      };
-      if (blobsAnexos.length > 0) {
-        replyOpts.attachments = blobsAnexos;
-      }
-
-      const ccList = [];
-      if (listaCc) {
-        listaCc.split(/[,;\s]+/).forEach(function(em) {
-          const emLimpo = em.trim().toLowerCase();
-          if (emLimpo && emLimpo.includes('@') && ccList.indexOf(emLimpo) === -1) {
-            if (emLimpo.indexOf('nao-responda') === -1 &&
-                emLimpo.indexOf('mailer-daemon') === -1 &&
-                emLimpo.indexOf('delivery subsystem') === -1 &&
-                emLimpo.indexOf('googlemail.com') === -1 &&
-                emLimpo.indexOf('telefonia@') === -1) {
-              ccList.push(emLimpo);
-            }
-          }
-        });
-      }
-
-      const toMsgAlvo = (mensagemAlvo.getTo() || '').toLowerCase();
-      const fromMsgAlvo = (mensagemAlvo.getFrom() || '').toLowerCase();
-      const ccMsgAlvo = (mensagemAlvo.getCc() || '').toLowerCase();
-      const destPrincipal = String(params.destinatario || '').toLowerCase().trim();
-
-      const contemLixoOriginal = (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('nao-responda') !== -1 ||
-                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('mailer-daemon') !== -1 ||
-                                  (toMsgAlvo + ' ' + ccMsgAlvo).indexOf('telefonia@') !== -1;
-
-      if (contemLixoOriginal) {
-        // Mensagem com resquício de endereços inválidos (telefonia@, nao-responda, mailer-daemon) em To/Cc:
-        // usa reply() simples ao remetente humano e adiciona os demais em CC limpo,
-        // garantindo que o Gmail NÃO tente entregar a telefonia@ ou robôs.
-        if (destPrincipal &&
-            destPrincipal.indexOf('nao-responda') === -1 &&
-            destPrincipal.indexOf('mailer-daemon') === -1 &&
-            destPrincipal.indexOf('telefonia@') === -1) {
-          if (fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
-            ccList.push(destPrincipal);
-          }
-        }
-        if (ccList.length > 0) {
-          replyOpts.cc = ccList.join(', ');
-        }
-        mensagemAlvo.reply(textoPlano, replyOpts);
-        enviado = true;
-      } else {
-        // Mensagem limpa: replyAll
-        if (destPrincipal &&
-            destPrincipal.indexOf('nao-responda') === -1 &&
-            destPrincipal.indexOf('mailer-daemon') === -1 &&
-            destPrincipal.indexOf('telefonia@') === -1) {
-          if (toMsgAlvo.indexOf(destPrincipal) === -1 && fromMsgAlvo.indexOf(destPrincipal) === -1 && ccList.indexOf(destPrincipal) === -1) {
-            ccList.push(destPrincipal);
-          }
-        }
-        if (ccList.length > 0) {
-          replyOpts.cc = ccList.join(', ');
-        }
-        mensagemAlvo.replyAll(textoPlano, replyOpts);
-        enviado = true;
-      }
-    }
-  } catch (errThread) {
-    Logger.log('Aviso ao tentar responder na thread da visita: ' + errThread.message);
-  }
-
-  // Fallback 1: Envia novo e-mail com o assunto padronizado caso seja a primeira mensagem da visita
-  if (!enviado) {
-    try {
-      GmailApp.sendEmail(params.destinatario, assuntoUnificado, textoPlano, options);
-      enviado = true;
-    } catch (errGmail) {
-      Logger.log('Aviso GmailApp Visita: ' + errGmail.message + ' - utilizando MailApp...');
-    }
-  }
-
-  // Fallback 2: MailApp caso GmailApp falhe
-  if (!enviado) {
+    GmailApp.sendEmail(destPrincipal, assuntoUnificado, textoPlano, options);
+    enviado = true;
+  } catch (errGmail) {
+    Logger.log('Aviso GmailApp Visita: ' + errGmail.message + ' - utilizando MailApp...');
     try {
       MailApp.sendEmail(mailAppOptions);
       enviado = true;
     } catch (errMail) {
-      Logger.log('Erro final ao enviar e-mail de visita: ' + errMail.message);
+      Logger.log('Erro MailApp Visita com anexos: ' + errMail.message + ' - tentando fallback sem anexo físico...');
+      try {
+        delete mailAppOptions.attachments;
+        MailApp.sendEmail(mailAppOptions);
+        enviado = true;
+      } catch (errFinal) {
+        Logger.log('Erro crítico ao enviar e-mail de visita: ' + errFinal.message);
+      }
     }
   }
 }
