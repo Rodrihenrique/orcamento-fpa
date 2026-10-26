@@ -58,6 +58,7 @@
  *      • SLA / Horas: Coluna N (HORAS TRABALHADAS) em Col J, com fórmulas automáticas em Col K (=J) e L (=K).
  *      • Preservação Estrita: Linhas de 'Expansão' e cabeçalhos (linhas 1 e 2) são mantidos 100% intactos.
  *      • Filtros de Exclusão: Chamados com tecnologia '5.8' (Coluna E) e atribuídos à 'EQUIPE MNT. - INTERNA.' (Coluna V) são descartados automaticamente.
+ *      • Diagrama de Rede Dinâmico: Busca automatizada do Projeto (Col F) e Diagrama (Col G) por estado a partir da planilha Capex de Manutenção 5G (aba 'Capex de man. - 5G', filtrando 'Mão de Obra'), com fallback local de alta disponibilidade.
  * 
  * 4. Regras de Negócio e Filtros Estritos:
  *    - Filtro de Colaborador: Apenas colaboradores na Coluna A de 'Custos_Totais'.
@@ -103,6 +104,10 @@ const CONFIG_GERAL = {
   ABA_DESTINO_ATIVIDADES: 'Atividades',
   FILTRAR_CHAMADOS_POR_COLABORADORES: true, // Se true, importa apenas chamados dos colaboradores de Custos_Totais
   IGNORAR_TECNOLOGIA_5_8: true,             // Se true, descarta chamados com tecnologia 5.8 (Coluna E)
+
+  // Planilha de Diagramas de Rede (Capex de Manutenção 5G)
+  ID_PLANILHA_DIAGRAMAS: '1to866851dzBha2ZcyETg67qj4JIFb1P3CLgd9e6XlG0',
+  ABA_DIAGRAMAS_CAPEX_MAN: 'Capex de man. - 5G',
 
   // Nomes das Abas na Planilha Mensal de Destino
   ABA_CUSTOS_TOTAIS: 'Custos_Totais',
@@ -938,7 +943,8 @@ function valorPertenceAoMesViagens(valorRaw, mesAlvo) {
 // ============================================================================
 
 /**
- * Mapeamento de Estados/UFs para Código de Projeto e Diagrama de Rede do Setor.
+ * Mapeamento padrão e de contingência de Estados/UFs para Projeto e Diagrama de Rede (Capex de Manutenção 5G).
+ * Utilizado como fallback caso a planilha de diagramas externa esteja temporariamente indisponível.
  */
 const MAPA_UF_PROJETO_ATIVIDADES = {
   'CEARA': { proj: 'CE01', diag: '4023987 0020', estado: 'Ceará' },
@@ -950,8 +956,147 @@ const MAPA_UF_PROJETO_ATIVIDADES = {
   'PERNAMBUCO': { proj: 'PE01', diag: '4023995 0020', estado: 'Pernambuco' },
   'PE': { proj: 'PE01', diag: '4023995 0020', estado: 'Pernambuco' },
   'PIAUI': { proj: 'PI01', diag: '4023991 0020', estado: 'Piauí' },
-  'PI': { proj: 'PI01', diag: '4023991 0020', estado: 'Piauí' }
+  'PI': { proj: 'PI01', diag: '4023991 0020', estado: 'Piauí' },
+  'BAHIA': { proj: 'BA01', diag: '4023992 0020', estado: 'Bahia' },
+  'BA': { proj: 'BA01', diag: '4023992 0020', estado: 'Bahia' },
+  'ALAGOAS': { proj: 'AL01', diag: '4023993 0020', estado: 'Alagoas' },
+  'AL': { proj: 'AL01', diag: '4023993 0020', estado: 'Alagoas' },
+  'SERGIPE': { proj: 'SE01', diag: '4023994 0020', estado: 'Sergipe' },
+  'SE': { proj: 'SE01', diag: '4023994 0020', estado: 'Sergipe' }
 };
+
+// Cache em memória para evitar reabrir a planilha de diagramas repetidamente durante execuções em lote
+var _cacheMapaDiagramas = null;
+
+/**
+ * Carrega dinamicamente o mapeamento de projetos e diagramas de rede
+ * a partir da planilha de Capex de Manutenção 5G.
+ * Filtra as linhas contendo "Mão de Obra" e mapeia por Código de Projeto (ex: CE01) e por UF/Estado.
+ */
+function carregarMapaDiagramasCapexManutencao(ssDiagramasInstancia) {
+  if (_cacheMapaDiagramas && !ssDiagramasInstancia) {
+    return _cacheMapaDiagramas;
+  }
+
+  var mapaPorProjeto = {};
+  var mapaPorUF = {};
+
+  var ESTADOS_NOMES = {
+    'AC': 'Acre', 'AL': 'Alagoas', 'AP': 'Amapá', 'AM': 'Amazonas',
+    'BA': 'Bahia', 'CE': 'Ceará', 'DF': 'Distrito Federal', 'ES': 'Espírito Santo',
+    'GO': 'Goiás', 'MA': 'Maranhão', 'MT': 'Mato Grosso', 'MS': 'Mato Grosso do Sul',
+    'MG': 'Minas Gerais', 'PA': 'Pará', 'PB': 'Paraíba', 'PR': 'Paraná',
+    'PE': 'Pernambuco', 'PI': 'Piauí', 'RJ': 'Rio de Janeiro', 'RN': 'Rio Grande do Norte',
+    'RS': 'Rio Grande do Sul', 'RO': 'Rondônia', 'RR': 'Roraima', 'SC': 'Santa Catarina',
+    'SP': 'São Paulo', 'SE': 'Sergipe', 'TO': 'Tocantins'
+  };
+
+  try {
+    var ss = ssDiagramasInstancia;
+    if (!ss) {
+      ss = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_DIAGRAMAS);
+    }
+
+    var aba = obterAbaPorNomes(ss, [
+      CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN,
+      'Capex de man. - 5G',
+      'Capex de man - 5G',
+      'Capex de Manutenção - 5G',
+      'Capex de Manutencao - 5G'
+    ]);
+
+    if (aba) {
+      var valores = aba.getDataRange().getValues();
+      for (var r = 0; r < valores.length; r++) {
+        var linha = valores[r];
+        if (!linha || linha.length < 2) continue;
+
+        // Procura em todas as colunas da linha a descrição contendo "mão de obra"
+        for (var c = 0; c < linha.length; c++) {
+          var celulaTxt = (linha[c] || "").toString().trim();
+          var celulaPad = padronizarTexto(celulaTxt);
+
+          if (celulaPad.indexOf("MAO DE OBRA") > -1) {
+            // Tenta extrair código de projeto (ex: CE01, RN01, PB01, etc.)
+            var matchProj = celulaTxt.match(/\b([A-Z]{2}\d{2})\b/i);
+            var proj = matchProj ? matchProj[1].toUpperCase() : "";
+
+            // O diagrama costuma estar na coluna seguinte (c + 1) ou nas colunas posteriores da linha
+            var diagVal = "";
+            for (var d = c + 1; d < linha.length; d++) {
+              var valD = (linha[d] || "").toString().trim();
+              if (valD && valD !== "-" && valD !== "#N/A") {
+                diagVal = valD.replace(/\.0$/, "");
+                break;
+              }
+            }
+
+            if (proj && diagVal) {
+              var uf = proj.slice(0, 2);
+              var estadoNome = ESTADOS_NOMES[uf] || uf;
+
+              var item = {
+                projeto: proj,
+                diagrama: diagVal,
+                uf: uf,
+                estado: estadoNome,
+                descricao: celulaTxt
+              };
+
+              mapaPorProjeto[proj] = item;
+
+              // Mapeia pela UF e pelo Nome do Estado Normalizado
+              if (!mapaPorUF[uf]) {
+                mapaPorUF[uf] = item;
+              }
+              var nomeEstadoPad = padronizarTexto(estadoNome);
+              if (!mapaPorUF[nomeEstadoPad]) {
+                mapaPorUF[nomeEstadoPad] = item;
+              }
+            }
+          }
+        }
+      }
+      Logger.log("Diagramas carregados da planilha externa: " + Object.keys(mapaPorProjeto).length + " projetos de Mão de Obra mapeados.");
+    } else {
+      Logger.log("Aba '" + CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN + "' não encontrada na planilha de Diagramas.");
+    }
+  } catch (e) {
+    Logger.log("Aviso: Falha ao carregar diagramas da planilha externa: " + e.message + ". Usando mapa de contingência.");
+  }
+
+  // Preenche fallbacks com base em MAPA_UF_PROJETO_ATIVIDADES se algum projeto/UF não estiver no mapa dinâmico
+  for (var chave in MAPA_UF_PROJETO_ATIVIDADES) {
+    if (MAPA_UF_PROJETO_ATIVIDADES.hasOwnProperty(chave)) {
+      var itemFallback = MAPA_UF_PROJETO_ATIVIDADES[chave];
+      if (!mapaPorUF[chave]) {
+        mapaPorUF[chave] = {
+          projeto: itemFallback.proj,
+          diagrama: itemFallback.diag,
+          uf: itemFallback.proj.slice(0, 2),
+          estado: itemFallback.estado,
+          descricao: "Contingência"
+        };
+      }
+      if (!mapaPorProjeto[itemFallback.proj]) {
+        mapaPorProjeto[itemFallback.proj] = {
+          projeto: itemFallback.proj,
+          diagrama: itemFallback.diag,
+          uf: itemFallback.proj.slice(0, 2),
+          estado: itemFallback.estado,
+          descricao: "Contingência"
+        };
+      }
+    }
+  }
+
+  _cacheMapaDiagramas = {
+    porProjeto: mapaPorProjeto,
+    porUF: mapaPorUF
+  };
+
+  return _cacheMapaDiagramas;
+}
 
 /**
  * Importa os chamados de manutenção da planilha de Chamados
@@ -1006,10 +1151,13 @@ function importarDadosChamadosAtividades(planilhaAlvo, silencioso) {
     return { chamados: 0, expansao: 0, erro: errOrigem };
   }
 
-  // 3. Extrair chamados de manutenção para o mês alvo
+  // 3. Carregar diagramas de rede dinamicamente da planilha Capex de man. - 5G
+  var mapaDiagramas = carregarMapaDiagramasCapexManutencao();
+
+  // 4. Extrair chamados de manutenção para o mês alvo
   var registrosChamados;
   try {
-    registrosChamados = extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes);
+    registrosChamados = extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes, mapaDiagramas);
   } catch (e) {
     var errExtrair = "Erro ao extrair chamados da aba '" + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + "': " + e.message;
     Logger.log(errExtrair);
@@ -1017,7 +1165,7 @@ function importarDadosChamadosAtividades(planilhaAlvo, silencioso) {
     return { chamados: 0, expansao: 0, erro: errExtrair };
   }
 
-  // 4. Gravar na aba Atividades (preservando linhas de Expansão)
+  // 5. Gravar na aba Atividades (preservando linhas de Expansão)
   var resultadoGravacao = gravarDadosNaAbaAtividades(abaAtividades, registrosChamados);
 
   SpreadsheetApp.flush();
@@ -1045,7 +1193,7 @@ function importarDadosChamadosAtividades(planilhaAlvo, silencioso) {
 /**
  * Extrai e filtra os chamados da planilha de origem para o mês da planilha alvo.
  */
-function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes) {
+function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes, mapaDiagramas) {
   var abaChamados = obterAbaPorNomes(ssOrigem, [CONFIG_GERAL.ABA_ORIGEM_CHAMADOS, 'CHAMADOS', 'Chamados']);
   if (!abaChamados) {
     throw new Error("Aba '" + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + "' não encontrada na planilha de origem.");
@@ -1200,7 +1348,8 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
 
     // UF, Projeto e Diagrama
     var ufRaw = row[colMap.uf] ? row[colMap.uf].toString().trim() : "";
-    var infoProj = mapearProjetoEDiagrama(ufRaw);
+    var siteStr = site ? site.toString().trim() : "";
+    var infoProj = mapearProjetoEDiagrama(ufRaw, siteStr, mapaDiagramas);
 
     // Horas Trabalhadas (SLA Hora)
     var horasRaw = row[colMap.horasTrabalhadas];
@@ -1346,15 +1495,54 @@ function tratarHorasTrabalhadasChamado(val) {
 }
 
 /**
- * Mapeia o Estado/UF para o Projeto e Diagrama de Rede correspondente.
+ * Mapeia o Estado/UF para o Projeto e Diagrama de Rede correspondente,
+ * utilizando o mapa dinâmico carregado da planilha de Capex de Manutenção 5G
+ * com fallback para a tabela padrão de contingência.
  */
-function mapearProjetoEDiagrama(ufBruta) {
-  if (!ufBruta) return { estado: '', proj: 'N/A', diag: 'N/A' };
-  var ufPad = padronizarTexto(ufBruta);
+function mapearProjetoEDiagrama(ufBruta, siteOuDesc, mapaDiagramas) {
+  if (!ufBruta && !siteOuDesc) return { estado: '', proj: 'N/A', diag: 'N/A' };
+  var ufPad = ufBruta ? padronizarTexto(ufBruta) : "";
+  var sitePad = siteOuDesc ? padronizarTexto(siteOuDesc) : "";
+
+  // 1. Se foi passado mapa dinâmico carregado da planilha de Capex de Manutenção 5G
+  if (mapaDiagramas) {
+    // Caso especial para Ceará (CE01 vs CE02)
+    if (ufPad === "CE" || ufPad === "CEARA") {
+      if (sitePad.indexOf("CE02") > -1 || sitePad.indexOf("CE-02") > -1) {
+        if (mapaDiagramas.porProjeto && mapaDiagramas.porProjeto["CE02"]) {
+          var itemCE02 = mapaDiagramas.porProjeto["CE02"];
+          return { estado: itemCE02.estado, proj: itemCE02.projeto, diag: itemCE02.diagrama };
+        }
+      }
+      if (mapaDiagramas.porProjeto && mapaDiagramas.porProjeto["CE01"]) {
+        var itemCE01 = mapaDiagramas.porProjeto["CE01"];
+        return { estado: itemCE01.estado, proj: itemCE01.projeto, diag: itemCE01.diagrama };
+      }
+    }
+
+    // Busca pela UF ou nome do Estado no mapa dinâmico
+    if (mapaDiagramas.porUF && mapaDiagramas.porUF[ufPad]) {
+      var itemUF = mapaDiagramas.porUF[ufPad];
+      return { estado: itemUF.estado, proj: itemUF.projeto, diag: itemUF.diagrama };
+    }
+
+    // Tenta encontrar projeto direto pelo código no site ou UF (ex: RN01)
+    if (mapaDiagramas.porProjeto) {
+      for (var p in mapaDiagramas.porProjeto) {
+        if (sitePad.indexOf(p) > -1 || ufPad.indexOf(p) > -1) {
+          var itemP = mapaDiagramas.porProjeto[p];
+          return { estado: itemP.estado, proj: itemP.projeto, diag: itemP.diagrama };
+        }
+      }
+    }
+  }
+
+  // 2. Fallback para mapa padrão em memória
   if (MAPA_UF_PROJETO_ATIVIDADES[ufPad]) {
     return MAPA_UF_PROJETO_ATIVIDADES[ufPad];
   }
-  var estadoFormatado = ufBruta.toString().trim();
+
+  var estadoFormatado = ufBruta ? ufBruta.toString().trim() : "";
   return {
     estado: estadoFormatado,
     proj: estadoFormatado.length === 2 ? estadoFormatado.toUpperCase() + '01' : 'N/A',
@@ -2126,6 +2314,23 @@ function testarConexoes() {
     }
   } catch (e) {
     relatorio.push("❌ Erro ao acessar Planilha Origem Chamados: " + e.message);
+  }
+
+  // Conexão com a planilha de Diagramas de Rede (Capex de Manutenção 5G)
+  try {
+    var ssDiagramas = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_DIAGRAMAS);
+    relatorio.push("✅ Planilha Diagramas conectada: '" + ssDiagramas.getName() + "'");
+
+    var abaDiag = obterAbaPorNomes(ssDiagramas, [CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN, 'Capex de man. - 5G']);
+    if (abaDiag) {
+      var mapaDiag = carregarMapaDiagramasCapexManutencao(ssDiagramas);
+      var projsEncontrados = Object.keys(mapaDiag.porProjeto);
+      relatorio.push("  • Aba '" + CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN + "': " + projsEncontrados.length + " diagramas de 'Mão de Obra' mapeados (" + projsEncontrados.join(', ') + ").");
+    } else {
+      relatorio.push("  ❌ Aba '" + CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN + "' NÃO encontrada na planilha de Diagramas.");
+    }
+  } catch (e) {
+    relatorio.push("⚠️ Aviso ao acessar Planilha de Diagramas: " + e.message + " (Será utilizado o mapa padrão de contingência).");
   }
 
   // Listagem da Pasta 2026

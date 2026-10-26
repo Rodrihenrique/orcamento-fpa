@@ -46,8 +46,8 @@ Módulo integrado em **Google Apps Script** para importação e tratamento autom
   - **C (`Categoria`):** `"CAPEX"` padronizado.
   - **D (`Site`):** Coluna B (`SITE`).
   - **E (`Estado`):** Coluna G (`UF`).
-  - **F (`Projeto`):** Mapeado automaticamente a partir da UF (`CE01`, `RN01`, `PB01`, `PE01`, `PI01`).
-  - **G (`Diagrama de Rede`):** Mapeado automaticamente a partir do Projeto (`4023987 0020`, `4023989 0020`, `4023990 0020`, `4023995 0020`, `4023991 0020`).
+  - **F (`Projeto`):** Mapeado automaticamente a partir da UF/Estado via busca dinâmica na planilha de Capex de Manutenção (`CE01`/`CE02`, `RN01`, `PB01`, `PE01`, `PI01`, `BA01`, `AL01`, `SE01`).
+  - **G (`Diagrama de Rede`):** Mapeado dinamicamente a partir dos itens de `"Mão de Obra"` por estado na aba `Capex de man. - 5G` da planilha oficial de diagramas (ex.: `4023987 0020`, `4023989 0020`, `4023990 0020`, `4023995 0020`, `4023991 0020`, `4023992 0020`, `4023993 0020`, `4023994 0020`).
   - **H (`Responsável Equipe`):** Coluna V (`EQUIPE`), com remoção automática do texto `"MNT."` e padronização no formato `"EQUIPE - 01"`, `"EQUIPE - 02"`, etc. (com fallback automático para `Custos_Totais` caso esteja `#N/A` ou em branco).
   - **I (`Responsável Técnico`):** Coluna U (`COLABORADOR`).
   - **J (`SLA Hora`):** Coluna N (`HORAS TRABALHADAS`), convertida em fração decimal de dia e formatada como `[h]:mm:ss`.
@@ -128,3 +128,4 @@ O arquivo único de extrato contém 39 colunas padronizadas:
 - **Planilha Exemplo (Outubro/2026):** [10. CUSTOS DO SETOR - OUTUBRO - 2026](https://docs.google.com/spreadsheets/d/1wdaKA7fKHSlqMGAdK9fLvppLeGqY0GWe9pF9cOYFQHI/edit?gid=392571569)
 - **Planilha Origem de Viagens:** [CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026](https://docs.google.com/spreadsheets/d/1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk/edit?gid=1863439256)
 - **Planilha Origem de Chamados:** [CHAMADOS](https://docs.google.com/spreadsheets/d/1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU/edit?gid=854802008#gid=854802008)
+- **Planilha Origem de Diagramas (Capex de Manutenção 5G):** [Capex de Manutenção 5G](https://docs.google.com/spreadsheets/d/1to866851dzBha2ZcyETg67qj4JIFb1P3CLgd9e6XlG0/edit?gid=1470699754#gid=1470699754) (Aba `Capex de man. - 5G`)

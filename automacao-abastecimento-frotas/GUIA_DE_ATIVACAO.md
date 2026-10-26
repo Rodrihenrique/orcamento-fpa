@@ -14,8 +14,10 @@ Manual passo a passo para configurar a importação automática de **Frota Unifi
    │           └── Coluna C: 'BRISANET MANUTENCAO'    ──► Base_Manutenção
    ├── Viagens: Planilha 'CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026'
    │     └── Alimentação (A:C) e Hospedagem (F:H)     ──► Base_Viagens
-   └── Atividades: Planilha 'CHAMADOS'
-         └── Chamados de Manutenção (Col A até L)     ──► Atividades
+   ├── Atividades: Planilha 'CHAMADOS'
+   │     └── Chamados de Manutenção (Col A até L)     ──► Atividades
+   └── Diagramas de Rede: Planilha 'Capex de Manutenção 5G' (aba 'Capex de man. - 5G')
+         └── Busca dinâmica de Projeto e Diagrama por Estado ("Mão de Obra")
                │
                ▼
 [2. Execução pelo Menu Superior (onOpen)]
@@ -47,6 +49,10 @@ Manual passo a passo para configurar a importação automática de **Frota Unifi
    - *Observação:* Se você ainda não criou essa pasta no Drive, o próprio script cria automaticamente ao clicar em **`📁 Criar / Verificar Pastas no Google Drive`** no menu da planilha!
 3. **Planilha de Origem de Viagens:**
    - Link: [CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026](https://docs.google.com/spreadsheets/d/1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk/edit?gid=1863439256)
+4. **Planilha de Origem de Chamados:**
+   - Link: [CHAMADOS](https://docs.google.com/spreadsheets/d/1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU/edit?gid=854802008#gid=854802008)
+5. **Planilha de Diagramas de Rede (Capex de Manutenção 5G):**
+   - Link: [Capex de Manutenção 5G](https://docs.google.com/spreadsheets/d/1to866851dzBha2ZcyETg67qj4JIFb1P3CLgd9e6XlG0/edit?gid=1470699754#gid=1470699754) (Aba `Capex de man. - 5G`)
 
 ---
 
