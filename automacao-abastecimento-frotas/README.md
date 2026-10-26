@@ -48,7 +48,7 @@ Módulo integrado em **Google Apps Script** para importação e tratamento autom
   - **E (`Estado`):** Coluna G (`UF`).
   - **F (`Projeto`):** Mapeado automaticamente a partir da UF/Estado via busca dinâmica na planilha de Capex de Manutenção (`CE01`/`CE02`, `RN01`, `PB01`, `PE01`, `PI01`, `BA01`, `AL01`, `SE01`).
   - **G (`Diagrama de Rede`):** Mapeado dinamicamente a partir dos itens de `"Mão de Obra"` por estado na aba `Capex de man. - 5G` da planilha oficial de diagramas (ex.: `4023987 0020`, `4023989 0020`, `4023990 0020`, `4023995 0020`, `4023991 0020`, `4023992 0020`, `4023993 0020`, `4023994 0020`).
-  - **H (`Responsável Equipe`):** Coluna V (`EQUIPE`), com remoção automática do texto `"MNT."` e padronização no formato `"EQUIPE - 01"`, `"EQUIPE - 02"`, etc. (com fallback automático para `Custos_Totais` caso esteja `#N/A` ou em branco).
+  - **H (`Responsável Equipe`):** Coluna V (`EQUIPE`), com remoção automática do texto `"MNT."`, remoção de hífens e padronização no formato `"EQUIPE 01"`, `"EQUIPE 02"`, etc. (com fallback automático para `Custos_Totais` caso esteja `#N/A` ou em branco).
   - **I (`Responsável Técnico`):** Coluna U (`COLABORADOR`).
   - **J (`SLA Hora`):** Coluna N (`HORAS TRABALHADAS`), convertida em fração decimal de dia e formatada como `[h]:mm:ss`.
   - **K (`SLA Decimal`):** Fórmula `=J{linha}` formatada como decimal.

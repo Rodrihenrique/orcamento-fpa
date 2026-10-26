@@ -1551,7 +1551,7 @@ function mapearProjetoEDiagrama(ufBruta, siteOuDesc, mapaDiagramas) {
 }
 
 /**
- * Formata o nome da equipe removendo o texto 'MNT.' e padronizando para 'EQUIPE - 01', 'EQUIPE - 02', etc.
+ * Formata o nome da equipe removendo o texto 'MNT.', hífens e padronizando para 'EQUIPE 01', 'EQUIPE 02', etc.
  */
 function formatarNomeEquipe(equipeBruta) {
   if (!equipeBruta) return "";
@@ -1565,11 +1565,11 @@ function formatarNomeEquipe(equipeBruta) {
   if (matchNum) {
     var num = matchNum[1];
     var numPad = num.length === 1 ? "0" + num : num;
-    return "EQUIPE - " + numPad;
+    return "EQUIPE " + numPad;
   }
 
-  // Normaliza hífens e espaços extras
-  str = str.replace(/\s*-\s*/g, " - ").replace(/\s+/g, " ").trim();
+  // Remove hífens se houver e normaliza espaços extras
+  str = str.replace(/\s*[-–—]\s*/g, " ").replace(/\s+/g, " ").trim();
   return str;
 }
 
