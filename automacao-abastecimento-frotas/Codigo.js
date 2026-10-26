@@ -57,6 +57,7 @@
  *      • Responsável Técnico: Coluna U (COLABORADOR).
  *      • SLA / Horas: Coluna N (HORAS TRABALHADAS) em Col J, com fórmulas automáticas em Col K (=J) e L (=K).
  *      • Preservação Estrita: Linhas de 'Expansão' e cabeçalhos (linhas 1 e 2) são mantidos 100% intactos.
+ *      • Filtros de Exclusão: Chamados com tecnologia '5.8' (Coluna E) e atribuídos à 'EQUIPE MNT. - INTERNA.' (Coluna V) são descartados automaticamente.
  * 
  * 4. Regras de Negócio e Filtros Estritos:
  *    - Filtro de Colaborador: Apenas colaboradores na Coluna A de 'Custos_Totais'.
@@ -101,6 +102,7 @@ const CONFIG_GERAL = {
   ABA_ORIGEM_CHAMADOS: 'CHAMADOS',
   ABA_DESTINO_ATIVIDADES: 'Atividades',
   FILTRAR_CHAMADOS_POR_COLABORADORES: true, // Se true, importa apenas chamados dos colaboradores de Custos_Totais
+  IGNORAR_TECNOLOGIA_5_8: true,             // Se true, descarta chamados com tecnologia 5.8 (Coluna E)
 
   // Nomes das Abas na Planilha Mensal de Destino
   ABA_CUSTOS_TOTAIS: 'Custos_Totais',
@@ -1059,6 +1061,7 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
   var colMap = {
     chamado: 0,
     site: 1,
+    tecnologia: 4,
     uf: 6,
     horasTrabalhadas: 13,
     mes: 14,
@@ -1081,6 +1084,7 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
         achouChamado = true;
       }
       else if (h === "SITE") { colMap.site = c; }
+      else if (h === "TECNOLOGIA") { colMap.tecnologia = c; }
       else if (h === "UF" || h === "ESTADO") { colMap.uf = c; }
       else if (h.indexOf("HORAS TRABALHADA") > -1 || h === "HORAS") { colMap.horasTrabalhadas = c; }
       else if (h === "MES") { colMap.mes = c; }
@@ -1138,6 +1142,17 @@ function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEqui
 
     if (!pertenceAoMes) {
       continue;
+    }
+
+    // REGRA DE EXCLUSÃO 1: Remover chamados com tecnologia '5.8' (Coluna E)
+    if (CONFIG_GERAL.IGNORAR_TECNOLOGIA_5_8) {
+      var tecIndex = (colMap.tecnologia !== undefined && colMap.tecnologia !== null && colMap.tecnologia >= 0) ? colMap.tecnologia : 4;
+      var tecRaw = row[tecIndex] ? row[tecIndex].toString().trim() : "";
+      var tecPad = padronizarTexto(tecRaw).replace(',', '.');
+      if (tecPad === "5.8" || tecPad.indexOf("5.8") > -1) {
+        Logger.log("Chamado ignorado (Tecnologia 5.8 na Coluna E): " + chamado + " | Site: " + site);
+        continue;
+      }
     }
 
     // Colaborador (Coluna U)
