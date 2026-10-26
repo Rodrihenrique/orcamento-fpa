@@ -48,7 +48,8 @@
  *    - Gravação estrita a partir da linha 3, preservando cabeçalhos e fórmulas em A2/F2.
  * 
  * 3. Módulo de Chamados / Atividades de Manutenção:
- *    - Origem: Planilha 'CHAMADOS' (ID: 1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU, gid 854802008).
+ *    - Origem: Planilha Oficial 'OPERAÇÃO E MANUTENÇÃO DE REDES 2026' (ID: 1StP5J5j_9V_8IEr1DmbvW1M6dEA4ptfEVcScfkV4FJM, gid: 1755873954).
+ *    - Origem dos Diagramas: Planilha Oficial 'DIAGRAMAS DE REDE - 5G' (ID: 1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA, gid: 1470699754).
  *    - Destino: Aba 'Atividades' (Colunas A até L).
  *    - Regras de Negócio:
  *      • Tipo fixado estritamente como 'Manutenção' (Expansões vindas de outras fontes são preservadas).
@@ -98,15 +99,17 @@ const CONFIG_GERAL = {
   ABA_ORIGEM_ALIMENTACAO: 'Alimentação 2026',
   ABA_ORIGEM_HOSPEDAGEM: 'Hospedagem 2026',
 
-  // Planilha de Origem de Chamados (Atividades de Manutenção)
-  ID_PLANILHA_CHAMADOS_ORIGEM: '1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU',
+  // Planilha Oficial de Origem de Chamados (OPERAÇÃO E MANUTENÇÃO DE REDES 2026)
+  ID_PLANILHA_CHAMADOS_ORIGEM: '1StP5J5j_9V_8IEr1DmbvW1M6dEA4ptfEVcScfkV4FJM',
+  GID_ORIGEM_CHAMADOS: '1755873954',
   ABA_ORIGEM_CHAMADOS: 'CHAMADOS',
   ABA_DESTINO_ATIVIDADES: 'Atividades',
   FILTRAR_CHAMADOS_POR_COLABORADORES: true, // Se true, importa apenas chamados dos colaboradores de Custos_Totais
   IGNORAR_TECNOLOGIA_5_8: true,             // Se true, descarta chamados com tecnologia 5.8 (Coluna E)
 
-  // Planilha de Diagramas de Rede (Capex de Manutenção 5G)
-  ID_PLANILHA_DIAGRAMAS: '1to866851dzBha2ZcyETg67qj4JIFb1P3CLgd9e6XlG0',
+  // Planilha Oficial de Diagramas de Rede (DIAGRAMAS DE REDE - 5G)
+  ID_PLANILHA_DIAGRAMAS: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
+  GID_DIAGRAMAS_CAPEX_MAN: '1470699754',
   ABA_DIAGRAMAS_CAPEX_MAN: 'Capex de man. - 5G',
 
   // Nomes das Abas na Planilha Mensal de Destino
@@ -1003,7 +1006,7 @@ function carregarMapaDiagramasCapexManutencao(ssDiagramasInstancia) {
       'Capex de man - 5G',
       'Capex de Manutenção - 5G',
       'Capex de Manutencao - 5G'
-    ]);
+    ], CONFIG_GERAL.GID_DIAGRAMAS_CAPEX_MAN);
 
     if (aba) {
       var valores = aba.getDataRange().getValues();
@@ -1194,9 +1197,16 @@ function importarDadosChamadosAtividades(planilhaAlvo, silencioso) {
  * Extrai e filtra os chamados da planilha de origem para o mês da planilha alvo.
  */
 function extrairRegistrosChamadosOrigem(ssOrigem, mesAlvo, mapaColaboradoresEquipes, mapaDiagramas) {
-  var abaChamados = obterAbaPorNomes(ssOrigem, [CONFIG_GERAL.ABA_ORIGEM_CHAMADOS, 'CHAMADOS', 'Chamados']);
+  var abaChamados = obterAbaPorNomes(ssOrigem, [
+    CONFIG_GERAL.ABA_ORIGEM_CHAMADOS,
+    'CHAMADOS',
+    'Chamados',
+    'OPERAÇÃO E MANUTENÇÃO',
+    'Operação e Manutenção'
+  ], CONFIG_GERAL.GID_ORIGEM_CHAMADOS);
+
   if (!abaChamados) {
-    throw new Error("Aba '" + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + "' não encontrada na planilha de origem.");
+    throw new Error("Aba de chamados não encontrada na planilha de origem (Procurado por GID '" + CONFIG_GERAL.GID_ORIGEM_CHAMADOS + "' e nome '" + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + "').");
   }
 
   var valores = abaChamados.getDataRange().getValues();
@@ -2301,33 +2311,44 @@ function testarConexoes() {
     relatorio.push("❌ Erro ao acessar Planilha Origem Viagens: " + e.message);
   }
 
-  // Conexão com a planilha de origem de Chamados
+  // Conexão com a planilha oficial de origem de Chamados (OPERAÇÃO E MANUTENÇÃO DE REDES 2026)
   try {
     var ssChamados = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_CHAMADOS_ORIGEM);
     relatorio.push("✅ Planilha Origem Chamados conectada: '" + ssChamados.getName() + "'");
 
-    var abaChamados = obterAbaPorNomes(ssChamados, [CONFIG_GERAL.ABA_ORIGEM_CHAMADOS, 'CHAMADOS', 'Chamados']);
+    var abaChamados = obterAbaPorNomes(ssChamados, [
+      CONFIG_GERAL.ABA_ORIGEM_CHAMADOS,
+      'CHAMADOS',
+      'Chamados',
+      'OPERAÇÃO E MANUTENÇÃO',
+      'Operação e Manutenção'
+    ], CONFIG_GERAL.GID_ORIGEM_CHAMADOS);
     if (abaChamados) {
-      relatorio.push("  • Aba CHAMADOS: " + abaChamados.getLastRow() + " linhas totais.");
+      relatorio.push("  • Aba '" + abaChamados.getName() + "' (GID: " + abaChamados.getSheetId() + "): " + abaChamados.getLastRow() + " linhas totais.");
     } else {
-      relatorio.push("  ❌ Aba CHAMADOS NÃO encontrada.");
+      relatorio.push("  ❌ Aba de chamados (GID: " + CONFIG_GERAL.GID_ORIGEM_CHAMADOS + " / Nome: " + CONFIG_GERAL.ABA_ORIGEM_CHAMADOS + ") NÃO encontrada.");
     }
   } catch (e) {
     relatorio.push("❌ Erro ao acessar Planilha Origem Chamados: " + e.message);
   }
 
-  // Conexão com a planilha de Diagramas de Rede (Capex de Manutenção 5G)
+  // Conexão com a planilha oficial de Diagramas de Rede (DIAGRAMAS DE REDE - 5G)
   try {
     var ssDiagramas = SpreadsheetApp.openById(CONFIG_GERAL.ID_PLANILHA_DIAGRAMAS);
     relatorio.push("✅ Planilha Diagramas conectada: '" + ssDiagramas.getName() + "'");
 
-    var abaDiag = obterAbaPorNomes(ssDiagramas, [CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN, 'Capex de man. - 5G']);
+    var abaDiag = obterAbaPorNomes(ssDiagramas, [
+      CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN,
+      'Capex de man. - 5G',
+      'Capex de man - 5G',
+      'Capex de Manutenção - 5G'
+    ], CONFIG_GERAL.GID_DIAGRAMAS_CAPEX_MAN);
     if (abaDiag) {
       var mapaDiag = carregarMapaDiagramasCapexManutencao(ssDiagramas);
       var projsEncontrados = Object.keys(mapaDiag.porProjeto);
-      relatorio.push("  • Aba '" + CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN + "': " + projsEncontrados.length + " diagramas de 'Mão de Obra' mapeados (" + projsEncontrados.join(', ') + ").");
+      relatorio.push("  • Aba '" + abaDiag.getName() + "' (GID: " + abaDiag.getSheetId() + "): " + projsEncontrados.length + " diagramas de 'Mão de Obra' mapeados (" + projsEncontrados.join(', ') + ").");
     } else {
-      relatorio.push("  ❌ Aba '" + CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN + "' NÃO encontrada na planilha de Diagramas.");
+      relatorio.push("  ❌ Aba de diagramas (GID: " + CONFIG_GERAL.GID_DIAGRAMAS_CAPEX_MAN + " / Nome: " + CONFIG_GERAL.ABA_DIAGRAMAS_CAPEX_MAN + ") NÃO encontrada.");
     }
   } catch (e) {
     relatorio.push("⚠️ Aviso ao acessar Planilha de Diagramas: " + e.message + " (Será utilizado o mapa padrão de contingência).");
@@ -3045,14 +3066,43 @@ function carregarListaColaboradores(planilha) {
 }
 
 /**
- * Retorna a primeira aba que coincida com um dos nomes alternativos fornecidos.
+ * Retorna a primeira aba que coincida com o gid fornecido ou com um dos nomes alternativos.
  */
-function obterAbaPorNomes(planilha, nomes) {
-  if (!planilha || !nomes) return null;
-  for (var i = 0; i < nomes.length; i++) {
-    var aba = planilha.getSheetByName(nomes[i]);
-    if (aba) return aba;
+function obterAbaPorNomes(planilha, nomes, gidAlvo) {
+  if (!planilha) return null;
+
+  // 1. Tenta localizar pelo GID se fornecido
+  if (gidAlvo !== undefined && gidAlvo !== null && gidAlvo !== "") {
+    var gidNum = parseInt(gidAlvo.toString().replace(/[^0-9]/g, ""), 10);
+    if (!isNaN(gidNum)) {
+      var abas = planilha.getSheets();
+      for (var s = 0; s < abas.length; s++) {
+        if (abas[s].getSheetId() === gidNum) {
+          return abas[s];
+        }
+      }
+    }
   }
+
+  // 2. Tenta localizar por correspondência exata de nome
+  if (nomes && nomes.length > 0) {
+    for (var i = 0; i < nomes.length; i++) {
+      var aba = planilha.getSheetByName(nomes[i]);
+      if (aba) return aba;
+    }
+
+    // 3. Tenta localizar por nome padronizado (sem acentos e maiúsculas)
+    var abasTodas = planilha.getSheets();
+    for (var j = 0; j < nomes.length; j++) {
+      var nomeProcuradoPad = padronizarTexto(nomes[j]);
+      for (var k = 0; k < abasTodas.length; k++) {
+        if (padronizarTexto(abasTodas[k].getName()) === nomeProcuradoPad) {
+          return abasTodas[k];
+        }
+      }
+    }
+  }
+
   return null;
 }
 

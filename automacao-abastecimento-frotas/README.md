@@ -38,7 +38,7 @@ Módulo integrado em **Google Apps Script** para importação e tratamento autom
 - **Regra de Limpeza:** Limpa rigorosamente da **linha 3 em diante** apenas nas colunas **A:C** e **F:H**. Cabeçalhos (linhas 1 e 2) e Coluna D (`nome corrigido`) permanecem intactos.
 
 ### 4. `Atividades` (Chamados de Manutenção)
-- **Origem:** Planilha [CHAMADOS](https://docs.google.com/spreadsheets/d/1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU/edit?gid=854802008#gid=854802008) (Aba `CHAMADOS`).
+- **Origem:** Planilha Oficial [OPERAÇÃO E MANUTENÇÃO DE REDES 2026](https://docs.google.com/spreadsheets/d/1StP5J5j_9V_8IEr1DmbvW1M6dEA4ptfEVcScfkV4FJM/edit?gid=1755873954#gid=1755873954).
 - **Destino:** Aba `Atividades` da planilha de custos mensais (da linha 3 em diante).
 - **Mapeamento de Colunas (12 Colunas - A até L):**
   - **A (`Serviço`):** Coluna R (`CATEGORIA`) da aba CHAMADOS.
@@ -127,5 +127,5 @@ O arquivo único de extrato contém 39 colunas padronizadas:
 - **Pasta Raiz 2026 (Planilhas Mensais):** [Pasta 2026](https://drive.google.com/drive/folders/1P-QIZVEhADgyZk62snW9nDcV8E_4vLRU)
 - **Planilha Exemplo (Outubro/2026):** [10. CUSTOS DO SETOR - OUTUBRO - 2026](https://docs.google.com/spreadsheets/d/1wdaKA7fKHSlqMGAdK9fLvppLeGqY0GWe9pF9cOYFQHI/edit?gid=392571569)
 - **Planilha Origem de Viagens:** [CONTROLE DE VALORES - ALIMENTAÇÃO/HOSPEDAGEM-2026](https://docs.google.com/spreadsheets/d/1ETgxoOa4LyfZGTMYsTgMlEPyFHCDP43VH9dUNdTqYEk/edit?gid=1863439256)
-- **Planilha Origem de Chamados:** [CHAMADOS](https://docs.google.com/spreadsheets/d/1Q3QmbHUCgAXP9acDzfDuBCc69Ge2qPzrxwUmlSbtQWU/edit?gid=854802008#gid=854802008)
-- **Planilha Origem de Diagramas (Capex de Manutenção 5G):** [Capex de Manutenção 5G](https://docs.google.com/spreadsheets/d/1to866851dzBha2ZcyETg67qj4JIFb1P3CLgd9e6XlG0/edit?gid=1470699754#gid=1470699754) (Aba `Capex de man. - 5G`)
+- **Planilha Origem de Chamados:** [OPERAÇÃO E MANUTENÇÃO DE REDES 2026](https://docs.google.com/spreadsheets/d/1StP5J5j_9V_8IEr1DmbvW1M6dEA4ptfEVcScfkV4FJM/edit?gid=1755873954#gid=1755873954)
+- **Planilha Origem de Diagramas (Capex de Manutenção 5G):** [DIAGRAMAS DE REDE - 5G](https://docs.google.com/spreadsheets/d/1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA/edit?gid=1470699754#gid=1470699754) (Aba `Capex de man. - 5G`)
