@@ -24,6 +24,9 @@ Este guia detalha o passo a passo completo para configurar, autorizar e executar
 
 ## 🛠️ PARTE 1: Configuração Inicial (Feita Apenas na 1ª Vez)
 
+> [!NOTE]
+> **Zero Configuração de Serviços Avançados:** O script foi desenvolvido para funcionar diretamente, **sem necessidade de ativar nada em "+ Serviços"** no editor do Apps Script.
+
 ### 1.1. Abrir o Editor do Google Apps Script
 1. Abra a planilha oficial de controle no Google Sheets:
    * [Planilha Oficial de Destino](https://docs.google.com/spreadsheets/d/1_QIjeOwBFqW5BzEEq4OCCIWKFG7O8-YONGIoH5R9za8/edit?gid=1515083791#gid=1515083791)
@@ -31,47 +34,36 @@ Este guia detalha o passo a passo completo para configurar, autorizar e executar
 
 ---
 
-### 1.2. Habilitar o Serviço Avançado do Google Drive (Essencial para .xlsx)
-A API do Sytex retorna os dados em formato `.xlsx`. Para que o script faça a conversão em memória sem erros:
-1. No menu lateral esquerdo do Apps Script, localize a seção **Serviços** (com um ícone de `+`).
-2. Clique no **`+`** ao lado de Serviços.
-3. Na lista suspensa, procure por **Drive API** (Google Drive API).
-4. No campo **Versão**, selecione **v2**.
-5. No campo **Identificador**, mantenha **`Drive`**.
-6. Clique em **Adicionar**.
-
----
-
-### 1.3. Atualizar o Código
-1. No editor de código, abra o arquivo `Código.gs` (ou `Codigo.js`).
+### 1.2. Atualizar o Código
+1. No editor de código, abra o arquivo `Código.gs` (ou crie um arquivo chamado `Codigo.gs`).
 2. Apague todo o conteúdo anterior.
 3. Copie todo o código atualizado do arquivo [`Codigo.js`](./Codigo.js) deste repositório e cole no editor.
 4. Clique no ícone de disquete 💾 (**Salvar projeto**) ou aperte `Ctrl + S`.
 
 ---
 
-### 1.4. Primeira Autorização de Segurança do Google
-1. No topo do editor, selecione no menu de funções a opção `onOpen` e clique em **Executar**.
+### 1.3. Primeira Autorização de Segurança do Google
+1. No topo do editor, selecione no menu suspenso de funções a opção `onOpen` e clique em **Executar**.
 2. Uma janela pop-up chamada **"Autorização necessária"** será exibida. Clique em **Revisar permissões**.
 3. Escolha a sua conta Google corporativa.
 4. Se aparecer a tela *"O Google não verificou este app"*:
    * Clique no link pequeno **Avançado** (no canto inferior esquerdo).
    * Clique em **Acessar projeto (não seguro)**.
 5. Clique em **Permitir**.
-6. Quando o log indicar *"Execução concluída"*, feche a aba do Apps Script.
+6. Quando o log de execução indicar *"Execução concluída"*, feche a aba do Apps Script.
 
 ---
 
 ## 🔑 PARTE 2: Configurar a Senha da API do Sytex
 
-Para garantir a segurança, você pode cadastrar a senha do Sytex diretamente pela planilha:
+Para garantir a sua privacidade e segurança, a senha é armazenada diretamente na sua conta Google via planilha:
 
 1. Volte para a aba da planilha no navegador e recarregue a página (**F5**).
 2. Aguarde alguns segundos até que o menu **`🔄 Automação 5G`** apareça na barra de ferramentas superior.
 3. Clique em **`🔄 Automação 5G`** > **`⚙️ Configurar Acesso Sytex (Senha)`**.
 4. Uma caixa de diálogo será exibida. Digite a sua senha de acesso do Sytex associada ao usuário `riltomar@grupobrisanet.com.br`.
 5. Clique em **OK**.
-   > *Pronto! A senha ficará salva de forma protegida nas propriedades da sua conta Google, sem ficar exposta no código.*
+   > *A senha ficará salva de forma protegida nas propriedades da sua conta Google (PropertiesService), sem ficar exposta no código-fonte.*
 
 ---
 
@@ -139,9 +131,8 @@ E as **Linhas 1 a 3** terão os cartões de indicadores automáticos atualizados
 ### 1. O menu "🔄 Automação 5G" não apareceu na barra superior.
 * **Solução:** Recarregue a página da planilha no navegador (**F5** ou `Ctrl + R`). O menu é recriado sempre que a planilha é aberta.
 
-### 2. Deu erro "Drive is not defined" ou erro ao converter arquivo.
-* **Causa:** O serviço avançado do Google Drive não foi ativado no Apps Script.
-* **Solução:** Siga o passo **1.2** deste guia e adicione o serviço **Drive API v2**.
+### 2. Preciso habilitar algum serviço em "+ Serviços"?
+* **Não!** O script foi projetado para rodar com zero serviços externos, funcionando mesmo em contas corporativas onde o Google Cloud ou o menu de serviços esteja desabilitado.
 
 ### 3. Deu erro "Falha ao conectar na API Sytex (HTTP 401)".
 * **Causa:** A senha do Sytex está incorreta ou desatualizada.

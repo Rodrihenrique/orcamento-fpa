@@ -60,7 +60,7 @@ function onOpen() {
 
 /**
  * FLUXO PRINCIPAL: Executa o ciclo completo ponta a ponta:
- * 1. Baixa e higieniza os sites do relatório da API Sytex (.xlsx em memória).
+ * 1. Baixa e higieniza os sites do relatório da API Sytex (.xlsx em memória sem necessidade de serviços avançados).
  * 2. Cruza com os chamados finalizados do mês da planilha de Integrações.
  * 3. Enriquece com a matriz de Diagramas 5G (Projeto, Mão de Obra e Serviço Terceiro).
  * 4. Renderiza a Tabela Única de 10 Colunas e os Indicadores de Topo na aba ativa.
@@ -231,7 +231,8 @@ function configurarCredenciaisSytexMenu() {
 
 /**
  * Conecta ao endpoint do DataReport do Sytex, baixa o .xlsx em memória,
- * converte temporariamente via Drive API v2, extrai os sites higienizados e descarta o temp.
+ * converte via chamada nativa de API sem necessidade de ativar serviços avançados,
+ * extrai os sites higienizados e descarta a planilha temporária.
  */
 function obterSitesSytexEmMemoria() {
   const usuario = CONFIG.sytexUsuario;
@@ -261,16 +262,8 @@ function obterSitesSytexEmMemoria() {
   let tempFileId = null;
 
   try {
-    // Conversão nativa do .xlsx para Google Spreadsheet via Drive API v2
-    const arquivoTemp = Drive.Files.insert(
-      {
-        title: 'temp_sytex_export_' + new Date().getTime(),
-        mimeType: MimeType.GOOGLE_SHEETS
-      },
-      blob,
-      { convert: true }
-    );
-    tempFileId = arquivoTemp.id;
+    // Conversão direta de .xlsx para Google Sheet sem necessidade de habilitar nada em "+ Serviços"
+    tempFileId = converterXlsxParaGoogleSheet(blob);
 
     const ssTemp = SpreadsheetApp.openById(tempFileId);
     const abaTemp = ssTemp.getSheets()[0];
@@ -303,15 +296,63 @@ function obterSitesSytexEmMemoria() {
     return sitesUnicos;
 
   } finally {
-    // Garante que o arquivo temporário no Drive seja deletado imediatamente
+    // Descarta o arquivo temporário imediatamente via DriveApp nativo
     if (tempFileId) {
       try {
-        Drive.Files.remove(tempFileId);
+        DriveApp.getFileById(tempFileId).setTrashed(true);
       } catch (e) {
-        console.warn('Aviso: Falha ao remover temp file ' + tempFileId + ': ' + e.message);
+        console.warn('Aviso: Falha ao enviar para lixeira temp file ' + tempFileId + ': ' + e.message);
       }
     }
   }
+}
+
+/**
+ * Converte um arquivo binário .xlsx para uma planilha Google temporária
+ * utilizando a API REST nativa do Drive com o token OAuth da própria sessão.
+ * Dispensa qualquer ativação manual em "+ Serviços" no editor do Apps Script.
+ */
+function converterXlsxParaGoogleSheet(blob) {
+  const boundary = '-------314159265358979323846';
+  const delimiter = '\r\n--' + boundary + '\r\n';
+  const close_delim = '\r\n--' + boundary + '--';
+
+  const metadata = {
+    title: 'temp_sytex_' + new Date().getTime(),
+    mimeType: MimeType.GOOGLE_SHEETS
+  };
+
+  const base64Data = Utilities.base64Encode(blob.getBytes());
+  const requestBody =
+    delimiter +
+    'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
+    JSON.stringify(metadata) +
+    delimiter +
+    'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n' +
+    'Content-Transfer-Encoding: base64\r\n\r\n' +
+    base64Data +
+    close_delim;
+
+  const url = 'https://www.googleapis.com/upload/drive/v2/files?uploadType=multipart&convert=true';
+  const resposta = UrlFetchApp.fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + ScriptApp.getOAuthToken(),
+      'Content-Type': 'multipart/related; boundary=' + boundary
+    },
+    payload: requestBody,
+    muteHttpExceptions: true
+  });
+
+  const statusCode = resposta.getResponseCode();
+  const respostaTexto = resposta.getContentText();
+
+  if (statusCode >= 200 && statusCode < 300) {
+    const json = JSON.parse(respostaTexto);
+    return json.id;
+  }
+
+  throw new Error(`Falha ao converter arquivo .xlsx (HTTP ${statusCode}): ${respostaTexto.slice(0, 300)}`);
 }
 
 /**
