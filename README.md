@@ -66,3 +66,11 @@ Localizado no diretório [`automacao-abastecimento-frotas/`](./automacao-abastec
 * Acionamento simplificado via **botões na própria planilha** ou menu superior **`🚗 Gestão de Frota`**.
 * Movimentação automática de arquivos processados para histórico no Drive.
 * Veja o passo a passo completo no [**`GUIA_DE_ATIVACAO.md`**](./automacao-abastecimento-frotas/GUIA_DE_ATIVACAO.md).
+
+### 5. Automação de Diagramas 5G | Integração de Sites
+Localizado no diretório [`automacao-diagramas/`](./automacao-diagramas/):
+* Módulo em **Google Apps Script** para busca e preenchimento automatizado de diagramas de integração 5G.
+* Mapeamento automático dos sites das colunas **H** (Outros Vendors) e **K** (Integrado por nós - Huawei) preenchendo os diagramas nas colunas **I** e **L**.
+* Busca otimizada com pré-normalização em memória contra a matriz oficial na aba **`Diagramas - 5G`**.
+* Acionamento pelo menu superior **`🔄 Atualizar Diagramas`**.
+* Veja as instruções de uso no [`README.md`](./automacao-diagramas/README.md) do módulo.
