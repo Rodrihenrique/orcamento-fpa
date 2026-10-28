@@ -1,68 +1,60 @@
-# Automação de Diagramas 5G | Integração de Sites
+# Automação de Diagramas e Integrações 5G
 
-Módulo em **Google Apps Script** para busca automatizada de chamados de integração de tecnologia 5G e preenchimento de diagramas entre a planilha de controle mensal, a planilha de chamados de integração e a matriz de diagramas.
-
----
-
-## 🎯 Objetivo e Fluxo de Funcionamento
-
-O módulo conecta **3 fontes de dados** para automatizar o ciclo completo mensal:
-
-1. **Planilha de Integração (`INTEGRAÇÃO E EXPANSÃO DE SITES 2026` / aba `INTEGRAÇÃO DE SITES`):**
-   * Lê os chamados de integração finalizados no mês da aba de destino (ex.: `OUT/2026`, `NOV/2026`).
-   * Valida a **Data de Finalização na Coluna P**.
-   * Avalia o fornecedor/responsável na **Coluna L**:
-     * **`BRISANET`** $\rightarrow$ Preenche o código do site na **Coluna K** (Integrado por nós - Huawei).
-     * **`FIBERHOME`** $\rightarrow$ Preenche o código do site na **Coluna H** (Outros Vendors).
-     * **Vazio** $\rightarrow$ Linhas sem preenchimento na Coluna L são **ignoradas**, sendo importadas apenas quando forem preenchidas.
-
-2. **Matriz Oficial de Diagramas (`Diagramas - 5G`):**
-   * Busca e preenche os diagramas nas colunas correspondentes:
-     * **Coluna H (Sites - FIBERHOME)** $\rightarrow$ Preenche o diagrama na **Coluna I**.
-     * **Coluna K (Sites - BRISANET)** $\rightarrow$ Preenche o diagrama na **Coluna L**.
+Módulo em **Google Apps Script** para ingestão automatizada de relatórios da **API do Sytex (.xlsx)**, conciliação em memória com a base oficial de **Integração de Sites** e vinculação automática com a matriz hierárquica de **Diagramas 5G** (Mão de Obra e Serviço Terceiro).
 
 ---
 
-## ⚙️ Configuração
+## 🎯 Visão Geral do Ciclo Automatizado
 
-As configurações de conexão e parâmetros estão centralizados no objeto `CONFIG` dentro de [`Codigo.js`](./Codigo.js):
+1. **Ingestão Sytex (.xlsx em Memória):**
+   * Conecta ao endpoint de exportação de DataReport (`https://app.sytex.io/api/datareport/.../export/?org_id=181`).
+   * Converte temporariamente o `.xlsx` via Drive API v2, extrai os sites higienizados e descarta o arquivo temporário imediatamente.
+   * Remove ponto e números subsequentes de cada código (ex.: `BCE0007.1` $\rightarrow$ `BCE0007`).
 
-| Parâmetro | Descrição | Padrão / Observação |
-| :--- | :--- | :--- |
-| `idDestino` | ID da Planilha Mensal de Controle | `1672Af0imskRY3ywO7H089Z_unKtXpw7jSHnLSDqAFPw` |
-| `abaDestinoPadrao` | Aba mensal padrão (fallback) | `OUT/2026` *(detecta automaticamente a aba ativa do mês)* |
-| `linhaInicial` | Linha onde iniciam os dados dos sites | `4` |
-| `nomePlanilhaIntegracao` | Nome da planilha de chamados | `INTEGRAÇÃO E EXPANSÃO DE SITES 2026` |
-| `idOrigemIntegracao` | ID da planilha de chamados | `1_DW_lJl0wsgXrjnJOEhD1vo-tLDzvTnE8u-fUIhhwK4` |
-| `gidOrigemIntegracao` | GID da aba de chamados | `1755873954` |
-| `abaOrigemIntegracao` | Aba de chamados de integração | `INTEGRAÇÃO DE SITES` |
-| `colOrigemSite` | Coluna do código do site na origem | `0` (Coluna A) |
-| `colOrigemVendor` | Coluna do fornecedor/responsável | `11` (Coluna L: BRISANET / FIBERHOME) |
-| `colOrigemDataFinalizacao` | Coluna da data de finalização | `15` (Coluna P) |
-| `colDestinoBrisanet` | Coluna de destino para sites Brisanet | `'K'` (Integrado por nós) |
-| `colDestinoFiberhome` | Coluna de destino para sites Fiberhome | `'H'` (Outros Vendors) |
-| `idOrigemDiagramas` | ID da Planilha Base de Diagramas | `1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA` |
-| `abaOrigemDiagramas` | Aba da matriz de diagramas | `Diagramas - 5G` |
+2. **Conciliação com a Planilha de Integrações (`INTEGRAÇÃO DE SITES`):**
+   * Cruza a lista de sites ativos do Sytex com os chamados finalizados no mês da aba ativa (`NOV/2026`, etc.).
+   * Extrai o **Vendor** (Coluna F) e o **Integrador / REPORT** (Coluna L).
+   * Descarta registros com Coluna L vazia.
 
----
+3. **Enriquecimento com a Base de Diagramas (`Diagramas - 5G`):**
+   * Localiza o bloco da Torre para extrair o código do **Projeto** (ex.: `WL_AL-MCO0064-AL-MCO400-BRIT`).
+   * Extrai o diagrama de **Mão de Obra** (linha `Mão de obra Tecnologia - ...` $\rightarrow$ ex.: `4055381 0020`).
+   * Extrai o diagrama de **Serviço Terceiro** (linha `Serv. Terc. Tecnologia - ...` $\rightarrow$ ex.: `4055381 0030`).
 
-## 🚀 Como Executar
-
-Ao abrir a planilha no Google Sheets, o menu **`🔄 Atualizar Diagramas`** exibirá três opções:
-
-* **`🚀 Sincronizar Tudo (Importar Sites + Buscar Diagramas)`**:
-  Executa o ciclo ponta a ponta: busca os chamados finalizados no mês da aba ativa, distribui os sites nas Colunas H (Fiberhome) e K (Brisanet) e, em seguida, preenche os diagramas nas Colunas I e L.
-* **`📥 1. Importar Chamados de Integração (Colunas H e K)`**:
-  Importa somente a lista de sites do mês dividida por fornecedor nas Colunas H e K.
-* **`🔍 2. Buscar Diagramas (Colunas I e L)`**:
-  Atualiza apenas as colunas de diagramas (I e L) com base nos sites existentes em H e K.
+4. **Tabela Única Consolidada (10 Colunas) & Indicadores:**
+   * Grava a lista final desduplicada e formatada na aba ativa do mês a partir da linha 5.
+   * Atualiza os cartões de indicadores automáticos no topo (linhas 1 a 3).
 
 ---
 
-## 🛠️ Regras de Negócio e Otimizações
+## 📋 As 10 Colunas Oficiais da Tabela
 
-* **Separação por Vendor (Coluna L):** Divide os sites automaticamente entre Brisanet (Col K) e Fiberhome (Col H) e descarta chamados onde a coluna L ainda não foi preenchida.
-* **Filtro Mensal Dinâmico:** Identifica mês e ano a partir do nome da aba ativa (`OUT/2026`, `NOV/2026`, etc.).
-* **Leitura Robusta de Datas:** Coluna P suporta objetos Date, strings `DD/MM/YYYY`, ISO e números seriais.
-* **Deduplicação Inteligente:** Evita repetição do mesmo código de site no mesmo grupo e mês.
-* **Pré-normalização em Memória:** Varredura rápida da base de diagramas sem risco de timeout.
+| Coluna | Nome do Campo | Origem | Exemplo |
+| :---: | :--- | :--- | :--- |
+| **A** | **Data de Finalização** | Planilha Integração (Col P) | `12/01/2026` |
+| **B** | **Frente / Categoria** | Base Diagramas (Categoria) | `Tecnologia` |
+| **C** | **Código do Site** | Sytex API (Higienizado sem `.1`) | `MCO0064` |
+| **D** | **Vendor** | Planilha Integração (Col F) | `HUAWEI` |
+| **E** | **Integrador** | Planilha Integração (Col L `REPORT`) | `BRISANET` |
+| **F** | **Chamado / Ticket** | Planilha Integração | `TK-MCO0064-2026` |
+| **G** | **Projeto** | Base Diagramas (Linha Torre) | `WL_AL-MCO0064-AL-MCO400-BRIT` |
+| **H** | **Mão de Obra (Diagrama)** | Base Diagramas (Linha Mão de Obra) | `4055381 0020` |
+| **I** | **Serviço Terceiro (Diagrama)** | Base Diagramas (Linha Serv. Terc.) | `4055381 0030` |
+| **J** | **Situação do Diagrama** | Base Diagramas / Validação | `OK` |
+
+---
+
+## 🚀 Como Executar pelo Menu `🔄 Automação 5G`
+
+Ao abrir a planilha no Google Sheets, o menu superior **`🔄 Automação 5G`** é criado automaticamente via função `onOpen()`:
+
+* **`🚀 Sincronizar Tudo (Sytex ➔ Integração ➔ Diagramas)`**:
+  Executa o ciclo completo de ponta a ponta na aba do mês que estiver aberta no momento.
+* **`📡 1. Testar Ingestão Sytex API (.xlsx)`**:
+  Testa a conexão e credenciais com o Sytex, exibindo a contagem e uma amostra dos sites extraídos.
+* **`📋 2. Conciliar Apenas Integração e Sytex`**:
+  Executa a conciliação entre Sytex e a planilha de Integrações.
+* **`🗺️ 3. Atualizar Apenas Diagramas de Rede`**:
+  Atualiza ou revalida apenas as colunas de diagramas (G a J) para os sites já listados na tabela.
+* **`⚙️ Configurar Acesso Sytex (Senha)`**:
+  Permite cadastrar ou atualizar a senha da API Sytex de forma segura via prompt na tela sem necessidade de alterar o código-fonte.
