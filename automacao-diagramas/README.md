@@ -58,3 +58,10 @@ Ao abrir a planilha no Google Sheets, o menu superior **`🔄 Automação 5G`** 
   Atualiza ou revalida apenas as colunas de diagramas (G a J) para os sites já listados na tabela.
 * **`⚙️ Configurar Acesso Sytex (Senha)`**:
   Permite cadastrar ou atualizar a senha da API Sytex de forma segura via prompt na tela sem necessidade de alterar o código-fonte.
+
+---
+
+## 📖 Guia Passo a Passo Completo
+
+Para instruções detalhadas de como instalar o código na planilha, ativar os serviços avançados do Google Drive e executar o fluxo, consulte o:
+👉 [**`GUIA_DE_EXECUCAO.md`**](./GUIA_DE_EXECUCAO.md)

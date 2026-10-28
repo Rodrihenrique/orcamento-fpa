@@ -69,8 +69,8 @@ Localizado no diretório [`automacao-abastecimento-frotas/`](./automacao-abastec
 
 ### 5. Automação de Diagramas 5G | Integração de Sites
 Localizado no diretório [`automacao-diagramas/`](./automacao-diagramas/):
-* Módulo em **Google Apps Script** para busca e preenchimento automatizado de diagramas de integração 5G.
-* Mapeamento automático dos sites das colunas **H** (Outros Vendors) e **K** (Integrado por nós - Huawei) preenchendo os diagramas nas colunas **I** e **L**.
-* Busca otimizada com pré-normalização em memória contra a matriz oficial na aba **`Diagramas - 5G`**.
-* Acionamento pelo menu superior **`🔄 Atualizar Diagramas`**.
-* Veja as instruções de uso no [`README.md`](./automacao-diagramas/README.md) do módulo.
+* Módulo em **Google Apps Script** para ingestão automatizada de relatórios da **API do Sytex (.xlsx)**, conciliação em memória com chamados de **Integração de Sites** e vinculação com a matriz oficial de **Diagramas 5G**.
+* Consolidação em **Tabela Operacional Única** de 10 colunas (Data Finalização, Frente/Categoria, Site Higienizado, Vendor, Integrador, Chamado, Projeto, Mão de Obra, Serviço Terceiro e Situação).
+* Painel de Indicadores automáticos no topo das abas mensais (Brisanet, Fiberhome, Totais).
+* Acionamento facilitado via menu superior **`🔄 Automação 5G`**.
+* Veja o passo a passo completo no [**`GUIA_DE_EXECUCAO.md`**](./automacao-diagramas/GUIA_DE_EXECUCAO.md).
