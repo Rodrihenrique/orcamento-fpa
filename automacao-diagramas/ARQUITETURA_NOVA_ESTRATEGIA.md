@@ -1,17 +1,18 @@
 # 📐 Arquitetura da Nova Estratégia de Integrações & Diagramas 5G
 
 > [!NOTE]
-> Documento de planejamento e modelagem de dados da nova estratégia para o módulo de integração de sites 5G, cruzamento Sytex e consolidação em planilha única.
+> Documento de planejamento e modelagem técnica da nova estratégia unificada para o módulo de integração de sites 5G, cruzamento de dados com a API Sytex (.xlsx) e consolidação em tabela única.
 
 ---
 
-## 1. Mapeamento das Fontes de Dados e Integração
+## 1. Mapeamento Geral do Fluxo Unificado
 
 ```mermaid
 flowchart TD
-    subgraph Sytex["📡 1. Sytex DataReport API (Fonte Mestra)"]
+    subgraph Sytex["📡 1. Sytex DataReport API (.xlsx)"]
         S_URL["URL: https://app.sytex.io/api/datareport/7bc528d3.../export/?org_id=181"]
         S_Cred["Auth: Basic base64(riltomar@grupobrisanet.com.br:senha)"]
+        S_Conv["Conversão .xlsx via Drive API v2 (insert convert:true) ➔ Leitura ➔ Exclusão Temp"]
         S_Sanit["Higienização em Memória: Regex remove ponto e números (.1, .02)"]
     end
 
@@ -23,95 +24,88 @@ flowchart TD
 
     subgraph Diagramas["🗺️ 3. Planilha Oficial de Diagramas 5G"]
         D_Sheet["Planilha: 1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA"]
-        D_Cols["Busca: Projeto, Mão de Obra, Serviço Terceiro e Situação do Diagrama"]
+        D_Struct["Estrutura Hierárquica por Torre / Projeto:"]
+        D_Sub1["Torre: Projeto (ex.: WL_AL-MCO0064-AL-MCO400-BRIT)"]
+        D_Sub2["Categoria (Vermelho): Tecnologia, Infra Civil, Infra Eletrica..."]
+        D_Sub3["Linha 'Mão de obra [Categoria]': Diagrama Mão de Obra (ex.: ... 0020)"]
+        D_Sub4["Linha 'Serv. Terc. [Categoria]': Diagrama Serviço Terceiro (ex.: ... 0030)"]
     end
 
     subgraph Destino["📊 4. Planilha Mestre (Tabela Única Consolidada)"]
         M_Dash["Painel de Indicadores Automático no Topo (Linhas 1 a 4)"]
-        M_Table["Tabela Contínua Oficial com as 10 Colunas Padronizadas"]
+        M_Table["Tabela Contínua Oficial com 10 Colunas (Linha 5 em diante)"]
     end
 
     Sytex -->|Carga em Memória & Higienização| Destino
     Integracao -->|Validação de Chamado, Vendor e Integrador| Destino
-    Diagramas -->|Vínculo de Diagramas e Situação| Destino
+    Diagramas -->|Vínculo de Projeto, Mão de Obra e Serviço Terceiro| Destino
 ```
 
 ---
 
-## 2. Decisão Arquitetural: Eliminação da Aba `comparativos`
+## 2. Ingestão da API Sytex (.xlsx) em Google Apps Script
 
-Conforme alinhado, **a aba `comparativos` foi eliminada da arquitetura**:
-* **Por que eliminar?** A aba comparativos gerava mais uma etapa intermediária manual/visual desnecessária.
-* **Nova Abordagem:** O cruzamento entre os sites retornados pelo relatório do Sytex e os chamados da planilha de Integrações ocorre **100% em memória** no Google Apps Script.
-* **Resultado:** Somente os registros válidos, higienizados, desduplicados e conciliados são gravados diretamente na aba oficial do mês, mantendo a planilha limpa e sem abas intermediárias.
-
----
-
-## 3. Estrutura Oficial das 10 Colunas (Tabela Única)
-
-A tabela de dados substitui os 7 blocos paralelos anteriores por uma estrutura contínua, permitindo ordenação e filtros nativos sem quebra de layout:
-
-| Coluna | Nome do Cabeçalho | Origem da Informação | Regra / Descrição |
-| :---: | :--- | :--- | :--- |
-| **A** | **Data de Finalização** | Planilha Integração (Col P) | Data oficial de conclusão do chamado no mês da aba (ex.: `15/10/2026`) |
-| **B** | **Frente / Categoria** | Classificação Operacional | Ex.: `Tecnologia - Integrado por nós`, `Tecnologia - Outros Vendors`, `Expansão RF`, `Expansão NOC` |
-| **C** | **Código do Site** | Sytex API (Higienizado) | Código padronizado e limpo via Regex sem sufixo numérico (ex.: `BCE0007`, `TSA0028`) |
-| **D** | **Vendor** | Planilha Integração (Col F) | Fabricante dos equipamentos (`HUAWEI`, `FIBERHOME`, `NOKIA`) |
-| **E** | **Integrador** | Planilha Integração (Col L `REPORT`) | Quem realizou o serviço de integração (`BRISANET`, `FIBERHOME`, `HUAWEI`) |
-| **F** | **Chamado / Ticket** | Planilha Integração / Sytex | Número identificador do chamado/protocolo de integração |
-| **G** | **Projeto** | Base Diagramas / Integração | Código do projeto vinculado (ex.: `EXP-WL_RM1001-RN-...` para frentes de Expansão) |
-| **H** | **Mão de Obra (Diagrama)** | Base Diagramas 5G | Código do diagrama de rede para Mão de Obra (ex.: `4023987 0020`) |
-| **I** | **Serviço Terceiro (Diagrama)** | Base Diagramas 5G | Código do diagrama para Serviços de Terceiros (quando aplicável) |
-| **J** | **Situação do Diagrama** | Base Diagramas 5G | Situação de validação do diagrama (`OK`, `Pendente`, `Em elaboração`) |
+Como o endpoint da API Sytex retorna um arquivo binário em formato **`.xlsx`**:
+* **Pipeline de Ingestão Nativa:**
+  1. O script faz o download do blob binário via `UrlFetchApp.fetch()` com cabeçalho de autenticação HTTP Basic.
+  2. O blob é convertido temporariamente em uma planilha Google temporária via **Drive API v2** (`Drive.Files.insert` com parâmetro `{ convert: true }`).
+  3. O script lê a primeira aba com `getSheets()[0].getDataRange().getValues()`.
+  4. O arquivo temporário no Drive é **excluído imediatamente** (`Drive.Files.remove(tempId)`), garantindo que nada fique salvo ou ocupe espaço no Google Drive.
+  5. Os dados são processados e higienizados 100% na memória RAM do Apps Script.
 
 ---
 
-## 4. Painel de Indicadores no Topo da Aba (Linhas 1 a 4 Fixadas)
+## 3. Estrutura da Base de Diagramas (Mapeamento do Layout Oficial)
 
-Para manter a visibilidade gerencial que existia nos blocos antigos, o topo da aba mensal (ex.: `NOV/2026`) conterá cartões automáticos consolidados:
+A partir da estrutura da planilha de diagramas, mapeamos como cada elemento se relaciona:
+
+```
+[Linha Torre]      Torre: WL_AL-MCO0064-AL-MCO400-BRIT (Código do Projeto)
+  ├── [Categoria]  Tecnologia - WL_AL-MCO0064-... ➔ 4055381 (Código Geral)
+  │     ├── Materiais Tecnologia ........... ➔ 4055381 0010
+  │     ├── Mão de obra Tecnologia ......... ➔ 4055381 0020 (Mão de Obra)
+  │     └── Serv. Terc. Tecnologia ......... ➔ 4055381 0030 (Serviço Terceiro)
+  ├── [Categoria]  Infra Civil - WL_AL-MCO0064-... ➔ 4055099
+  │     ├── Materiais Civil ................ ➔ 4055099 0010
+  │     ├── Mão de obra Civil .............. ➔ 4055099 0020
+  │     └── Serv. Terc. Civil .............. ➔ 4055099 0030
+```
+
+### Regras de Extração dos Diagramas para a Tabela:
+* **Frente / Categoria (Coluna 2):** Informa a categoria do diagrama consultado (ex.: `Tecnologia`, `Infra Civil`, `Infra Eletrica`, etc. — com padrão `Tecnologia` para integrações de sites).
+* **Projeto (Coluna 7):** Extrai o código da Torre / Projeto associado ao site (ex.: `WL_AL-MCO0064-AL-MCO400-BRIT`).
+* **Mão de Obra (Coluna 8):** Captura o diagrama da linha `Mão de obra [Categoria] - [SITE]` (ex.: `4055381 0020`).
+* **Serviço Terceiro (Coluna 9):** Captura o diagrama da linha `Serv. Terc. [Categoria] - [SITE]` (ex.: `4055381 0030`).
+* **Situação do Diagrama (Coluna 10):** Validação ou status do diagrama (`OK`, `Pendente`, `Em elaboração`).
+
+---
+
+## 4. Estrutura Oficial das 10 Colunas (Tabela Única)
+
+A tabela de destino segue rigorosamente a ordem alinhada:
+
+| Nº | Nome da Coluna | Origem do Dado | Exemplo |
+| :-: | :--- | :--- | :--- |
+| **1** | **Data de Finalização** | Planilha Integração (Col P) | `12/01/2026` |
+| **2** | **Frente / Categoria** | Categoria do Diagrama | `Tecnologia` |
+| **3** | **Código do Site** | Sytex API (Higienizado sem `.1`) | `MCO0064` |
+| **4** | **Vendor** | Planilha Integração (Col F) | `HUAWEI` |
+| **5** | **Integrador** | Planilha Integração (Col L `REPORT`) | `BRISANET` |
+| **6** | **Chamado / Ticket** | Planilha Integração / Sytex | `TK-2026-004` |
+| **7** | **Projeto** | Base de Diagramas (Linha Torre) | `WL_AL-MCO0064-AL-MCO400-BRIT` |
+| **8** | **Mão de Obra (Diagrama)** | Base Diagramas (Linha Mão de Obra) | `4055381 0020` |
+| **9** | **Serviço Terceiro (Diagrama)** | Base Diagramas (Linha Serv. Terc.) | `4055381 0030` |
+| **10** | **Situação do Diagrama** | Base Diagramas / Validação | `OK` |
+
+---
+
+## 5. Painel de Indicadores Automático (Linhas 1 a 4 Fixadas)
+
+No topo da aba mensal (ex.: `NOV/2026`), cartões de resumo calculam automaticamente a partir da tabela:
 
 ```
 ┌─────────────────────────────────┬─────────────────────────────────┬─────────────────────────────────┬─────────────────────────────────┐
-│ 🟢 Integrado por nós (Brisanet) │ 🔵 Outros Vendors (Fiberhome)   │ 🟣 Expansão (RF / NOC)          │ ⚪ Total Geral do Mês           │
-│ =CONT.SE(E:E; "BRISANET")       │ =CONT.SE(E:E; "FIBERHOME")      │ =CONT.SE(B:B; "*Expansão*")     │ =CONT.VALORES(C5:C)             │
+│ 🟢 Integrado por nós (Brisanet) │ 🔵 Outros Vendors (Fiberhome)   │ 🟣 Demais Categorias            │ ⚪ Total Geral do Mês           │
+│ =CONT.SE(E5:E; "BRISANET")      │ =CONT.SE(E5:E; "FIBERHOME")     │ =CONT.SE(E5:E; "<>")            │ =CONT.VALORES(C5:C)             │
 └─────────────────────────────────┴─────────────────────────────────┴─────────────────────────────────┴─────────────────────────────────┘
 ```
-
----
-
-## 5. Especificação do Conector Sytex API
-
-* **URL do DataReport:** `https://app.sytex.io/api/datareport/7bc528d3-2b34-4bc1-b6df-59eff2ccceb9/export/?org_id=181`
-* **Método HTTP:** `GET`
-* **Autenticação:** HTTP Basic Auth:
-  ```javascript
-  const headers = {
-    "Authorization": "Basic " + Utilities.base64Encode(usuario + ":" + senha)
-  };
-  ```
-* **Processamento do Retorno:**
-  * O arquivo retornado (CSV/JSON) é processado diretamente pelo Apps Script.
-  * Os códigos de site passam pela função de higienização Regex:
-    ```javascript
-    function higienizarCodigoSite(codigoBruto) {
-      if (!codigoBruto) return "";
-      return codigoBruto.toString().trim().replace(/\.\d+.*$/, '').toUpperCase();
-    }
-    ```
-  * Cruzamento com a planilha de integração:
-    * Valida se o site existe na aba `INTEGRAÇÃO DE SITES`.
-    * Confirma se o chamado foi finalizado no mês correspondente (Coluna P).
-    * Extrai o **Vendor** (Coluna F) e o **Integrador** (Coluna L).
-    * Descarta linhas com Coluna L vazia.
-    * Busca diagramas na base 5G e grava na tabela unificada.
-
----
-
-## 6. Próximos Passos (Aguardando Aprovação para Codificação)
-
-1. **Validação do formato de resposta do Sytex:**
-   * Confirmar se o endpoint `https://app.sytex.io/api/datareport/.../export/` retorna CSV ou JSON.
-2. **Definição da regra da coluna `Frente / Categoria`:**
-   * Definir se o preenchimento de `Frente / Categoria` (Coluna B) é derivado automaticamente do Integrador (ex.: se Integrador for Brisanet $\rightarrow$ `Tecnologia - Integrado por nós`; se Fiberhome $\rightarrow$ `Tecnologia - Outros Vendors`), ou se vem de outro campo.
-3. **Autorização para Início da Implementação:**
-   * Assim que você aprovar esse mapeamento, passaremos para a fase de desenvolvimento do script no `Codigo.js`.
