@@ -31,7 +31,8 @@ As configurações de conexão e parâmetros estão centralizados no objeto `CON
 | `abaDestinoPadrao` | Aba mensal padrão (fallback) | `OUT/2026` *(detecta automaticamente a aba ativa do mês)* |
 | `linhaInicial` | Linha onde iniciam os dados dos sites | `4` |
 | `nomePlanilhaIntegracao` | Nome da planilha de chamados | `INTEGRAÇÃO E EXPANSÃO DE SITES 2026` |
-| `idOrigemIntegracao` | ID da planilha de chamados | *Opcional* (se vazio, busca pelo nome no Google Drive) |
+| `idOrigemIntegracao` | ID da planilha de chamados | `1_DW_lJl0wsgXrjnJOEhD1vo-tLDzvTnE8u-fUIhhwK4` |
+| `gidOrigemIntegracao` | GID da aba de chamados | `1755873954` |
 | `abaOrigemIntegracao` | Aba de chamados de integração | `INTEGRAÇÃO DE SITES` |
 | `colOrigemSite` | Coluna do código do site na origem | `0` (Coluna A) |
 | `colOrigemDataFinalizacao` | Coluna da data de finalização | `15` (Coluna P) |

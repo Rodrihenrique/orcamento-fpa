@@ -16,8 +16,8 @@ const CONFIG = {
   linhaInicial: 4,
 
   // Planilha 1: Chamados de Integração (INTEGRAÇÃO E EXPANSÃO DE SITES 2026)
-  // Caso o ID fique em branco, o script realiza a busca automática pelo nome no Drive
-  idOrigemIntegracao: '',
+  idOrigemIntegracao: '1_DW_lJl0wsgXrjnJOEhD1vo-tLDzvTnE8u-fUIhhwK4',
+  gidOrigemIntegracao: '1755873954',
   nomePlanilhaIntegracao: 'INTEGRAÇÃO E EXPANSÃO DE SITES 2026',
   abaOrigemIntegracao: 'INTEGRAÇÃO DE SITES',
   colOrigemSite: 0,              // Coluna A (índice 0: Código do Site)
@@ -150,9 +150,21 @@ function preencherDiagramas() {
  */
 function executarImportacaoIntegracao(planDestino, mesInfo) {
   const ssIntegracao = obterPlanilhaIntegracao();
-  const planIntegracao = ssIntegracao.getSheetByName(CONFIG.abaOrigemIntegracao);
+  let planIntegracao = ssIntegracao.getSheetByName(CONFIG.abaOrigemIntegracao);
+  
+  // Fallback por GID caso o nome da aba tenha sofrido alterações
+  if (!planIntegracao && CONFIG.gidOrigemIntegracao) {
+    const abas = ssIntegracao.getSheets();
+    for (let i = 0; i < abas.length; i++) {
+      if (abas[i].getSheetId().toString() === CONFIG.gidOrigemIntegracao.toString()) {
+        planIntegracao = abas[i];
+        break;
+      }
+    }
+  }
+
   if (!planIntegracao) {
-    throw new Error(`Aba "${CONFIG.abaOrigemIntegracao}" não encontrada na planilha "${ssIntegracao.getName()}".`);
+    throw new Error(`Aba "${CONFIG.abaOrigemIntegracao}" (GID: ${CONFIG.gidOrigemIntegracao}) não encontrada na planilha "${ssIntegracao.getName()}".`);
   }
 
   const dados = planIntegracao.getDataRange().getValues();
