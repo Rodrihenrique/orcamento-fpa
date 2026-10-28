@@ -99,8 +99,8 @@ function executarSincronizacaoCompleta() {
     spreadsheet.toast('Conciliando dados e gerando tabela unificada...', 'Etapa 4/4', -1);
     const resultado = gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas);
 
-    // 5. Grava a tabela e atualiza os cartões de indicadores com fórmulas em inglês
-    gravarTabelaUnicaNaAba(planDestino, resultado.linhas, destinoInfo.nomeAba);
+    // 5. Grava a tabela e atualiza os cartões de indicadores
+    gravarTabelaUnicaNaAba(planDestino, resultado.linhas, destinoInfo.nomeAba, resultado.totais);
 
     spreadsheet.toast('Sincronização finalizada com sucesso!', 'Concluído', 5);
 
@@ -532,13 +532,22 @@ function carregarMapaHierarquiaDiagramas() {
     const col1 = (linha[1] || '').toString().trim();
     const col1Norm = normalizarTexto(col1);
 
-    // 1. Detecta início de bloco de Torre / Projeto
-    if (col0.includes('torre') || col1Norm.includes('wl_') || col1Norm.startsWith('torre')) {
-      const matchProj = col1.match(/([A-Z0-9_\-]+BRIT|[A-Z0-9_\-]+)/i);
-      projetoAtual = matchProj ? matchProj[0] : col1;
+    // 1. Detecta se é linha filha de itens ou de categoria
+    const ehLinhaFilha = col1Norm.includes('mao de obra') || 
+                         col1Norm.includes('serv') || 
+                         col1Norm.includes('materiais') || 
+                         col1Norm.includes('regulariz') || 
+                         col1Norm.includes('postes') ||
+                         col1Norm.startsWith('tecnologia') ||
+                         col1Norm.startsWith('infra') ||
+                         col1Norm.startsWith('projetos ftth');
+
+    // 2. Detecta início de bloco de Torre / Projeto (Col 0 é "Torre" ou Col 1 começa com "WL_" sem ser filha)
+    if (!ehLinhaFilha && (col0.includes('torre') || (col1Norm.startsWith('wl_') && !col1Norm.includes(' - ')))) {
+      projetoAtual = col1;
     }
 
-    // 2. Detecta categoria em vermelho
+    // 3. Detecta categoria em vermelho
     if (col1Norm.startsWith('tecnologia') || col1Norm.startsWith('infra civil') || col1Norm.startsWith('infra eletrica') || col1Norm.startsWith('projetos ftth')) {
       if (col1Norm.startsWith('tecnologia')) categoriaAtual = 'Tecnologia';
       else if (col1Norm.startsWith('infra civil')) categoriaAtual = 'Infra Civil';
@@ -546,7 +555,7 @@ function carregarMapaHierarquiaDiagramas() {
       else if (col1Norm.startsWith('projetos ftth')) categoriaAtual = 'Projetos FTTH';
     }
 
-    // 3. Detecta linhas filhas de diagrama
+    // 4. Detecta linhas filhas de diagrama (Mão de Obra e Serviço Terceiro)
     if (col1Norm.includes('mao de obra') || col1Norm.includes('serv. terc') || col1Norm.includes('servico terceiro')) {
       const siteExtraido = extrairSiteDaDescricao(col1);
       if (!siteExtraido) continue;
@@ -569,6 +578,13 @@ function carregarMapaHierarquiaDiagramas() {
           servTerc: '',
           situacao: 'OK'
         };
+      } else {
+        if (!mapa[siteExtraido].projeto && projetoAtual) {
+          mapa[siteExtraido].projeto = projetoAtual;
+        }
+        if (!mapa[siteExtraido].categoria && categoriaAtual) {
+          mapa[siteExtraido].categoria = categoriaAtual;
+        }
       }
 
       if (col1Norm.includes('mao de obra')) {
@@ -588,11 +604,10 @@ function carregarMapaHierarquiaDiagramas() {
  */
 function extrairSiteDaDescricao(texto) {
   if (!texto) return '';
-  const match = texto.match(/\b([A-Z]{3}\d{4})\b/i);
-  if (match) return match[1].toUpperCase();
-
-  const match2 = texto.match(/\b([A-Z]{2,4}\d{2,4})\b/i);
-  return match2 ? match2[1].toUpperCase() : '';
+  // Procura padrão alfanumérico de site (2 a 5 letras seguidas de 2 a 5 números)
+  // delimitado por caracteres não-alfanuméricos (traços, underscores, barras, espaços)
+  const match = texto.match(/(?:^|[^A-Za-z0-9])([A-Z]{2,5}\d{2,5})(?=[^A-Za-z0-9]|$)/i);
+  return match ? match[1].toUpperCase() : '';
 }
 
 // ============================================================================
@@ -663,7 +678,7 @@ function gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas) {
  * Renderiza o Banner de Título (Linha 1), os Cartões Indicadores (Linhas 2 e 3),
  * o Cabeçalho Oficial (Linha 4) e o corpo de dados da Tabela Única (Linha 5 em diante).
  */
-function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba) {
+function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   // 1. Limpa completamente as linhas 1 a 4 para eliminar resíduos de textos antigos
   planDestino.getRange(1, 1, 4, 10).clear({ contentsOnly: true, formatOnly: true });
 
@@ -677,30 +692,35 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba) {
   rangeTitulo.setFontSize(12);
   rangeTitulo.setHorizontalAlignment("center");
 
-  // 3. Cartões Indicadores nas Linhas 2 e 3 com Fórmulas Nativas em Inglês (evita #NAME?)
+  // 3. Cartões Indicadores nas Linhas 2 e 3 com Valores Consolidados (evita #ERROR! por localidade)
+  const valBrisanet = totais ? totais.brisanet : 0;
+  const valFiberhome = totais ? totais.fiberhome : 0;
+  const valOutros = totais ? totais.outros : 0;
+  const totalGeral = (linhasDados && linhasDados.length > 0) ? linhasDados.length : 0;
+
   // Cartão 1: Brisanet (A2:B3)
   const c1Tit = planDestino.getRange("A2:B2");
   c1Tit.merge().setValue("🟢 Integrado por nós (Brisanet)").setFontWeight("bold").setFontSize(10).setBackground("#e2f0d9").setFontColor("#385723").setHorizontalAlignment("center");
   const c1Val = planDestino.getRange("A3:B3");
-  c1Val.merge().setFormula('=COUNTIF(E5:E, "*BRISANET*")').setFontWeight("bold").setFontSize(14).setBackground("#e2f0d9").setFontColor("#385723").setHorizontalAlignment("center");
+  c1Val.merge().setValue(valBrisanet).setFontWeight("bold").setFontSize(14).setBackground("#e2f0d9").setFontColor("#385723").setHorizontalAlignment("center");
 
   // Cartão 2: Fiberhome (C2:D3)
   const c2Tit = planDestino.getRange("C2:D2");
   c2Tit.merge().setValue("🔵 Outros Vendors (Fiberhome)").setFontWeight("bold").setFontSize(10).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
   const c2Val = planDestino.getRange("C3:D3");
-  c2Val.merge().setFormula('=COUNTIF(E5:E, "*FIBERHOME*")').setFontWeight("bold").setFontSize(14).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
+  c2Val.merge().setValue(valFiberhome).setFontWeight("bold").setFontSize(14).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
 
   // Cartão 3: Demais Integradores (E2:F3)
   const c3Tit = planDestino.getRange("E2:F2");
   c3Tit.merge().setValue("🟣 Demais Integradores").setFontWeight("bold").setFontSize(10).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
   const c3Val = planDestino.getRange("E3:F3");
-  c3Val.merge().setFormula('=MAX(0, COUNTA(C5:C) - COUNTIF(E5:E, "*BRISANET*") - COUNTIF(E5:E, "*FIBERHOME*"))').setFontWeight("bold").setFontSize(14).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
+  c3Val.merge().setValue(valOutros).setFontWeight("bold").setFontSize(14).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
 
   // Cartão 4: Total Geral (G2:H3)
   const c4Tit = planDestino.getRange("G2:H2");
   c4Tit.merge().setValue("⚪ Total Geral do Mês").setFontWeight("bold").setFontSize(10).setBackground("#fff2cc").setFontColor("#7f6000").setHorizontalAlignment("center");
   const c4Val = planDestino.getRange("G3:H3");
-  c4Val.merge().setFormula('=COUNTA(C5:C)').setFontWeight("bold").setFontSize(14).setBackground("#fff2cc").setFontColor("#7f6000").setHorizontalAlignment("center");
+  c4Val.merge().setValue(totalGeral).setFontWeight("bold").setFontSize(14).setBackground("#fff2cc").setFontColor("#7f6000").setHorizontalAlignment("center");
 
   // Cartão 5: Referência (I2:J3)
   const c5Tit = planDestino.getRange("I2:J2");
