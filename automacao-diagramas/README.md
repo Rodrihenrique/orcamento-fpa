@@ -11,13 +11,15 @@ O módulo conecta **3 fontes de dados** para automatizar o ciclo completo mensal
 1. **Planilha de Integração (`INTEGRAÇÃO E EXPANSÃO DE SITES 2026` / aba `INTEGRAÇÃO DE SITES`):**
    * Lê os chamados de integração finalizados no mês da aba de destino (ex.: `OUT/2026`, `NOV/2026`).
    * Valida a **Data de Finalização na Coluna P**.
-   * Extrai os **Códigos dos Sites na Coluna A** correspondentes.
-   * Preenche a lista na **Coluna K** (Sites Integrados por nós / Huawei) a partir da linha 4.
+   * Avalia o fornecedor/responsável na **Coluna L**:
+     * **`BRISANET`** $\rightarrow$ Preenche o código do site na **Coluna K** (Integrado por nós - Huawei).
+     * **`FIBERHOME`** $\rightarrow$ Preenche o código do site na **Coluna H** (Outros Vendors).
+     * **Vazio** $\rightarrow$ Linhas sem preenchimento na Coluna L são **ignoradas**, sendo importadas apenas quando forem preenchidas.
 
 2. **Matriz Oficial de Diagramas (`Diagramas - 5G`):**
    * Busca e preenche os diagramas nas colunas correspondentes:
-     - **Coluna H (Sites - Outros Vendors)** $\rightarrow$ Preenche o diagrama na **Coluna I**.
-     - **Coluna K (Sites - Integrado por nós / Huawei)** $\rightarrow$ Preenche o diagrama na **Coluna L**.
+     * **Coluna H (Sites - FIBERHOME)** $\rightarrow$ Preenche o diagrama na **Coluna I**.
+     * **Coluna K (Sites - BRISANET)** $\rightarrow$ Preenche o diagrama na **Coluna L**.
 
 ---
 
@@ -35,8 +37,10 @@ As configurações de conexão e parâmetros estão centralizados no objeto `CON
 | `gidOrigemIntegracao` | GID da aba de chamados | `1755873954` |
 | `abaOrigemIntegracao` | Aba de chamados de integração | `INTEGRAÇÃO DE SITES` |
 | `colOrigemSite` | Coluna do código do site na origem | `0` (Coluna A) |
+| `colOrigemVendor` | Coluna do fornecedor/responsável | `11` (Coluna L: BRISANET / FIBERHOME) |
 | `colOrigemDataFinalizacao` | Coluna da data de finalização | `15` (Coluna P) |
-| `colDestinoSitesIntegrados` | Coluna de destino dos sites importados | `'K'` (Integrado por nós) |
+| `colDestinoBrisanet` | Coluna de destino para sites Brisanet | `'K'` (Integrado por nós) |
+| `colDestinoFiberhome` | Coluna de destino para sites Fiberhome | `'H'` (Outros Vendors) |
 | `idOrigemDiagramas` | ID da Planilha Base de Diagramas | `1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA` |
 | `abaOrigemDiagramas` | Aba da matriz de diagramas | `Diagramas - 5G` |
 
@@ -47,9 +51,9 @@ As configurações de conexão e parâmetros estão centralizados no objeto `CON
 Ao abrir a planilha no Google Sheets, o menu **`🔄 Atualizar Diagramas`** exibirá três opções:
 
 * **`🚀 Sincronizar Tudo (Importar Sites + Buscar Diagramas)`**:
-  Executa o ciclo ponta a ponta: busca os chamados finalizados no mês da aba ativa, preenche a Coluna K e, em seguida, preenche os diagramas nas Colunas I e L.
-* **`📥 1. Importar Chamados de Integração (Coluna K)`**:
-  Importa somente a lista de sites finalizados no mês para a Coluna K.
+  Executa o ciclo ponta a ponta: busca os chamados finalizados no mês da aba ativa, distribui os sites nas Colunas H (Fiberhome) e K (Brisanet) e, em seguida, preenche os diagramas nas Colunas I e L.
+* **`📥 1. Importar Chamados de Integração (Colunas H e K)`**:
+  Importa somente a lista de sites do mês dividida por fornecedor nas Colunas H e K.
 * **`🔍 2. Buscar Diagramas (Colunas I e L)`**:
   Atualiza apenas as colunas de diagramas (I e L) com base nos sites existentes em H e K.
 
@@ -57,7 +61,8 @@ Ao abrir a planilha no Google Sheets, o menu **`🔄 Atualizar Diagramas`** exib
 
 ## 🛠️ Regras de Negócio e Otimizações
 
-* **Filtro Mensal Dinâmico:** O script identifica o mês e o ano a partir do nome da aba ativa (ex.: `OUT/2026`, `NOV/2026`, `DEZ/2026`, `JAN/2027`), permitindo que a mesma automação funcione mês a mês sem alteração no código.
-* **Leitura Robusta de Datas:** A Coluna P suporta formato nativo Date, strings no padrão brasileiro (`DD/MM/YYYY` com ou sem hora), padrão ISO e datas seriais.
-* **Deduplicação de Sites:** Garante que o mesmo site não seja inserido repetido no lote mensal.
-* **Pré-normalização em Memória:** Varre a matriz de diagramas uma única vez com normalização prévia e regex de palavra inteira, eliminando riscos de timeout.
+* **Separação por Vendor (Coluna L):** Divide os sites automaticamente entre Brisanet (Col K) e Fiberhome (Col H) e descarta chamados onde a coluna L ainda não foi preenchida.
+* **Filtro Mensal Dinâmico:** Identifica mês e ano a partir do nome da aba ativa (`OUT/2026`, `NOV/2026`, etc.).
+* **Leitura Robusta de Datas:** Coluna P suporta objetos Date, strings `DD/MM/YYYY`, ISO e números seriais.
+* **Deduplicação Inteligente:** Evita repetição do mesmo código de site no mesmo grupo e mês.
+* **Pré-normalização em Memória:** Varredura rápida da base de diagramas sem risco de timeout.

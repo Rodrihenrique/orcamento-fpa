@@ -21,8 +21,12 @@ const CONFIG = {
   nomePlanilhaIntegracao: 'INTEGRAÇÃO E EXPANSÃO DE SITES 2026',
   abaOrigemIntegracao: 'INTEGRAÇÃO DE SITES',
   colOrigemSite: 0,              // Coluna A (índice 0: Código do Site)
+  colOrigemVendor: 11,           // Coluna L (índice 11: Vendor / Responsável - BRISANET / FIBERHOME)
   colOrigemDataFinalizacao: 15,  // Coluna P (índice 15: Data de Finalização)
-  colDestinoSitesIntegrados: 'K', // Grava os sites importados na Coluna K (Integrado por nós)
+
+  // Mapeamento de Destino por Vendor
+  colDestinoBrisanet: 'K',       // BRISANET -> Coluna K (Integrado por nós - Huawei)
+  colDestinoFiberhome: 'H',      // FIBERHOME -> Coluna H (Outros Vendors)
 
   // Planilha 2: Matriz Oficial de Diagramas 5G
   idOrigemDiagramas: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
@@ -37,13 +41,14 @@ function onOpen() {
   ui.createMenu('🔄 Atualizar Diagramas')
     .addItem('🚀 Sincronizar Tudo (Importar Sites + Buscar Diagramas)', 'sincronizarTudo')
     .addSeparator()
-    .addItem('📥 1. Importar Chamados de Integração (Coluna K)', 'importarSitesIntegracaoMenu')
+    .addItem('📥 1. Importar Chamados de Integração (Colunas H e K)', 'importarSitesIntegracaoMenu')
     .addItem('🔍 2. Buscar Diagramas (Colunas I e L)', 'preencherDiagramasMenu')
     .addToUi();
 }
 
 /**
- * FLUXO COMPLETO: Importa chamados do mês para a Coluna K e em seguida preenche os diagramas nas Colunas I e L.
+ * FLUXO COMPLETO: Importa chamados do mês divididos por Vendor (Colunas H e K)
+ * e em seguida preenche os diagramas nas Colunas I e L.
  */
 function sincronizarTudo() {
   const ui = SpreadsheetApp.getUi();
@@ -56,7 +61,7 @@ function sincronizarTudo() {
     const planDestino = destinoInfo.planDestino;
     const mesInfo = destinoInfo.mesInfo;
 
-    // 1. Importa os chamados de integração para a Coluna K
+    // 1. Importa os chamados de integração dividindo por Vendor (H e K)
     const resultadoImportacao = executarImportacaoIntegracao(planDestino, mesInfo);
 
     // 2. Preenche os diagramas para as Colunas I e L
@@ -64,13 +69,16 @@ function sincronizarTudo() {
 
     spreadsheet.toast('Sincronização finalizada com sucesso!', 'Concluído', 4);
 
+    const periodoStr = mesInfo ? `${mesInfo.chave}/${mesInfo.ano}` : destinoInfo.nomeAba;
+
     // Resumo consolidado
     let mensagemFinal = `✅ Sincronização Concluída (${destinoInfo.nomeAba})!\n\n` +
-      `📥 Chamados de Integração (Planilha: ${CONFIG.nomePlanilhaIntegracao}):\n` +
-      `   • Linhas analisadas: ${resultadoImportacao.processados}\n` +
-      `   • Sites filtrados para o mês (${mesInfo ? mesInfo.chave + '/' + mesInfo.ano : 'Geral'}): ${resultadoImportacao.importados}\n` +
-      `   • Gravados na Coluna ${CONFIG.colDestinoSitesIntegrados} (a partir da linha ${CONFIG.linhaInicial})\n\n` +
-      `🔍 Busca de Diagramas (Planilha: ${CONFIG.abaOrigemDiagramas}):\n`;
+      `📥 Chamados de Integração Importados (${periodoStr}):\n` +
+      `   • BRISANET ➔ Coluna ${CONFIG.colDestinoBrisanet}: ${resultadoImportacao.importadosBrisanet} sites\n` +
+      `   • FIBERHOME ➔ Coluna ${CONFIG.colDestinoFiberhome}: ${resultadoImportacao.importadosFiberhome} sites\n` +
+      `   • Total importados: ${resultadoImportacao.totalImportados} sites\n` +
+      `   • Linhas sem vendor (vazias em L): ${resultadoImportacao.ignoradosSemVendor} ignoradas\n\n` +
+      `🔍 Busca de Diagramas (Matriz: ${CONFIG.abaOrigemDiagramas}):\n`;
 
     relatorioDiagramas.forEach(r => {
       mensagemFinal += `   • ${r.nome}: ${r.encontrados} encontrados de ${r.processados} sites\n`;
@@ -84,7 +92,7 @@ function sincronizarTudo() {
 }
 
 /**
- * Menu acionado: Apenas importa os sites da planilha de integração.
+ * Menu acionado: Apenas importa os sites da planilha de integração (Colunas H e K).
  */
 function importarSitesIntegracaoMenu() {
   const ui = SpreadsheetApp.getUi();
@@ -99,11 +107,13 @@ function importarSitesIntegracaoMenu() {
     spreadsheet.toast('Importação concluída!', 'Concluído', 3);
 
     const periodo = destinoInfo.mesInfo ? `${destinoInfo.mesInfo.chave}/${destinoInfo.mesInfo.ano}` : destinoInfo.nomeAba;
-    const msg = `Resumo da Importação:\n\n` +
+    const msg = `Resumo da Importação de Chamados:\n\n` +
       `📍 Aba de Destino: ${destinoInfo.nomeAba} (${periodo})\n` +
       `• Linhas analisadas na origem: ${resultado.processados}\n` +
-      `• Sites finalizados no mês: ${resultado.importados}\n` +
-      `• Preenchidos na Coluna ${CONFIG.colDestinoSitesIntegrados} a partir da linha ${CONFIG.linhaInicial}.`;
+      `• BRISANET ➔ Coluna ${CONFIG.colDestinoBrisanet} (Integrado por nós): ${resultado.importadosBrisanet} sites\n` +
+      `• FIBERHOME ➔ Coluna ${CONFIG.colDestinoFiberhome} (Outros Vendors): ${resultado.importadosFiberhome} sites\n` +
+      `• Total de sites importados: ${resultado.totalImportados}\n` +
+      `• Ignorados por Coluna L vazia: ${resultado.ignoradosSemVendor} linhas.`;
 
     ui.alert('📥 Chamados Importados', msg, ui.ButtonSet.OK);
   } catch (erro) {
@@ -146,7 +156,10 @@ function preencherDiagramas() {
 
 /**
  * Realiza a leitura da planilha INTEGRAÇÃO E EXPANSÃO DE SITES 2026, filtra pela data
- * de finalização (Coluna P) conforme o mês/ano da aba ativa e grava os códigos de site na Coluna K.
+ * de finalização (Coluna P) conforme o mês/ano da aba ativa, avalia a Coluna L e divide:
+ * - BRISANET ➔ Coluna K (Integrado por nós)
+ * - FIBERHOME ➔ Coluna H (Outros Vendors)
+ * - Linhas com Coluna L vazia ➔ ignoradas
  */
 function executarImportacaoIntegracao(planDestino, mesInfo) {
   const ssIntegracao = obterPlanilhaIntegracao();
@@ -169,20 +182,37 @@ function executarImportacaoIntegracao(planDestino, mesInfo) {
 
   const dados = planIntegracao.getDataRange().getValues();
   if (dados.length <= 1) {
-    return { processados: 0, importados: 0, sites: [] };
+    return {
+      processados: 0,
+      importadosBrisanet: 0,
+      importadosFiberhome: 0,
+      totalImportados: 0,
+      ignoradosSemVendor: 0,
+      sitesBrisanet: [],
+      sitesFiberhome: []
+    };
   }
 
   let processados = 0;
-  const sitesFiltrados = [];
+  let ignoradosSemVendor = 0;
+  const sitesBrisanet = [];
+  const sitesFiberhome = [];
 
   // Linha 1 é cabeçalho; varre a partir da linha 2
   for (let r = 1; r < dados.length; r++) {
     const linha = dados[r];
     const siteRaw = linha[CONFIG.colOrigemSite];
+    const vendorRaw = linha[CONFIG.colOrigemVendor];
     const dataRaw = linha[CONFIG.colOrigemDataFinalizacao];
 
     if (!siteRaw || siteRaw.toString().trim() === "") continue;
     processados++;
+
+    // Regra: Não importar linhas onde a coluna L estiver vazia
+    if (!vendorRaw || vendorRaw.toString().trim() === "") {
+      ignoradosSemVendor++;
+      continue;
+    }
 
     const dataFinalizacao = extrairData(dataRaw);
     if (dataFinalizacao && mesInfo) {
@@ -191,31 +221,52 @@ function executarImportacaoIntegracao(planDestino, mesInfo) {
         dataFinalizacao.getMonth() === mesInfo.mesIndex
       ) {
         const siteFormatado = siteRaw.toString().trim();
-        // Evita códigos duplicados no mesmo lote
-        if (!sitesFiltrados.includes(siteFormatado)) {
-          sitesFiltrados.push(siteFormatado);
+        const vendorNorm = normalizarTexto(vendorRaw);
+
+        // Divisão por fornecedor/responsável
+        if (vendorNorm.includes("brisanet")) {
+          if (!sitesBrisanet.includes(siteFormatado)) {
+            sitesBrisanet.push(siteFormatado);
+          }
+        } else if (vendorNorm.includes("fiberhome") || vendorNorm.includes("fiber home")) {
+          if (!sitesFiberhome.includes(siteFormatado)) {
+            sitesFiberhome.push(siteFormatado);
+          }
         }
       }
     }
   }
 
-  // Limpa os dados anteriores da coluna destino a partir da linha inicial
+  // Limpa os dados anteriores das colunas destino a partir da linha inicial
   const maxLinhasDestino = planDestino.getLastRow();
-  const colIdx = colParaIndice(CONFIG.colDestinoSitesIntegrados);
   if (maxLinhasDestino >= CONFIG.linhaInicial) {
-    planDestino.getRange(CONFIG.linhaInicial, colIdx, maxLinhasDestino - CONFIG.linhaInicial + 1, 1).clearContent();
+    const qtdLinhas = maxLinhasDestino - CONFIG.linhaInicial + 1;
+    // Limpa Coluna H (Sites Fiberhome) e Coluna I (Diagramas Fiberhome)
+    planDestino.getRange(CONFIG.linhaInicial, colParaIndice(CONFIG.colDestinoFiberhome), qtdLinhas, 2).clearContent();
+    // Limpa Coluna K (Sites Brisanet) e Coluna L (Diagramas Brisanet)
+    planDestino.getRange(CONFIG.linhaInicial, colParaIndice(CONFIG.colDestinoBrisanet), qtdLinhas, 2).clearContent();
   }
 
-  // Grava a lista atualizada de sites na coluna destino
-  if (sitesFiltrados.length > 0) {
-    const valoresGravar = sitesFiltrados.map(s => [s]);
-    planDestino.getRange(CONFIG.linhaInicial, colIdx, valoresGravar.length, 1).setValues(valoresGravar);
+  // Grava sites FIBERHOME na Coluna H
+  if (sitesFiberhome.length > 0) {
+    const valoresFiber = sitesFiberhome.map(s => [s]);
+    planDestino.getRange(CONFIG.linhaInicial, colParaIndice(CONFIG.colDestinoFiberhome), valoresFiber.length, 1).setValues(valoresFiber);
+  }
+
+  // Grava sites BRISANET na Coluna K
+  if (sitesBrisanet.length > 0) {
+    const valoresBrisa = sitesBrisanet.map(s => [s]);
+    planDestino.getRange(CONFIG.linhaInicial, colParaIndice(CONFIG.colDestinoBrisanet), valoresBrisa.length, 1).setValues(valoresBrisa);
   }
 
   return {
     processados: processados,
-    importados: sitesFiltrados.length,
-    sites: sitesFiltrados
+    importadosBrisanet: sitesBrisanet.length,
+    importadosFiberhome: sitesFiberhome.length,
+    totalImportados: sitesBrisanet.length + sitesFiberhome.length,
+    ignoradosSemVendor: ignoradosSemVendor,
+    sitesBrisanet: sitesBrisanet,
+    sitesFiberhome: sitesFiberhome
   };
 }
 
@@ -237,14 +288,14 @@ function executarPreenchimentoDiagramas(planDestino) {
 
   const tarefas = [
     {
-      nome: "Coluna H (Outros Vendors)",
+      nome: "Coluna H (FIBERHOME / Outros Vendors)",
       colSite: "H",
       colDiagrama: "I",
       categoria: planDestino.getRange("H2").getValue(),
       subCategoria: planDestino.getRange("I3").getValue()
     },
     {
-      nome: "Coluna K (Integrado por nós - Huawei)",
+      nome: "Coluna K (BRISANET / Integrado por nós - Huawei)",
       colSite: "K",
       colDiagrama: "L",
       categoria: planDestino.getRange("K2").getValue(),
@@ -456,7 +507,7 @@ function extrairMesAnoAba(nomeAba) {
 }
 
 /**
- * Converte letra de coluna para número (ex: "A" -> 1, "I" -> 9, "K" -> 11, "L" -> 12).
+ * Converte letra de coluna para número (ex: "A" -> 1, "H" -> 8, "I" -> 9, "K" -> 11, "L" -> 12).
  */
 function colParaIndice(coluna) {
   let num = 0;
