@@ -5,106 +5,113 @@
 
 ---
 
-## 1. Visão Geral das Fontes de Dados Mapeadas
+## 1. Mapeamento das Fontes de Dados e Integração
 
 ```mermaid
 flowchart TD
-    subgraph S1["📡 1. Sytex API (Fonte Mestra de Sites)"]
-        S_Cred["Autenticação: riltomar@grupobrisanet.com.br"]
-        S_Filtros["Filtros: Status (Ativo), 10 Tipos de Site, Período do Mês"]
-        S_Sanit["Higienização: Remoção de ponto e números (.1, .02)"]
+    subgraph Sytex["📡 1. Sytex DataReport API (Fonte Mestra)"]
+        S_URL["URL: https://app.sytex.io/api/datareport/7bc528d3.../export/?org_id=181"]
+        S_Cred["Auth: Basic base64(riltomar@grupobrisanet.com.br:senha)"]
+        S_Sanit["Higienização em Memória: Regex remove ponto e números (.1, .02)"]
     end
 
-    subgraph S2["📋 2. Planilha de Integrações (Atribuição de Vendor)"]
+    subgraph Integracao["📋 2. Planilha de Integrações (Atribuição de Vendor & Integrador)"]
         I_Sheet["Planilha: 19C0e5op2QHsXxmgOsLbO-zz-RP1yajM-UxUd_9rzhiI"]
         I_Aba["Aba: INTEGRAÇÃO DE SITES (GID: 1755873954)"]
-        I_Cols["Col A: Site | Col L: Vendor (REPORT) | Col P: Data Finalizado"]
+        I_Cols["Col A: Site | Col F: Vendor | Col L: Integrador (REPORT) | Col P: Data Fim"]
     end
 
-    subgraph S3["🗺️ 3. Planilha Oficial de Diagramas 5G"]
+    subgraph Diagramas["🗺️ 3. Planilha Oficial de Diagramas 5G"]
         D_Sheet["Planilha: 1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA"]
-        D_Cols["Busca: Projeto, Diagrama de Rede (Mão de Obra) e Situação"]
+        D_Cols["Busca: Projeto, Mão de Obra, Serviço Terceiro e Situação do Diagrama"]
     end
 
-    subgraph Destino["📊 4. Planilha Mestre Consolidada (Novo Modelo)"]
-        M_Tab["Tabela Consolidada Unificada (Substitui os 7 blocos paralelos)"]
-        M_Dash["Painel Executivo / KPIs Automáticos"]
-        M_Comp["Aba Comparativos / Conciliação"]
+    subgraph Destino["📊 4. Planilha Mestre (Tabela Única Consolidada)"]
+        M_Dash["Painel de Indicadores Automático no Topo (Linhas 1 a 4)"]
+        M_Table["Tabela Contínua Oficial com as 10 Colunas Padronizadas"]
     end
 
-    S1 -->|Sites Ativos Higienizados| Destino
-    S2 -->|Cruzamento: Vendor BRISANET / FIBERHOME| Destino
-    S3 -->|Mão de Obra e Situação do Diag.| Destino
+    Sytex -->|Carga em Memória & Higienização| Destino
+    Integracao -->|Validação de Chamado, Vendor e Integrador| Destino
+    Diagramas -->|Vínculo de Diagramas e Situação| Destino
 ```
 
 ---
 
-## 2. Diagnóstico da Estrutura Atual da Planilha (`NOV/2026`)
+## 2. Decisão Arquitetural: Eliminação da Aba `comparativos`
 
-Ao analisar a planilha de destino atual (`1_QIjeOwBFqW5BzEEq4OCCIWKFG7O8-YONGIoH5R9za8` / aba `NOV/2026`), identificamos que ela utiliza **7 tabelas paralelas lado a lado**:
-
-| Bloco | Colunas | Categoria | Conteúdo |
-| :---: | :---: | :--- | :--- |
-| **1** | **C até F** | `Integrador - Huawei` | TICKET, SITE, Mão de Obra, Servi.Terceiro |
-| **2** | **H até I** | `Tecnologia - Outros Vendors` | SITE, Mão de Obra (FIBERHOME) |
-| **3** | **K até L** | `Tecnologia - Integrado por nós` | SITE, Mão de Obra (BRISANET / HUAWEI) |
-| **4** | **N até O** | `Total Tecnologia` | SITE, Mão de Obra (Consolidação) |
-| **5** | **Q até T** | `Expansão: Redes Móveis - RF` | Projeto, SITE, Mão de Obra, Situação do Diag. |
-| **6** | **V até Y** | `Expansão: Redes Móveis - NOC` | Projeto, SITE, Mão de Obra, Situação do Diag. |
-| **7** | **AA até AB** | `Total Expansão` | SITE, Mão de Obra (Consolidação) |
-
-### ⚠️ Principais Ineficiências desse Modelo Atual:
-1. **Conflito de Altura de Linhas:** Como as listas possuem tamanhos diferentes (ex.: 54 sites em Brisanet, 21 em Fiberhome, 4 em RF), as tabelas menores ficam com espaços em branco vazios desnecessários.
-2. **Incompatibilidade com Filtros Nativos:** Aplicar um filtro em uma coluna (ex.: filtrar um estado na Coluna C) oculta automaticamente as linhas das outras 6 tabelas da aba.
-3. **Totalizadores e Fórmulas Rígidas:** As colunas N-O e AA-AB apenas duplicam dados de outras colunas com fórmulas manuais suscetíveis a quebra.
-4. **Dificuldade de Integração e BI:** Tabelas lado a lado não podem ser consumidas facilmente pelo Looker Studio, Power BI ou tabelas dinâmicas.
+Conforme alinhado, **a aba `comparativos` foi eliminada da arquitetura**:
+* **Por que eliminar?** A aba comparativos gerava mais uma etapa intermediária manual/visual desnecessária.
+* **Nova Abordagem:** O cruzamento entre os sites retornados pelo relatório do Sytex e os chamados da planilha de Integrações ocorre **100% em memória** no Google Apps Script.
+* **Resultado:** Somente os registros válidos, higienizados, desduplicados e conciliados são gravados diretamente na aba oficial do mês, mantendo a planilha limpa e sem abas intermediárias.
 
 ---
 
-## 3. Nova Distribuição Proposta para a Planilha
+## 3. Estrutura Oficial das 10 Colunas (Tabela Única)
 
-Para modernizar o fluxo e atender ao requisito de **eliminar o volume de planilhas e simplificar a gestão**, propomos a seguinte distribuição:
+A tabela de dados substitui os 7 blocos paralelos anteriores por uma estrutura contínua, permitindo ordenação e filtros nativos sem quebra de layout:
 
-### 🏛️ Modelo 1: Tabela Operacional Única (Recomendado)
-Todas as demandas do mês residem em **uma única tabela relacional contínua**, onde cada linha representa uma integração/chamado com todos os seus atributos:
+| Coluna | Nome do Cabeçalho | Origem da Informação | Regra / Descrição |
+| :---: | :--- | :--- | :--- |
+| **A** | **Data de Finalização** | Planilha Integração (Col P) | Data oficial de conclusão do chamado no mês da aba (ex.: `15/10/2026`) |
+| **B** | **Frente / Categoria** | Classificação Operacional | Ex.: `Tecnologia - Integrado por nós`, `Tecnologia - Outros Vendors`, `Expansão RF`, `Expansão NOC` |
+| **C** | **Código do Site** | Sytex API (Higienizado) | Código padronizado e limpo via Regex sem sufixo numérico (ex.: `BCE0007`, `TSA0028`) |
+| **D** | **Vendor** | Planilha Integração (Col F) | Fabricante dos equipamentos (`HUAWEI`, `FIBERHOME`, `NOKIA`) |
+| **E** | **Integrador** | Planilha Integração (Col L `REPORT`) | Quem realizou o serviço de integração (`BRISANET`, `FIBERHOME`, `HUAWEI`) |
+| **F** | **Chamado / Ticket** | Planilha Integração / Sytex | Número identificador do chamado/protocolo de integração |
+| **G** | **Projeto** | Base Diagramas / Integração | Código do projeto vinculado (ex.: `EXP-WL_RM1001-RN-...` para frentes de Expansão) |
+| **H** | **Mão de Obra (Diagrama)** | Base Diagramas 5G | Código do diagrama de rede para Mão de Obra (ex.: `4023987 0020`) |
+| **I** | **Serviço Terceiro (Diagrama)** | Base Diagramas 5G | Código do diagrama para Serviços de Terceiros (quando aplicável) |
+| **J** | **Situação do Diagrama** | Base Diagramas 5G | Situação de validação do diagrama (`OK`, `Pendente`, `Em elaboração`) |
+
+---
+
+## 4. Painel de Indicadores no Topo da Aba (Linhas 1 a 4 Fixadas)
+
+Para manter a visibilidade gerencial que existia nos blocos antigos, o topo da aba mensal (ex.: `NOV/2026`) conterá cartões automáticos consolidados:
 
 ```
-+----+-------------+----------+-----------+------------+--------------------+-----------+--------------------+---------------+--------------------+
-| ID | Data Fim    | Frente   | Site      | Tipo Site  | Vendor / Resp.     | Projeto   | Mão de Obra (Diag) | Situação Diag | Status Conciliação |
-+----+-------------+----------+-----------+------------+--------------------+-----------+--------------------+---------------+--------------------+
-|  1 | 08/10/2026  | Tec      | VRZ0004   | Concreto   | FIBERHOME          | -         | 4023989 0020       | OK            | Conciliado         |
-|  2 | 10/10/2026  | Tec      | JFT0006   | Greenfield | BRISANET           | -         | 4023987 0020       | OK            | Conciliado         |
-|  3 | 14/10/2026  | Exp. RF  | MRO0005   | Rooftop    | BRISANET           | EXP-WL... | 4023991 0020       | Em Elaboração | Conciliado         |
-+----+-------------+----------+-----------+------------+--------------------+-----------+--------------------+---------------+--------------------+
+┌─────────────────────────────────┬─────────────────────────────────┬─────────────────────────────────┬─────────────────────────────────┐
+│ 🟢 Integrado por nós (Brisanet) │ 🔵 Outros Vendors (Fiberhome)   │ 🟣 Expansão (RF / NOC)          │ ⚪ Total Geral do Mês           │
+│ =CONT.SE(E:E; "BRISANET")       │ =CONT.SE(E:E; "FIBERHOME")      │ =CONT.SE(B:B; "*Expansão*")     │ =CONT.VALORES(C5:C)             │
+└─────────────────────────────────┴─────────────────────────────────┴─────────────────────────────────┴─────────────────────────────────┘
 ```
 
-#### Dicionário de Campos da Tabela Única:
-* **Período / Data Finalização:** Extraído da Coluna P da planilha de integração.
-* **Frente / Categoria:** `Tecnologia (Integrador)`, `Tecnologia (Outros Vendors)`, `Tecnologia (Integrado por nós)`, `Expansão RF`, `Expansão NOC`.
-* **Código do Site:** Código higienizado via Regex (sem `.1`, `.02`).
-* **Tipo de Site:** Classificação vinda da API Sytex (`Greenfield`, `Poste de Concreto`, `Rooftop`, etc.).
-* **Vendor / Report:** Classificação da Coluna L da planilha de integração (`BRISANET`, `FIBERHOME`, `HUAWEI`).
-* **Projeto:** Código do projeto associado (para frentes de Expansão).
-* **Mão de Obra (Diagrama de Rede):** Código do diagrama retornado da base de diagramas 5G.
-* **Situação do Diagrama:** Status oficial do diagrama (`OK`, `Pendente`, `Em elaboração`, etc.).
-* **Status da Conciliação:** Indicador de validação (`✅ Conciliado (Sytex + Planilha)`, `⚠️ Apenas no Sytex`, `⚠️ Sem Vendor`).
+---
+
+## 5. Especificação do Conector Sytex API
+
+* **URL do DataReport:** `https://app.sytex.io/api/datareport/7bc528d3-2b34-4bc1-b6df-59eff2ccceb9/export/?org_id=181`
+* **Método HTTP:** `GET`
+* **Autenticação:** HTTP Basic Auth:
+  ```javascript
+  const headers = {
+    "Authorization": "Basic " + Utilities.base64Encode(usuario + ":" + senha)
+  };
+  ```
+* **Processamento do Retorno:**
+  * O arquivo retornado (CSV/JSON) é processado diretamente pelo Apps Script.
+  * Os códigos de site passam pela função de higienização Regex:
+    ```javascript
+    function higienizarCodigoSite(codigoBruto) {
+      if (!codigoBruto) return "";
+      return codigoBruto.toString().trim().replace(/\.\d+.*$/, '').toUpperCase();
+    }
+    ```
+  * Cruzamento com a planilha de integração:
+    * Valida se o site existe na aba `INTEGRAÇÃO DE SITES`.
+    * Confirma se o chamado foi finalizado no mês correspondente (Coluna P).
+    * Extrai o **Vendor** (Coluna F) e o **Integrador** (Coluna L).
+    * Descarta linhas com Coluna L vazia.
+    * Busca diagramas na base 5G e grava na tabela unificada.
 
 ---
 
-### 📊 Painel de Indicadores Automático (Topo da Aba ou Aba Resumo)
-No topo da mesma aba (linhas 1 a 4 fixadas) ou em uma aba dedicada `Dashboard`, cartões automáticos (`CONT.SE` / `SOMASE`) exibem exatamente o mesmo resumo que hoje é feito visualmente:
+## 6. Próximos Passos (Aguardando Aprovação para Codificação)
 
-* 🟢 **Total Integrado por nós (Brisanet / Huawei):** `54`
-* 🔵 **Total Outros Vendors (Fiberhome):** `21`
-* 🟣 **Total Expansão (RF / NOC):** `4`
-* ⚪ **Total Geral do Mês:** `79`
-
----
-
-## 4. Próximos Passos do Planejamento
-
-1. **Aprovação do Layout:** Validar se a proposta da **Tabela Operacional Única** atende à visão da liderança ou se prefere manter abas separadas por frente.
-2. **Especificação dos Parâmetros da API do Sytex:**
-   * URL Base da API (ex.: `https://...sytex.com.br/api/...`)
-   * Método de autenticação (troca de usuário/senha por token via endpoint de login vs. Basic Auth).
-3. **Mapeamento da Aba `comparativos`:** Definir se a aba comparativos será apenas um log de conferência para a auditoria dos dados que não bateram.
+1. **Validação do formato de resposta do Sytex:**
+   * Confirmar se o endpoint `https://app.sytex.io/api/datareport/.../export/` retorna CSV ou JSON.
+2. **Definição da regra da coluna `Frente / Categoria`:**
+   * Definir se o preenchimento de `Frente / Categoria` (Coluna B) é derivado automaticamente do Integrador (ex.: se Integrador for Brisanet $\rightarrow$ `Tecnologia - Integrado por nós`; se Fiberhome $\rightarrow$ `Tecnologia - Outros Vendors`), ou se vem de outro campo.
+3. **Autorização para Início da Implementação:**
+   * Assim que você aprovar esse mapeamento, passaremos para a fase de desenvolvimento do script no `Codigo.js`.
