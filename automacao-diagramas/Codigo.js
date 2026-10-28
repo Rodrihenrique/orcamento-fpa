@@ -17,7 +17,7 @@
 const CONFIG = {
   // 1. Planilha de Destino Oficial (Tabela Única Consolidada)
   idDestino: '1_QIjeOwBFqW5BzEEq4OCCIWKFG7O8-YONGIoH5R9za8',
-  abaDestinoPadrao: 'NOV/2026',
+  abaDestinoPadrao: 'OUT/2026',
   linhaCabecalho: 4,
   linhaDadosInicial: 5,
 
@@ -36,6 +36,8 @@ const CONFIG = {
   colIntegracaoReport: 11,     // Coluna L: REPORT / INTEGRADOR (BRISANET, FIBERHOME)
   colIntegracaoDataFim: 15,    // Coluna P: CHAMADO FINALIZADO (Data)
   colIntegracaoHoraFim: 16,    // Coluna Q: HORA DE FINALIZAÇÃO
+  colIntegracaoMes: 18,        // Coluna S: MÊS (JANEIRO, FEVEREIRO, ..., OUTUBRO)
+  colIntegracaoAno: 19,        // Coluna T: ANO (2026)
 
   // 4. Planilha Oficial de Diagramas 5G (Mão de Obra e Serviço Terceiro)
   idOrigemDiagramas: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
@@ -77,7 +79,7 @@ function executarSincronizacaoCompleta() {
     const mesInfo = destinoInfo.mesInfo;
 
     if (!mesInfo) {
-      throw new Error(`A aba ativa "${destinoInfo.nomeAba}" não possui formato de mês válido (ex.: NOV/2026, OUT/2026).`);
+      throw new Error(`A aba ativa "${destinoInfo.nomeAba}" não possui formato de mês válido (ex.: OUT/2026, NOV/2026).`);
     }
 
     // 1. Obtém e higieniza a lista de sites do Sytex (.xlsx)
@@ -87,6 +89,7 @@ function executarSincronizacaoCompleta() {
     // 2. Extrai e filtra chamados da planilha de Integrações para o mês
     spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/4', -1);
     const mapaChamados = carregarChamadosIntegracao(mesInfo);
+    const totalChamadosMes = Object.keys(mapaChamados).length;
 
     // 3. Carrega a matriz oficial de Diagramas 5G
     spreadsheet.toast('Mapeando base de diagramas 5G...', 'Etapa 3/4', -1);
@@ -96,17 +99,30 @@ function executarSincronizacaoCompleta() {
     spreadsheet.toast('Conciliando dados e gerando tabela unificada...', 'Etapa 4/4', -1);
     const resultado = gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas);
 
-    // 5. Grava a tabela e atualiza os cartões de indicadores
-    gravarTabelaUnicaNaAba(planDestino, resultado.linhas);
+    // 5. Grava a tabela e atualiza os cartões de indicadores com fórmulas em inglês
+    gravarTabelaUnicaNaAba(planDestino, resultado.linhas, destinoInfo.nomeAba);
 
     spreadsheet.toast('Sincronização finalizada com sucesso!', 'Concluído', 5);
 
-    // Relatório visual final
     const periodoStr = `${mesInfo.chave}/${mesInfo.ano}`;
+
+    // Alerta se não houver chamados no mês pesquisado
+    if (totalChamadosMes === 0) {
+      const msgVazio = `⚠️ Atenção: Nenhum chamado com Integrador (Coluna L) foi encontrado na planilha de Integrações para o período "${periodoStr}".\n\n` +
+        `• Sites retornados pelo Sytex: ${sitesSytex.length}\n` +
+        `• Chamados finalizados em ${periodoStr}: 0\n\n` +
+        `💡 DICA IMPORTANTE:\nNa planilha oficial 'INTEGRAÇÃO DE SITES', os chamados cadastrados atualmente vão até OUTUBRO/2026 (Novembro ainda não foi alimentado na origem).\n\n` +
+        `Para testar a tabela preenchida com dados reais, abra a aba OUT/2026 (ou crie uma aba OUT/2026) e execute a sincronização!`;
+
+      ui.alert('Aviso de Dados do Mês', msgVazio, ui.ButtonSet.OK);
+      return;
+    }
+
+    // Relatório visual final de sucesso
     const msg = `✅ Sincronização Concluída com Sucesso!\n\n` +
       `📍 Aba de Destino: ${destinoInfo.nomeAba} (${periodoStr})\n` +
       `• Sites extraídos do Sytex (.xlsx): ${sitesSytex.length}\n` +
-      `• Chamados finalizados no mês: ${Object.keys(mapaChamados).length}\n` +
+      `• Chamados finalizados no mês: ${totalChamadosMes}\n` +
       `• Sites validados e conciliados: ${resultado.linhas.length}\n\n` +
       `📊 Distribuição por Integrador:\n` +
       `   • BRISANET: ${resultado.totais.brisanet} sites\n` +
@@ -262,7 +278,6 @@ function obterSitesSytexEmMemoria() {
   let tempFileId = null;
 
   try {
-    // Conversão direta de .xlsx para Google Sheet sem necessidade de habilitar nada em "+ Serviços"
     tempFileId = converterXlsxParaGoogleSheet(blob);
 
     const ssTemp = SpreadsheetApp.openById(tempFileId);
@@ -273,19 +288,13 @@ function obterSitesSytexEmMemoria() {
       return [];
     }
 
-    // Identifica qual coluna contém o código do site
-    let colSiteIdx = 0;
-    const cabecalho = dados[0];
-    for (let c = 0; c < cabecalho.length; c++) {
-      const colNome = normalizarTexto(cabecalho[c]);
-      if (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('localizacao')) {
-        colSiteIdx = c;
-        break;
-      }
-    }
+    // Detector inteligente de coluna de sites (cabeçalho ou padrão de texto)
+    const colInfo = detectarColunaSiteEmDados(dados);
+    const colSiteIdx = colInfo.colIdx;
+    const linhaInicio = colInfo.linhaInicio;
 
     const sitesUnicos = [];
-    for (let r = 1; r < dados.length; r++) {
+    for (let r = linhaInicio; r < dados.length; r++) {
       const siteRaw = dados[r][colSiteIdx];
       const siteLimpo = higienizarCodigoSite(siteRaw);
       if (siteLimpo && !sitesUnicos.includes(siteLimpo)) {
@@ -296,7 +305,6 @@ function obterSitesSytexEmMemoria() {
     return sitesUnicos;
 
   } finally {
-    // Descarta o arquivo temporário imediatamente via DriveApp nativo
     if (tempFileId) {
       try {
         DriveApp.getFileById(tempFileId).setTrashed(true);
@@ -308,9 +316,43 @@ function obterSitesSytexEmMemoria() {
 }
 
 /**
+ * Localiza com inteligência qual coluna contém os códigos de site
+ * analisando cabeçalhos das primeiras linhas ou padrões alfanuméricos de site.
+ */
+function detectarColunaSiteEmDados(dados) {
+  // 1. Procura em cabeçalhos nas primeiras 3 linhas
+  for (let r = 0; r < Math.min(3, dados.length); r++) {
+    for (let c = 0; c < dados[r].length; c++) {
+      const nome = normalizarTexto(dados[r][c]);
+      if (nome.includes('site') || nome.includes('codigo') || nome.includes('estacao') || nome.includes('localizacao')) {
+        return { linhaInicio: r + 1, colIdx: c };
+      }
+    }
+  }
+
+  // 2. Se não achou por cabeçalho, procura a coluna com maior concentração de padrão de site (ex: CEFOR01, BCE0007)
+  let melhorCol = 0;
+  let maxMatches = 0;
+  const numCols = dados[0] ? dados[0].length : 0;
+
+  for (let c = 0; c < numCols; c++) {
+    let matches = 0;
+    for (let r = 0; r < Math.min(30, dados.length); r++) {
+      const val = (dados[r][c] || '').toString().trim();
+      if (/^[A-Z]{2,4}\d{2,4}/i.test(val)) matches++;
+    }
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      melhorCol = c;
+    }
+  }
+
+  return { linhaInicio: 1, colIdx: melhorCol };
+}
+
+/**
  * Converte um arquivo binário .xlsx para uma planilha Google temporária
  * utilizando a API REST nativa do Drive com o token OAuth da própria sessão.
- * Dispensa qualquer ativação manual em "+ Serviços" no editor do Apps Script.
  */
 function converterXlsxParaGoogleSheet(blob) {
   const boundary = '-------314159265358979323846';
@@ -376,7 +418,8 @@ function obterSenhaSytex() {
 
 /**
  * Abre a planilha oficial de INTEGRAÇÃO DE SITES, filtra os chamados pelo mês/ano
- * e retorna um mapa de sites com seus atributos (Vendor, Integrador, Data de Conclusão).
+ * tanto pela Data de Finalização (Col P) quanto pelas Colunas S (Mês) e T (Ano),
+ * garantindo compatibilidade total.
  */
 function carregarChamadosIntegracao(mesInfo) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemIntegracao);
@@ -402,6 +445,8 @@ function carregarChamadosIntegracao(mesInfo) {
   }
 
   const mapa = {};
+  const mesAlvoNorm = normalizarTexto(mesInfo.nomeMes);
+  const anoAlvoStr = String(mesInfo.ano);
 
   // Varre a partir da linha 3 (índice 2)
   for (let r = CONFIG.linhaCabecalhoIntegracao; r < dados.length; r++) {
@@ -409,21 +454,39 @@ function carregarChamadosIntegracao(mesInfo) {
     const siteRaw = linha[CONFIG.colIntegracaoSite];
     const reportRaw = linha[CONFIG.colIntegracaoReport];
     const dataRaw = linha[CONFIG.colIntegracaoDataFim];
+    const mesColRaw = linha[CONFIG.colIntegracaoMes];
+    const anoColRaw = linha[CONFIG.colIntegracaoAno];
 
     if (!siteRaw) continue;
 
     // Regra: Não importar se a coluna L (REPORT / Integrador) estiver vazia
     if (!reportRaw || reportRaw.toString().trim() === '') continue;
 
-    const dtFim = extrairData(dataRaw);
-    if (!dtFim) continue;
+    // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T
+    let pertenceAoMes = false;
+    let dataFinalizadaObj = extrairData(dataRaw);
 
-    // Filtra pelo mês e ano correspondentes da aba de destino
-    if (dtFim.getFullYear() === mesInfo.ano && dtFim.getMonth() === mesInfo.mesIndex) {
+    if (dataFinalizadaObj) {
+      if (dataFinalizadaObj.getFullYear() === mesInfo.ano && dataFinalizadaObj.getMonth() === mesInfo.mesIndex) {
+        pertenceAoMes = true;
+      }
+    }
+
+    // Validação complementar pelas Colunas S (Mês) e T (Ano)
+    if (!pertenceAoMes && mesColRaw && anoColRaw) {
+      const mesLinhaNorm = normalizarTexto(mesColRaw);
+      const anoLinhaStr = String(anoColRaw).trim();
+      if (mesLinhaNorm.includes(mesAlvoNorm) && anoLinhaStr.includes(anoAlvoStr)) {
+        pertenceAoMes = true;
+        if (!dataFinalizadaObj) dataFinalizadaObj = new Date(mesInfo.ano, mesInfo.mesIndex, 1);
+      }
+    }
+
+    if (pertenceAoMes) {
       const siteLimpo = higienizarCodigoSite(siteRaw);
       const vendorStr = (linha[CONFIG.colIntegracaoVendor] || '').toString().trim().toUpperCase();
       const integradorStr = reportRaw.toString().trim().toUpperCase();
-      const dataFormatada = formatarDataBR(dtFim);
+      const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : String(dataRaw);
 
       if (!mapa[siteLimpo]) {
         mapa[siteLimpo] = {
@@ -488,7 +551,6 @@ function carregarMapaHierarquiaDiagramas() {
       const siteExtraido = extrairSiteDaDescricao(col1);
       if (!siteExtraido) continue;
 
-      // O código do diagrama está na coluna ao lado (ou na primeira célula numérica/texto não vazio)
       let diagCod = '';
       for (let c = 2; c < linha.length; c++) {
         const val = (linha[c] || '').toString().trim();
@@ -526,11 +588,9 @@ function carregarMapaHierarquiaDiagramas() {
  */
 function extrairSiteDaDescricao(texto) {
   if (!texto) return '';
-  // Procura padrão canônico de site: 3 letras e 4 dígitos (ex.: MCO0064, VRZ0004)
   const match = texto.match(/\b([A-Z]{3}\d{4})\b/i);
   if (match) return match[1].toUpperCase();
 
-  // Padrão alternativo: 2 a 4 letras e 2 a 4 dígitos
   const match2 = texto.match(/\b([A-Z]{2,4}\d{2,4})\b/i);
   return match2 ? match2[1].toUpperCase() : '';
 }
@@ -600,30 +660,55 @@ function gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas) {
 }
 
 /**
- * Renderiza os Indicadores de Topo (Linhas 1 a 3), o Cabeçalho (Linha 4)
- * e o corpo de dados da Tabela Única (Linha 5 em diante).
+ * Renderiza o Banner de Título (Linha 1), os Cartões Indicadores (Linhas 2 e 3),
+ * o Cabeçalho Oficial (Linha 4) e o corpo de dados da Tabela Única (Linha 5 em diante).
  */
-function gravarTabelaUnicaNaAba(planDestino, linhasDados) {
-  // 1. Configura os Cartões Indicadores no Topo (Linhas 1 a 3)
-  planDestino.getRange("A1").setValue("INDICADORES MENSAIS - INTEGRAÇÃO 5G").setFontWeight("bold").setFontSize(11);
+function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba) {
+  // 1. Limpa completamente as linhas 1 a 4 para eliminar resíduos de textos antigos
+  planDestino.getRange(1, 1, 4, 10).clear({ contentsOnly: true, formatOnly: true });
 
-  // Cartão 1: Brisanet (Colunas B a C)
-  planDestino.getRange("B2").setValue("Integrado por nós (Brisanet)").setFontWeight("bold").setFontColor("#006600");
-  planDestino.getRange("B3").setFormula('=CONT.SE(E5:E; "BRISANET")').setFontWeight("bold").setFontSize(14);
+  // 2. Banner de Título Superior na Linha 1 (Mesclado A1:J1)
+  const rangeTitulo = planDestino.getRange("A1:J1");
+  rangeTitulo.merge();
+  rangeTitulo.setValue(`PAINEL DE INTEGRAÇÕES & DIAGRAMAS 5G — ${nomeAba}`);
+  rangeTitulo.setBackground("#0f243e");
+  rangeTitulo.setFontColor("#ffffff");
+  rangeTitulo.setFontWeight("bold");
+  rangeTitulo.setFontSize(12);
+  rangeTitulo.setHorizontalAlignment("center");
 
-  // Cartão 2: Fiberhome (Colunas D a E)
-  planDestino.getRange("D2").setValue("Outros Vendors (Fiberhome)").setFontWeight("bold").setFontColor("#003399");
-  planDestino.getRange("D3").setFormula('=CONT.SE(E5:E; "FIBERHOME")').setFontWeight("bold").setFontSize(14);
+  // 3. Cartões Indicadores nas Linhas 2 e 3 com Fórmulas Nativas em Inglês (evita #NAME?)
+  // Cartão 1: Brisanet (A2:B3)
+  const c1Tit = planDestino.getRange("A2:B2");
+  c1Tit.merge().setValue("🟢 Integrado por nós (Brisanet)").setFontWeight("bold").setFontSize(10).setBackground("#e2f0d9").setFontColor("#385723").setHorizontalAlignment("center");
+  const c1Val = planDestino.getRange("A3:B3");
+  c1Val.merge().setFormula('=COUNTIF(E5:E, "*BRISANET*")').setFontWeight("bold").setFontSize(14).setBackground("#e2f0d9").setFontColor("#385723").setHorizontalAlignment("center");
 
-  // Cartão 3: Demais Integradores (Colunas F a G)
-  planDestino.getRange("F2").setValue("Demais Integradores").setFontWeight("bold").setFontColor("#666666");
-  planDestino.getRange("F3").setFormula('=MAX(0; CONT.VALORES(C5:C) - CONT.SE(E5:E; "BRISANET") - CONT.SE(E5:E; "FIBERHOME"))').setFontWeight("bold").setFontSize(14);
+  // Cartão 2: Fiberhome (C2:D3)
+  const c2Tit = planDestino.getRange("C2:D2");
+  c2Tit.merge().setValue("🔵 Outros Vendors (Fiberhome)").setFontWeight("bold").setFontSize(10).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
+  const c2Val = planDestino.getRange("C3:D3");
+  c2Val.merge().setFormula('=COUNTIF(E5:E, "*FIBERHOME*")').setFontWeight("bold").setFontSize(14).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
 
-  // Cartão 4: Total Geral (Colunas H a J)
-  planDestino.getRange("H2").setValue("Total Geral do Mês").setFontWeight("bold").setFontColor("#000000");
-  planDestino.getRange("H3").setFormula('=CONT.VALORES(C5:C)').setFontWeight("bold").setFontSize(14);
+  // Cartão 3: Demais Integradores (E2:F3)
+  const c3Tit = planDestino.getRange("E2:F2");
+  c3Tit.merge().setValue("🟣 Demais Integradores").setFontWeight("bold").setFontSize(10).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
+  const c3Val = planDestino.getRange("E3:F3");
+  c3Val.merge().setFormula('=MAX(0, COUNTA(C5:C) - COUNTIF(E5:E, "*BRISANET*") - COUNTIF(E5:E, "*FIBERHOME*"))').setFontWeight("bold").setFontSize(14).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
 
-  // 2. Cabeçalho Oficial das 10 Colunas na Linha 4
+  // Cartão 4: Total Geral (G2:H3)
+  const c4Tit = planDestino.getRange("G2:H2");
+  c4Tit.merge().setValue("⚪ Total Geral do Mês").setFontWeight("bold").setFontSize(10).setBackground("#fff2cc").setFontColor("#7f6000").setHorizontalAlignment("center");
+  const c4Val = planDestino.getRange("G3:H3");
+  c4Val.merge().setFormula('=COUNTA(C5:C)').setFontWeight("bold").setFontSize(14).setBackground("#fff2cc").setFontColor("#7f6000").setHorizontalAlignment("center");
+
+  // Cartão 5: Referência (I2:J3)
+  const c5Tit = planDestino.getRange("I2:J2");
+  c5Tit.merge().setValue("📅 Referência").setFontWeight("bold").setFontSize(10).setBackground("#eaecf0").setFontColor("#333333").setHorizontalAlignment("center");
+  const c5Val = planDestino.getRange("I3:J3");
+  c5Val.merge().setValue(nomeAba).setFontWeight("bold").setFontSize(14).setBackground("#eaecf0").setFontColor("#333333").setHorizontalAlignment("center");
+
+  // 4. Cabeçalho Oficial das 10 Colunas na Linha 4 (A4:J4)
   const cabecalhos = [
     'Data de Finalização',
     'Frente / Categoria',
@@ -644,22 +729,21 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados) {
   rangeCabecalho.setFontWeight('bold');
   rangeCabecalho.setHorizontalAlignment('center');
 
-  // 3. Limpa os dados antigos a partir da linha 5
+  // 5. Limpa os dados antigos a partir da linha 5
   const maxLinhas = Math.max(planDestino.getLastRow(), 50);
   if (maxLinhas >= CONFIG.linhaDadosInicial) {
-    planDestino.getRange(CONFIG.linhaDadosInicial, 1, maxLinhas - CONFIG.linhaDadosInicial + 1, 10).clearContent();
+    planDestino.getRange(CONFIG.linhaDadosInicial, 1, maxLinhas - CONFIG.linhaDadosInicial + 1, 10).clear({ contentsOnly: true });
   }
 
-  // 4. Grava os novos dados conciliados
+  // 6. Grava os novos dados conciliados (se houver)
   if (linhasDados && linhasDados.length > 0) {
     const rangeDados = planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 10);
     rangeDados.setValues(linhasDados);
     rangeDados.setHorizontalAlignment('center');
 
-    // Alinhamentos específicos para melhor leitura
-    planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 1).setHorizontalAlignment('center'); // Data
-    planDestino.getRange(CONFIG.linhaDadosInicial, 3, linhasDados.length, 1).setFontWeight('bold');           // Site
-    planDestino.getRange(CONFIG.linhaDadosInicial, 7, linhasDados.length, 1).setHorizontalAlignment('left');   // Projeto
+    planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 1).setHorizontalAlignment('center');
+    planDestino.getRange(CONFIG.linhaDadosInicial, 3, linhasDados.length, 1).setFontWeight('bold');
+    planDestino.getRange(CONFIG.linhaDadosInicial, 7, linhasDados.length, 1).setHorizontalAlignment('left');
   }
 }
 
@@ -749,26 +833,26 @@ function formatarDataBR(data) {
 function extrairMesAnoAba(nomeAba) {
   if (!nomeAba) return null;
   const mapaMeses = {
-    'jan': 0, 'janeiro': 0,
-    'fev': 1, 'fevereiro': 1,
-    'mar': 2, 'marco': 2, 'março': 2,
-    'abr': 3, 'abril': 3,
-    'mai': 4, 'maio': 4,
-    'jun': 5, 'junho': 5,
-    'jul': 6, 'julho': 6,
-    'ago': 7, 'agosto': 7,
-    'set': 8, 'setembro': 8,
-    'out': 9, 'outubro': 9,
-    'nov': 10, 'novembro': 10,
-    'dez': 11, 'dezembro': 11
+    'jan': { idx: 0, nome: 'JANEIRO' },
+    'fev': { idx: 1, nome: 'FEVEREIRO' },
+    'mar': { idx: 2, nome: 'MARÇO' },
+    'abr': { idx: 3, nome: 'ABRIL' },
+    'mai': { idx: 4, nome: 'MAIO' },
+    'jun': { idx: 5, nome: 'JUNHO' },
+    'jul': { idx: 6, nome: 'JULHO' },
+    'ago': { idx: 7, nome: 'AGOSTO' },
+    'set': { idx: 8, nome: 'SETEMBRO' },
+    'out': { idx: 9, nome: 'OUTUBRO' },
+    'nov': { idx: 10, nome: 'NOVEMBRO' },
+    'dez': { idx: 11, nome: 'DEZEMBRO' }
   };
 
   const limpo = normalizarTexto(nomeAba);
-  for (const [chave, mesIdx] of Object.entries(mapaMeses)) {
+  for (const [chave, info] of Object.entries(mapaMeses)) {
     if (limpo.includes(chave)) {
       const matchAno = limpo.match(/\b(20\d\d)\b/);
       const ano = matchAno ? parseInt(matchAno[1], 10) : new Date().getFullYear();
-      return { mesIndex: mesIdx, ano: ano, chave: chave.toUpperCase() };
+      return { mesIndex: info.idx, ano: ano, chave: chave.toUpperCase(), nomeMes: info.nome };
     }
   }
 
@@ -776,7 +860,9 @@ function extrairMesAnoAba(nomeAba) {
   if (matchNum) {
     const mesNum = parseInt(matchNum[1], 10);
     if (mesNum >= 1 && mesNum <= 12) {
-      return { mesIndex: mesNum - 1, ano: parseInt(matchNum[2], 10), chave: 'MÊS ' + mesNum };
+      const chaves = Object.keys(mapaMeses);
+      const chave = chaves[mesNum - 1];
+      return { mesIndex: mesNum - 1, ano: parseInt(matchNum[2], 10), chave: chave.toUpperCase(), nomeMes: mapaMeses[chave].nome };
     }
   }
 
