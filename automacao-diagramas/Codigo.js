@@ -1,19 +1,13 @@
 /**
  * ============================================================================
- * AUTOMAÇÃO DE DIAGRAMAS E INTEGRAÇÕES 5G
- * ============================================================================
- * Módulo para ingestão de dados via API Sytex (.xlsx), conciliação em memória
- * com a planilha oficial de Integrações e enriquecimento automático com a
- * matriz hierárquica de Diagramas de Rede 5G (Mão de Obra e Serviço Terceiro).
- * 
- * Repositório: https://github.com/Rodrihenrique/orcamento-fpa
- * Módulo: automacao-diagramas
+ * AUTOMAÇÃO DE INTEGRAÇÕES & DIAGRAMAS 5G — BRISANET TELECOMUNICAÇÕES
+ * Módulo: Tabela Única Consolidada, Conciliação Sytex e Matriz de Diagramas
  * ============================================================================
  */
 
-/**
- * Configurações Gerais e Parâmetros Operacionais
- */
+// ============================================================================
+// CONFIGURAÇÃO GLOBAL E IDs OFICIAIS
+// ============================================================================
 const CONFIG = {
   // 1. Planilha de Destino Oficial (Tabela Única Consolidada)
   idDestino: '1_QIjeOwBFqW5BzEEq4OCCIWKFG7O8-YONGIoH5R9za8',
@@ -32,6 +26,7 @@ const CONFIG = {
   abaOrigemIntegracao: 'INTEGRAÇÃO DE SITES',
   linhaCabecalhoIntegracao: 2, // Cabeçalhos na linha 2; dados na linha 3 em diante
   colIntegracaoSite: 0,        // Coluna A: SITE
+  colIntegracaoStatus: 2,      // Coluna C: STATUS (CONCLUIDO, EM ATENDIMENTO)
   colIntegracaoVendor: 5,      // Coluna F: VENDOR (HUAWEI, FIBERHOME, etc.)
   colIntegracaoReport: 11,     // Coluna L: REPORT / INTEGRADOR (BRISANET, FIBERHOME)
   colIntegracaoDataFim: 15,    // Coluna P: CHAMADO FINALIZADO (Data)
@@ -39,34 +34,31 @@ const CONFIG = {
   colIntegracaoMes: 18,        // Coluna S: MÊS (JANEIRO, FEVEREIRO, ..., OUTUBRO)
   colIntegracaoAno: 19,        // Coluna T: ANO (2026)
 
-  // 4. Planilha Oficial de Diagramas 5G (Mão de Obra e Serviço Terceiro)
-  idOrigemDiagramas: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
+  // 4. Planilha Oficial de Diagramas 5G (Mapeamento Multi-Estados / Multi-Colunas)
+  idOrigemDiagramas: '1dFN0WZVae0Mfw6MmUHtpAa9fpEufDjBi3MUFjerT1g0',
+  gidOrigemDiagramas: '1306115678',
   abaOrigemDiagramas: 'Diagramas - 5G'
 };
 
-/**
- * Disparador nativo: Cria o menu personalizado "🔄 Automação 5G" ao abrir a planilha.
- */
+// ============================================================================
+// MENU PERSONALIZADO (ONOPEN)
+// ============================================================================
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
   ui.createMenu('🔄 Automação 5G')
-    .addItem('🚀 Sincronizar Tudo (Sytex ➔ Integração ➔ Diagramas)', 'executarSincronizacaoCompleta')
+    .addItem('🚀 Sincronizar Tudo (Sytex + Diagramas)', 'executarSincronizacaoCompleta')
     .addSeparator()
-    .addItem('📡 1. Testar Ingestão Sytex API (.xlsx)', 'testarConexaoSytexMenu')
-    .addItem('📋 2. Conciliar Apenas Integração e Sytex', 'conciliarChamadosMenu')
-    .addItem('🗺️ 3. Atualizar Apenas Diagramas de Rede', 'atualizarDiagramasMenu')
+    .addItem('📡 Testar Conexão com Sytex (API)', 'testarConexaoSytexMenu')
+    .addItem('📋 Conciliar Apenas Integrações', 'conciliarChamadosMenu')
+    .addItem('🗺️ Atualizar Apenas Diagramas', 'atualizarDiagramasMenu')
     .addSeparator()
-    .addItem('⚙️ Configurar Acesso Sytex (Senha)', 'configurarCredenciaisSytexMenu')
+    .addItem('⚙️ Configurar Acesso Sytex', 'configurarCredenciaisSytexMenu')
     .addToUi();
 }
 
-/**
- * FLUXO PRINCIPAL: Executa o ciclo completo ponta a ponta:
- * 1. Baixa e higieniza os sites do relatório da API Sytex (.xlsx em memória sem necessidade de serviços avançados).
- * 2. Cruza com os chamados finalizados do mês da planilha de Integrações.
- * 3. Enriquece com a matriz de Diagramas 5G (Projeto, Mão de Obra e Serviço Terceiro).
- * 4. Renderiza a Tabela Única de 10 Colunas e os Indicadores de Topo na aba ativa.
- */
+// ============================================================================
+// FLUXO PRINCIPAL: SINCRONIZAÇÃO COMPLETA
+// ============================================================================
 function executarSincronizacaoCompleta() {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -86,18 +78,19 @@ function executarSincronizacaoCompleta() {
     spreadsheet.toast('Baixando dados do Sytex via API...', 'Etapa 1/4', -1);
     const sitesSytex = obterSitesSytexEmMemoria();
 
-    // 2. Extrai e filtra chamados da planilha de Integrações para o mês
+    // 2. Extrai e filtra chamados da planilha de Integrações para o mês (1 linha por chamado)
     spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/4', -1);
-    const mapaChamados = carregarChamadosIntegracao(mesInfo);
-    const totalChamadosMes = Object.keys(mapaChamados).length;
+    const chamadosIntegracao = carregarChamadosIntegracao(mesInfo);
+    const totalChamadosMes = chamadosIntegracao.length;
 
-    // 3. Carrega a matriz oficial de Diagramas 5G
-    spreadsheet.toast('Mapeando base de diagramas 5G...', 'Etapa 3/4', -1);
-    const mapaDiagramas = carregarMapaHierarquiaDiagramas();
+    // 3. Extrai lista de sites únicos para varredura multi-colunas na aba de diagramas
+    const sitesAlvo = Array.from(new Set(chamadosIntegracao.map(ch => ch.site)));
+    spreadsheet.toast(`Buscando diagramas de Tecnologia para ${sitesAlvo.length} sites...`, 'Etapa 3/4', -1);
+    const mapaDiagramas = carregarMapaHierarquiaDiagramas(sitesAlvo);
 
-    // 4. Executa a conciliação em memória e gera as 10 colunas
+    // 4. Cruza os chamados, aplica o filtro de Tecnologia e gera as 10 colunas
     spreadsheet.toast('Conciliando dados e gerando tabela unificada...', 'Etapa 4/4', -1);
-    const resultado = gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas);
+    const resultado = gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, sitesSytex);
 
     // 5. Grava a tabela e atualiza os cartões de indicadores
     gravarTabelaUnicaNaAba(planDestino, resultado.linhas, destinoInfo.nomeAba, resultado.totais);
@@ -106,13 +99,12 @@ function executarSincronizacaoCompleta() {
 
     const periodoStr = `${mesInfo.chave}/${mesInfo.ano}`;
 
-    // Alerta se não houver chamados no mês pesquisado
     if (totalChamadosMes === 0) {
-      const msgVazio = `⚠️ Atenção: Nenhum chamado com Integrador (Coluna L) foi encontrado na planilha de Integrações para o período "${periodoStr}".\n\n` +
+      const msgVazio = `⚠️ Nenhum chamado foi encontrado na planilha de Integrações para o período "${periodoStr}".\n\n` +
         `• Sites retornados pelo Sytex: ${sitesSytex.length}\n` +
         `• Chamados finalizados em ${periodoStr}: 0\n\n` +
-        `💡 DICA IMPORTANTE:\nNa planilha oficial 'INTEGRAÇÃO DE SITES', os chamados cadastrados atualmente vão até OUTUBRO/2026 (Novembro ainda não foi alimentado na origem).\n\n` +
-        `Para testar a tabela preenchida com dados reais, abra a aba OUT/2026 (ou crie uma aba OUT/2026) e execute a sincronização!`;
+        `💡 DICA:\nNa planilha oficial 'INTEGRAÇÃO DE SITES', os chamados cadastrados atualmente vão até OUTUBRO/2026.\n` +
+        `Para testar a tabela preenchida com dados reais, abra a aba OUT/2026 e execute a sincronização!`;
 
       ui.alert('Aviso de Dados do Mês', msgVazio, ui.ButtonSet.OK);
       return;
@@ -121,14 +113,14 @@ function executarSincronizacaoCompleta() {
     // Relatório visual final de sucesso
     const msg = `✅ Sincronização Concluída com Sucesso!\n\n` +
       `📍 Aba de Destino: ${destinoInfo.nomeAba} (${periodoStr})\n` +
-      `• Sites extraídos do Sytex (.xlsx): ${sitesSytex.length}\n` +
-      `• Chamados finalizados no mês: ${totalChamadosMes}\n` +
-      `• Sites validados e conciliados: ${resultado.linhas.length}\n\n` +
+      `• Total de chamados no mês (1 linha por chamado): ${resultado.linhas.length}\n` +
+      `• Sites únicos envolvidos: ${sitesAlvo.length}\n` +
+      `• Sites ativos validados no Sytex (.xlsx): ${sitesSytex.length}\n\n` +
       `📊 Distribuição por Integrador:\n` +
-      `   • BRISANET: ${resultado.totais.brisanet} sites\n` +
-      `   • FIBERHOME: ${resultado.totais.fiberhome} sites\n` +
-      `   • Outros/Demais: ${resultado.totais.outros} sites\n\n` +
-      `🗺️ Diagramas de Rede:\n` +
+      `   • BRISANET: ${resultado.totais.brisanet} chamados\n` +
+      `   • FIBERHOME: ${resultado.totais.fiberhome} chamados\n` +
+      `   • Outros/Demais: ${resultado.totais.outros} chamados\n\n` +
+      `🗺️ Diagramas de Mão de Obra (Tecnologia):\n` +
       `   • Diagramas vinculados com sucesso: ${resultado.totais.comDiagrama}\n` +
       `   • Pendentes de diagrama: ${resultado.totais.semDiagrama}`;
 
@@ -139,44 +131,30 @@ function executarSincronizacaoCompleta() {
   }
 }
 
-/**
- * Menu acionado: Testa a chamada à API do Sytex e exibe uma amostra dos sites higienizados.
- */
 function testarConexaoSytexMenu() {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-
   spreadsheet.toast('Testando comunicação com o Sytex...', 'Conectando', -1);
-
   try {
     const sites = obterSitesSytexEmMemoria();
     spreadsheet.toast('Comunicação OK!', 'Sucesso', 3);
-
     const amostra = sites.slice(0, 10).join(', ');
     const msg = `Conexão com a API do Sytex estabelecida com sucesso!\n\n` +
       `• Total de sites higienizados extraídos: ${sites.length}\n` +
       `• Primeiros 10 sites encontrados:\n${amostra}...`;
-
     ui.alert('📡 Teste Sytex Concluído', msg, ui.ButtonSet.OK);
   } catch (erro) {
     ui.alert('❌ Erro de Conexão com o Sytex', erro.message, ui.ButtonSet.OK);
   }
 }
 
-/**
- * Menu acionado: Apenas concilia Sytex e Integrações, preenchendo a tabela com os dados conhecidos.
- */
 function conciliarChamadosMenu() {
   executarSincronizacaoCompleta();
 }
 
-/**
- * Menu acionado: Atualiza os diagramas (Mão de Obra e Serviço Terceiro) para os sites já listados na tabela.
- */
 function atualizarDiagramasMenu() {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-
   spreadsheet.toast('Atualizando diagramas da tabela...', 'Processando', -1);
 
   try {
@@ -189,10 +167,11 @@ function atualizarDiagramasMenu() {
       return;
     }
 
-    const mapaDiagramas = carregarMapaHierarquiaDiagramas();
     const rangeSites = planDestino.getRange(`C${CONFIG.linhaDadosInicial}:C${maxLinhas}`);
     const sites = rangeSites.getValues();
+    const sitesAlvo = sites.map(s => higienizarCodigoSite(s[0])).filter(s => s.length > 0);
 
+    const mapaDiagramas = carregarMapaHierarquiaDiagramas(sitesAlvo);
     const rangeColsDiagramas = planDestino.getRange(`G${CONFIG.linhaDadosInicial}:J${maxLinhas}`);
     const dadosDiagExistentes = rangeColsDiagramas.getValues();
 
@@ -203,7 +182,7 @@ function atualizarDiagramasMenu() {
         const d = mapaDiagramas[site];
         dadosDiagExistentes[i][0] = d.projeto || dadosDiagExistentes[i][0];   // Col G (Projeto)
         dadosDiagExistentes[i][1] = d.maoDeObra || dadosDiagExistentes[i][1]; // Col H (Mão de Obra)
-        dadosDiagExistentes[i][2] = d.servTerc || dadosDiagExistentes[i][2];  // Col I (Serviço Terceiro)
+        dadosDiagExistentes[i][2] = '-';                                      // Col I (Serviço Terceiro)
         dadosDiagExistentes[i][3] = d.situacao || 'OK';                      // Col J (Situação)
         atualizados++;
       }
@@ -211,17 +190,12 @@ function atualizarDiagramasMenu() {
 
     rangeColsDiagramas.setValues(dadosDiagExistentes);
     spreadsheet.toast('Diagramas atualizados!', 'Concluído', 3);
-
-    ui.alert('🗺️ Diagramas Atualizados', `Foram atualizados os diagramas de ${atualizados} sites na tabela.`, ui.ButtonSet.OK);
-
+    ui.alert('🗺️ Diagramas Atualizados', `Foram atualizados os diagramas de ${atualizados} chamados na tabela.`, ui.ButtonSet.OK);
   } catch (erro) {
     ui.alert('❌ Erro ao Atualizar Diagramas', erro.message, ui.ButtonSet.OK);
   }
 }
 
-/**
- * Menu acionado: Permite ao usuário cadastrar a senha de acesso da API do Sytex com segurança.
- */
 function configurarCredenciaisSytexMenu() {
   const ui = SpreadsheetApp.getUi();
   const resposta = ui.prompt(
@@ -244,12 +218,6 @@ function configurarCredenciaisSytexMenu() {
 // ============================================================================
 // MÓDULO 1: INGESTÃO DA API SYTEX (.XLSX)
 // ============================================================================
-
-/**
- * Conecta ao endpoint do DataReport do Sytex, baixa o .xlsx em memória,
- * converte via chamada nativa de API sem necessidade de ativar serviços avançados,
- * extrai os sites higienizados e descarta a planilha temporária.
- */
 function obterSitesSytexEmMemoria() {
   const usuario = CONFIG.sytexUsuario;
   const senha = obterSenhaSytex();
@@ -258,28 +226,28 @@ function obterSitesSytexEmMemoria() {
     throw new Error('Senha do Sytex não configurada. Use o menu "🔄 Automação 5G > ⚙️ Configurar Acesso Sytex".');
   }
 
-  const base64Creds = Utilities.base64Encode(`${usuario}:${senha}`);
-  const params = {
+  const credenciaisBase64 = Utilities.base64Encode(`${usuario}:${senha}`);
+  const opcoes = {
     method: 'GET',
     headers: {
-      'Authorization': 'Basic ' + base64Creds
+      'Authorization': `Basic ${credenciaisBase64}`,
+      'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream'
     },
     muteHttpExceptions: true
   };
 
-  const resposta = UrlFetchApp.fetch(CONFIG.sytexUrl, params);
-  const status = resposta.getResponseCode();
+  const resposta = UrlFetchApp.fetch(CONFIG.sytexUrl, opcoes);
+  const codigoStatus = resposta.getResponseCode();
 
-  if (status !== 200) {
-    throw new Error(`Falha ao conectar na API Sytex (HTTP ${status}): ${resposta.getContentText().slice(0, 200)}`);
+  if (codigoStatus !== 200) {
+    throw new Error(`Falha na requisição ao Sytex (HTTP ${codigoStatus}): ${resposta.getContentText().slice(0, 200)}`);
   }
 
-  const blob = resposta.getBlob();
+  const blob = resposta.getBlob().setName('sytex_export_temp.xlsx');
   let tempFileId = null;
 
   try {
     tempFileId = converterXlsxParaGoogleSheet(blob);
-
     const ssTemp = SpreadsheetApp.openById(tempFileId);
     const abaTemp = ssTemp.getSheets()[0];
     const dados = abaTemp.getDataRange().getValues();
@@ -288,84 +256,52 @@ function obterSitesSytexEmMemoria() {
       return [];
     }
 
-    // Detector inteligente de coluna de sites (cabeçalho ou padrão de texto)
-    const colInfo = detectarColunaSiteEmDados(dados);
-    const colSiteIdx = colInfo.colIdx;
-    const linhaInicio = colInfo.linhaInicio;
-
-    const sitesUnicos = [];
-    for (let r = linhaInicio; r < dados.length; r++) {
-      const siteRaw = dados[r][colSiteIdx];
-      const siteLimpo = higienizarCodigoSite(siteRaw);
-      if (siteLimpo && !sitesUnicos.includes(siteLimpo)) {
-        sitesUnicos.push(siteLimpo);
+    let colSiteIdx = 0;
+    const cabecalho = dados[0];
+    for (let c = 0; c < cabecalho.length; c++) {
+      const colNome = normalizarTexto(cabecalho[c]);
+      if (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('id site') || colNome.includes('sigla')) {
+        colSiteIdx = c;
+        break;
       }
     }
 
-    return sitesUnicos;
+    const sitesEncontrados = new Set();
+    for (let r = 1; r < dados.length; r++) {
+      const valorCelula = dados[r][colSiteIdx];
+      if (valorCelula !== undefined && valorCelula !== null && valorCelula !== '') {
+        const siteHigienizado = higienizarCodigoSite(valorCelula);
+        if (siteHigienizado.length >= 3) {
+          sitesEncontrados.add(siteHigienizado);
+        }
+      }
+    }
+
+    return Array.from(sitesEncontrados);
 
   } finally {
     if (tempFileId) {
       try {
         DriveApp.getFileById(tempFileId).setTrashed(true);
       } catch (e) {
-        console.warn('Aviso: Falha ao enviar para lixeira temp file ' + tempFileId + ': ' + e.message);
+        console.warn('Não foi possível remover arquivo temporário: ' + e.message);
       }
     }
   }
 }
 
-/**
- * Localiza com inteligência qual coluna contém os códigos de site
- * analisando cabeçalhos das primeiras linhas ou padrões alfanuméricos de site.
- */
-function detectarColunaSiteEmDados(dados) {
-  // 1. Procura em cabeçalhos nas primeiras 3 linhas
-  for (let r = 0; r < Math.min(3, dados.length); r++) {
-    for (let c = 0; c < dados[r].length; c++) {
-      const nome = normalizarTexto(dados[r][c]);
-      if (nome.includes('site') || nome.includes('codigo') || nome.includes('estacao') || nome.includes('localizacao')) {
-        return { linhaInicio: r + 1, colIdx: c };
-      }
-    }
-  }
-
-  // 2. Se não achou por cabeçalho, procura a coluna com maior concentração de padrão de site (ex: CEFOR01, BCE0007)
-  let melhorCol = 0;
-  let maxMatches = 0;
-  const numCols = dados[0] ? dados[0].length : 0;
-
-  for (let c = 0; c < numCols; c++) {
-    let matches = 0;
-    for (let r = 0; r < Math.min(30, dados.length); r++) {
-      const val = (dados[r][c] || '').toString().trim();
-      if (/^[A-Z]{2,4}\d{2,4}/i.test(val)) matches++;
-    }
-    if (matches > maxMatches) {
-      maxMatches = matches;
-      melhorCol = c;
-    }
-  }
-
-  return { linhaInicio: 1, colIdx: melhorCol };
-}
-
-/**
- * Converte um arquivo binário .xlsx para uma planilha Google temporária
- * utilizando a API REST nativa do Drive com o token OAuth da própria sessão.
- */
 function converterXlsxParaGoogleSheet(blob) {
-  const boundary = '-------314159265358979323846';
-  const delimiter = '\r\n--' + boundary + '\r\n';
-  const close_delim = '\r\n--' + boundary + '--';
-
   const metadata = {
-    title: 'temp_sytex_' + new Date().getTime(),
-    mimeType: MimeType.GOOGLE_SHEETS
+    title: 'temp_sytex_conversion_' + new Date().getTime(),
+    mimeType: 'application/vnd.google-apps.spreadsheet'
   };
 
+  const boundary = '-------314159265358979323846';
+  const delimiter = '\r\n--' + boundary + '\r\n';
+  const closeDelim = '\r\n--' + boundary + '--';
+
   const base64Data = Utilities.base64Encode(blob.getBytes());
-  const requestBody =
+  const multipartRequestBody =
     delimiter +
     'Content-Type: application/json; charset=UTF-8\r\n\r\n' +
     JSON.stringify(metadata) +
@@ -373,16 +309,17 @@ function converterXlsxParaGoogleSheet(blob) {
     'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n' +
     'Content-Transfer-Encoding: base64\r\n\r\n' +
     base64Data +
-    close_delim;
+    closeDelim;
 
   const url = 'https://www.googleapis.com/upload/drive/v2/files?uploadType=multipart&convert=true';
+
   const resposta = UrlFetchApp.fetch(url, {
     method: 'POST',
     headers: {
       'Authorization': 'Bearer ' + ScriptApp.getOAuthToken(),
       'Content-Type': 'multipart/related; boundary=' + boundary
     },
-    payload: requestBody,
+    payload: multipartRequestBody,
     muteHttpExceptions: true
   });
 
@@ -397,9 +334,6 @@ function converterXlsxParaGoogleSheet(blob) {
   throw new Error(`Falha ao converter arquivo .xlsx (HTTP ${statusCode}): ${respostaTexto.slice(0, 300)}`);
 }
 
-/**
- * Obtém a senha do Sytex (via CONFIG em código ou via PropertiesService).
- */
 function obterSenhaSytex() {
   if (CONFIG.sytexSenha && CONFIG.sytexSenha.trim() !== '') {
     return CONFIG.sytexSenha.trim();
@@ -413,14 +347,8 @@ function obterSenhaSytex() {
 }
 
 // ============================================================================
-// MÓDULO 2: PROCESSAMENTO DA PLANILHA DE INTEGRAÇÕES
+// MÓDULO 2: PROCESSAMENTO DA PLANILHA DE INTEGRAÇÕES (1 LINHA POR CHAMADO)
 // ============================================================================
-
-/**
- * Abre a planilha oficial de INTEGRAÇÃO DE SITES, filtra os chamados pelo mês/ano
- * tanto pela Data de Finalização (Col P) quanto pelas Colunas S (Mês) e T (Ano),
- * garantindo compatibilidade total.
- */
 function carregarChamadosIntegracao(mesInfo) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemIntegracao);
   let aba = ss.getSheetByName(CONFIG.abaOrigemIntegracao);
@@ -441,10 +369,10 @@ function carregarChamadosIntegracao(mesInfo) {
 
   const dados = aba.getDataRange().getValues();
   if (dados.length <= CONFIG.linhaCabecalhoIntegracao) {
-    return {};
+    return [];
   }
 
-  const mapa = {};
+  const chamados = [];
   const mesAlvoNorm = normalizarTexto(mesInfo.nomeMes);
   const anoAlvoStr = String(mesInfo.ano);
 
@@ -452,15 +380,14 @@ function carregarChamadosIntegracao(mesInfo) {
   for (let r = CONFIG.linhaCabecalhoIntegracao; r < dados.length; r++) {
     const linha = dados[r];
     const siteRaw = linha[CONFIG.colIntegracaoSite];
-    const reportRaw = linha[CONFIG.colIntegracaoReport];
+    const statusRaw = (linha[CONFIG.colIntegracaoStatus] || '').toString().trim().toUpperCase();
+    const vendorRaw = (linha[CONFIG.colIntegracaoVendor] || '').toString().trim().toUpperCase();
+    const reportRaw = (linha[CONFIG.colIntegracaoReport] || '').toString().trim().toUpperCase();
     const dataRaw = linha[CONFIG.colIntegracaoDataFim];
     const mesColRaw = linha[CONFIG.colIntegracaoMes];
     const anoColRaw = linha[CONFIG.colIntegracaoAno];
 
     if (!siteRaw) continue;
-
-    // Regra: Não importar se a coluna L (REPORT / Integrador) estiver vazia
-    if (!reportRaw || reportRaw.toString().trim() === '') continue;
 
     // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T
     let pertenceAoMes = false;
@@ -482,115 +409,100 @@ function carregarChamadosIntegracao(mesInfo) {
       }
     }
 
+    // Inclui chamados que pertencem ao mês ativo
     if (pertenceAoMes) {
       const siteLimpo = higienizarCodigoSite(siteRaw);
-      const vendorStr = (linha[CONFIG.colIntegracaoVendor] || '').toString().trim().toUpperCase();
-      const integradorStr = reportRaw.toString().trim().toUpperCase();
       const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : String(dataRaw);
 
-      if (!mapa[siteLimpo]) {
-        mapa[siteLimpo] = {
-          site: siteLimpo,
-          vendor: vendorStr,
-          integrador: integradorStr,
-          dataFinalizacao: dataFormatada,
-          chamado: `TK-${siteLimpo}-${mesInfo.ano}`
-        };
-      }
+      chamados.push({
+        linhaOrigem: r + 1,
+        site: siteLimpo,
+        siteOriginal: String(siteRaw).trim(),
+        status: statusRaw,
+        vendor: vendorRaw,
+        integrador: reportRaw || 'BRISANET',
+        dataFinalizacao: dataFormatada,
+        chamado: `TK-${siteLimpo}-${mesInfo.ano}-${r + 1}`
+      });
     }
   }
 
-  return mapa;
+  return chamados;
 }
 
 // ============================================================================
-// MÓDULO 3: MAPEAMENTO DA HIERARQUIA DE DIAGRAMAS 5G
+// MÓDULO 3: MAPEAMENTO MULTI-COLUNAS DE DIAGRAMAS 5G (FOCO EM TECNOLOGIA)
 // ============================================================================
-
-/**
- * Carrega a base oficial de diagramas 5G e indexa por código de site higienizado,
- * capturando Torre/Projeto, Mão de Obra (... 0020) e Serviço Terceiro (... 0030).
- */
-function carregarMapaHierarquiaDiagramas() {
+function carregarMapaHierarquiaDiagramas(sitesAlvoList) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemDiagramas);
-  const aba = ss.getSheetByName(CONFIG.abaOrigemDiagramas);
-  if (!aba) {
-    throw new Error(`Aba "${CONFIG.abaOrigemDiagramas}" não encontrada na planilha de diagramas.`);
+  let aba = ss.getSheetByName(CONFIG.abaOrigemDiagramas);
+
+  if (!aba && CONFIG.gidOrigemDiagramas) {
+    const abas = ss.getSheets();
+    for (let i = 0; i < abas.length; i++) {
+      if (abas[i].getSheetId().toString() === CONFIG.gidOrigemDiagramas.toString()) {
+        aba = abas[i];
+        break;
+      }
+    }
   }
+  if (!aba) aba = ss.getSheets()[0];
 
-  const dados = aba.getDataRange().getValues();
   const mapa = {};
+  const sitesPendentes = new Set((sitesAlvoList || []).map(s => higienizarCodigoSite(s)));
+  const totalColsAba = aba.getLastColumn();
+  const maxLinhasAba = aba.getLastRow();
 
-  let projetoAtual = '';
-  let categoriaAtual = 'Tecnologia';
+  // A aba Diagramas - 5G é dividida em grupos horizontais de 4 colunas por Estado (CE, RN, PB, PI, PE, BA, SE, MA, AL, MS, GO...)
+  // Cada grupo possui: Subcol 0 (Cidade/Torre), Subcol 1 (Descrição), Subcol 2 (Código Diagrama)
+  for (let c = 1; c <= totalColsAba; c += 4) {
+    if (sitesPendentes.size === 0) break; // Interrompe se todos os sites já foram encontrados
 
-  for (let r = 0; r < dados.length; r++) {
-    const linha = dados[r];
-    if (!linha || linha.length === 0) continue;
+    const numLinhas = Math.min(maxLinhasAba, 75000);
+    const dadosGrupo = aba.getRange(1, c, numLinhas, 3).getValues();
 
-    const col0 = normalizarTexto(linha[0]);
-    const col1 = (linha[1] || '').toString().trim();
-    const col1Norm = normalizarTexto(col1);
+    let projetoAtual = '';
+    let sobTecnologia = false;
 
-    // 1. Detecta se é linha filha de itens ou de categoria
-    const ehLinhaFilha = col1Norm.includes('mao de obra') || 
-                         col1Norm.includes('serv') || 
-                         col1Norm.includes('materiais') || 
-                         col1Norm.includes('regulariz') || 
-                         col1Norm.includes('postes') ||
-                         col1Norm.startsWith('tecnologia') ||
-                         col1Norm.startsWith('infra') ||
-                         col1Norm.startsWith('projetos ftth');
+    for (let r = 0; r < dadosGrupo.length; r++) {
+      const col0 = (dadosGrupo[r][0] || '').toString().trim();
+      const col1 = (dadosGrupo[r][1] || '').toString().trim();
+      const col2 = (dadosGrupo[r][2] || '').toString().trim();
 
-    // 2. Detecta início de bloco de Torre / Projeto (Col 0 é "Torre" ou Col 1 começa com "WL_" sem ser filha)
-    if (!ehLinhaFilha && (col0.includes('torre') || (col1Norm.startsWith('wl_') && !col1Norm.includes(' - ')))) {
-      projetoAtual = col1;
-    }
+      if (!col0 && !col1 && !col2) continue;
 
-    // 3. Detecta categoria em vermelho
-    if (col1Norm.startsWith('tecnologia') || col1Norm.startsWith('infra civil') || col1Norm.startsWith('infra eletrica') || col1Norm.startsWith('projetos ftth')) {
-      if (col1Norm.startsWith('tecnologia')) categoriaAtual = 'Tecnologia';
-      else if (col1Norm.startsWith('infra civil')) categoriaAtual = 'Infra Civil';
-      else if (col1Norm.startsWith('infra eletrica')) categoriaAtual = 'Infra Eletrica';
-      else if (col1Norm.startsWith('projetos ftth')) categoriaAtual = 'Projetos FTTH';
-    }
+      const col0Lower = normalizarTexto(col0);
+      const col1Lower = normalizarTexto(col1);
 
-    // 4. Detecta linhas filhas de diagrama (Mão de Obra e Serviço Terceiro)
-    if (col1Norm.includes('mao de obra') || col1Norm.includes('serv. terc') || col1Norm.includes('servico terceiro')) {
-      const siteExtraido = extrairSiteDaDescricao(col1);
-      if (!siteExtraido) continue;
-
-      let diagCod = '';
-      for (let c = 2; c < linha.length; c++) {
-        const val = (linha[c] || '').toString().trim();
-        if (val && val !== '-' && val !== '#N/A') {
-          diagCod = val.replace(/\.0$/, '');
-          break;
-        }
+      // 1. Detecta cabeçalho de Torre no grupo (ex: WL_AL-MCO0064-AL-MCO400-BRIT)
+      if (col0Lower === 'torre' || (col0Lower.includes('torre') && !col1Lower.includes('mao de obra'))) {
+        projetoAtual = col1;
+        sobTecnologia = false;
       }
 
-      if (!mapa[siteExtraido]) {
-        mapa[siteExtraido] = {
-          site: siteExtraido,
-          projeto: projetoAtual,
-          categoria: categoriaAtual,
-          maoDeObra: '',
-          servTerc: '',
-          situacao: 'OK'
-        };
-      } else {
-        if (!mapa[siteExtraido].projeto && projetoAtual) {
-          mapa[siteExtraido].projeto = projetoAtual;
-        }
-        if (!mapa[siteExtraido].categoria && categoriaAtual) {
-          mapa[siteExtraido].categoria = categoriaAtual;
-        }
+      // 2. Detecta início da seção de Tecnologia
+      if (col1Lower.startsWith('tecnologia') || (col1Lower.includes('tecnologia') && !col1Lower.includes('mao de obra') && !col1Lower.includes('materiais') && !col1Lower.includes('serv'))) {
+        sobTecnologia = true;
+      } else if (col1Lower.startsWith('infra') || col1Lower.startsWith('projetos') || col1Lower.startsWith('cabeamento') || col1Lower.startsWith('regulariz') || col1Lower.startsWith('terreno') || col1Lower.startsWith('instalacao')) {
+        sobTecnologia = false;
       }
 
-      if (col1Norm.includes('mao de obra')) {
-        mapa[siteExtraido].maoDeObra = diagCod;
-      } else if (col1Norm.includes('serv. terc') || col1Norm.includes('servico terceiro')) {
-        mapa[siteExtraido].servTerc = diagCod;
+      // 3. Procura exclusivamente Mão de Obra da categoria Tecnologia
+      if (col1Lower.includes('mao de obra')) {
+        if (sobTecnologia || col1Lower.includes('tec')) {
+          const site = extrairSiteDaDescricao(col1) || extrairSiteDaDescricao(projetoAtual);
+          if (site && col2) {
+            const diagCod = col2.replace(/\.0$/, '');
+            mapa[site] = {
+              site: site,
+              projeto: projetoAtual,
+              categoria: 'Tecnologia',
+              maoDeObra: diagCod,
+              situacao: 'OK'
+            };
+            sitesPendentes.delete(site);
+          }
+        }
       }
     }
   }
@@ -598,14 +510,8 @@ function carregarMapaHierarquiaDiagramas() {
   return mapa;
 }
 
-/**
- * Extrai o código do site a partir da descrição da linha de diagrama
- * (ex.: "Mão de obra Tecnologia - WL_AL-MCO0064-A" ➔ "MCO0064").
- */
 function extrairSiteDaDescricao(texto) {
   if (!texto) return '';
-  // Procura padrão alfanumérico de site (2 a 5 letras seguidas de 2 a 5 números)
-  // delimitado por caracteres não-alfanuméricos (traços, underscores, barras, espaços)
   const match = texto.match(/(?:^|[^A-Za-z0-9])([A-Z]{2,5}\d{2,5})(?=[^A-Za-z0-9]|$)/i);
   return match ? match[1].toUpperCase() : '';
 }
@@ -613,12 +519,7 @@ function extrairSiteDaDescricao(texto) {
 // ============================================================================
 // MÓDULO 4: CONCILIAÇÃO E MONTAGEM DA TABELA ÚNICA (10 COLUNAS)
 // ============================================================================
-
-/**
- * Cruza os sites do Sytex com os chamados de integração e diagramas,
- * retornando a matriz formatada para a Tabela Única.
- */
-function gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas) {
+function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, sitesSytex) {
   const linhas = [];
   const totais = {
     brisanet: 0,
@@ -628,38 +529,34 @@ function gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas) {
     semDiagrama: 0
   };
 
-  // Itera sobre os sites validados do Sytex
-  for (let i = 0; i < sitesSytex.length; i++) {
-    const site = sitesSytex[i];
+  const setSitesSytex = new Set((sitesSytex || []).map(s => higienizarCodigoSite(s)));
 
-    // Regra: O site deve existir no Sytex E possuir chamado finalizado na planilha de Integrações
-    if (!mapaChamados[site]) continue;
+  for (let i = 0; i < chamadosIntegracao.length; i++) {
+    const ch = chamadosIntegracao[i];
+    const diag = mapaDiagramas[ch.site] || {};
 
-    const chamado = mapaChamados[site];
-    const diag = mapaDiagramas[site] || {};
+    const dataFinalizacao = ch.dataFinalizacao || '';
+    const categoria = 'Tecnologia'; // Foco exclusivo em Tecnologia
+    const codigoSite = ch.site;
+    const vendor = ch.vendor || '';
+    const integrador = ch.integrador || '';
+    const ticket = ch.chamado || '';
+    const projeto = diag.projeto || '-';
+    const maoDeObra = diag.maoDeObra || '-';
+    const servTerc = '-'; // Foco em Mão de Obra
+    const situacao = diag.maoDeObra ? 'OK' : 'Pendente';
 
-    const dataFinalizacao = chamado.dataFinalizacao || '';
-    const categoria = diag.categoria || 'Tecnologia';
-    const codigoSite = site;
-    const vendor = chamado.vendor || '';
-    const integrador = chamado.integrador || '';
-    const ticket = chamado.chamado || '';
-    const projeto = diag.projeto || '';
-    const maoDeObra = diag.maoDeObra || '';
-    const servTerc = diag.servTerc || '';
-    const situacao = (maoDeObra || servTerc) ? 'OK' : 'Pendente';
-
-    // Contadores para o resumo
+    // Contadores para o resumo nos cartões
     if (integrador.includes('BRISANET')) totais.brisanet++;
     else if (integrador.includes('FIBERHOME')) totais.fiberhome++;
     else totais.outros++;
 
-    if (maoDeObra || servTerc) totais.comDiagrama++;
+    if (diag.maoDeObra) totais.comDiagrama++;
     else totais.semDiagrama++;
 
     linhas.push([
       dataFinalizacao, // Col 1 (A): Data de Finalização
-      categoria,       // Col 2 (B): Frente / Categoria
+      categoria,       // Col 2 (B): Frente / Categoria (Tecnologia)
       codigoSite,      // Col 3 (C): Código do Site
       vendor,          // Col 4 (D): Vendor
       integrador,      // Col 5 (E): Integrador
@@ -674,12 +571,8 @@ function gerarLinhasTabelaUnica(sitesSytex, mapaChamados, mapaDiagramas) {
   return { linhas, totais };
 }
 
-/**
- * Renderiza o Banner de Título (Linha 1), os Cartões Indicadores (Linhas 2 e 3),
- * o Cabeçalho Oficial (Linha 4) e o corpo de dados da Tabela Única (Linha 5 em diante).
- */
 function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
-  // 1. Limpa completamente as linhas 1 a 4 para eliminar resíduos de textos antigos
+  // 1. Limpa completamente linhas 1 a 4 para eliminar resíduos de textos antigos
   planDestino.getRange(1, 1, 4, 10).clear({ contentsOnly: true, formatOnly: true });
 
   // 2. Banner de Título Superior na Linha 1 (Mesclado A1:J1)
@@ -692,7 +585,7 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   rangeTitulo.setFontSize(12);
   rangeTitulo.setHorizontalAlignment("center");
 
-  // 3. Cartões Indicadores nas Linhas 2 e 3 com Valores Consolidados (evita #ERROR! por localidade)
+  // 3. Cartões Indicadores nas Linhas 2 e 3 com Valores Numéricos (imune a incompatibilidade de idioma/locale)
   const valBrisanet = totais ? totais.brisanet : 0;
   const valFiberhome = totais ? totais.fiberhome : 0;
   const valOutros = totais ? totais.outros : 0;
@@ -770,18 +663,17 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
 // ============================================================================
 // FUNÇÕES AUXILIARES E UTILITÁRIOS
 // ============================================================================
-
-/**
- * Remove ponto e números subsequentes de códigos de sites (ex.: "BCE0007.1" ➔ "BCE0007").
- */
 function higienizarCodigoSite(codigoBruto) {
   if (!codigoBruto) return '';
   return codigoBruto.toString().trim().replace(/\.\d+.*$/, '').toUpperCase();
 }
 
-/**
- * Identifica a planilha e aba ativa (ou padrão) e extrai o mês/ano.
- */
+function normalizarTexto(texto) {
+  if (!texto) return '';
+  return texto.toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 function obterPlanilhaDestinoEAba(spreadsheet) {
   let ss = spreadsheet;
   if (!ss && CONFIG.idDestino) {
@@ -798,18 +690,21 @@ function obterPlanilhaDestinoEAba(spreadsheet) {
     return { planDestino: abaAtiva, nomeAba: nomeAbaAtiva, mesInfo: mesAnoAtivo };
   }
 
-  const planPadrao = ss.getSheetByName(CONFIG.abaDestinoPadrao);
-  if (planPadrao) {
-    const mesAnoPadrao = extrairMesAnoAba(CONFIG.abaDestinoPadrao);
-    return { planDestino: planPadrao, nomeAba: CONFIG.abaDestinoPadrao, mesInfo: mesAnoPadrao };
+  let abaPadrao = ss.getSheetByName(CONFIG.abaDestinoPadrao);
+  if (!abaPadrao) {
+    abaPadrao = abaAtiva;
   }
 
-  return { planDestino: abaAtiva, nomeAba: nomeAbaAtiva, mesInfo: null };
+  const mesAnoPadrao = extrairMesAnoAba(abaPadrao.getName()) || {
+    mesIndex: 9,
+    ano: 2026,
+    chave: 'OUT',
+    nomeMes: 'OUTUBRO'
+  };
+
+  return { planDestino: abaPadrao, nomeAba: abaPadrao.getName(), mesInfo: mesAnoPadrao };
 }
 
-/**
- * Converte valor variado para objeto Date.
- */
 function extrairData(valor) {
   if (!valor) return null;
   if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor;
@@ -836,9 +731,6 @@ function extrairData(valor) {
   return null;
 }
 
-/**
- * Formata data no padrão brasileiro DD/MM/YYYY.
- */
 function formatarDataBR(data) {
   if (!data || !(data instanceof Date)) return '';
   const d = String(data.getDate()).padStart(2, '0');
@@ -847,9 +739,6 @@ function formatarDataBR(data) {
   return `${d}/${m}/${y}`;
 }
 
-/**
- * Identifica mês e ano a partir do nome da aba (ex.: "NOV/2026", "11/2026", "Novembro 2026").
- */
 function extrairMesAnoAba(nomeAba) {
   if (!nomeAba) return null;
   const mapaMeses = {
@@ -876,7 +765,7 @@ function extrairMesAnoAba(nomeAba) {
     }
   }
 
-  const matchNum = limpo.match(/(\d{1,2})\s*[\/_-]\s*(20\d\d)/);
+  const matchNum = limpo.match(/\b(0?[1-9]|1[0-2])[\/\-](20\d\d)\b/);
   if (matchNum) {
     const mesNum = parseInt(matchNum[1], 10);
     if (mesNum >= 1 && mesNum <= 12) {
@@ -887,12 +776,4 @@ function extrairMesAnoAba(nomeAba) {
   }
 
   return null;
-}
-
-/**
- * Normaliza strings removendo acentos e convertendo para minúsculas.
- */
-function normalizarTexto(texto) {
-  if (texto === null || texto === undefined) return '';
-  return texto.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 }
