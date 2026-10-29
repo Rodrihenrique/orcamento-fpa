@@ -658,7 +658,8 @@ function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
     const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : (dataRaw ? String(dataRaw) : '');
     const integradorDefinido = determinarIntegrador(responsavelRaw);
 
-    const pertenceAoMes = verificarPertenceAoMes(dataRaw, mesColRaw, anoColRaw, mesInfo);
+    // Validação oficial: Pela data na Coluna P (CHAMADO FINALIZADO) no mês atual
+    const pertenceAoMes = verificarPertenceAoMes(dataRaw, mesInfo);
 
     const registroChamado = {
       linhaOrigem: r + 1,
@@ -1116,8 +1117,8 @@ function extrairData(valor) {
     return new Date(Math.round((valor - 25569) * 86400 * 1000));
   }
   if (typeof valor === 'string') {
-    const str = valor.trim();
-    const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    const str = valor.replace(/[\r\n\t\u00A0\u200B]/g, ' ').trim();
+    const ddmmyyyy = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
     if (ddmmyyyy) {
       let dia = parseInt(ddmmyyyy[1], 10);
       let mes = parseInt(ddmmyyyy[2], 10) - 1;
@@ -1125,7 +1126,7 @@ function extrairData(valor) {
       if (ano < 100) ano += 2000;
       return new Date(ano, mes, dia);
     }
-    const iso = str.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    const iso = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
     if (iso) {
       return new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
     }
@@ -1143,39 +1144,17 @@ function formatarDataBR(data) {
   return `${d}/${m}/${y}`;
 }
 
-function verificarPertenceAoMes(dataRaw, mesColRaw, anoColRaw, mesInfo) {
+/**
+ * Validação de Mês e Ano oficial:
+ * Conforme alinhado, a coluna S não é mais usada como filtro.
+ * O critério oficial é a data na Coluna P (CHAMADO FINALIZADO).
+ */
+function verificarPertenceAoMes(dataRaw, mesInfo) {
   if (!mesInfo) return true;
 
-  // 1. Pela Data Finalizada na Coluna P
   const dt = extrairData(dataRaw);
   if (dt) {
-    if (dt.getFullYear() === mesInfo.ano && dt.getMonth() === mesInfo.mesIndex) {
-      return true;
-    }
-  }
-
-  // 2. Pelas Colunas S (Mês) e T (Ano)
-  if (mesColRaw) {
-    const mesNorm = normalizarTexto(mesColRaw);
-    const chaveMes = (mesInfo.chave || '').toLowerCase(); // ex: 'out'
-    const nomeMes = normalizarTexto(mesInfo.nomeMes);      // ex: 'outubro'
-
-    // Trata 'out', 'outubro', 'out/2026', 'outubro/26', '10'
-    const mesBate = mesNorm.includes(chaveMes) || 
-                    mesNorm.includes(nomeMes) || 
-                    nomeMes.includes(mesNorm) || 
-                    mesNorm === '10' ||
-                    mesNorm === '010';
-
-    if (mesBate) {
-      if (!anoColRaw) return true;
-      const anoStr = String(anoColRaw).trim();
-      const anoAlvoStr = String(mesInfo.ano);
-      const anoCurto = anoAlvoStr.slice(-2);
-      if (anoStr.includes(anoAlvoStr) || anoStr.includes(anoCurto) || anoStr === '') {
-        return true;
-      }
-    }
+    return dt.getFullYear() === mesInfo.ano && dt.getMonth() === mesInfo.mesIndex;
   }
 
   return false;
