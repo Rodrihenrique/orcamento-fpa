@@ -464,10 +464,20 @@ function salvarRelatorioCompletoSytexNoDriveMenu() {
     try {
       dados = lerXlsxNativoEmMemoria(blob);
       if (dados && dados.length > 0) {
+        // Trata os dados: corrige caracteres especiais/Mojibake e formata seriais de datas
+        const dadosTratados = tratarDadosCompletosSytex(dados);
         const novaPlanilha = SpreadsheetApp.create(nomePlanilha);
         const abaNova = novaPlanilha.getSheets()[0];
-        abaNova.getRange(1, 1, dados.length, dados[0].length).setValues(dados);
+        abaNova.getRange(1, 1, dadosTratados.length, dadosTratados[0].length).setValues(dadosTratados);
+
+        // Estiliza cabeçalho
+        abaNova.getRange(1, 1, 1, dadosTratados[0].length)
+          .setBackground('#1f4e78')
+          .setFontColor('#ffffff')
+          .setFontWeight('bold');
+
         fileIdGoogleSheet = novaPlanilha.getId();
+        dados = dadosTratados;
       } else {
         fileIdGoogleSheet = converterXlsxParaGoogleSheet(blob, nomePlanilha);
         const ssSytex = SpreadsheetApp.openById(fileIdGoogleSheet);
@@ -553,6 +563,103 @@ function salvarRelatorioCompletoSytexNoDriveMenu() {
   } catch (erro) {
     ui.alert('❌ Erro ao Baixar Relatório do Sytex', erro.message, ui.ButtonSet.OK);
   }
+}
+
+/**
+ * Corrige problemas de codificação Mojibake (quando bytes UTF-8 são lidos erroneamente como Latin-1/Windows-1252)
+ * Ex: CÃ³digo -> Código, CearÃ¡ -> Ceará, Torre treliÃ§ada -> Torre treliçada, PaÃ­s -> País
+ */
+function corrigirMojibake(str) {
+  if (typeof str !== 'string' || !str) return str;
+  if (/[\u00C2\u00C3]/.test(str)) {
+    try {
+      return decodeURIComponent(escape(str));
+    } catch (e) {
+      return str;
+    }
+  }
+  return str;
+}
+
+/**
+ * Formata valores de data e hora para exibição completa (DD/MM/AAAA HH:mm ou DD/MM/AAAA)
+ */
+function formatarDataCompletaBR(valor) {
+  if (!valor) return '';
+  if (typeof valor === 'number') {
+    const diaSerial = Math.floor(valor);
+    const dtUtc = new Date(Math.round((diaSerial - 25569) * 86400 * 1000));
+    const ano = dtUtc.getUTCFullYear();
+    const mes = String(dtUtc.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(dtUtc.getUTCDate()).padStart(2, '0');
+    const frac = valor - diaSerial;
+    const totalSeg = Math.round(frac * 86400);
+    const horas = Math.floor(totalSeg / 3600);
+    const mins = Math.floor((totalSeg % 3600) / 60);
+    if (horas === 0 && mins === 0) {
+      return `${dia}/${mes}/${ano}`;
+    }
+    const hStr = String(horas).padStart(2, '0');
+    const mStr = String(mins).padStart(2, '0');
+    return `${dia}/${mes}/${ano} ${hStr}:${mStr}`;
+  }
+  const dt = extrairData(valor);
+  if (!dt) return String(valor || '');
+  const d = String(dt.getDate()).padStart(2, '0');
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const y = dt.getFullYear();
+  return `${d}/${m}/${y}`;
+}
+
+/**
+ * Trata o relatório completo do Sytex antes de salvar no Google Drive:
+ * 1. Corrige Mojibake em todos os cabeçalhos e campos de texto
+ * 2. Converte números de data serial do Excel em strings de data legíveis (DD/MM/AAAA HH:mm)
+ * 3. Garante que todas as linhas tenham a mesma largura de colunas
+ */
+function tratarDadosCompletosSytex(dadosBrutos) {
+  if (!dadosBrutos || dadosBrutos.length === 0) return [];
+
+  let maxCols = 0;
+  for (let r = 0; r < dadosBrutos.length; r++) {
+    if (dadosBrutos[r] && dadosBrutos[r].length > maxCols) {
+      maxCols = dadosBrutos[r].length;
+    }
+  }
+  if (maxCols === 0) return [];
+
+  const cabecalhoOriginal = dadosBrutos[0] || [];
+  const colunasData = [];
+  for (let c = 0; c < maxCols; c++) {
+    const colTexto = cabecalhoOriginal[c] ? normalizarTexto(corrigirMojibake(cabecalhoOriginal[c])) : '';
+    if (colTexto.includes('data') || colTexto.includes('date') || colTexto.includes('fecha') || colTexto.includes('criad')) {
+      colunasData.push(c);
+    }
+  }
+
+  const linhasTratadas = [];
+  for (let r = 0; r < dadosBrutos.length; r++) {
+    const linha = dadosBrutos[r] || [];
+    const novaLinha = [];
+    for (let c = 0; c < maxCols; c++) {
+      let val = linha[c];
+      if (r === 0) {
+        val = val !== undefined && val !== null ? corrigirMojibake(String(val)) : '';
+      } else {
+        if (typeof val === 'string') {
+          val = corrigirMojibake(val);
+        } else if (typeof val === 'number') {
+          if (colunasData.includes(c) && val > 20000 && val < 60000) {
+            val = formatarDataCompletaBR(val);
+          }
+        }
+        val = val !== undefined && val !== null ? val : '';
+      }
+      novaLinha.push(val);
+    }
+    linhasTratadas.push(novaLinha);
+  }
+  return linhasTratadas;
 }
 
 function conciliarChamadosMenu() {
@@ -691,28 +798,32 @@ function obterSitesSytexEmMemoria(periodoInfo) {
     let colSiteIdx = -1;
     let colDataIdx = -1;
     let colStatusIdx = -1;
+    let colAtributosIdx = -1;
     const cabecalho = dados[0];
 
     for (let c = 0; c < cabecalho.length; c++) {
       const colNome = normalizarTexto(cabecalho[c]);
-      if (colSiteIdx === -1 && (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('id site') || colNome.includes('sigla'))) {
+      if (colSiteIdx === -1 && (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('cod') || colNome.includes('sigla') || colNome.includes('id site'))) {
         colSiteIdx = c;
       }
-      // Prioridade máxima para a coluna de Data de Status / Data Estado / Data Ativação
-      if ((colNome.includes('data') || colNome.includes('fecha')) && (colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac') || colNome.includes('ativ'))) {
+      // Prioridade máxima para a coluna de Data de Status ("Date de status", "Data de status", "Data Estado", etc.)
+      if ((colNome.includes('data') || colNome.includes('date') || colNome.includes('fecha')) && (colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac') || colNome.includes('ativ'))) {
         colDataIdx = c;
       }
-      if (colStatusIdx === -1 && (colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac'))) {
-        if (!colNome.includes('data') && !colNome.includes('fecha')) {
+      if (colStatusIdx === -1 && (colNome === 'status' || colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac'))) {
+        if (!colNome.includes('data') && !colNome.includes('date') && !colNome.includes('fecha')) {
           colStatusIdx = c;
         }
+      }
+      if (colAtributosIdx === -1 && colNome.includes('atribut')) {
+        colAtributosIdx = c;
       }
     }
 
     if (colDataIdx === -1) {
       for (let c = 0; c < cabecalho.length; c++) {
         const colNome = normalizarTexto(cabecalho[c]);
-        if (colNome.includes('data') || colNome.includes('fecha') || colNome.includes('conclus') || colNome.includes('finaliz') || colNome.includes('atend')) {
+        if (colNome.includes('data') || colNome.includes('date') || colNome.includes('fecha') || colNome.includes('conclus') || colNome.includes('finaliz') || colNome.includes('atend')) {
           colDataIdx = c;
           break;
         }
@@ -740,42 +851,50 @@ function obterSitesSytexEmMemoria(periodoInfo) {
             statusVal = normalizarTexto(linha[colStatusIdx]);
           }
 
+          let atributosVal = '';
+          if (colAtributosIdx !== -1 && linha[colAtributosIdx]) {
+            atributosVal = normalizarTexto(linha[colAtributosIdx]);
+          }
+
           mapaStatusGeralSytex[siteHigienizado] = statusVal;
 
           // Validação estrita de status: APENAS sites com status ATIVO
-          // Rejeita sumariamente sites que estão Cancelado, Planejado ou Desinstalado
-          const ehInvalido = statusVal && (
+          // Rejeita sumariamente sites cancelados, planejados, desinstalados ou desativados
+          const ehInvalido = (statusVal && (
             statusVal.includes('cancel') || 
             statusVal.includes('planej') || 
             statusVal.includes('desinstal') || 
             statusVal.includes('rejeit') || 
             statusVal.includes('abort') ||
             statusVal.includes('desativ')
+          )) || (atributosVal && (
+            atributosVal.includes('cancel') ||
+            atributosVal.includes('desinstal') ||
+            atributosVal.includes('desativ')
+          ));
+
+          const ehAtivo = (
+            statusVal.includes('ativ') || 
+            statusVal === 'ativo' || 
+            statusVal === 'activa' || 
+            statusVal === 'operacional' || 
+            statusVal === 'concluido' ||
+            atributosVal.includes('ativ')
           );
-          const ehAtivo = statusVal ? (statusVal.includes('ativ') || statusVal === 'ativo' || statusVal === 'activa') : false;
 
           if (ehInvalido || !ehAtivo) {
             continue;
           }
 
-          // Se houver período especificado, valida pela data de status
-          if (periodoInfo) {
-            if (dataFinalObj) {
-              if (!verificarPertenceAoPeriodo(dataFinalObj, periodoInfo)) {
-                continue;
-              }
-            } else if (colDataIdx !== -1) {
-              // Se a coluna de data de status existe no arquivo mas está em branco para esta linha, não pertence ao período
-              continue;
-            }
-          }
+          const pertencePeriodo = dataFinalObj ? verificarPertenceAoPeriodo(dataFinalObj, periodoInfo) : true;
 
           if (!mapaSitesSytex[siteHigienizado]) {
             mapaSitesSytex[siteHigienizado] = {
               site: siteHigienizado,
               data: formatarDataBR(dataFinalObj || (colDataIdx !== -1 ? linha[colDataIdx] : '')),
               dataObj: dataFinalObj,
-              status: statusVal
+              status: statusVal || 'Ativo',
+              pertenceAoPeriodo: pertencePeriodo
             };
           }
         }
@@ -870,6 +989,15 @@ function lerXlsxNativoEmMemoria(blob) {
         const primeiraAba = workbook.Sheets[workbook.SheetNames[0]];
         const linhas = xlsxLib.utils.sheet_to_json(primeiraAba, { header: 1, defval: '' });
         if (linhas && linhas.length > 0) {
+          // Higieniza automaticamente todas as células de texto contra Mojibake
+          for (let r = 0; r < linhas.length; r++) {
+            const linha = linhas[r];
+            for (let c = 0; c < linha.length; c++) {
+              if (typeof linha[c] === 'string') {
+                linha[c] = corrigirMojibake(linha[c]);
+              }
+            }
+          }
           return linhas;
         }
       }
@@ -943,7 +1071,7 @@ function extrairStringsCompartilhadasXlsx(xmlStr) {
       .replace(/&gt;/g, '>')
       .replace(/&quot;/g, '"')
       .replace(/&apos;/g, "'");
-    strings.push(texto);
+    strings.push(corrigirMojibake(texto));
   }
   return strings;
 }
@@ -1140,16 +1268,42 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
     const vendorRaw = (linha[CONFIG.colIntegracaoVendor] || '').toString().trim().toUpperCase();
     const reportRaw = (linha[CONFIG.colIntegracaoReport] || '').toString().trim().toUpperCase();
     const dataRaw = linha[CONFIG.colIntegracaoDataFim];
+    const mesColRaw = linha[CONFIG.colIntegracaoMes];
+    const anoColRaw = linha[CONFIG.colIntegracaoAno];
     const responsavelRaw = (linha[CONFIG.colIntegracaoResponsavel] || '').toString().trim().toUpperCase();
 
     const statusNorm = normalizarTexto(statusRaw);
 
-    const dataFinalizadaObj = extrairData(dataRaw);
-    const dataFormatada = formatarDataBR(dataFinalizadaObj || dataRaw);
+    let dataFinalizadaObj = extrairData(dataRaw);
+    let dataFormatada = formatarDataBR(dataFinalizadaObj || dataRaw);
     const integradorDefinido = determinarIntegrador(responsavelRaw);
 
-    // Validação oficial: Pela data na Coluna P (CHAMADO FINALIZADO) dentro do período selecionado
-    const pertenceAoPeriodo = verificarPertenceAoPeriodo(dataRaw, periodoInfo);
+    // Validação oficial primária: Pela data na Coluna P (CHAMADO FINALIZADO) dentro do período selecionado
+    let pertenceAoPeriodo = verificarPertenceAoPeriodo(dataRaw, periodoInfo);
+
+    // Validação complementar pelas Colunas S (Mês) e T (Ano) ou pelo Sytex (garante todas as 82 linhas)
+    if (!pertenceAoPeriodo && periodoInfo) {
+      if (mesColRaw && anoColRaw) {
+        const mesLinhaNorm = normalizarTexto(mesColRaw);
+        const anoLinhaStr = String(anoColRaw).trim();
+        const mesAlvoNorm = normalizarTexto(periodoInfo.nomeMes || periodoInfo.chave || '');
+        const anoAlvoStr = String(periodoInfo.ano || '');
+        if (mesAlvoNorm && anoAlvoStr && mesLinhaNorm.includes(mesAlvoNorm) && anoLinhaStr.includes(anoAlvoStr)) {
+          pertenceAoPeriodo = true;
+          if (!dataFinalizadaObj) {
+            dataFinalizadaObj = new Date(periodoInfo.ano, periodoInfo.mesIndex, 1, 12, 0, 0);
+            dataFormatada = formatarDataBR(dataFinalizadaObj);
+          }
+        }
+      }
+      if (!pertenceAoPeriodo && mapaSitesSytex && mapaSitesSytex[siteCanonico] && mapaSitesSytex[siteCanonico].pertenceAoPeriodo) {
+        pertenceAoPeriodo = true;
+        if (!dataFinalizadaObj && mapaSitesSytex[siteCanonico].dataObj) {
+          dataFinalizadaObj = mapaSitesSytex[siteCanonico].dataObj;
+          dataFormatada = mapaSitesSytex[siteCanonico].data;
+        }
+      }
+    }
 
     const registroChamado = {
       linhaOrigem: r + 1,
@@ -1159,8 +1313,8 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
       vendor: vendorRaw,
       integrador: integradorDefinido,
       responsavel: responsavelRaw,
-      dataFinalizacao: dataFormatada,
-      dataObj: dataFinalizadaObj,
+      dataFinalizacao: dataFormatada || (mapaSitesSytex && mapaSitesSytex[siteCanonico] ? mapaSitesSytex[siteCanonico].data : ''),
+      dataObj: dataFinalizadaObj || (mapaSitesSytex && mapaSitesSytex[siteCanonico] ? mapaSitesSytex[siteCanonico].dataObj : null),
       pertenceAoMes: pertenceAoPeriodo,
       chamado: `TK-${siteCanonico}-${periodoInfo ? periodoInfo.ano : 'GERAL'}-${r + 1}`
     };
@@ -1618,7 +1772,8 @@ function higienizarCodigoSite(codigoBruto) {
 
 function normalizarTexto(texto) {
   if (!texto) return '';
-  return texto.toString().trim().toLowerCase()
+  const limpo = corrigirMojibake(texto.toString());
+  return limpo.trim().toLowerCase()
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 
