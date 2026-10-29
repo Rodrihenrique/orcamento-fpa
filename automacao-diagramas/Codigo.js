@@ -458,15 +458,10 @@ function salvarRelatorioCompletoSytexNoDriveMenu() {
     // 1. Salva o arquivo Excel (.xlsx) original no Google Drive
     const arquivoXlsx = DriveApp.createFile(blob.setName(`SYTEX_Export_Original_${dataHoraFormatada}.xlsx`));
 
-    // 2. Converte e cria a Planilha Google editável no Drive
+    // 2. Converte e cria a Planilha Google editável no Drive (100% nativa sem Drive API)
     let fileIdGoogleSheet = null;
     let dados = [];
     try {
-      fileIdGoogleSheet = converterXlsxParaGoogleSheet(blob, nomePlanilha);
-      const ssSytex = SpreadsheetApp.openById(fileIdGoogleSheet);
-      dados = ssSytex.getSheets()[0].getDataRange().getValues();
-    } catch (errConv) {
-      console.warn('Conversão via Drive API falhou (' + errConv.message + '), gerando planilha Google via leitor nativo...');
       dados = lerXlsxNativoEmMemoria(blob);
       if (dados && dados.length > 0) {
         const novaPlanilha = SpreadsheetApp.create(nomePlanilha);
@@ -474,8 +469,13 @@ function salvarRelatorioCompletoSytexNoDriveMenu() {
         abaNova.getRange(1, 1, dados.length, dados[0].length).setValues(dados);
         fileIdGoogleSheet = novaPlanilha.getId();
       } else {
-        throw errConv;
+        fileIdGoogleSheet = converterXlsxParaGoogleSheet(blob, nomePlanilha);
+        const ssSytex = SpreadsheetApp.openById(fileIdGoogleSheet);
+        dados = ssSytex.getSheets()[0].getDataRange().getValues();
       }
+    } catch (errConv) {
+      console.warn('Erro ao processar relatório do Sytex: ' + errConv.message);
+      throw errConv;
     }
     const sheetFile = DriveApp.getFileById(fileIdGoogleSheet);
 
@@ -796,55 +796,125 @@ function obterSitesSytexEmMemoria(periodoInfo) {
 }
 
 /**
- * LEITOR NATIVO DE ARQUIVOS XLSX EM MEMÓRIA
- * Permite ler os dados do Sytex diretamente via Utilities.unzip sem depender
- * de criação de planilhas temporárias no Google Drive nem de ativação da Drive API.
+ * ============================================================================
+ * MOTOR DE LEITURA XLSX 100% EM MEMÓRIA (ZERO DEPENDÊNCIA DE DRIVE API)
+ * ============================================================================
+ * Permite ler e converter arquivos .xlsx do Sytex diretamente na memória RAM,
+ * sem depender de criação de planilhas temporárias no Google Drive e eliminando
+ * qualquer necessidade de ativar serviços avançados ou Google Drive API no GCP.
+ */
+
+let _XLSX_INSTANCE = null;
+
+/**
+ * Obtém ou inicializa a biblioteca SheetJS em tempo de execução via CDN seguro.
+ * Roda de forma 100% autônoma dentro do motor V8 do Apps Script.
+ */
+function obterInstanciaXLSX() {
+  if (_XLSX_INSTANCE && typeof _XLSX_INSTANCE.read === 'function') {
+    return _XLSX_INSTANCE;
+  }
+  if (typeof XLSX !== 'undefined' && typeof XLSX.read === 'function') {
+    _XLSX_INSTANCE = XLSX;
+    return _XLSX_INSTANCE;
+  }
+
+  const urls = [
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    'https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js',
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js'
+  ];
+
+  let scriptContent = '';
+  let ultimoErro = '';
+  for (let i = 0; i < urls.length; i++) {
+    try {
+      const resp = UrlFetchApp.fetch(urls[i], { muteHttpExceptions: true });
+      if (resp.getResponseCode() === 200) {
+        scriptContent = resp.getContentText();
+        if (scriptContent && scriptContent.length > 50000) {
+          break;
+        }
+      }
+    } catch (e) {
+      ultimoErro = e.message;
+    }
+  }
+
+  if (!scriptContent) {
+    throw new Error('Falha ao carregar biblioteca XLSX via rede: ' + ultimoErro);
+  }
+
+  // Executa isolado em ambiente Apps Script V8
+  const construtor = new Function('var exports = undefined; var module = undefined; var define = undefined;\n' + scriptContent + '\nreturn XLSX;');
+  _XLSX_INSTANCE = construtor();
+  return _XLSX_INSTANCE;
+}
+
+/**
+ * Lê uma planilha .xlsx diretamente da memória RAM.
+ * 1º Motor: SheetJS (parse binário completo, tolerante a data descriptors e compressão Deflate).
+ * 2º Motor: Utilities.unzip nativo do Apps Script (fallback local caso a rede CDN esteja indisponível).
  */
 function lerXlsxNativoEmMemoria(blob) {
   if (!blob) return null;
 
+  // 1. MOTOR PRIMÁRIO: SheetJS (Leitura direta dos bytes em memória)
+  try {
+    const xlsxLib = obterInstanciaXLSX();
+    if (xlsxLib && typeof xlsxLib.read === 'function') {
+      const bytes = blob.getBytes();
+      const u8 = new Uint8Array(bytes);
+      const workbook = xlsxLib.read(u8, { type: 'array' });
+      if (workbook && workbook.SheetNames && workbook.SheetNames.length > 0) {
+        const primeiraAba = workbook.Sheets[workbook.SheetNames[0]];
+        const linhas = xlsxLib.utils.sheet_to_json(primeiraAba, { header: 1, defval: '' });
+        if (linhas && linhas.length > 0) {
+          return linhas;
+        }
+      }
+    }
+  } catch (eSheetJs) {
+    console.warn('Leitura via SheetJS falhou, tentando parser ZIP nativo: ' + eSheetJs.message);
+  }
+
+  // 2. MOTOR SECUNDÁRIO: Parser ZIP nativo do Google Apps Script
   try {
     let arquivos = null;
     try {
       blob.setContentType('application/zip');
       arquivos = Utilities.unzip(blob);
     } catch (e1) {
-      try {
-        const zipBlob = Utilities.newBlob(blob.getBytes(), 'application/zip', 'sytex.zip');
-        arquivos = Utilities.unzip(zipBlob);
-      } catch (e2) {
-        console.warn('Falha na descompactação ZIP do XLSX: ' + e1.message + ' / ' + e2.message);
-        return null;
+      const zipBlob = Utilities.newBlob(blob.getBytes(), 'application/zip', 'sytex.zip');
+      arquivos = Utilities.unzip(zipBlob);
+    }
+
+    if (arquivos && arquivos.length > 0) {
+      let sharedStringsXml = '';
+      let sheetXml = '';
+
+      for (let i = 0; i < arquivos.length; i++) {
+        const nome = arquivos[i].getName().replace(/\\/g, '/').toLowerCase();
+        if (nome === 'xl/sharedstrings.xml') {
+          sharedStringsXml = arquivos[i].getDataAsString('UTF-8');
+        } else if (nome === 'xl/worksheets/sheet1.xml' || (!sheetXml && nome.startsWith('xl/worksheets/sheet') && nome.endsWith('.xml'))) {
+          sheetXml = arquivos[i].getDataAsString('UTF-8');
+        }
+      }
+
+      if (sheetXml) {
+        const sst = extrairStringsCompartilhadasXlsx(sharedStringsXml);
+        const linhas = extrairLinhasPlanilhaXlsx(sheetXml, sst);
+        if (linhas && linhas.length > 0) {
+          return linhas;
+        }
       }
     }
-
-    if (!arquivos || arquivos.length === 0) {
-      return null;
-    }
-
-    let sharedStringsXml = '';
-    let sheetXml = '';
-
-    for (let i = 0; i < arquivos.length; i++) {
-      const nome = arquivos[i].getName().replace(/\\/g, '/').toLowerCase();
-      if (nome === 'xl/sharedstrings.xml') {
-        sharedStringsXml = arquivos[i].getDataAsString('UTF-8');
-      } else if (nome === 'xl/worksheets/sheet1.xml' || (!sheetXml && nome.startsWith('xl/worksheets/sheet') && nome.endsWith('.xml'))) {
-        sheetXml = arquivos[i].getDataAsString('UTF-8');
-      }
-    }
-
-    if (!sheetXml) {
-      console.warn('Planilha XML não encontrada no arquivo XLSX.');
-      return null;
-    }
-
-    const sst = extrairStringsCompartilhadasXlsx(sharedStringsXml);
-    return extrairLinhasPlanilhaXlsx(sheetXml, sst);
-  } catch (e) {
-    console.warn('Leitor nativo XLSX falhou: ' + e.message);
-    return null;
+  } catch (eZip) {
+    console.warn('Parser ZIP nativo falhou: ' + eZip.message);
   }
+
+  return null;
 }
 
 function converterLetraColunaParaIndice(colStr) {
@@ -1554,10 +1624,22 @@ function normalizarTexto(texto) {
 
 function obterPlanilhaDestinoEAba(spreadsheet) {
   let ss = spreadsheet;
+  if (!ss) {
+    try {
+      ss = SpreadsheetApp.getActiveSpreadsheet();
+    } catch (e) {
+      ss = null;
+    }
+  }
   if (!ss && CONFIG.idDestino) {
-    ss = SpreadsheetApp.openById(CONFIG.idDestino);
-  } else if (!ss) {
-    ss = SpreadsheetApp.getActiveSpreadsheet();
+    try {
+      ss = SpreadsheetApp.openById(CONFIG.idDestino);
+    } catch (e) {
+      console.warn('Falha ao abrir CONFIG.idDestino: ' + e.message);
+    }
+  }
+  if (!ss) {
+    throw new Error('Nenhuma planilha ativa encontrada.');
   }
 
   const abaAtiva = ss.getActiveSheet();
