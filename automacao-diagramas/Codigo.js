@@ -145,14 +145,13 @@ function executarSincronizacaoCompleta() {
     const msg = `✅ Sincronização Concluída com Sucesso!\n\n` +
       `📍 Aba de Destino: ${destinoInfo.nomeAba} (${periodoStr})\n` +
       `• Total de registros gravados: ${resultado.linhas.length}\n` +
-      `• Sites da Planilha de Integrações: ${totalChamadosPlanilha}\n` +
+      `• Chamados da Planilha de Integrações: ${totalChamadosPlanilha}\n` +
       `• Sites ativos no Sytex (.xlsx): ${sitesSytexList.length}\n` +
       `• Sites do Sytex NÃO encontrados na Integração: ${sitesFaltantesNoIntegracao.length}\n\n` +
       `📊 Distribuição por Integrador:\n` +
       `   • BRISANET: ${resultado.totais.brisanet} chamados\n` +
-      `   • FIBERHOME: ${resultado.totais.fiberhome} chamados\n` +
-      `   • NÃO ENCONTRADO: ${resultado.totais.naoEncontrados} chamados\n` +
-      (resultado.totais.outros > resultado.totais.naoEncontrados ? `   • Outros/Demais: ${resultado.totais.outros - resultado.totais.naoEncontrados} chamados\n` : '') + `\n` +
+      `   • HUAWEI: ${resultado.totais.huawei} chamados\n` +
+      `   • NÃO ENCONTRADO: ${resultado.totais.naoEncontrados} chamados\n\n` +
       `🗺️ Diagramas de Mão de Obra (Tecnologia):\n` +
       `   • Diagramas vinculados com sucesso: ${resultado.totais.comDiagrama}\n` +
       `   • Pendentes de diagrama: ${resultado.totais.semDiagrama}`;
@@ -540,38 +539,15 @@ function obterSenhaSytex() {
 // ============================================================================
 // MÓDULO 2: PROCESSAMENTO DA PLANILHA DE INTEGRAÇÕES (1 LINHA POR CHAMADO)
 // ============================================================================
-function determinarIntegrador(responsavelRaw, reportRaw, vendorRaw) {
+function determinarIntegrador(responsavelRaw) {
   const respNorm = normalizarTexto(responsavelRaw);
-  const repNorm = normalizarTexto(reportRaw);
-  const venNorm = normalizarTexto(vendorRaw);
 
-  // 1. Se na Coluna U (Responsável) tiver HUAWEI -> integrador HUAWEI
+  // Se for huawei na coluna responsável -> integrador é HUAWEI
   if (respNorm.includes('huawei')) {
     return 'HUAWEI';
   }
 
-  // 2. Se for um dos técnicos internos da Brisanet (IRINEU, BRUNO, CICERO REIS, VINÍCIUS)
-  const ehEquipeBrisanet = respNorm.includes('irineu') || 
-                           respNorm.includes('bruno') || 
-                           respNorm.includes('cicero') || 
-                           respNorm.includes('vinicius');
-
-  if (ehEquipeBrisanet) {
-    if (venNorm.includes('fiberhome') || repNorm.includes('fiberhome')) {
-      return 'FIBERHOME';
-    }
-    return 'BRISANET';
-  }
-
-  // 3. Regras por Vendor / Report
-  if (venNorm.includes('fiberhome') || repNorm.includes('fiberhome')) {
-    return 'FIBERHOME';
-  }
-
-  if (venNorm.includes('huawei') || repNorm.includes('huawei')) {
-    return 'HUAWEI';
-  }
-
+  // Se não for Huawei -> é BRISANET independente do report ou vendor
   return 'BRISANET';
 }
 
@@ -616,7 +592,7 @@ function carregarChamadosIntegracao(mesInfo) {
 
     if (!siteRaw) continue;
 
-    // Filtro estrito: valida se a data de finalização (Coluna P) pertence ao mês e ano ativo
+    // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T (garante todas as 82 linhas)
     let pertenceAoMes = false;
     let dataFinalizadaObj = extrairData(dataRaw);
 
@@ -626,13 +602,13 @@ function carregarChamadosIntegracao(mesInfo) {
       }
     }
 
-    // Fallback: se a coluna P de data estiver vazia, verifica se Colunas S (Mês) e T (Ano) foram preenchidas
-    if (!pertenceAoMes && (!dataRaw || String(dataRaw).trim() === '') && mesColRaw && anoColRaw) {
+    // Validação complementar pelas Colunas S (Mês) e T (Ano)
+    if (!pertenceAoMes && mesColRaw && anoColRaw) {
       const mesLinhaNorm = normalizarTexto(mesColRaw);
       const anoLinhaStr = String(anoColRaw).trim();
       if (mesLinhaNorm.includes(mesAlvoNorm) && anoLinhaStr.includes(anoAlvoStr)) {
         pertenceAoMes = true;
-        dataFinalizadaObj = new Date(mesInfo.ano, mesInfo.mesIndex, 1);
+        if (!dataFinalizadaObj) dataFinalizadaObj = new Date(mesInfo.ano, mesInfo.mesIndex, 1);
       }
     }
 
@@ -640,7 +616,7 @@ function carregarChamadosIntegracao(mesInfo) {
     if (pertenceAoMes) {
       const siteLimpo = higienizarCodigoSite(siteRaw);
       const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : String(dataRaw);
-      const integradorDefinido = determinarIntegrador(responsavelRaw, reportRaw, vendorRaw);
+      const integradorDefinido = determinarIntegrador(responsavelRaw);
 
       chamados.push({
         linhaOrigem: r + 1,
@@ -799,10 +775,10 @@ function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex) {
     if (integrador === 'NÃO ENCONTRADO') {
       totais.naoEncontrados++;
       totais.outros++;
+    } else if (integrador.includes('HUAWEI')) {
+      totais.huawei++;
     } else if (integrador.includes('BRISANET')) {
       totais.brisanet++;
-    } else if (integrador.includes('FIBERHOME')) {
-      totais.fiberhome++;
     } else {
       totais.outros++;
     }
@@ -843,8 +819,8 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
 
   // 3. Cartões Indicadores nas Linhas 2 e 3 com Valores Numéricos (imune a incompatibilidade de idioma/locale)
   const valBrisanet = totais ? totais.brisanet : 0;
-  const valFiberhome = totais ? totais.fiberhome : 0;
-  const valOutros = totais ? totais.outros : 0;
+  const valHuawei = totais ? (totais.huawei || 0) : 0;
+  const valNaoEncontrado = totais ? (totais.naoEncontrados || 0) : 0;
   const totalGeral = (linhasDados && linhasDados.length > 0) ? linhasDados.length : 0;
 
   // Cartão 1: Brisanet (A2:B3)
@@ -853,17 +829,17 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   const c1Val = planDestino.getRange("A3:B3");
   c1Val.merge().setValue(valBrisanet).setFontWeight("bold").setFontSize(14).setBackground("#e2f0d9").setFontColor("#385723").setHorizontalAlignment("center");
 
-  // Cartão 2: Fiberhome (C2:D3)
+  // Cartão 2: Huawei (C2:D3)
   const c2Tit = planDestino.getRange("C2:D2");
-  c2Tit.merge().setValue("🔵 Outros Vendors (Fiberhome)").setFontWeight("bold").setFontSize(10).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
+  c2Tit.merge().setValue("🔵 Integrador (Huawei)").setFontWeight("bold").setFontSize(10).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
   const c2Val = planDestino.getRange("C3:D3");
-  c2Val.merge().setValue(valFiberhome).setFontWeight("bold").setFontSize(14).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
+  c2Val.merge().setValue(valHuawei).setFontWeight("bold").setFontSize(14).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
 
-  // Cartão 3: Demais / Não Encontrado (E2:F3)
+  // Cartão 3: Não Encontrado (E2:F3)
   const c3Tit = planDestino.getRange("E2:F2");
-  c3Tit.merge().setValue("🟣 Demais / Não Encontrado").setFontWeight("bold").setFontSize(10).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
+  c3Tit.merge().setValue("🟣 Não Encontrado").setFontWeight("bold").setFontSize(10).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
   const c3Val = planDestino.getRange("E3:F3");
-  c3Val.merge().setValue(valOutros).setFontWeight("bold").setFontSize(14).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
+  c3Val.merge().setValue(valNaoEncontrado).setFontWeight("bold").setFontSize(14).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
 
   // Cartão 4: Total Geral (G2:H3)
   const c4Tit = planDestino.getRange("G2:H2");
