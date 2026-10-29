@@ -17,7 +17,7 @@ flowchart TD
     end
 
     subgraph Integracao["📋 2. Planilha de Integrações (Atribuição de Vendor & Integrador)"]
-        I_Sheet["Planilha: 19C0e5op2QHsXxmgOsLbO-zz-RP1yajM-UxUd_9rzhiI"]
+        I_Sheet["Planilha Oficial: 1_DW_lJl0wsgXrjnJOEhD1vo-tLDzvTnE8u-fUIhhwK4"]
         I_Aba["Aba: INTEGRAÇÃO DE SITES (GID: 1755873954)"]
         I_Cols["Col A: Site | Col F: Vendor | Col L: Integrador (REPORT) | Col P: Data Fim"]
     end

@@ -21,7 +21,7 @@ const CONFIG = {
   sytexSenha: '', // Se vazio, busca em PropertiesService ou solicita ao usuário
 
   // 3. Planilha Oficial de Integrações (Atribuição de Vendor & Integrador)
-  idOrigemIntegracao: '19C0e5op2QHsXxmgOsLbO-zz-RP1yajM-UxUd_9rzhiI',
+  idOrigemIntegracao: '1_DW_lJl0wsgXrjnJOEhD1vo-tLDzvTnE8u-fUIhhwK4',
   gidOrigemIntegracao: '1755873954',
   abaOrigemIntegracao: 'INTEGRAÇÃO DE SITES',
   linhaCabecalhoIntegracao: 2, // Cabeçalhos na linha 2; dados na linha 3 em diante
@@ -35,7 +35,7 @@ const CONFIG = {
   colIntegracaoAno: 19,        // Coluna T: ANO (2026)
 
   // 4. Planilha Oficial de Diagramas 5G (Mapeamento Multi-Estados / Multi-Colunas)
-  idOrigemDiagramas: '1dFN0WZVae0Mfw6MmUHtpAa9fpEufDjBi3MUFjerT1g0',
+  idOrigemDiagramas: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
   gidOrigemDiagramas: '1306115678',
   abaOrigemDiagramas: 'Diagramas - 5G'
 };
