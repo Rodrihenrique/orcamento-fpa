@@ -473,33 +473,54 @@ function carregarMapaHierarquiaDiagramas(sitesAlvoList) {
       const col0Lower = normalizarTexto(col0);
       const col1Lower = normalizarTexto(col1);
 
-      // 1. Detecta cabeçalho de Torre no grupo (ex: WL_AL-MCO0064-AL-MCO400-BRIT)
-      if (col0Lower === 'torre' || (col0Lower.includes('torre') && !col1Lower.includes('mao de obra'))) {
+      // 1. Detecta cabeçalho de Torre no grupo (ex: WL_PI-CPI0003-PI-CPI100-BRIT)
+      const ehFilha = col1Lower.includes('mão de obra') || col1Lower.includes('mao de obra') ||
+                      col1Lower.includes('serv') || col1Lower.includes('materiais') ||
+                      col1Lower.includes('regulariz') || col1Lower.includes('postes');
+
+      const ehCabecalhoTorre = (col0Lower === 'torre' || col0Lower.includes('torre')) ||
+                               (!ehFilha && (col1Lower.startsWith('wl_') || (col1Lower.startsWith('torre') && !col1Lower.includes('torre 5g -'))));
+
+      if (ehCabecalhoTorre && !ehFilha) {
         projetoAtual = col1;
         sobTecnologia = false;
       }
 
-      // 2. Detecta início da seção de Tecnologia
-      if (col1Lower.startsWith('tecnologia') || (col1Lower.includes('tecnologia') && !col1Lower.includes('mao de obra') && !col1Lower.includes('materiais') && !col1Lower.includes('serv'))) {
+      // 2. Detecta início ou término da seção de Tecnologia
+      if (col1Lower.startsWith('tecnologia') || (col1Lower.includes('tecnologia') && !ehFilha)) {
         sobTecnologia = true;
-      } else if (col1Lower.startsWith('infra') || col1Lower.startsWith('projetos') || col1Lower.startsWith('cabeamento') || col1Lower.startsWith('regulariz') || col1Lower.startsWith('terreno') || col1Lower.startsWith('instalacao')) {
+      } else if (
+        col1Lower.startsWith('montagem') || col1Lower.includes('m.torre') || col1Lower.startsWith('infra') || 
+        col1Lower.startsWith('projetos') || col1Lower.startsWith('cabeamento') || col1Lower.startsWith('regulariz') || 
+        col1Lower.startsWith('terreno') || col1Lower.startsWith('instalacao') || col1Lower.startsWith('implantacao') ||
+        col1Lower.startsWith('auditoria') || col1Lower.startsWith('ciap') || col1Lower.startsWith('redes moveis')
+      ) {
         sobTecnologia = false;
       }
 
-      // 3. Procura exclusivamente Mão de Obra da categoria Tecnologia
-      if (col1Lower.includes('mao de obra')) {
-        if (sobTecnologia || col1Lower.includes('tec')) {
+      // 3. Procura EXCLUSIVAMENTE a linha de Mão de Obra de Tecnologia (ignora M.torre, Civil, FTTH, etc.)
+      const ehMaoDeObra = col1Lower.includes('mão de obra') || col1Lower.includes('mao de obra');
+      const ehOutraCategoria = col1Lower.includes('m.torre') || col1Lower.includes('civil') || col1Lower.includes('eletrica') || 
+                               col1Lower.includes('ftth') || col1Lower.includes('redes') || col1Lower.includes('moveis') || 
+                               col1Lower.includes('cf') || col1Lower.includes('aud') || col1Lower.includes('cad');
+
+      if (ehMaoDeObra && !ehOutraCategoria) {
+        const ehTecnologia = col1Lower.includes('tec') || sobTecnologia;
+        if (ehTecnologia) {
           const site = extrairSiteDaDescricao(col1) || extrairSiteDaDescricao(projetoAtual);
           if (site && col2) {
             const diagCod = col2.replace(/\.0$/, '');
-            mapa[site] = {
-              site: site,
-              projeto: projetoAtual,
-              categoria: 'Tecnologia',
-              maoDeObra: diagCod,
-              situacao: 'OK'
-            };
-            sitesPendentes.delete(site);
+            // Se ainda não salvou este site, ou se este registro tem 'tecnologia' explícito na descrição
+            if (!mapa[site] || col1Lower.includes('tecnologia') || col1Lower.includes('tec')) {
+              mapa[site] = {
+                site: site,
+                projeto: projetoAtual,
+                categoria: 'Tecnologia',
+                maoDeObra: diagCod,
+                situacao: 'OK'
+              };
+              sitesPendentes.delete(site);
+            }
           }
         }
       }
