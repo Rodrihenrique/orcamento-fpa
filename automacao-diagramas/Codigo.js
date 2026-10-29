@@ -33,6 +33,7 @@ const CONFIG = {
   colIntegracaoHoraFim: 16,    // Coluna Q: HORA DE FINALIZAÇÃO
   colIntegracaoMes: 18,        // Coluna S: MÊS (JANEIRO, FEVEREIRO, ..., OUTUBRO)
   colIntegracaoAno: 19,        // Coluna T: ANO (2026)
+  colIntegracaoResponsavel: 20, // Coluna U: RESPONSÁVEL PELA INTEGRAÇÃO (IRINEU, BRUNO, CICERO REIS, VINÍCIUS, HUAWEI)
 
   // 4. Planilha Oficial de Diagramas 5G (Mapeamento Multi-Estados / Multi-Colunas)
   idOrigemDiagramas: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
@@ -77,12 +78,41 @@ function executarSincronizacaoCompleta() {
 
     // 1. Obtém e higieniza a lista de sites do Sytex (.xlsx)
     spreadsheet.toast('Baixando dados do Sytex via API...', 'Etapa 1/4', -1);
-    const sitesSytex = obterSitesSytexEmMemoria();
+    const mapaSytex = obterSitesSytexEmMemoria(mesInfo);
+    const sitesSytexList = Object.keys(mapaSytex);
 
     // 2. Extrai e filtra chamados da planilha de Integrações para o mês (1 linha por chamado)
     spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/4', -1);
     const chamadosIntegracao = carregarChamadosIntegracao(mesInfo);
-    const totalChamadosMes = chamadosIntegracao.length;
+    const totalChamadosPlanilha = chamadosIntegracao.length;
+
+    // 2.1 Identifica sites do Sytex que NÃO estão na Planilha de Integrações
+    const sitesNaIntegracao = new Set(chamadosIntegracao.map(ch => ch.site));
+    const sitesFaltantesNoIntegracao = [];
+
+    for (let s = 0; s < sitesSytexList.length; s++) {
+      const siteSytex = sitesSytexList[s];
+      if (!sitesNaIntegracao.has(siteSytex)) {
+        sitesFaltantesNoIntegracao.push(siteSytex);
+      }
+    }
+
+    // 2.2 Adiciona os sites do Sytex não encontrados com Integrador = 'NÃO ENCONTRADO'
+    for (let f = 0; f < sitesFaltantesNoIntegracao.length; f++) {
+      const siteFaltante = sitesFaltantesNoIntegracao[f];
+      const infoSytex = mapaSytex[siteFaltante] || {};
+      chamadosIntegracao.push({
+        linhaOrigem: 'Sytex',
+        site: siteFaltante,
+        siteOriginal: siteFaltante,
+        status: 'CONCLUIDO',
+        vendor: '-',
+        integrador: 'NÃO ENCONTRADO',
+        responsavel: 'NÃO ENCONTRADO',
+        dataFinalizacao: infoSytex.data || '',
+        chamado: `TK-${siteFaltante}-${mesInfo.ano}-SYTEX`
+      });
+    }
 
     // 3. Extrai lista de sites únicos para varredura multi-colunas na aba de diagramas
     const sitesAlvo = Array.from(new Set(chamadosIntegracao.map(ch => ch.site)));
@@ -91,7 +121,7 @@ function executarSincronizacaoCompleta() {
 
     // 4. Cruza os chamados, aplica o filtro de Tecnologia e gera as 10 colunas
     spreadsheet.toast('Conciliando dados e gerando tabela unificada...', 'Etapa 4/4', -1);
-    const resultado = gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, sitesSytex);
+    const resultado = gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex);
 
     // 5. Grava a tabela e atualiza os cartões de indicadores
     gravarTabelaUnicaNaAba(planDestino, resultado.linhas, destinoInfo.nomeAba, resultado.totais);
@@ -100,9 +130,9 @@ function executarSincronizacaoCompleta() {
 
     const periodoStr = `${mesInfo.chave}/${mesInfo.ano}`;
 
-    if (totalChamadosMes === 0) {
+    if (totalChamadosPlanilha === 0 && sitesFaltantesNoIntegracao.length === 0) {
       const msgVazio = `⚠️ Nenhum chamado foi encontrado na planilha de Integrações para o período "${periodoStr}".\n\n` +
-        `• Sites retornados pelo Sytex: ${sitesSytex.length}\n` +
+        `• Sites retornados pelo Sytex: ${sitesSytexList.length}\n` +
         `• Chamados finalizados em ${periodoStr}: 0\n\n` +
         `💡 DICA:\nNa planilha oficial 'INTEGRAÇÃO DE SITES', os chamados cadastrados atualmente vão até OUTUBRO/2026.\n` +
         `Para testar a tabela preenchida com dados reais, abra a aba OUT/2026 e execute a sincronização!`;
@@ -114,13 +144,15 @@ function executarSincronizacaoCompleta() {
     // Relatório visual final de sucesso
     const msg = `✅ Sincronização Concluída com Sucesso!\n\n` +
       `📍 Aba de Destino: ${destinoInfo.nomeAba} (${periodoStr})\n` +
-      `• Total de chamados no mês (1 linha por chamado): ${resultado.linhas.length}\n` +
-      `• Sites únicos envolvidos: ${sitesAlvo.length}\n` +
-      `• Sites ativos validados no Sytex (.xlsx): ${sitesSytex.length}\n\n` +
+      `• Total de registros gravados: ${resultado.linhas.length}\n` +
+      `• Sites da Planilha de Integrações: ${totalChamadosPlanilha}\n` +
+      `• Sites ativos no Sytex (.xlsx): ${sitesSytexList.length}\n` +
+      `• Sites do Sytex NÃO encontrados na Integração: ${sitesFaltantesNoIntegracao.length}\n\n` +
       `📊 Distribuição por Integrador:\n` +
       `   • BRISANET: ${resultado.totais.brisanet} chamados\n` +
       `   • FIBERHOME: ${resultado.totais.fiberhome} chamados\n` +
-      `   • Outros/Demais: ${resultado.totais.outros} chamados\n\n` +
+      `   • NÃO ENCONTRADO: ${resultado.totais.naoEncontrados} chamados\n` +
+      (resultado.totais.outros > resultado.totais.naoEncontrados ? `   • Outros/Demais: ${resultado.totais.outros - resultado.totais.naoEncontrados} chamados\n` : '') + `\n` +
       `🗺️ Diagramas de Mão de Obra (Tecnologia):\n` +
       `   • Diagramas vinculados com sucesso: ${resultado.totais.comDiagrama}\n` +
       `   • Pendentes de diagrama: ${resultado.totais.semDiagrama}`;
@@ -137,7 +169,8 @@ function testarConexaoSytexMenu() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   spreadsheet.toast('Testando comunicação com o Sytex...', 'Conectando', -1);
   try {
-    const sites = obterSitesSytexEmMemoria();
+    const mapa = obterSitesSytexEmMemoria();
+    const sites = Object.keys(mapa);
     spreadsheet.toast('Comunicação OK!', 'Sucesso', 3);
     const amostra = sites.slice(0, 10).join(', ');
     const msg = `Conexão com a API do Sytex estabelecida com sucesso!\n\n` +
@@ -339,7 +372,7 @@ function configurarCredenciaisSytexMenu() {
 // ============================================================================
 // MÓDULO 1: INGESTÃO DA API SYTEX (.XLSX)
 // ============================================================================
-function obterSitesSytexEmMemoria() {
+function obterSitesSytexEmMemoria(mesInfo) {
   const usuario = CONFIG.sytexUsuario;
   const senha = obterSenhaSytex();
 
@@ -373,31 +406,69 @@ function obterSitesSytexEmMemoria() {
     const dados = abaTemp.getDataRange().getValues();
 
     if (dados.length <= 1) {
-      return [];
+      return {};
     }
 
-    let colSiteIdx = 0;
+    let colSiteIdx = -1;
+    let colDataIdx = -1;
+    let colStatusIdx = -1;
     const cabecalho = dados[0];
+
     for (let c = 0; c < cabecalho.length; c++) {
       const colNome = normalizarTexto(cabecalho[c]);
-      if (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('id site') || colNome.includes('sigla')) {
+      if (colSiteIdx === -1 && (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('id site') || colNome.includes('sigla'))) {
         colSiteIdx = c;
-        break;
+      }
+      if (colDataIdx === -1 && (colNome.includes('data') || colNome.includes('fecha') || colNome.includes('conclus') || colNome.includes('finaliz') || colNome.includes('atend'))) {
+        colDataIdx = c;
+      }
+      if (colStatusIdx === -1 && (colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac'))) {
+        colStatusIdx = c;
       }
     }
 
-    const sitesEncontrados = new Set();
+    if (colSiteIdx === -1) colSiteIdx = 0;
+
+    const mapaSitesSytex = {};
     for (let r = 1; r < dados.length; r++) {
-      const valorCelula = dados[r][colSiteIdx];
+      const linha = dados[r];
+      const valorCelula = linha[colSiteIdx];
       if (valorCelula !== undefined && valorCelula !== null && valorCelula !== '') {
         const siteHigienizado = higienizarCodigoSite(valorCelula);
         if (siteHigienizado.length >= 3) {
-          sitesEncontrados.add(siteHigienizado);
+          let dataFinalObj = null;
+          if (colDataIdx !== -1 && linha[colDataIdx]) {
+            dataFinalObj = extrairData(linha[colDataIdx]);
+          }
+
+          let statusVal = '';
+          if (colStatusIdx !== -1 && linha[colStatusIdx]) {
+            statusVal = normalizarTexto(linha[colStatusIdx]);
+          }
+
+          // Se houver data no Sytex e período especificado, valida o mês/ano
+          if (mesInfo && dataFinalObj) {
+            if (dataFinalObj.getFullYear() !== mesInfo.ano || dataFinalObj.getMonth() !== mesInfo.mesIndex) {
+              continue;
+            }
+          }
+
+          if (statusVal && (statusVal.includes('cancel') || statusVal.includes('rejeit') || statusVal.includes('abort'))) {
+            continue;
+          }
+
+          if (!mapaSitesSytex[siteHigienizado]) {
+            mapaSitesSytex[siteHigienizado] = {
+              site: siteHigienizado,
+              data: dataFinalObj ? formatarDataBR(dataFinalObj) : '',
+              status: statusVal
+            };
+          }
         }
       }
     }
 
-    return Array.from(sitesEncontrados);
+    return mapaSitesSytex;
 
   } finally {
     if (tempFileId) {
@@ -469,6 +540,41 @@ function obterSenhaSytex() {
 // ============================================================================
 // MÓDULO 2: PROCESSAMENTO DA PLANILHA DE INTEGRAÇÕES (1 LINHA POR CHAMADO)
 // ============================================================================
+function determinarIntegrador(responsavelRaw, reportRaw, vendorRaw) {
+  const respNorm = normalizarTexto(responsavelRaw);
+  const repNorm = normalizarTexto(reportRaw);
+  const venNorm = normalizarTexto(vendorRaw);
+
+  // 1. Se na Coluna U (Responsável) tiver HUAWEI -> integrador HUAWEI
+  if (respNorm.includes('huawei')) {
+    return 'HUAWEI';
+  }
+
+  // 2. Se for um dos técnicos internos da Brisanet (IRINEU, BRUNO, CICERO REIS, VINÍCIUS)
+  const ehEquipeBrisanet = respNorm.includes('irineu') || 
+                           respNorm.includes('bruno') || 
+                           respNorm.includes('cicero') || 
+                           respNorm.includes('vinicius');
+
+  if (ehEquipeBrisanet) {
+    if (venNorm.includes('fiberhome') || repNorm.includes('fiberhome')) {
+      return 'FIBERHOME';
+    }
+    return 'BRISANET';
+  }
+
+  // 3. Regras por Vendor / Report
+  if (venNorm.includes('fiberhome') || repNorm.includes('fiberhome')) {
+    return 'FIBERHOME';
+  }
+
+  if (venNorm.includes('huawei') || repNorm.includes('huawei')) {
+    return 'HUAWEI';
+  }
+
+  return 'BRISANET';
+}
+
 function carregarChamadosIntegracao(mesInfo) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemIntegracao);
   let aba = ss.getSheetByName(CONFIG.abaOrigemIntegracao);
@@ -506,10 +612,11 @@ function carregarChamadosIntegracao(mesInfo) {
     const dataRaw = linha[CONFIG.colIntegracaoDataFim];
     const mesColRaw = linha[CONFIG.colIntegracaoMes];
     const anoColRaw = linha[CONFIG.colIntegracaoAno];
+    const responsavelRaw = (linha[CONFIG.colIntegracaoResponsavel] || '').toString().trim().toUpperCase();
 
     if (!siteRaw) continue;
 
-    // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T
+    // Filtro estrito: valida se a data de finalização (Coluna P) pertence ao mês e ano ativo
     let pertenceAoMes = false;
     let dataFinalizadaObj = extrairData(dataRaw);
 
@@ -519,13 +626,13 @@ function carregarChamadosIntegracao(mesInfo) {
       }
     }
 
-    // Validação complementar pelas Colunas S (Mês) e T (Ano)
-    if (!pertenceAoMes && mesColRaw && anoColRaw) {
+    // Fallback: se a coluna P de data estiver vazia, verifica se Colunas S (Mês) e T (Ano) foram preenchidas
+    if (!pertenceAoMes && (!dataRaw || String(dataRaw).trim() === '') && mesColRaw && anoColRaw) {
       const mesLinhaNorm = normalizarTexto(mesColRaw);
       const anoLinhaStr = String(anoColRaw).trim();
       if (mesLinhaNorm.includes(mesAlvoNorm) && anoLinhaStr.includes(anoAlvoStr)) {
         pertenceAoMes = true;
-        if (!dataFinalizadaObj) dataFinalizadaObj = new Date(mesInfo.ano, mesInfo.mesIndex, 1);
+        dataFinalizadaObj = new Date(mesInfo.ano, mesInfo.mesIndex, 1);
       }
     }
 
@@ -533,6 +640,7 @@ function carregarChamadosIntegracao(mesInfo) {
     if (pertenceAoMes) {
       const siteLimpo = higienizarCodigoSite(siteRaw);
       const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : String(dataRaw);
+      const integradorDefinido = determinarIntegrador(responsavelRaw, reportRaw, vendorRaw);
 
       chamados.push({
         linhaOrigem: r + 1,
@@ -540,7 +648,8 @@ function carregarChamadosIntegracao(mesInfo) {
         siteOriginal: String(siteRaw).trim(),
         status: statusRaw,
         vendor: vendorRaw,
-        integrador: reportRaw || 'BRISANET',
+        integrador: integradorDefinido,
+        responsavel: responsavelRaw,
         dataFinalizacao: dataFormatada,
         chamado: `TK-${siteLimpo}-${mesInfo.ano}-${r + 1}`
       });
@@ -660,17 +769,16 @@ function extrairSiteDaDescricao(texto) {
 // ============================================================================
 // MÓDULO 4: CONCILIAÇÃO E MONTAGEM DA TABELA ÚNICA (10 COLUNAS)
 // ============================================================================
-function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, sitesSytex) {
+function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex) {
   const linhas = [];
   const totais = {
     brisanet: 0,
     fiberhome: 0,
     outros: 0,
+    naoEncontrados: 0,
     comDiagrama: 0,
     semDiagrama: 0
   };
-
-  const setSitesSytex = new Set((sitesSytex || []).map(s => higienizarCodigoSite(s)));
 
   for (let i = 0; i < chamadosIntegracao.length; i++) {
     const ch = chamadosIntegracao[i];
@@ -688,9 +796,16 @@ function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, sitesSytex) {
     const situacao = diag.maoDeObra ? 'OK' : 'Pendente';
 
     // Contadores para o resumo nos cartões
-    if (integrador.includes('BRISANET')) totais.brisanet++;
-    else if (integrador.includes('FIBERHOME')) totais.fiberhome++;
-    else totais.outros++;
+    if (integrador === 'NÃO ENCONTRADO') {
+      totais.naoEncontrados++;
+      totais.outros++;
+    } else if (integrador.includes('BRISANET')) {
+      totais.brisanet++;
+    } else if (integrador.includes('FIBERHOME')) {
+      totais.fiberhome++;
+    } else {
+      totais.outros++;
+    }
 
     if (diag.maoDeObra) totais.comDiagrama++;
     else totais.semDiagrama++;
@@ -744,9 +859,9 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   const c2Val = planDestino.getRange("C3:D3");
   c2Val.merge().setValue(valFiberhome).setFontWeight("bold").setFontSize(14).setBackground("#ddebf7").setFontColor("#1f4e78").setHorizontalAlignment("center");
 
-  // Cartão 3: Demais Integradores (E2:F3)
+  // Cartão 3: Demais / Não Encontrado (E2:F3)
   const c3Tit = planDestino.getRange("E2:F2");
-  c3Tit.merge().setValue("🟣 Demais Integradores").setFontWeight("bold").setFontSize(10).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
+  c3Tit.merge().setValue("🟣 Demais / Não Encontrado").setFontWeight("bold").setFontSize(10).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
   const c3Val = planDestino.getRange("E3:F3");
   c3Val.merge().setValue(valOutros).setFontWeight("bold").setFontSize(14).setBackground("#f2f2f2").setFontColor("#595959").setHorizontalAlignment("center");
 
@@ -783,10 +898,10 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   rangeCabecalho.setFontWeight('bold');
   rangeCabecalho.setHorizontalAlignment('center');
 
-  // 5. Limpa os dados antigos a partir da linha 5
+  // 5. Limpa os dados e formatações antigos a partir da linha 5
   const maxLinhas = Math.max(planDestino.getLastRow(), 50);
   if (maxLinhas >= CONFIG.linhaDadosInicial) {
-    planDestino.getRange(CONFIG.linhaDadosInicial, 1, maxLinhas - CONFIG.linhaDadosInicial + 1, 10).clear({ contentsOnly: true });
+    planDestino.getRange(CONFIG.linhaDadosInicial, 1, maxLinhas - CONFIG.linhaDadosInicial + 1, 10).clear({ contentsOnly: true, formatOnly: true });
   }
 
   // 6. Grava os novos dados conciliados (se houver)
@@ -798,6 +913,14 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
     planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 1).setHorizontalAlignment('center');
     planDestino.getRange(CONFIG.linhaDadosInicial, 3, linhasDados.length, 1).setFontWeight('bold');
     planDestino.getRange(CONFIG.linhaDadosInicial, 7, linhasDados.length, 1).setHorizontalAlignment('left');
+
+    // Destaca visualmente linhas onde o Integrador é 'NÃO ENCONTRADO'
+    for (let r = 0; r < linhasDados.length; r++) {
+      if (linhasDados[r][4] === 'NÃO ENCONTRADO') {
+        const rowNum = CONFIG.linhaDadosInicial + r;
+        planDestino.getRange(rowNum, 5).setBackground('#fff2cc').setFontColor('#c00000').setFontWeight('bold');
+      }
+    }
   }
 }
 
