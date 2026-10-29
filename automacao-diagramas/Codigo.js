@@ -48,6 +48,7 @@ function onOpen() {
   ui.createMenu('🔄 Automação 5G')
     .addItem('🚀 Sincronizar Tudo (Sytex + Diagramas)', 'executarSincronizacaoCompleta')
     .addSeparator()
+    .addItem('📥 Baixar e Salvar Relatório Sytex no Google Drive', 'salvarRelatorioCompletoSytexNoDriveMenu')
     .addItem('📡 Testar Conexão com Sytex (API)', 'testarConexaoSytexMenu')
     .addItem('📋 Conciliar Apenas Integrações', 'conciliarChamadosMenu')
     .addItem('🗺️ Atualizar Apenas Diagramas', 'atualizarDiagramasMenu')
@@ -145,6 +146,126 @@ function testarConexaoSytexMenu() {
     ui.alert('📡 Teste Sytex Concluído', msg, ui.ButtonSet.OK);
   } catch (erro) {
     ui.alert('❌ Erro de Conexão com o Sytex', erro.message, ui.ButtonSet.OK);
+  }
+}
+
+function salvarRelatorioCompletoSytexNoDriveMenu() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  spreadsheet.toast('Conectando à API do Sytex e baixando arquivo completo...', 'Processando', -1);
+
+  try {
+    const usuario = CONFIG.sytexUsuario;
+    const senha = obterSenhaSytex();
+
+    if (!senha) {
+      throw new Error('Senha do Sytex não configurada. Use o menu "🔄 Automação 5G > ⚙️ Configurar Acesso Sytex".');
+    }
+
+    const credenciaisBase64 = Utilities.base64Encode(`${usuario}:${senha}`);
+    const opcoes = {
+      method: 'GET',
+      headers: {
+        'Authorization': `Basic ${credenciaisBase64}`
+      },
+      muteHttpExceptions: true
+    };
+
+    const resposta = UrlFetchApp.fetch(CONFIG.sytexUrl, opcoes);
+    const codigoStatus = resposta.getResponseCode();
+
+    if (codigoStatus !== 200) {
+      throw new Error(`Falha na requisição ao Sytex (HTTP ${codigoStatus}): ${resposta.getContentText().slice(0, 200)}`);
+    }
+
+    const blob = resposta.getBlob();
+    const dataHoraFormatada = Utilities.formatDate(new Date(), 'America/Fortaleza', 'yyyy-MM-dd_HH-mm');
+    const nomePlanilha = `📊 SYTEX - Relatório Completo de Integrações (${dataHoraFormatada})`;
+
+    // 1. Salva o arquivo Excel (.xlsx) original no Google Drive
+    const arquivoXlsx = DriveApp.createFile(blob.setName(`SYTEX_Export_Original_${dataHoraFormatada}.xlsx`));
+
+    // 2. Converte e cria a Planilha Google editável no Drive
+    const fileIdGoogleSheet = converterXlsxParaGoogleSheet(blob, nomePlanilha);
+    const sheetFile = DriveApp.getFileById(fileIdGoogleSheet);
+    const ssSytex = SpreadsheetApp.openById(fileIdGoogleSheet);
+    const abaPrincipal = ssSytex.getSheets()[0];
+    const dados = abaPrincipal.getDataRange().getValues();
+
+    // 3. Organiza nas pastas do Drive (se a planilha ativa estiver em uma pasta, move para ela)
+    try {
+      const activeFile = DriveApp.getFileById(spreadsheet.getId());
+      const parents = activeFile.getParents();
+      if (parents.hasNext()) {
+        const pasta = parents.next();
+        pasta.addFile(sheetFile);
+        pasta.addFile(arquivoXlsx);
+        DriveApp.getRootFolder().removeFile(sheetFile);
+        DriveApp.getRootFolder().removeFile(arquivoXlsx);
+      }
+    } catch (e) {
+      console.log('Arquivos mantidos na raiz do Google Drive: ' + e.message);
+    }
+
+    const urlPlanilha = sheetFile.getUrl();
+    const totalLinhas = Math.max(0, dados.length - 1);
+    const cabecalhos = dados.length > 0 ? dados[0] : [];
+
+    spreadsheet.toast('Relatório do Sytex salvo no Google Drive!', 'Sucesso', 5);
+
+    // Constrói lista formatada das colunas encontradas
+    let listaColunasHtml = '';
+    cabecalhos.forEach((col, idx) => {
+      listaColunasHtml += `<li style="padding: 3px 0; border-bottom: 1px solid #f0f0f0;">
+        <span style="display: inline-block; width: 60px; color: #1f4e78; font-weight: bold;">[Col ${idx + 1}]</span>
+        <span>${col ? String(col) : '<em>(sem título)</em>'}</span>
+      </li>`;
+    });
+
+    const htmlOutput = HtmlService.createHtmlOutput(`
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 13px; color: #333; padding: 5px;">
+        <h3 style="color: #1f4e78; margin-top: 0; display: flex; align-items: center; gap: 8px;">
+          <span>✅</span> Relatório Sytex Salvo no seu Drive!
+        </h3>
+        
+        <p style="margin: 8px 0 14px 0; color: #555;">
+          O arquivo completo com <strong>todas as colunas e registros originais</strong> foi gerado e salvo como Planilha Google no seu Drive.
+        </p>
+
+        <div style="background-color: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 8px; padding: 14px; margin-bottom: 15px; text-align: center;">
+          <a href="${urlPlanilha}" target="_blank" style="display: inline-block; background-color: #2e7d32; color: #ffffff; padding: 10px 18px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13px; box-shadow: 0 2px 4px rgba(0,0,0,0.15);">
+            📊 Abrir Planilha Completa do Sytex
+          </a>
+          <div style="margin-top: 8px; font-size: 11px; color: #43a047;">
+            (Abre em uma nova aba do seu navegador)
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 15px; background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 6px; padding: 10px 14px; margin-bottom: 15px;">
+          <div><strong>Total de Linhas:</strong> ${totalLinhas} registros</div>
+          <div><strong>Total de Colunas:</strong> ${cabecalhos.length} colunas</div>
+        </div>
+
+        <div style="font-weight: bold; color: #1f4e78; margin-bottom: 6px;">
+          📋 Colunas Disponíveis no Relatório (${cabecalhos.length}):
+        </div>
+        <ul style="list-style: none; padding: 0; margin: 0; max-height: 180px; overflow-y: auto; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 8px 12px; font-size: 12px;">
+          ${listaColunasHtml}
+        </ul>
+
+        <div style="margin-top: 12px; font-size: 11px; color: #777;">
+          📁 Arquivos criados no Google Drive:<br>
+          • <strong>${nomePlanilha}</strong> (Google Sheets)<br>
+          • <strong>SYTEX_Export_Original_${dataHoraFormatada}.xlsx</strong> (Excel)
+        </div>
+      </div>
+    `).setWidth(600).setHeight(500);
+
+    ui.showModalDialog(htmlOutput, '📥 Download do Relatório Sytex Concluído');
+
+  } catch (erro) {
+    ui.alert('❌ Erro ao Baixar Relatório do Sytex', erro.message, ui.ButtonSet.OK);
   }
 }
 
@@ -289,9 +410,9 @@ function obterSitesSytexEmMemoria() {
   }
 }
 
-function converterXlsxParaGoogleSheet(blob) {
+function converterXlsxParaGoogleSheet(blob, tituloPersonalizado) {
   const metadata = {
-    title: 'temp_sytex_conversion_' + new Date().getTime(),
+    title: tituloPersonalizado || ('temp_sytex_conversion_' + new Date().getTime()),
     mimeType: 'application/vnd.google-apps.spreadsheet'
   };
 
