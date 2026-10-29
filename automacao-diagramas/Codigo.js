@@ -658,13 +658,15 @@ function obterSitesSytexEmMemoria(periodoInfo) {
   let dados = null;
 
   // 1. TENTA LEITURA NATIVA EM MEMÓRIA (Zero dependência de Drive API, sem criar arquivo temporário)
+  let erroNativo = '';
   try {
     dados = lerXlsxNativoEmMemoria(blob);
   } catch (e) {
+    erroNativo = e.message;
     console.warn('Leitura nativa em memória falhou: ' + e.message);
   }
 
-  // 2. SE NÃO CONSEGUIU LER NATIVAMENTE, USA FALLBACK VIA CONVERSÃO DRIVE API
+  // 2. Se a leitura nativa não extraiu dados, tenta fallback via Drive API
   if (!dados || dados.length <= 1) {
     try {
       tempFileId = converterXlsxParaGoogleSheet(blob);
@@ -672,15 +674,12 @@ function obterSitesSytexEmMemoria(periodoInfo) {
       const abaTemp = ssTemp.getSheets()[0];
       dados = abaTemp.getDataRange().getValues();
     } catch (eDrive) {
-      if (eDrive.message && eDrive.message.includes('403')) {
-        throw new Error(
-          'Google Drive API não está ativada neste projeto do Apps Script.\n\n' +
-          'COMO ATIVAR EM 2 CLIQUES:\n' +
-          '1. No editor do Apps Script (Extensões > Apps Script), clique no botão "+" ao lado de "Serviços".\n' +
-          '2. Localize "Google Drive API" (Identificador: Drive) e clique em "Adicionar".'
-        );
-      }
-      throw eDrive;
+      console.warn('Conversão Drive API falhou: ' + eDrive.message);
+      throw new Error(
+        `Não foi possível processar o relatório do Sytex em memória.` +
+        (erroNativo ? ` Motivo: ${erroNativo}.` : '') +
+        ` Detalhes da tentativa via Drive: ${eDrive.message}`
+      );
     }
   }
 
@@ -802,23 +801,41 @@ function obterSitesSytexEmMemoria(periodoInfo) {
  * de criação de planilhas temporárias no Google Drive nem de ativação da Drive API.
  */
 function lerXlsxNativoEmMemoria(blob) {
+  if (!blob) return null;
+
   try {
-    const zipBlob = blob.copyBlob().setContentType('application/zip');
-    const arquivos = Utilities.unzip(zipBlob);
+    let arquivos = null;
+    try {
+      blob.setContentType('application/zip');
+      arquivos = Utilities.unzip(blob);
+    } catch (e1) {
+      try {
+        const zipBlob = Utilities.newBlob(blob.getBytes(), 'application/zip', 'sytex.zip');
+        arquivos = Utilities.unzip(zipBlob);
+      } catch (e2) {
+        console.warn('Falha na descompactação ZIP do XLSX: ' + e1.message + ' / ' + e2.message);
+        return null;
+      }
+    }
+
+    if (!arquivos || arquivos.length === 0) {
+      return null;
+    }
 
     let sharedStringsXml = '';
     let sheetXml = '';
 
     for (let i = 0; i < arquivos.length; i++) {
-      const nome = arquivos[i].getName();
-      if (nome === 'xl/sharedStrings.xml') {
+      const nome = arquivos[i].getName().replace(/\\/g, '/').toLowerCase();
+      if (nome === 'xl/sharedstrings.xml') {
         sharedStringsXml = arquivos[i].getDataAsString('UTF-8');
-      } else if (nome === 'xl/worksheets/sheet1.xml' || (!sheetXml && nome.startsWith('xl/worksheets/sheet'))) {
+      } else if (nome === 'xl/worksheets/sheet1.xml' || (!sheetXml && nome.startsWith('xl/worksheets/sheet') && nome.endsWith('.xml'))) {
         sheetXml = arquivos[i].getDataAsString('UTF-8');
       }
     }
 
     if (!sheetXml) {
+      console.warn('Planilha XML não encontrada no arquivo XLSX.');
       return null;
     }
 
@@ -980,11 +997,7 @@ function converterXlsxParaGoogleSheet(blob, tituloPersonalizado) {
 
   if (statusCode === 403) {
     throw new Error(
-      `Falha ao converter arquivo .xlsx (HTTP 403): Google Drive API não está ativada neste projeto do Apps Script.\n\n` +
-      `COMO ATIVAR NO EDITOR DO APPS SCRIPT:\n` +
-      `1. No menu à esquerda, clique no botão "+" ao lado de "Serviços" (Services).\n` +
-      `2. Localize "Google Drive API" (Identificador: Drive).\n` +
-      `3. Clique em "Adicionar".`
+      `Google Drive API não habilitada no projeto Google Cloud deste ambiente (HTTP 403).`
     );
   }
 
