@@ -64,33 +64,222 @@ function onOpen() {
 }
 
 // ============================================================================
-// FLUXO PRINCIPAL: SINCRONIZAÇÃO COMPLETA
+// FLUXO PRINCIPAL: SINCRONIZAÇÃO COMPLETA COM JANELA DE PERÍODO
 // ============================================================================
-function executarSincronizacaoCompleta() {
+function abrirJanelaSelecaoPeriodo() {
+  const ui = SpreadsheetApp.getUi();
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  const destinoInfo = obterPlanilhaDestinoEAba(spreadsheet);
+  const mesInfo = destinoInfo.mesInfo;
+
+  let anoPadrao = mesInfo ? mesInfo.ano : new Date().getFullYear();
+  let mesPadrao = mesInfo ? mesInfo.mesIndex : new Date().getMonth();
+
+  const dInicio = new Date(anoPadrao, mesPadrao, 1);
+  const dFim = new Date(anoPadrao, mesPadrao + 1, 0);
+
+  const formatarIso = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const isoInicio = formatarIso(dInicio);
+  const isoFim = formatarIso(dFim);
+  const isoHoje = formatarIso(new Date());
+  const nomeAba = destinoInfo.nomeAba || 'OUT/2026';
+
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { padding: 18px 20px; background: #ffffff; color: #202124; font-size: 13px; }
+    .header-box { margin-bottom: 16px; }
+    .titulo { font-size: 14px; font-weight: 600; color: #0f243e; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+    .subtitulo { font-size: 11px; color: #5f6368; line-height: 1.4; }
+    .card-selecao {
+      background: #fdfdfd;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .linha-opcao { display: flex; align-items: center; margin-bottom: 14px; gap: 10px; }
+    .linha-opcao:last-child { margin-bottom: 0; }
+    .label-radio { display: flex; align-items: center; gap: 8px; font-weight: 500; color: #3c4043; cursor: pointer; width: 75px; user-select: none; }
+    .label-radio input[type="radio"] { width: 16px; height: 16px; accent-color: #1f4e78; cursor: pointer; }
+    .grupo-inputs { display: flex; align-items: center; gap: 8px; flex: 1; }
+    .campo-data {
+      background: #f8f9fa;
+      border: 1px solid #dadce0;
+      border-radius: 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: #202124;
+      outline: none;
+      transition: all 0.2s;
+      width: 130px;
+    }
+    .campo-data:focus { background: #ffffff; border-color: #1f4e78; box-shadow: 0 0 0 2px rgba(31,78,120,0.15); }
+    .campo-data:disabled { background: #f1f3f4; color: #9aa0a6; border-color: #e8eaed; cursor: not-allowed; }
+    .separador { color: #5f6368; font-size: 11px; font-weight: 500; }
+    .botoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .btn { padding: 8px 18px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; border: none; transition: 0.2s; }
+    .btn-cancelar { background: #f1f3f4; color: #3c4043; }
+    .btn-cancelar:hover { background: #e8eaed; }
+    .btn-confirmar { background: #1f4e78; color: #ffffff; font-weight: 600; }
+    .btn-confirmar:hover { background: #153757; }
+    #loading { display: none; text-align: center; padding: 25px 10px; }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #1f4e78;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="formContent">
+    <div class="header-box">
+      <div class="titulo">📅 Filtro de Período (Sytex)</div>
+      <div class="subtitulo">Aba ativa: <strong>${nomeAba}</strong>. Defina a data para download e conciliação:</div>
+    </div>
+
+    <div class="card-selecao">
+      <div class="linha-opcao">
+        <label class="label-radio">
+          <input type="radio" id="optExata" name="tipoPeriodo" value="exata" onchange="alternarTipo()">
+          Exata:
+        </label>
+        <div class="grupo-inputs">
+          <input type="date" id="dataExata" class="campo-data" value="${isoHoje}" disabled>
+        </div>
+      </div>
+
+      <div class="linha-opcao">
+        <label class="label-radio">
+          <input type="radio" id="optEntre" name="tipoPeriodo" value="entre" checked onchange="alternarTipo()">
+          Entre:
+        </label>
+        <div class="grupo-inputs">
+          <input type="date" id="dataInicio" class="campo-data" value="${isoInicio}">
+          <span class="separador">e</span>
+          <input type="date" id="dataFim" class="campo-data" value="${isoFim}">
+        </div>
+      </div>
+    </div>
+
+    <div class="botoes">
+      <button type="button" class="btn btn-cancelar" onclick="google.script.host.close()">Cancelar</button>
+      <button type="button" class="btn btn-confirmar" onclick="confirmar()">OK / Sincronizar</button>
+    </div>
+  </div>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-weight: 600; color: #1f4e78; font-size: 13px;">Baixando dados e sincronizando...</div>
+    <div style="color: #5f6368; font-size: 11px; margin-top: 4px;">Consultando API Sytex, Integração e Diagramas. Aguarde.</div>
+  </div>
+
+  <script>
+    function alternarTipo() {
+      const ehExata = document.getElementById('optExata').checked;
+      document.getElementById('dataExata').disabled = !ehExata;
+      document.getElementById('dataInicio').disabled = ehExata;
+      document.getElementById('dataFim').disabled = ehExata;
+    }
+
+    function confirmar() {
+      const ehExata = document.getElementById('optExata').checked;
+      let payload = { tipo: ehExata ? 'exata' : 'entre' };
+
+      if (ehExata) {
+        const val = document.getElementById('dataExata').value;
+        if (!val) {
+          alert('Por favor, informe a data exata.');
+          return;
+        }
+        payload.dataExata = val;
+      } else {
+        const inicio = document.getElementById('dataInicio').value;
+        const fim = document.getElementById('dataFim').value;
+        if (!inicio || !fim) {
+          alert('Por favor, preencha a data inicial e final.');
+          return;
+        }
+        if (inicio > fim) {
+          alert('A data inicial não pode ser maior que a data final.');
+          return;
+        }
+        payload.dataInicio = inicio;
+        payload.dataFim = fim;
+      }
+
+      document.getElementById('formContent').style.display = 'none';
+      document.getElementById('loading').style.display = 'block';
+
+      google.script.run
+        .withSuccessHandler(function() {
+          google.script.host.close();
+        })
+        .withFailureHandler(function(erro) {
+          alert('Erro ao sincronizar: ' + (erro.message || erro));
+          document.getElementById('formContent').style.display = 'block';
+          document.getElementById('loading').style.display = 'none';
+        })
+        .executarSincronizacaoCompleta(payload);
+    }
+  </script>
+</body>
+</html>`;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(450)
+    .setHeight(270);
+
+  ui.showModalDialog(htmlOutput, 'Filtrar Período de Ativação');
+}
+
+function executarSincronizacaoCompleta(periodoPayload) {
   const ui = SpreadsheetApp.getUi();
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
 
-  spreadsheet.toast('Iniciando sincronização completa...', 'Processando', -1);
+  // Se chamado sem período (clique direto no menu), abre a janela de seleção
+  if (!periodoPayload) {
+    abrirJanelaSelecaoPeriodo();
+    return;
+  }
+
+  spreadsheet.toast('Iniciando sincronização para o período...', 'Processando', -1);
 
   try {
     const destinoInfo = obterPlanilhaDestinoEAba(spreadsheet);
     const planDestino = destinoInfo.planDestino;
     const mesInfo = destinoInfo.mesInfo;
 
-    if (!mesInfo) {
-      throw new Error(`A aba ativa "${destinoInfo.nomeAba}" não possui formato de mês válido (ex.: OUT/2026, NOV/2026).`);
+    const periodoInfo = construirPeriodoInfo(periodoPayload, mesInfo);
+    if (!periodoInfo) {
+      throw new Error(`Não foi possível determinar o período a ser processado.`);
     }
 
-    // 1. Obtém e higieniza a lista de sites ATIVOS do Sytex (.xlsx)
-    spreadsheet.toast('Baixando dados do Sytex via API...', 'Etapa 1/5', -1);
-    const resSytex = obterSitesSytexEmMemoria(mesInfo);
+    // 1. Obtém e higieniza a lista de sites ATIVOS do Sytex (.xlsx) dentro do período selecionado
+    spreadsheet.toast(`Baixando dados do Sytex (${periodoInfo.textoDescritivo})...`, 'Etapa 1/5', -1);
+    const resSytex = obterSitesSytexEmMemoria(periodoInfo);
     const mapaSytex = resSytex.mapaSitesSytex || resSytex;
     const mapaStatusGeralSytex = resSytex.mapaStatusGeralSytex || {};
     const sitesSytexList = Object.keys(mapaSytex);
 
-    // 2. Extrai chamados da planilha de Integrações para o mês (validados estritamente com Sytex Ativo e Concluídos)
+    // 2. Extrai chamados da planilha de Integrações para o período (validados estritamente com Sytex Ativo e Concluídos)
     spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/5', -1);
-    const resIntegracao = carregarChamadosIntegracao(mesInfo, mapaSytex);
+    const resIntegracao = carregarChamadosIntegracao(periodoInfo, mapaSytex);
     const chamadosIntegracao = resIntegracao.chamadosMes || [];
     const mapaGeralIntegracao = resIntegracao.mapaGeralPorSite || {};
     const totalChamadosPlanilha = chamadosIntegracao.length;
@@ -125,7 +314,7 @@ function executarSincronizacaoCompleta() {
           integrador: infoGeral.integrador, // 'BRISANET' ou 'HUAWEI' conforme o responsável
           responsavel: infoGeral.responsavel || 'NÃO INFORMADO',
           dataFinalizacao: infoGeral.dataFinalizacao || infoSytex.data || '',
-          chamado: `TK-${siteFaltante}-${mesInfo.ano}-RECUPERADO`
+          chamado: `TK-${siteFaltante}-${periodoInfo.ano}-RECUPERADO`
         });
       } else {
         // Realmente NÃO ENCONTRADO em nenhuma linha da Planilha de Integração
@@ -138,7 +327,7 @@ function executarSincronizacaoCompleta() {
           integrador: 'NÃO ENCONTRADO',
           responsavel: 'NÃO ENCONTRADO',
           dataFinalizacao: infoSytex.data || '',
-          chamado: `TK-${siteFaltante}-${mesInfo.ano}-SYTEX`
+          chamado: `TK-${siteFaltante}-${periodoInfo.ano}-SYTEX`
         });
       }
     }
@@ -161,7 +350,7 @@ function executarSincronizacaoCompleta() {
 
     spreadsheet.toast('Sincronização finalizada com sucesso!', 'Concluído', 5);
 
-    const periodoStr = `${mesInfo.chave}/${mesInfo.ano}`;
+    const periodoStr = periodoInfo.textoDescritivo;
 
     if (totalChamadosPlanilha === 0 && sitesFaltantesNoIntegracao.length === 0) {
       const msgVazio = `⚠️ Nenhum chamado foi encontrado na planilha de Integrações para o período "${periodoStr}".\n\n` +
@@ -170,7 +359,7 @@ function executarSincronizacaoCompleta() {
         `💡 DICA:\nNa planilha oficial 'INTEGRAÇÃO DE SITES', os chamados cadastrados atualmente vão até OUTUBRO/2026.\n` +
         `Para testar a tabela preenchida com dados reais, abra a aba OUT/2026 e execute a sincronização!`;
 
-      ui.alert('Aviso de Dados do Mês', msgVazio, ui.ButtonSet.OK);
+      ui.alert('Aviso de Dados do Período', msgVazio, ui.ButtonSet.OK);
       return;
     }
 
@@ -408,7 +597,7 @@ function configurarCredenciaisSytexMenu() {
 // ============================================================================
 // MÓDULO 1: INGESTÃO DA API SYTEX (.XLSX)
 // ============================================================================
-function obterSitesSytexEmMemoria(mesInfo) {
+function obterSitesSytexEmMemoria(periodoInfo) {
   const usuario = CONFIG.sytexUsuario;
   const senha = obterSenhaSytex();
 
@@ -515,14 +704,14 @@ function obterSitesSytexEmMemoria(mesInfo) {
             continue;
           }
 
-          // Se houver período especificado, valida o mês/ano pela data de status
-          if (mesInfo) {
+          // Se houver período especificado, valida pela data de status
+          if (periodoInfo) {
             if (dataFinalObj) {
-              if (dataFinalObj.getFullYear() !== mesInfo.ano || dataFinalObj.getMonth() !== mesInfo.mesIndex) {
+              if (!verificarPertenceAoPeriodo(dataFinalObj, periodoInfo)) {
                 continue;
               }
             } else if (colDataIdx !== -1) {
-              // Se a coluna de data de status existe no arquivo mas está em branco para esta linha, não pertence ao mês
+              // Se a coluna de data de status existe no arquivo mas está em branco para esta linha, não pertence ao período
               continue;
             }
           }
@@ -622,7 +811,7 @@ function determinarIntegrador(responsavelRaw) {
   return 'BRISANET';
 }
 
-function carregarChamadosIntegracao(mesInfo, mapaSitesSytex) {
+function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemIntegracao);
   let aba = ss.getSheetByName(CONFIG.abaOrigemIntegracao);
 
@@ -669,8 +858,8 @@ function carregarChamadosIntegracao(mesInfo, mapaSitesSytex) {
     const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : (dataRaw ? String(dataRaw) : '');
     const integradorDefinido = determinarIntegrador(responsavelRaw);
 
-    // Validação oficial: Pela data na Coluna P (CHAMADO FINALIZADO) no mês atual
-    const pertenceAoMes = verificarPertenceAoMes(dataRaw, mesInfo);
+    // Validação oficial: Pela data na Coluna P (CHAMADO FINALIZADO) dentro do período selecionado
+    const pertenceAoPeriodo = verificarPertenceAoPeriodo(dataRaw, periodoInfo);
 
     const registroChamado = {
       linhaOrigem: r + 1,
@@ -681,8 +870,8 @@ function carregarChamadosIntegracao(mesInfo, mapaSitesSytex) {
       integrador: integradorDefinido,
       responsavel: responsavelRaw,
       dataFinalizacao: dataFormatada,
-      pertenceAoMes: pertenceAoMes,
-      chamado: `TK-${siteCanonico}-${mesInfo.ano}-${r + 1}`
+      pertenceAoMes: pertenceAoPeriodo,
+      chamado: `TK-${siteCanonico}-${periodoInfo ? periodoInfo.ano : 'GERAL'}-${r + 1}`
     };
 
     // Indexa no mapa geral de todos os sites da planilha de Integração (para busca de apoio)
@@ -709,8 +898,8 @@ function carregarChamadosIntegracao(mesInfo, mapaSitesSytex) {
       continue;
     }
 
-    // 4. Se a data na Coluna P não pertencer ao mês ativo, descarta
-    if (!pertenceAoMes) {
+    // 4. Se a data na Coluna P não pertencer ao período ativo, descarta
+    if (!pertenceAoPeriodo) {
       continue;
     }
 
@@ -1182,19 +1371,129 @@ function formatarDataBR(data) {
 }
 
 /**
- * Validação de Mês e Ano oficial:
- * Conforme alinhado, a coluna S não é mais usada como filtro.
- * O critério oficial é a data na Coluna P (CHAMADO FINALIZADO).
+ * Funções auxiliares para períodos e meses
  */
-function verificarPertenceAoMes(dataRaw, mesInfo) {
-  if (!mesInfo) return true;
+function obterChaveMes(idx) {
+  const chaves = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+  return chaves[idx] || 'MES';
+}
 
-  const dt = extrairData(dataRaw);
-  if (dt) {
-    return dt.getFullYear() === mesInfo.ano && dt.getMonth() === mesInfo.mesIndex;
+function obterNomeMes(idx) {
+  const nomes = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
+  return nomes[idx] || 'MÊS';
+}
+
+function construirPeriodoInfo(periodoPayload, mesInfoAba) {
+  if (!periodoPayload && mesInfoAba) {
+    const ano = mesInfoAba.ano;
+    const mesIdx = mesInfoAba.mesIndex;
+    return {
+      tipo: 'mes',
+      ano: ano,
+      mesIndex: mesIdx,
+      chave: mesInfoAba.chave || obterChaveMes(mesIdx),
+      nomeMes: mesInfoAba.nomeMes || obterNomeMes(mesIdx),
+      dataInicio: new Date(ano, mesIdx, 1, 0, 0, 0, 0),
+      dataFim: new Date(ano, mesIdx + 1, 0, 23, 59, 59, 999),
+      textoDescritivo: `${mesInfoAba.chave || obterChaveMes(mesIdx)}/${ano}`
+    };
   }
 
-  return false;
+  if (periodoPayload && periodoPayload.tipo === 'exata' && periodoPayload.dataExata) {
+    const parts = periodoPayload.dataExata.split('-');
+    const ano = parseInt(parts[0], 10);
+    const mes = parseInt(parts[1], 10) - 1;
+    const dia = parseInt(parts[2], 10);
+    const dInicio = new Date(ano, mes, dia, 0, 0, 0, 0);
+    const dFim = new Date(ano, mes, dia, 23, 59, 59, 999);
+    const chave = obterChaveMes(mes);
+    return {
+      tipo: 'exata',
+      ano: ano,
+      mesIndex: mes,
+      dia: dia,
+      chave: chave,
+      nomeMes: obterNomeMes(mes),
+      dataInicio: dInicio,
+      dataFim: dFim,
+      textoDescritivo: `${String(dia).padStart(2, '0')}/${String(mes + 1).padStart(2, '0')}/${ano}`
+    };
+  }
+
+  if (periodoPayload && periodoPayload.tipo === 'entre' && periodoPayload.dataInicio && periodoPayload.dataFim) {
+    const partsIni = periodoPayload.dataInicio.split('-');
+    const anoIni = parseInt(partsIni[0], 10);
+    const mesIni = parseInt(partsIni[1], 10) - 1;
+    const diaIni = parseInt(partsIni[2], 10);
+
+    const partsFim = periodoPayload.dataFim.split('-');
+    const anoFim = parseInt(partsFim[0], 10);
+    const mesFim = parseInt(partsFim[1], 10) - 1;
+    const diaFim = parseInt(partsFim[2], 10);
+
+    const dInicio = new Date(anoIni, mesIni, diaIni, 0, 0, 0, 0);
+    const dFim = new Date(anoFim, mesFim, diaFim, 23, 59, 59, 999);
+    const chave = obterChaveMes(mesIni);
+
+    const txtIni = `${String(diaIni).padStart(2, '0')}/${String(mesIni + 1).padStart(2, '0')}/${anoIni}`;
+    const txtFim = `${String(diaFim).padStart(2, '0')}/${String(mesFim + 1).padStart(2, '0')}/${anoFim}`;
+
+    return {
+      tipo: 'entre',
+      ano: anoIni,
+      mesIndex: mesIni,
+      chave: chave,
+      nomeMes: obterNomeMes(mesIni),
+      dataInicio: dInicio,
+      dataFim: dFim,
+      textoDescritivo: `${txtIni} a ${txtFim}`
+    };
+  }
+
+  if (periodoPayload && periodoPayload.mesIndex !== undefined && periodoPayload.ano !== undefined) {
+    const ano = periodoPayload.ano;
+    const mesIdx = periodoPayload.mesIndex;
+    return {
+      tipo: 'mes',
+      ano: ano,
+      mesIndex: mesIdx,
+      chave: periodoPayload.chave || obterChaveMes(mesIdx),
+      nomeMes: periodoPayload.nomeMes || obterNomeMes(mesIdx),
+      dataInicio: new Date(ano, mesIdx, 1, 0, 0, 0, 0),
+      dataFim: new Date(ano, mesIdx + 1, 0, 23, 59, 59, 999),
+      textoDescritivo: `${periodoPayload.chave || obterChaveMes(mesIdx)}/${ano}`
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Validação de Período oficial:
+ * Conforme alinhado, a coluna S não é mais usada como filtro.
+ * O critério oficial é a data na Coluna P (CHAMADO FINALIZADO) ou data de status no Sytex.
+ */
+function verificarPertenceAoPeriodo(dataValor, periodoInfo) {
+  if (!periodoInfo) return true;
+  const dt = extrairData(dataValor);
+  if (!dt) return false;
+
+  if (periodoInfo.dataInicio && periodoInfo.dataFim) {
+    const t = dt.getTime();
+    const tIni = periodoInfo.dataInicio.getTime();
+    const tFim = periodoInfo.dataFim.getTime();
+    return t >= tIni && t <= tFim;
+  }
+
+  if (periodoInfo.ano !== undefined && periodoInfo.mesIndex !== undefined) {
+    return dt.getFullYear() === periodoInfo.ano && dt.getMonth() === periodoInfo.mesIndex;
+  }
+
+  return true;
+}
+
+function verificarPertenceAoMes(dataRaw, mesInfo) {
+  return verificarPertenceAoPeriodo(dataRaw, mesInfo);
 }
 
 function extrairMesAnoAba(nomeAba) {
