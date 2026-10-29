@@ -1572,10 +1572,29 @@ function obterPlanilhaDestinoEAba(spreadsheet) {
 
 function extrairData(valor) {
   if (!valor) return null;
-  if (valor instanceof Date) return isNaN(valor.getTime()) ? null : valor;
+
   if (typeof valor === 'number') {
-    return new Date(Math.round((valor - 25569) * 86400 * 1000));
+    // Serial do Excel: dias desde 1899-12-30.
+    // Usa UTC puro para o dia do calendário e define o horário às 12:00 (meio-dia)
+    // para evitar que diferenças de fuso horário (ex.: UTC-3) retrocedam a data para o dia anterior.
+    const diaSerial = Math.floor(valor);
+    const dtUtc = new Date(Math.round((diaSerial - 25569) * 86400 * 1000));
+    const ano = dtUtc.getUTCFullYear();
+    const mes = dtUtc.getUTCMonth();
+    const dia = dtUtc.getUTCDate();
+    return new Date(ano, mes, dia, 12, 0, 0);
   }
+
+  if (valor instanceof Date) {
+    if (isNaN(valor.getTime())) return null;
+    let dt = valor;
+    // Se o horário for entre 18h e 23h59 (típico de meia-noite UTC lida em fusos UTC-3 a UTC-6)
+    if (dt.getHours() >= 18) {
+      dt = new Date(dt.getTime() + 6 * 3600 * 1000);
+    }
+    return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
+  }
+
   if (typeof valor === 'string') {
     const str = valor.replace(/[\r\n\t\u00A0\u200B]/g, ' ').trim();
     const ddmmyyyy = str.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
@@ -1584,33 +1603,45 @@ function extrairData(valor) {
       let mes = parseInt(ddmmyyyy[2], 10) - 1;
       let ano = parseInt(ddmmyyyy[3], 10);
       if (ano < 100) ano += 2000;
-      return new Date(ano, mes, dia);
+      return new Date(ano, mes, dia, 12, 0, 0);
     }
     const iso = str.match(/^(\d{4})[\/\-\.](\d{1,2})[\/\-\.](\d{1,2})/);
     if (iso) {
-      return new Date(parseInt(iso[1], 10), parseInt(iso[2], 10) - 1, parseInt(iso[3], 10));
+      let ano = parseInt(iso[1], 10);
+      let mes = parseInt(iso[2], 10) - 1;
+      let dia = parseInt(iso[3], 10);
+      return new Date(ano, mes, dia, 12, 0, 0);
     }
     const parsed = new Date(str);
-    if (!isNaN(parsed.getTime())) return parsed;
+    if (!isNaN(parsed.getTime())) {
+      let dt = parsed;
+      if (dt.getHours() >= 18) {
+        dt = new Date(dt.getTime() + 6 * 3600 * 1000);
+      }
+      return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 12, 0, 0);
+    }
   }
+
   return null;
 }
 
 function formatarDataBR(valor) {
   if (!valor) return '';
-  const dt = (valor instanceof Date) ? valor : extrairData(valor);
-  if (!dt || isNaN(dt.getTime())) {
-    if (typeof valor === 'string') {
-      const match = valor.trim().match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
-      if (match) {
-        const dia = match[1].padStart(2, '0');
-        const mes = match[2].padStart(2, '0');
-        const ano = match[3].length === 4 ? match[3].slice(-2) : match[3].padStart(2, '0');
-        return `${dia}/${mes}/${ano}`;
-      }
-      return valor.trim();
+
+  // Se já for uma string no formato DD/MM/AAAA ou DD/MM/AA, formata diretamente sem tocar em fusos
+  if (typeof valor === 'string') {
+    const match = valor.trim().match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})(?:\s.*)?$/);
+    if (match) {
+      const dia = match[1].padStart(2, '0');
+      const mes = match[2].padStart(2, '0');
+      const ano = match[3].length === 4 ? match[3].slice(-2) : match[3].padStart(2, '0');
+      return `${dia}/${mes}/${ano}`;
     }
-    return '';
+  }
+
+  const dt = extrairData(valor);
+  if (!dt || isNaN(dt.getTime())) {
+    return typeof valor === 'string' ? valor.trim() : '';
   }
 
   const d = String(dt.getDate()).padStart(2, '0');
