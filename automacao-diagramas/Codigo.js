@@ -41,7 +41,7 @@ const CONFIG = {
   abaOrigemDiagramas: 'Diagramas - 5G',
 
   // 5. Planilha Oficial de Projetos Ativos (Validação da Situação do Diagrama: Ativo vs Aberto)
-  idOrigemProjetosAtivos: '1wttzUGyQy0xzfNM4t7-8hQBlzIM2V3QUH0DpW5vkuuQ',
+  idOrigemProjetosAtivos: '1zLNwdWIFSYefAsaJY669MDyKneSGQDeqVgOhSTFwflU',
   gidOrigemProjetosAtivos: '2007443937',
   abaOrigemProjetosAtivos: '5G ok'
 };
@@ -313,7 +313,8 @@ function executarSincronizacaoCompleta(periodoPayload) {
           vendor: infoGeral.vendor || '-',
           integrador: infoGeral.integrador, // 'BRISANET' ou 'HUAWEI' conforme o responsável
           responsavel: infoGeral.responsavel || 'NÃO INFORMADO',
-          dataFinalizacao: infoGeral.dataFinalizacao || infoSytex.data || '',
+          dataFinalizacao: formatarDataBR(infoGeral.dataFinalizacao || infoSytex.data || ''),
+          dataObj: infoGeral.dataObj || infoSytex.dataObj || null,
           chamado: `TK-${siteFaltante}-${periodoInfo.ano}-RECUPERADO`
         });
       } else {
@@ -326,11 +327,28 @@ function executarSincronizacaoCompleta(periodoPayload) {
           vendor: '-',
           integrador: 'NÃO ENCONTRADO',
           responsavel: 'NÃO ENCONTRADO',
-          dataFinalizacao: infoSytex.data || '',
+          dataFinalizacao: formatarDataBR(infoSytex.data || ''),
+          dataObj: infoSytex.dataObj || null,
           chamado: `TK-${siteFaltante}-${periodoInfo.ano}-SYTEX`
         });
       }
     }
+
+    // 2.3 Ordenação cronológica estrita dos chamados (ex: Setembro, Outubro, Novembro...)
+    chamadosIntegracao.sort((a, b) => {
+      const dtA = extrairData(a.dataFinalizacao || a.dataObj);
+      const dtB = extrairData(b.dataFinalizacao || b.dataObj);
+
+      const timeA = dtA ? dtA.getTime() : Infinity;
+      const timeB = dtB ? dtB.getTime() : Infinity;
+
+      if (timeA !== timeB) {
+        return timeA - timeB; // Ordem cronológica crescente (mais antiga para mais recente)
+      }
+
+      // Desempate alfabético por código canônico do site
+      return (a.site || '').localeCompare(b.site || '');
+    });
 
     // 3. Extrai lista de sites únicos para varredura multi-colunas na aba de diagramas
     const sitesAlvo = Array.from(new Set(chamadosIntegracao.map(ch => ch.site)));
@@ -719,7 +737,8 @@ function obterSitesSytexEmMemoria(periodoInfo) {
           if (!mapaSitesSytex[siteHigienizado]) {
             mapaSitesSytex[siteHigienizado] = {
               site: siteHigienizado,
-              data: dataFinalObj ? formatarDataBR(dataFinalObj) : '',
+              data: formatarDataBR(dataFinalObj || (colDataIdx !== -1 ? linha[colDataIdx] : '')),
+              dataObj: dataFinalObj,
               status: statusVal
             };
           }
@@ -855,7 +874,7 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
     const statusNorm = normalizarTexto(statusRaw);
 
     const dataFinalizadaObj = extrairData(dataRaw);
-    const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : (dataRaw ? String(dataRaw) : '');
+    const dataFormatada = formatarDataBR(dataFinalizadaObj || dataRaw);
     const integradorDefinido = determinarIntegrador(responsavelRaw);
 
     // Validação oficial: Pela data na Coluna P (CHAMADO FINALIZADO) dentro do período selecionado
@@ -870,6 +889,7 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
       integrador: integradorDefinido,
       responsavel: responsavelRaw,
       dataFinalizacao: dataFormatada,
+      dataObj: dataFinalizadaObj,
       pertenceAoMes: pertenceAoPeriodo,
       chamado: `TK-${siteCanonico}-${periodoInfo ? periodoInfo.ano : 'GERAL'}-${r + 1}`
     };
@@ -1043,16 +1063,22 @@ function carregarProjetosAtivos5GOk() {
 
   for (let r = 0; r < dados.length; r++) {
     const celulaA = (dados[r][0] || '').toString().trim();
-    if (!celulaA) continue;
+    const celulaB = (dados[r][1] || '').toString().trim();
 
-    // Registra projeto original e normalizado
-    setProjetos.add(celulaA.toUpperCase());
-    setProjetos.add(normalizarTexto(celulaA));
+    if (celulaA) {
+      setProjetos.add(celulaA.toUpperCase());
+      setProjetos.add(normalizarTexto(celulaA));
 
-    // Extrai o site do projeto (ex: WL_RN-SMU0001-... -> SMU0001)
-    const siteExtraido = extrairSiteDaDescricao(celulaA);
-    if (siteExtraido) {
-      setSites.add(siteExtraido.toUpperCase());
+      // Extrai o site do projeto (ex: WL_RN-SMU0001-... -> SMU0001)
+      const siteExtraido = extrairSiteDaDescricao(celulaA);
+      if (siteExtraido) {
+        setSites.add(siteExtraido.toUpperCase());
+      }
+    }
+
+    if (celulaB) {
+      setProjetos.add(celulaB.toUpperCase());
+      setProjetos.add(normalizarTexto(celulaB));
     }
   }
 
@@ -1104,11 +1130,27 @@ function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex, in
     semDiagrama: 0
   };
 
+  // Garante ordenação cronológica rigorosa dos chamados (Setembro, Outubro, Novembro...)
+  chamadosIntegracao.sort((a, b) => {
+    const dtA = extrairData(a.dataFinalizacao || a.dataObj);
+    const dtB = extrairData(b.dataFinalizacao || b.dataObj);
+
+    const timeA = dtA ? dtA.getTime() : Infinity;
+    const timeB = dtB ? dtB.getTime() : Infinity;
+
+    if (timeA !== timeB) {
+      return timeA - timeB; // Crescente: mais antigo para mais recente
+    }
+
+    // Desempate alfabético por código de site
+    return (a.site || '').localeCompare(b.site || '');
+  });
+
   for (let i = 0; i < chamadosIntegracao.length; i++) {
     const ch = chamadosIntegracao[i];
     const diag = mapaDiagramas[ch.site] || {};
 
-    const dataFinalizacao = ch.dataFinalizacao || '';
+    const dataFinalizacao = formatarDataBR(ch.dataFinalizacao || ch.dataObj || '');
     const categoria = 'Tecnologia'; // Foco exclusivo em Tecnologia
     const codigoSite = ch.site;
     const vendor = ch.vendor || '';
@@ -1237,7 +1279,11 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
     rangeDados.setValues(linhasDados);
     rangeDados.setHorizontalAlignment('center');
 
-    planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 1).setHorizontalAlignment('center');
+    // Força padronização de formato DD/MM/AA na Coluna A (Data de Finalização)
+    planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 1)
+      .setNumberFormat('dd/MM/yy')
+      .setHorizontalAlignment('center');
+
     planDestino.getRange(CONFIG.linhaDadosInicial, 3, linhasDados.length, 1).setFontWeight('bold');
     planDestino.getRange(CONFIG.linhaDadosInicial, 6, linhasDados.length, 1).setHorizontalAlignment('left'); // Projeto na Col F
 
@@ -1362,12 +1408,27 @@ function extrairData(valor) {
   return null;
 }
 
-function formatarDataBR(data) {
-  if (!data || !(data instanceof Date)) return '';
-  const d = String(data.getDate()).padStart(2, '0');
-  const m = String(data.getMonth() + 1).padStart(2, '0');
-  const y = data.getFullYear();
-  return `${d}/${m}/${y}`;
+function formatarDataBR(valor) {
+  if (!valor) return '';
+  const dt = (valor instanceof Date) ? valor : extrairData(valor);
+  if (!dt || isNaN(dt.getTime())) {
+    if (typeof valor === 'string') {
+      const match = valor.trim().match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})$/);
+      if (match) {
+        const dia = match[1].padStart(2, '0');
+        const mes = match[2].padStart(2, '0');
+        const ano = match[3].length === 4 ? match[3].slice(-2) : match[3].padStart(2, '0');
+        return `${dia}/${mes}/${ano}`;
+      }
+      return valor.trim();
+    }
+    return '';
+  }
+
+  const d = String(dt.getDate()).padStart(2, '0');
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const aa = String(dt.getFullYear()).slice(-2);
+  return `${d}/${m}/${aa}`;
 }
 
 /**
