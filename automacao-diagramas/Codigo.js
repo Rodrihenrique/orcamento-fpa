@@ -88,37 +88,59 @@ function executarSincronizacaoCompleta() {
     const mapaStatusGeralSytex = resSytex.mapaStatusGeralSytex || {};
     const sitesSytexList = Object.keys(mapaSytex);
 
-    // 2. Extrai e filtra chamados ATIVOS da planilha de Integrações para o mês
+    // 2. Extrai chamados da planilha de Integrações para o mês
     spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/5', -1);
-    const chamadosIntegracao = carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex);
+    const resIntegracao = carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex);
+    const chamadosIntegracao = resIntegracao.chamadosMes || [];
+    const mapaGeralIntegracao = resIntegracao.mapaGeralPorSite || {};
     const totalChamadosPlanilha = chamadosIntegracao.length;
 
-    // 2.1 Identifica sites ATIVOS do Sytex que NÃO estão na Planilha de Integrações
-    const sitesNaIntegracao = new Set(chamadosIntegracao.map(ch => ch.site));
+    // 2.1 Identifica sites ATIVOS do Sytex que NÃO estão na lista de chamados do mês
+    const sitesNaIntegracao = new Set(chamadosIntegracao.map(ch => extrairCodigoSiteCanonico(ch.site)));
     const sitesFaltantesNoIntegracao = [];
 
     for (let s = 0; s < sitesSytexList.length; s++) {
-      const siteSytex = sitesSytexList[s];
+      const siteSytex = extrairCodigoSiteCanonico(sitesSytexList[s]);
       if (!sitesNaIntegracao.has(siteSytex)) {
         sitesFaltantesNoIntegracao.push(siteSytex);
       }
     }
 
-    // 2.2 Adiciona os sites do Sytex não encontrados com Integrador = 'NÃO ENCONTRADO'
+    // 2.2 Adiciona os sites do Sytex que não estavam na lista do mês:
+    // Se o site existir na Planilha de Integração (em qualquer linha), recupera Responsável, Vendor e Integrador!
+    // Se REALMENTE não existir na Planilha de Integração, marca Integrador = 'NÃO ENCONTRADO'
     for (let f = 0; f < sitesFaltantesNoIntegracao.length; f++) {
       const siteFaltante = sitesFaltantesNoIntegracao[f];
       const infoSytex = mapaSytex[siteFaltante] || {};
-      chamadosIntegracao.push({
-        linhaOrigem: 'Sytex',
-        site: siteFaltante,
-        siteOriginal: siteFaltante,
-        status: 'CONCLUIDO',
-        vendor: '-',
-        integrador: 'NÃO ENCONTRADO',
-        responsavel: 'NÃO ENCONTRADO',
-        dataFinalizacao: infoSytex.data || '',
-        chamado: `TK-${siteFaltante}-${mesInfo.ano}-SYTEX`
-      });
+      const infoGeral = mapaGeralIntegracao[siteFaltante];
+
+      if (infoGeral) {
+        // Encontrado na Planilha de Integração! (ex.: ITN0004, SFM0004)
+        chamadosIntegracao.push({
+          linhaOrigem: infoGeral.linhaOrigem || 'Integração (Geral)',
+          site: siteFaltante,
+          siteOriginal: infoGeral.siteOriginal || siteFaltante,
+          status: infoGeral.status || 'CONCLUIDO',
+          vendor: infoGeral.vendor || '-',
+          integrador: infoGeral.integrador, // 'BRISANET' ou 'HUAWEI' conforme o responsável
+          responsavel: infoGeral.responsavel || 'NÃO INFORMADO',
+          dataFinalizacao: infoGeral.dataFinalizacao || infoSytex.data || '',
+          chamado: `TK-${siteFaltante}-${mesInfo.ano}-RECUPERADO`
+        });
+      } else {
+        // Realmente NÃO ENCONTRADO em nenhuma linha da Planilha de Integração
+        chamadosIntegracao.push({
+          linhaOrigem: 'Sytex',
+          site: siteFaltante,
+          siteOriginal: siteFaltante,
+          status: 'CONCLUIDO',
+          vendor: '-',
+          integrador: 'NÃO ENCONTRADO',
+          responsavel: 'NÃO ENCONTRADO',
+          dataFinalizacao: infoSytex.data || '',
+          chamado: `TK-${siteFaltante}-${mesInfo.ano}-SYTEX`
+        });
+      }
     }
 
     // 3. Extrai lista de sites únicos para varredura multi-colunas na aba de diagramas
@@ -602,17 +624,21 @@ function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
 
   const dados = aba.getDataRange().getValues();
   if (dados.length <= CONFIG.linhaCabecalhoIntegracao) {
-    return [];
+    return { chamadosMes: [], mapaGeralPorSite: {} };
   }
 
-  const chamados = [];
-  const mesAlvoNorm = normalizarTexto(mesInfo.nomeMes);
-  const anoAlvoStr = String(mesInfo.ano);
+  const chamadosMes = [];
+  const mapaGeralPorSite = {};
 
   // Varre a partir da linha 3 (índice 2)
   for (let r = CONFIG.linhaCabecalhoIntegracao; r < dados.length; r++) {
     const linha = dados[r];
     const siteRaw = linha[CONFIG.colIntegracaoSite];
+    if (!siteRaw) continue;
+
+    const siteCanonico = extrairCodigoSiteCanonico(siteRaw);
+    if (!siteCanonico || siteCanonico.length < 3) continue;
+
     const statusRaw = (linha[CONFIG.colIntegracaoStatus] || '').toString().trim().toUpperCase();
     const vendorRaw = (linha[CONFIG.colIntegracaoVendor] || '').toString().trim().toUpperCase();
     const reportRaw = (linha[CONFIG.colIntegracaoReport] || '').toString().trim().toUpperCase();
@@ -621,65 +647,46 @@ function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
     const anoColRaw = linha[CONFIG.colIntegracaoAno];
     const responsavelRaw = (linha[CONFIG.colIntegracaoResponsavel] || '').toString().trim().toUpperCase();
 
-    if (!siteRaw) continue;
-
-    const siteLimpo = higienizarCodigoSite(siteRaw);
     const statusNorm = normalizarTexto(statusRaw);
 
-    // 1. Filtro estrito: rejeita sites com status Cancelado, Planejado ou Desinstalado na própria planilha
-    if (statusNorm.includes('cancel') || statusNorm.includes('planej') || statusNorm.includes('desinstal') || statusNorm.includes('rejeit')) {
+    // Rejeita apenas chamados explicitamente cancelados na planilha de integração
+    if (statusNorm.includes('cancel')) {
       continue;
     }
 
-    // 2. Filtro cruzado com o Sytex: rejeita se o status no Sytex for Cancelado, Planejado ou Desinstalado
-    if (mapaStatusGeralSytex && mapaStatusGeralSytex[siteLimpo]) {
-      const stSytex = mapaStatusGeralSytex[siteLimpo];
-      const ehInvalidoSytex = stSytex.includes('cancel') || stSytex.includes('planej') || stSytex.includes('desinstal') || stSytex.includes('rejeit') || (stSytex && !stSytex.includes('ativ'));
-      if (ehInvalidoSytex) {
-        continue;
-      }
+    const dataFinalizadaObj = extrairData(dataRaw);
+    const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : (dataRaw ? String(dataRaw) : '');
+    const integradorDefinido = determinarIntegrador(responsavelRaw);
+
+    const pertenceAoMes = verificarPertenceAoMes(dataRaw, mesColRaw, anoColRaw, mesInfo);
+
+    const registroChamado = {
+      linhaOrigem: r + 1,
+      site: siteCanonico,
+      siteOriginal: String(siteRaw).trim(),
+      status: statusRaw || 'CONCLUIDO',
+      vendor: vendorRaw,
+      integrador: integradorDefinido,
+      responsavel: responsavelRaw,
+      dataFinalizacao: dataFormatada,
+      pertenceAoMes: pertenceAoMes,
+      chamado: `TK-${siteCanonico}-${mesInfo.ano}-${r + 1}`
+    };
+
+    // Indexa no mapa geral de todos os sites da planilha de Integração (para busca resiliente)
+    // Prioriza manter a linha com responsável preenchido ou que pertence ao mês
+    const existente = mapaGeralPorSite[siteCanonico];
+    if (!existente || (!existente.responsavel && responsavelRaw) || (pertenceAoMes && !existente.pertenceAoMes)) {
+      mapaGeralPorSite[siteCanonico] = registroChamado;
     }
 
-    // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T
-    let pertenceAoMes = false;
-    let dataFinalizadaObj = extrairData(dataRaw);
-
-    if (dataFinalizadaObj) {
-      if (dataFinalizadaObj.getFullYear() === mesInfo.ano && dataFinalizadaObj.getMonth() === mesInfo.mesIndex) {
-        pertenceAoMes = true;
-      }
-    }
-
-    // Validação complementar pelas Colunas S (Mês) e T (Ano)
-    if (!pertenceAoMes && mesColRaw && anoColRaw) {
-      const mesLinhaNorm = normalizarTexto(mesColRaw);
-      const anoLinhaStr = String(anoColRaw).trim();
-      if (mesLinhaNorm.includes(mesAlvoNorm) && anoLinhaStr.includes(anoAlvoStr)) {
-        pertenceAoMes = true;
-        if (!dataFinalizadaObj) dataFinalizadaObj = new Date(mesInfo.ano, mesInfo.mesIndex, 1);
-      }
-    }
-
-    // Inclui chamados que pertencem ao mês ativo
+    // Se pertence ao mês especificado, inclui na lista oficial de chamados do mês
     if (pertenceAoMes) {
-      const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : String(dataRaw);
-      const integradorDefinido = determinarIntegrador(responsavelRaw);
-
-      chamados.push({
-        linhaOrigem: r + 1,
-        site: siteLimpo,
-        siteOriginal: String(siteRaw).trim(),
-        status: statusRaw,
-        vendor: vendorRaw,
-        integrador: integradorDefinido,
-        responsavel: responsavelRaw,
-        dataFinalizacao: dataFormatada,
-        chamado: `TK-${siteLimpo}-${mesInfo.ano}-${r + 1}`
-      });
+      chamadosMes.push(registroChamado);
     }
   }
 
-  return chamados;
+  return { chamadosMes, mapaGeralPorSite };
 }
 
 // ============================================================================
@@ -1033,9 +1040,36 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
 // ============================================================================
 // FUNÇÕES AUXILIARES E UTILITÁRIOS
 // ============================================================================
-function higienizarCodigoSite(codigoBruto) {
+function extrairCodigoSiteCanonico(codigoBruto) {
   if (!codigoBruto) return '';
-  return codigoBruto.toString().trim().replace(/\.\d+.*$/, '').toUpperCase();
+  let str = codigoBruto.toString().trim().toUpperCase();
+  str = str.replace(/[\r\n\t\u00A0\u200B]/g, ' ').trim();
+  str = str.replace(/\.0+$/, '');
+
+  // Se contém padrão de projeto de torre (ex: WL_RN-SMU0001-RN-SMU100-BRIT)
+  const matchTorre = str.match(/WL_[A-Z]{2}-([A-Z]{2,5}\d{2,5})/i);
+  if (matchTorre) {
+    return matchTorre[1].replace(/[-_\s]/g, '').toUpperCase();
+  }
+
+  // Se tem prefixo de estado (ex: CE-ITN0004, CE - ITN-0004, PI-SFM0004)
+  const matchEstado = str.match(/(?:^|[^A-Za-z0-9])(?:AL|BA|CE|MA|MS|PB|PE|PI|RN|SE|GO|TO)\s*[-_]?\s*([A-Z]{2,5})[-_\s]?(\d{2,5})/i);
+  if (matchEstado) {
+    return (matchEstado[1] + matchEstado[2]).toUpperCase();
+  }
+
+  // Padrão canônico de site: 2 a 5 letras seguidas de hífen/espaço opcional e 2 a 5 dígitos (ex: ITN-0004 -> ITN0004, SFM0004)
+  const matchGeral = str.match(/(?:^|[^A-Za-z0-9])([A-Z]{2,5})[-_\s]?(\d{2,5})(?=[^A-Za-z0-9]|$)/i);
+  if (matchGeral) {
+    return (matchGeral[1] + matchGeral[2]).toUpperCase();
+  }
+
+  // Fallback: remove qualquer caractere não alfanumérico
+  return str.replace(/[^A-Z0-9]/g, '');
+}
+
+function higienizarCodigoSite(codigoBruto) {
+  return extrairCodigoSiteCanonico(codigoBruto);
 }
 
 function normalizarTexto(texto) {
@@ -1107,6 +1141,44 @@ function formatarDataBR(data) {
   const m = String(data.getMonth() + 1).padStart(2, '0');
   const y = data.getFullYear();
   return `${d}/${m}/${y}`;
+}
+
+function verificarPertenceAoMes(dataRaw, mesColRaw, anoColRaw, mesInfo) {
+  if (!mesInfo) return true;
+
+  // 1. Pela Data Finalizada na Coluna P
+  const dt = extrairData(dataRaw);
+  if (dt) {
+    if (dt.getFullYear() === mesInfo.ano && dt.getMonth() === mesInfo.mesIndex) {
+      return true;
+    }
+  }
+
+  // 2. Pelas Colunas S (Mês) e T (Ano)
+  if (mesColRaw) {
+    const mesNorm = normalizarTexto(mesColRaw);
+    const chaveMes = (mesInfo.chave || '').toLowerCase(); // ex: 'out'
+    const nomeMes = normalizarTexto(mesInfo.nomeMes);      // ex: 'outubro'
+
+    // Trata 'out', 'outubro', 'out/2026', 'outubro/26', '10'
+    const mesBate = mesNorm.includes(chaveMes) || 
+                    mesNorm.includes(nomeMes) || 
+                    nomeMes.includes(mesNorm) || 
+                    mesNorm === '10' ||
+                    mesNorm === '010';
+
+    if (mesBate) {
+      if (!anoColRaw) return true;
+      const anoStr = String(anoColRaw).trim();
+      const anoAlvoStr = String(mesInfo.ano);
+      const anoCurto = anoAlvoStr.slice(-2);
+      if (anoStr.includes(anoAlvoStr) || anoStr.includes(anoCurto) || anoStr === '') {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 function extrairMesAnoAba(nomeAba) {
