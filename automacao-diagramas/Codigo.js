@@ -38,7 +38,12 @@ const CONFIG = {
   // 4. Planilha Oficial de Diagramas 5G (Mapeamento Multi-Estados / Multi-Colunas)
   idOrigemDiagramas: '1fd5sieHnEMixKJh8T7qYNwZfecL453cGqqkYl41VdaA',
   gidOrigemDiagramas: '1306115678',
-  abaOrigemDiagramas: 'Diagramas - 5G'
+  abaOrigemDiagramas: 'Diagramas - 5G',
+
+  // 5. Planilha Oficial de Projetos Ativos (Validação da Situação do Diagrama: Ativo vs Aberto)
+  idOrigemProjetosAtivos: '1wttzUGyQy0xzfNM4t7-8hQBlzIM2V3QUH0DpW5vkuuQ',
+  gidOrigemProjetosAtivos: '2007443937',
+  abaOrigemProjetosAtivos: '5G ok'
 };
 
 // ============================================================================
@@ -76,17 +81,19 @@ function executarSincronizacaoCompleta() {
       throw new Error(`A aba ativa "${destinoInfo.nomeAba}" não possui formato de mês válido (ex.: OUT/2026, NOV/2026).`);
     }
 
-    // 1. Obtém e higieniza a lista de sites do Sytex (.xlsx)
-    spreadsheet.toast('Baixando dados do Sytex via API...', 'Etapa 1/4', -1);
-    const mapaSytex = obterSitesSytexEmMemoria(mesInfo);
+    // 1. Obtém e higieniza a lista de sites ATIVOS do Sytex (.xlsx)
+    spreadsheet.toast('Baixando dados do Sytex via API...', 'Etapa 1/5', -1);
+    const resSytex = obterSitesSytexEmMemoria(mesInfo);
+    const mapaSytex = resSytex.mapaSitesSytex || resSytex;
+    const mapaStatusGeralSytex = resSytex.mapaStatusGeralSytex || {};
     const sitesSytexList = Object.keys(mapaSytex);
 
-    // 2. Extrai e filtra chamados da planilha de Integrações para o mês (1 linha por chamado)
-    spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/4', -1);
-    const chamadosIntegracao = carregarChamadosIntegracao(mesInfo);
+    // 2. Extrai e filtra chamados ATIVOS da planilha de Integrações para o mês
+    spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/5', -1);
+    const chamadosIntegracao = carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex);
     const totalChamadosPlanilha = chamadosIntegracao.length;
 
-    // 2.1 Identifica sites do Sytex que NÃO estão na Planilha de Integrações
+    // 2.1 Identifica sites ATIVOS do Sytex que NÃO estão na Planilha de Integrações
     const sitesNaIntegracao = new Set(chamadosIntegracao.map(ch => ch.site));
     const sitesFaltantesNoIntegracao = [];
 
@@ -116,14 +123,18 @@ function executarSincronizacaoCompleta() {
 
     // 3. Extrai lista de sites únicos para varredura multi-colunas na aba de diagramas
     const sitesAlvo = Array.from(new Set(chamadosIntegracao.map(ch => ch.site)));
-    spreadsheet.toast(`Buscando diagramas de Tecnologia para ${sitesAlvo.length} sites...`, 'Etapa 3/4', -1);
+    spreadsheet.toast(`Buscando diagramas de Tecnologia para ${sitesAlvo.length} sites...`, 'Etapa 3/5', -1);
     const mapaDiagramas = carregarMapaHierarquiaDiagramas(sitesAlvo);
 
-    // 4. Cruza os chamados, aplica o filtro de Tecnologia e gera as 10 colunas
-    spreadsheet.toast('Conciliando dados e gerando tabela unificada...', 'Etapa 4/4', -1);
-    const resultado = gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex);
+    // 4. Carrega a lista de Projetos Ativos da aba '5G ok'
+    spreadsheet.toast('Consultando Projetos Ativos na aba 5G ok...', 'Etapa 4/5', -1);
+    const infoProjetosAtivos = carregarProjetosAtivos5GOk();
 
-    // 5. Grava a tabela e atualiza os cartões de indicadores
+    // 5. Cruza os chamados, aplica o filtro de Tecnologia e gera as 9 colunas (sem Chamado/Ticket)
+    spreadsheet.toast('Conciliando dados e gerando tabela unificada...', 'Etapa 5/5', -1);
+    const resultado = gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex, infoProjetosAtivos);
+
+    // 6. Grava a tabela e atualiza os cartões de indicadores
     gravarTabelaUnicaNaAba(planDestino, resultado.linhas, destinoInfo.nomeAba, resultado.totais);
 
     spreadsheet.toast('Sincronização finalizada com sucesso!', 'Concluído', 5);
@@ -152,9 +163,9 @@ function executarSincronizacaoCompleta() {
       `   • BRISANET: ${resultado.totais.brisanet} chamados\n` +
       `   • HUAWEI: ${resultado.totais.huawei} chamados\n` +
       `   • NÃO ENCONTRADO: ${resultado.totais.naoEncontrados} chamados\n\n` +
-      `🗺️ Diagramas de Mão de Obra (Tecnologia):\n` +
-      `   • Diagramas vinculados com sucesso: ${resultado.totais.comDiagrama}\n` +
-      `   • Pendentes de diagrama: ${resultado.totais.semDiagrama}`;
+      `🗺️ Situação dos Projetos (Validado na aba '5G ok'):\n` +
+      `   • Projetos Ativos: ${resultado.totais.projetosAtivos}\n` +
+      `   • Projetos Abertos: ${resultado.totais.projetosAbertos}`;
 
     ui.alert('✅ Sincronização 5G Concluída', msg, ui.ButtonSet.OK);
 
@@ -325,7 +336,8 @@ function atualizarDiagramasMenu() {
     const sitesAlvo = sites.map(s => higienizarCodigoSite(s[0])).filter(s => s.length > 0);
 
     const mapaDiagramas = carregarMapaHierarquiaDiagramas(sitesAlvo);
-    const rangeColsDiagramas = planDestino.getRange(`G${CONFIG.linhaDadosInicial}:J${maxLinhas}`);
+    const infoProjetosAtivos = carregarProjetosAtivos5GOk();
+    const rangeColsDiagramas = planDestino.getRange(`F${CONFIG.linhaDadosInicial}:I${maxLinhas}`);
     const dadosDiagExistentes = rangeColsDiagramas.getValues();
 
     let atualizados = 0;
@@ -333,10 +345,13 @@ function atualizarDiagramasMenu() {
       const site = higienizarCodigoSite(sites[i][0]);
       if (site && mapaDiagramas[site]) {
         const d = mapaDiagramas[site];
-        dadosDiagExistentes[i][0] = d.projeto || dadosDiagExistentes[i][0];   // Col G (Projeto)
-        dadosDiagExistentes[i][1] = d.maoDeObra || dadosDiagExistentes[i][1]; // Col H (Mão de Obra)
-        dadosDiagExistentes[i][2] = '-';                                      // Col I (Serviço Terceiro)
-        dadosDiagExistentes[i][3] = d.situacao || 'OK';                      // Col J (Situação)
+        const projNome = d.projeto || dadosDiagExistentes[i][0];
+        const sit = verificarSituacaoProjeto(projNome, site, infoProjetosAtivos);
+
+        dadosDiagExistentes[i][0] = projNome;                               // Col F (Projeto)
+        dadosDiagExistentes[i][1] = d.maoDeObra || dadosDiagExistentes[i][1]; // Col G (Mão de Obra)
+        dadosDiagExistentes[i][2] = '-';                                      // Col H (Serviço Terceiro)
+        dadosDiagExistentes[i][3] = sit;                                      // Col I (Situação do Diagrama: Ativo vs Aberto)
         atualizados++;
       }
     }
@@ -429,6 +444,8 @@ function obterSitesSytexEmMemoria(mesInfo) {
     if (colSiteIdx === -1) colSiteIdx = 0;
 
     const mapaSitesSytex = {};
+    const mapaStatusGeralSytex = {};
+
     for (let r = 1; r < dados.length; r++) {
       const linha = dados[r];
       const valorCelula = linha[colSiteIdx];
@@ -445,15 +462,29 @@ function obterSitesSytexEmMemoria(mesInfo) {
             statusVal = normalizarTexto(linha[colStatusIdx]);
           }
 
+          mapaStatusGeralSytex[siteHigienizado] = statusVal;
+
+          // Validação estrita de status: APENAS sites com status ATIVO
+          // Rejeita sumariamente sites que estão Cancelado, Planejado ou Desinstalado
+          const ehInvalido = statusVal && (
+            statusVal.includes('cancel') || 
+            statusVal.includes('planej') || 
+            statusVal.includes('desinstal') || 
+            statusVal.includes('rejeit') || 
+            statusVal.includes('abort') ||
+            statusVal.includes('desativ')
+          );
+          const ehAtivo = statusVal ? statusVal.includes('ativ') : true;
+
+          if (ehInvalido || (statusVal && !ehAtivo)) {
+            continue;
+          }
+
           // Se houver data no Sytex e período especificado, valida o mês/ano
           if (mesInfo && dataFinalObj) {
             if (dataFinalObj.getFullYear() !== mesInfo.ano || dataFinalObj.getMonth() !== mesInfo.mesIndex) {
               continue;
             }
-          }
-
-          if (statusVal && (statusVal.includes('cancel') || statusVal.includes('rejeit') || statusVal.includes('abort'))) {
-            continue;
           }
 
           if (!mapaSitesSytex[siteHigienizado]) {
@@ -467,7 +498,7 @@ function obterSitesSytexEmMemoria(mesInfo) {
       }
     }
 
-    return mapaSitesSytex;
+    return { mapaSitesSytex, mapaStatusGeralSytex };
 
   } finally {
     if (tempFileId) {
@@ -551,7 +582,7 @@ function determinarIntegrador(responsavelRaw) {
   return 'BRISANET';
 }
 
-function carregarChamadosIntegracao(mesInfo) {
+function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemIntegracao);
   let aba = ss.getSheetByName(CONFIG.abaOrigemIntegracao);
 
@@ -592,7 +623,24 @@ function carregarChamadosIntegracao(mesInfo) {
 
     if (!siteRaw) continue;
 
-    // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T (garante todas as 82 linhas)
+    const siteLimpo = higienizarCodigoSite(siteRaw);
+    const statusNorm = normalizarTexto(statusRaw);
+
+    // 1. Filtro estrito: rejeita sites com status Cancelado, Planejado ou Desinstalado na própria planilha
+    if (statusNorm.includes('cancel') || statusNorm.includes('planej') || statusNorm.includes('desinstal') || statusNorm.includes('rejeit')) {
+      continue;
+    }
+
+    // 2. Filtro cruzado com o Sytex: rejeita se o status no Sytex for Cancelado, Planejado ou Desinstalado
+    if (mapaStatusGeralSytex && mapaStatusGeralSytex[siteLimpo]) {
+      const stSytex = mapaStatusGeralSytex[siteLimpo];
+      const ehInvalidoSytex = stSytex.includes('cancel') || stSytex.includes('planej') || stSytex.includes('desinstal') || stSytex.includes('rejeit') || (stSytex && !stSytex.includes('ativ'));
+      if (ehInvalidoSytex) {
+        continue;
+      }
+    }
+
+    // Validação de Mês e Ano: verifica por data ou pelas colunas textuais S e T
     let pertenceAoMes = false;
     let dataFinalizadaObj = extrairData(dataRaw);
 
@@ -614,7 +662,6 @@ function carregarChamadosIntegracao(mesInfo) {
 
     // Inclui chamados que pertencem ao mês ativo
     if (pertenceAoMes) {
-      const siteLimpo = higienizarCodigoSite(siteRaw);
       const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : String(dataRaw);
       const integradorDefinido = determinarIntegrador(responsavelRaw);
 
@@ -743,15 +790,89 @@ function extrairSiteDaDescricao(texto) {
 }
 
 // ============================================================================
-// MÓDULO 4: CONCILIAÇÃO E MONTAGEM DA TABELA ÚNICA (10 COLUNAS)
+// MÓDULO 4: VALIDAÇÃO DE SITUAÇÃO DO PROJETO NA ABA '5G ok' (ATIVO VS ABERTO)
 // ============================================================================
-function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex) {
+function carregarProjetosAtivos5GOk() {
+  const ss = SpreadsheetApp.openById(CONFIG.idOrigemProjetosAtivos);
+  let aba = ss.getSheetByName(CONFIG.abaOrigemProjetosAtivos);
+
+  if (!aba && CONFIG.gidOrigemProjetosAtivos) {
+    const abas = ss.getSheets();
+    for (let i = 0; i < abas.length; i++) {
+      if (abas[i].getSheetId().toString() === CONFIG.gidOrigemProjetosAtivos.toString()) {
+        aba = abas[i];
+        break;
+      }
+    }
+  }
+
+  if (!aba) {
+    aba = ss.getSheets()[0];
+  }
+
+  const dados = aba.getDataRange().getValues();
+  const setProjetos = new Set();
+  const setSites = new Set();
+
+  for (let r = 0; r < dados.length; r++) {
+    const celulaA = (dados[r][0] || '').toString().trim();
+    if (!celulaA) continue;
+
+    // Registra projeto original e normalizado
+    setProjetos.add(celulaA.toUpperCase());
+    setProjetos.add(normalizarTexto(celulaA));
+
+    // Extrai o site do projeto (ex: WL_RN-SMU0001-... -> SMU0001)
+    const siteExtraido = extrairSiteDaDescricao(celulaA);
+    if (siteExtraido) {
+      setSites.add(siteExtraido.toUpperCase());
+    }
+  }
+
+  return { setProjetos, setSites };
+}
+
+function verificarSituacaoProjeto(projeto, site, infoProjetosAtivos) {
+  if (!infoProjetosAtivos) return 'Aberto';
+  const { setProjetos, setSites } = infoProjetosAtivos;
+
+  if (projeto && projeto !== '-' && projeto.trim() !== '') {
+    const projUp = projeto.trim().toUpperCase();
+    const projNorm = normalizarTexto(projeto);
+    if (setProjetos.has(projUp) || setProjetos.has(projNorm)) {
+      return 'Ativo';
+    }
+
+    // Busca por correspondência parcial
+    for (const p of setProjetos) {
+      if (p && (p.includes(projNorm) || projNorm.includes(p))) {
+        return 'Ativo';
+      }
+    }
+  }
+
+  if (site) {
+    const siteUp = higienizarCodigoSite(site);
+    if (setSites.has(siteUp)) {
+      return 'Ativo';
+    }
+  }
+
+  return 'Aberto';
+}
+
+// ============================================================================
+// MÓDULO 5: CONCILIAÇÃO E MONTAGEM DA TABELA ÚNICA (9 COLUNAS)
+// ============================================================================
+function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex, infoProjetosAtivos) {
   const linhas = [];
   const totais = {
     brisanet: 0,
-    fiberhome: 0,
+    huawei: 0,
     outros: 0,
     naoEncontrados: 0,
+    projetosAtivos: 0,
+    projetosAbertos: 0,
     comDiagrama: 0,
     semDiagrama: 0
   };
@@ -765,11 +886,12 @@ function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex) {
     const codigoSite = ch.site;
     const vendor = ch.vendor || '';
     const integrador = ch.integrador || '';
-    const ticket = ch.chamado || '';
     const projeto = diag.projeto || '-';
     const maoDeObra = diag.maoDeObra || '-';
     const servTerc = '-'; // Foco em Mão de Obra
-    const situacao = diag.maoDeObra ? 'OK' : 'Pendente';
+
+    // Determina a Situação do Diagrama consultando a aba '5G ok' de Projetos Ativos
+    const situacao = verificarSituacaoProjeto(projeto, codigoSite, infoProjetosAtivos);
 
     // Contadores para o resumo nos cartões
     if (integrador === 'NÃO ENCONTRADO') {
@@ -783,20 +905,23 @@ function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex) {
       totais.outros++;
     }
 
+    if (situacao === 'Ativo') totais.projetosAtivos++;
+    else totais.projetosAbertos++;
+
     if (diag.maoDeObra) totais.comDiagrama++;
     else totais.semDiagrama++;
 
+    // 9 Colunas Oficiais (Coluna Chamado/Ticket removida conforme solicitado)
     linhas.push([
       dataFinalizacao, // Col 1 (A): Data de Finalização
       categoria,       // Col 2 (B): Frente / Categoria (Tecnologia)
       codigoSite,      // Col 3 (C): Código do Site
       vendor,          // Col 4 (D): Vendor
       integrador,      // Col 5 (E): Integrador
-      ticket,          // Col 6 (F): Chamado / Ticket
-      projeto,         // Col 7 (G): Projeto
-      maoDeObra,       // Col 8 (H): Mão de Obra (Diagrama)
-      servTerc,        // Col 9 (I): Serviço Terceiro (Diagrama)
-      situacao         // Col 10 (J): Situação do Diagrama
+      projeto,         // Col 6 (F): Projeto
+      maoDeObra,       // Col 7 (G): Mão de Obra (Diagrama)
+      servTerc,        // Col 8 (H): Serviço Terceiro (Diagrama)
+      situacao         // Col 9 (I): Situação do Diagrama (Ativo vs Aberto)
     ]);
   }
 
@@ -804,11 +929,11 @@ function gerarLinhasTabelaUnica(chamadosIntegracao, mapaDiagramas, mapaSytex) {
 }
 
 function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
-  // 1. Limpa completamente linhas 1 a 4 para eliminar resíduos de textos antigos
+  // 1. Limpa completamente linhas 1 a 4 e colunas 1 a 10 para eliminar resíduos de textos ou da antiga coluna J
   planDestino.getRange(1, 1, 4, 10).clear({ contentsOnly: true, formatOnly: true });
 
-  // 2. Banner de Título Superior na Linha 1 (Mesclado A1:J1)
-  const rangeTitulo = planDestino.getRange("A1:J1");
+  // 2. Banner de Título Superior na Linha 1 (Mesclado A1:I1)
+  const rangeTitulo = planDestino.getRange("A1:I1");
   rangeTitulo.merge();
   rangeTitulo.setValue(`PAINEL DE INTEGRAÇÕES & DIAGRAMAS 5G — ${nomeAba}`);
   rangeTitulo.setBackground("#0f243e");
@@ -847,34 +972,33 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   const c4Val = planDestino.getRange("G3:H3");
   c4Val.merge().setValue(totalGeral).setFontWeight("bold").setFontSize(14).setBackground("#fff2cc").setFontColor("#7f6000").setHorizontalAlignment("center");
 
-  // Cartão 5: Referência (I2:J3)
-  const c5Tit = planDestino.getRange("I2:J2");
-  c5Tit.merge().setValue("📅 Referência").setFontWeight("bold").setFontSize(10).setBackground("#eaecf0").setFontColor("#333333").setHorizontalAlignment("center");
-  const c5Val = planDestino.getRange("I3:J3");
-  c5Val.merge().setValue(nomeAba).setFontWeight("bold").setFontSize(14).setBackground("#eaecf0").setFontColor("#333333").setHorizontalAlignment("center");
+  // Cartão 5: Referência (I2:I3)
+  const c5Tit = planDestino.getRange("I2");
+  c5Tit.setValue("📅 Ref.").setFontWeight("bold").setFontSize(10).setBackground("#eaecf0").setFontColor("#333333").setHorizontalAlignment("center");
+  const c5Val = planDestino.getRange("I3");
+  c5Val.setValue(nomeAba).setFontWeight("bold").setFontSize(11).setBackground("#eaecf0").setFontColor("#333333").setHorizontalAlignment("center");
 
-  // 4. Cabeçalho Oficial das 10 Colunas na Linha 4 (A4:J4)
+  // 4. Cabeçalho Oficial das 9 Colunas na Linha 4 (A4:I4)
   const cabecalhos = [
     'Data de Finalização',
     'Frente / Categoria',
     'Código do Site',
     'Vendor',
     'Integrador',
-    'Chamado / Ticket',
     'Projeto',
     'Mão de Obra (Diagrama)',
     'Serviço Terceiro (Diagrama)',
     'Situação do Diagrama'
   ];
 
-  const rangeCabecalho = planDestino.getRange(CONFIG.linhaCabecalho, 1, 1, 10);
+  const rangeCabecalho = planDestino.getRange(CONFIG.linhaCabecalho, 1, 1, 9);
   rangeCabecalho.setValues([cabecalhos]);
   rangeCabecalho.setBackground('#1f4e78');
   rangeCabecalho.setFontColor('#ffffff');
   rangeCabecalho.setFontWeight('bold');
   rangeCabecalho.setHorizontalAlignment('center');
 
-  // 5. Limpa os dados e formatações antigos a partir da linha 5
+  // 5. Limpa os dados e formatações antigos a partir da linha 5 (limpa 10 colunas para remover a antiga coluna J)
   const maxLinhas = Math.max(planDestino.getLastRow(), 50);
   if (maxLinhas >= CONFIG.linhaDadosInicial) {
     planDestino.getRange(CONFIG.linhaDadosInicial, 1, maxLinhas - CONFIG.linhaDadosInicial + 1, 10).clear({ contentsOnly: true, formatOnly: true });
@@ -882,19 +1006,25 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
 
   // 6. Grava os novos dados conciliados (se houver)
   if (linhasDados && linhasDados.length > 0) {
-    const rangeDados = planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 10);
+    const rangeDados = planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 9);
     rangeDados.setValues(linhasDados);
     rangeDados.setHorizontalAlignment('center');
 
     planDestino.getRange(CONFIG.linhaDadosInicial, 1, linhasDados.length, 1).setHorizontalAlignment('center');
     planDestino.getRange(CONFIG.linhaDadosInicial, 3, linhasDados.length, 1).setFontWeight('bold');
-    planDestino.getRange(CONFIG.linhaDadosInicial, 7, linhasDados.length, 1).setHorizontalAlignment('left');
+    planDestino.getRange(CONFIG.linhaDadosInicial, 6, linhasDados.length, 1).setHorizontalAlignment('left'); // Projeto na Col F
 
-    // Destaca visualmente linhas onde o Integrador é 'NÃO ENCONTRADO'
+    // Destaque visual: linhas onde o Integrador é 'NÃO ENCONTRADO'
     for (let r = 0; r < linhasDados.length; r++) {
+      const rowNum = CONFIG.linhaDadosInicial + r;
       if (linhasDados[r][4] === 'NÃO ENCONTRADO') {
-        const rowNum = CONFIG.linhaDadosInicial + r;
         planDestino.getRange(rowNum, 5).setBackground('#fff2cc').setFontColor('#c00000').setFontWeight('bold');
+      }
+      // Destaque para Situação do Diagrama (Coluna I - índice 8)
+      if (linhasDados[r][8] === 'Ativo') {
+        planDestino.getRange(rowNum, 9).setFontColor('#2e7d32').setFontWeight('bold');
+      } else {
+        planDestino.getRange(rowNum, 9).setFontColor('#7f6000');
       }
     }
   }
