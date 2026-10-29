@@ -88,9 +88,9 @@ function executarSincronizacaoCompleta() {
     const mapaStatusGeralSytex = resSytex.mapaStatusGeralSytex || {};
     const sitesSytexList = Object.keys(mapaSytex);
 
-    // 2. Extrai chamados da planilha de Integrações para o mês
+    // 2. Extrai chamados da planilha de Integrações para o mês (validados estritamente com Sytex Ativo e Concluídos)
     spreadsheet.toast('Carregando chamados de Integração de Sites...', 'Etapa 2/5', -1);
-    const resIntegracao = carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex);
+    const resIntegracao = carregarChamadosIntegracao(mesInfo, mapaSytex);
     const chamadosIntegracao = resIntegracao.chamadosMes || [];
     const mapaGeralIntegracao = resIntegracao.mapaGeralPorSite || {};
     const totalChamadosPlanilha = chamadosIntegracao.length;
@@ -455,11 +455,24 @@ function obterSitesSytexEmMemoria(mesInfo) {
       if (colSiteIdx === -1 && (colNome.includes('site') || colNome.includes('codigo') || colNome.includes('id site') || colNome.includes('sigla'))) {
         colSiteIdx = c;
       }
-      if (colDataIdx === -1 && (colNome.includes('data') || colNome.includes('fecha') || colNome.includes('conclus') || colNome.includes('finaliz') || colNome.includes('atend'))) {
+      // Prioridade máxima para a coluna de Data de Status / Data Estado / Data Ativação
+      if ((colNome.includes('data') || colNome.includes('fecha')) && (colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac') || colNome.includes('ativ'))) {
         colDataIdx = c;
       }
       if (colStatusIdx === -1 && (colNome.includes('status') || colNome.includes('estado') || colNome.includes('situac'))) {
-        colStatusIdx = c;
+        if (!colNome.includes('data') && !colNome.includes('fecha')) {
+          colStatusIdx = c;
+        }
+      }
+    }
+
+    if (colDataIdx === -1) {
+      for (let c = 0; c < cabecalho.length; c++) {
+        const colNome = normalizarTexto(cabecalho[c]);
+        if (colNome.includes('data') || colNome.includes('fecha') || colNome.includes('conclus') || colNome.includes('finaliz') || colNome.includes('atend')) {
+          colDataIdx = c;
+          break;
+        }
       }
     }
 
@@ -496,15 +509,20 @@ function obterSitesSytexEmMemoria(mesInfo) {
             statusVal.includes('abort') ||
             statusVal.includes('desativ')
           );
-          const ehAtivo = statusVal ? statusVal.includes('ativ') : true;
+          const ehAtivo = statusVal ? (statusVal.includes('ativ') || statusVal === 'ativo' || statusVal === 'activa') : false;
 
-          if (ehInvalido || (statusVal && !ehAtivo)) {
+          if (ehInvalido || !ehAtivo) {
             continue;
           }
 
-          // Se houver data no Sytex e período especificado, valida o mês/ano
-          if (mesInfo && dataFinalObj) {
-            if (dataFinalObj.getFullYear() !== mesInfo.ano || dataFinalObj.getMonth() !== mesInfo.mesIndex) {
+          // Se houver período especificado, valida o mês/ano pela data de status
+          if (mesInfo) {
+            if (dataFinalObj) {
+              if (dataFinalObj.getFullYear() !== mesInfo.ano || dataFinalObj.getMonth() !== mesInfo.mesIndex) {
+                continue;
+              }
+            } else if (colDataIdx !== -1) {
+              // Se a coluna de data de status existe no arquivo mas está em branco para esta linha, não pertence ao mês
               continue;
             }
           }
@@ -604,7 +622,7 @@ function determinarIntegrador(responsavelRaw) {
   return 'BRISANET';
 }
 
-function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
+function carregarChamadosIntegracao(mesInfo, mapaSitesSytex) {
   const ss = SpreadsheetApp.openById(CONFIG.idOrigemIntegracao);
   let aba = ss.getSheetByName(CONFIG.abaOrigemIntegracao);
 
@@ -643,16 +661,9 @@ function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
     const vendorRaw = (linha[CONFIG.colIntegracaoVendor] || '').toString().trim().toUpperCase();
     const reportRaw = (linha[CONFIG.colIntegracaoReport] || '').toString().trim().toUpperCase();
     const dataRaw = linha[CONFIG.colIntegracaoDataFim];
-    const mesColRaw = linha[CONFIG.colIntegracaoMes];
-    const anoColRaw = linha[CONFIG.colIntegracaoAno];
     const responsavelRaw = (linha[CONFIG.colIntegracaoResponsavel] || '').toString().trim().toUpperCase();
 
     const statusNorm = normalizarTexto(statusRaw);
-
-    // Rejeita apenas chamados explicitamente cancelados na planilha de integração
-    if (statusNorm.includes('cancel')) {
-      continue;
-    }
 
     const dataFinalizadaObj = extrairData(dataRaw);
     const dataFormatada = dataFinalizadaObj ? formatarDataBR(dataFinalizadaObj) : (dataRaw ? String(dataRaw) : '');
@@ -674,17 +685,37 @@ function carregarChamadosIntegracao(mesInfo, mapaStatusGeralSytex) {
       chamado: `TK-${siteCanonico}-${mesInfo.ano}-${r + 1}`
     };
 
-    // Indexa no mapa geral de todos os sites da planilha de Integração (para busca resiliente)
-    // Prioriza manter a linha com responsável preenchido ou que pertence ao mês
+    // Indexa no mapa geral de todos os sites da planilha de Integração (para busca de apoio)
+    // Prioriza manter a linha com responsável preenchido ou que não esteja cancelada
     const existente = mapaGeralPorSite[siteCanonico];
-    if (!existente || (!existente.responsavel && responsavelRaw) || (pertenceAoMes && !existente.pertenceAoMes)) {
+    if (!existente || (!existente.responsavel && responsavelRaw)) {
       mapaGeralPorSite[siteCanonico] = registroChamado;
     }
 
-    // Se pertence ao mês especificado, inclui na lista oficial de chamados do mês
-    if (pertenceAoMes) {
-      chamadosMes.push(registroChamado);
+    // 1. Rejeita chamados explicitamente cancelados
+    if (statusNorm.includes('cancel')) {
+      continue;
     }
+
+    // 2. Rejeita chamados que ainda estão 'EM ATENDIMENTO' ou em andamento
+    // Regra oficial: apenas chamados CONCLUÍDOS entram no import
+    if (statusNorm.includes('atend') || statusNorm.includes('andamento') || statusNorm.includes('planej') || statusNorm.includes('execuc')) {
+      continue;
+    }
+
+    // 3. Regra de Validação Estrita com o Sytex:
+    // "mesmo que na planilha esteja com data de finalização, mas no arquivo do Sytex não esteja ativo ele não deve ser importado."
+    if (mapaSitesSytex && !mapaSitesSytex[siteCanonico]) {
+      continue;
+    }
+
+    // 4. Se a data na Coluna P não pertencer ao mês ativo, descarta
+    if (!pertenceAoMes) {
+      continue;
+    }
+
+    // Adiciona à lista de chamados oficiais concluídos do mês
+    chamadosMes.push(registroChamado);
   }
 
   return { chamadosMes, mapaGeralPorSite };
@@ -793,8 +824,7 @@ function carregarMapaHierarquiaDiagramas(sitesAlvoList) {
 
 function extrairSiteDaDescricao(texto) {
   if (!texto) return '';
-  const match = texto.match(/(?:^|[^A-Za-z0-9])([A-Z]{2,5}\d{2,5})(?=[^A-Za-z0-9]|$)/i);
-  return match ? match[1].toUpperCase() : '';
+  return extrairCodigoSiteCanonico(texto);
 }
 
 // ============================================================================
@@ -1047,25 +1077,32 @@ function extrairCodigoSiteCanonico(codigoBruto) {
   str = str.replace(/[\r\n\t\u00A0\u200B]/g, ' ').trim();
   str = str.replace(/\.0+$/, '');
 
-  // Se contém padrão de projeto de torre (ex: WL_RN-SMU0001-RN-SMU100-BRIT)
-  const matchTorre = str.match(/WL_[A-Z]{2}-([A-Z]{2,5}\d{2,5})/i);
+  // 1. Padrão de projeto de torre (ex: WL_RN-SMU0001-... ou WL_SE-SECD0001-...)
+  const matchTorre = str.match(/WL_[A-Z]{2}-([A-Z]{3,5}\d{3,5})/i);
   if (matchTorre) {
     return matchTorre[1].replace(/[-_\s]/g, '').toUpperCase();
   }
 
-  // Se tem prefixo de estado (ex: CE-ITN0004, CE - ITN-0004, PI-SFM0004)
-  const matchEstado = str.match(/(?:^|[^A-Za-z0-9])(?:AL|BA|CE|MA|MS|PB|PE|PI|RN|SE|GO|TO)\s*[-_]?\s*([A-Z]{2,5})[-_\s]?(\d{2,5})/i);
+  // 2. Prefixo de estado com HÍFEN/UNDERLINE OBRIGATÓRIO (ex: CE-ITN0004, PI-SFM0004, RN-SMU0001)
+  // O hífen é obrigatório e precisa vir seguido de 3 a 5 letras (ex: ITN, SECD) e 3 a 5 números.
+  // Isso EVITA cortar sites válidos de 4 letras como SECD0001, SECD0004, BARA0001, etc.
+  const matchEstado = str.match(/(?:^|[^A-Za-z0-9])(?:AL|BA|CE|MA|MS|PB|PE|PI|RN|SE|GO|TO)\s*[-_]\s*([A-Z]{3,5})[-_\s]?(\d{3,5})/i);
   if (matchEstado) {
     return (matchEstado[1] + matchEstado[2]).toUpperCase();
   }
 
-  // Padrão canônico de site: 2 a 5 letras seguidas de hífen/espaço opcional e 2 a 5 dígitos (ex: ITN-0004 -> ITN0004, SFM0004)
-  const matchGeral = str.match(/(?:^|[^A-Za-z0-9])([A-Z]{2,5})[-_\s]?(\d{2,5})(?=[^A-Za-z0-9]|$)/i);
+  // 3. Padrão canônico de site: 3 a 5 letras seguidas de hífen/espaço opcional e 3 a 5 dígitos (ex: SECD0001, SECD0004, ITN0004, SFM0004)
+  const matchGeral = str.match(/(?:^|[^A-Za-z0-9])([A-Z]{3,5})[-_\s]?(\d{3,5})(?=[^A-Za-z0-9]|$)/i);
   if (matchGeral) {
     return (matchGeral[1] + matchGeral[2]).toUpperCase();
   }
 
-  // Fallback: remove qualquer caractere não alfanumérico
+  // 4. Fallback para códigos com 2 letras (se não for sigla de estado isolada)
+  const matchCurto = str.match(/(?:^|[^A-Za-z0-9])([A-Z]{2})[-_\s]?(\d{3,5})(?=[^A-Za-z0-9]|$)/i);
+  if (matchCurto) {
+    return (matchCurto[1] + matchCurto[2]).toUpperCase();
+  }
+
   return str.replace(/[^A-Z0-9]/g, '');
 }
 
