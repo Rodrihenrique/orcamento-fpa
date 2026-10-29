@@ -230,8 +230,7 @@ function obterSitesSytexEmMemoria() {
   const opcoes = {
     method: 'GET',
     headers: {
-      'Authorization': `Basic ${credenciaisBase64}`,
-      'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/octet-stream'
+      'Authorization': `Basic ${credenciaisBase64}`
     },
     muteHttpExceptions: true
   };
