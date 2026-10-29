@@ -459,11 +459,25 @@ function salvarRelatorioCompletoSytexNoDriveMenu() {
     const arquivoXlsx = DriveApp.createFile(blob.setName(`SYTEX_Export_Original_${dataHoraFormatada}.xlsx`));
 
     // 2. Converte e cria a Planilha Google editável no Drive
-    const fileIdGoogleSheet = converterXlsxParaGoogleSheet(blob, nomePlanilha);
+    let fileIdGoogleSheet = null;
+    let dados = [];
+    try {
+      fileIdGoogleSheet = converterXlsxParaGoogleSheet(blob, nomePlanilha);
+      const ssSytex = SpreadsheetApp.openById(fileIdGoogleSheet);
+      dados = ssSytex.getSheets()[0].getDataRange().getValues();
+    } catch (errConv) {
+      console.warn('Conversão via Drive API falhou (' + errConv.message + '), gerando planilha Google via leitor nativo...');
+      dados = lerXlsxNativoEmMemoria(blob);
+      if (dados && dados.length > 0) {
+        const novaPlanilha = SpreadsheetApp.create(nomePlanilha);
+        const abaNova = novaPlanilha.getSheets()[0];
+        abaNova.getRange(1, 1, dados.length, dados[0].length).setValues(dados);
+        fileIdGoogleSheet = novaPlanilha.getId();
+      } else {
+        throw errConv;
+      }
+    }
     const sheetFile = DriveApp.getFileById(fileIdGoogleSheet);
-    const ssSytex = SpreadsheetApp.openById(fileIdGoogleSheet);
-    const abaPrincipal = ssSytex.getSheets()[0];
-    const dados = abaPrincipal.getDataRange().getValues();
 
     // 3. Organiza nas pastas do Drive (se a planilha ativa estiver em uma pasta, move para ela)
     try {
@@ -641,14 +655,37 @@ function obterSitesSytexEmMemoria(periodoInfo) {
 
   const blob = resposta.getBlob().setName('sytex_export_temp.xlsx');
   let tempFileId = null;
+  let dados = null;
+
+  // 1. TENTA LEITURA NATIVA EM MEMÓRIA (Zero dependência de Drive API, sem criar arquivo temporário)
+  try {
+    dados = lerXlsxNativoEmMemoria(blob);
+  } catch (e) {
+    console.warn('Leitura nativa em memória falhou: ' + e.message);
+  }
+
+  // 2. SE NÃO CONSEGUIU LER NATIVAMENTE, USA FALLBACK VIA CONVERSÃO DRIVE API
+  if (!dados || dados.length <= 1) {
+    try {
+      tempFileId = converterXlsxParaGoogleSheet(blob);
+      const ssTemp = SpreadsheetApp.openById(tempFileId);
+      const abaTemp = ssTemp.getSheets()[0];
+      dados = abaTemp.getDataRange().getValues();
+    } catch (eDrive) {
+      if (eDrive.message && eDrive.message.includes('403')) {
+        throw new Error(
+          'Google Drive API não está ativada neste projeto do Apps Script.\n\n' +
+          'COMO ATIVAR EM 2 CLIQUES:\n' +
+          '1. No editor do Apps Script (Extensões > Apps Script), clique no botão "+" ao lado de "Serviços".\n' +
+          '2. Localize "Google Drive API" (Identificador: Drive) e clique em "Adicionar".'
+        );
+      }
+      throw eDrive;
+    }
+  }
 
   try {
-    tempFileId = converterXlsxParaGoogleSheet(blob);
-    const ssTemp = SpreadsheetApp.openById(tempFileId);
-    const abaTemp = ssTemp.getSheets()[0];
-    const dados = abaTemp.getDataRange().getValues();
-
-    if (dados.length <= 1) {
+    if (!dados || dados.length <= 1) {
       return {};
     }
 
@@ -759,9 +796,150 @@ function obterSitesSytexEmMemoria(periodoInfo) {
   }
 }
 
+/**
+ * LEITOR NATIVO DE ARQUIVOS XLSX EM MEMÓRIA
+ * Permite ler os dados do Sytex diretamente via Utilities.unzip sem depender
+ * de criação de planilhas temporárias no Google Drive nem de ativação da Drive API.
+ */
+function lerXlsxNativoEmMemoria(blob) {
+  try {
+    const zipBlob = blob.copyBlob().setContentType('application/zip');
+    const arquivos = Utilities.unzip(zipBlob);
+
+    let sharedStringsXml = '';
+    let sheetXml = '';
+
+    for (let i = 0; i < arquivos.length; i++) {
+      const nome = arquivos[i].getName();
+      if (nome === 'xl/sharedStrings.xml') {
+        sharedStringsXml = arquivos[i].getDataAsString('UTF-8');
+      } else if (nome === 'xl/worksheets/sheet1.xml' || (!sheetXml && nome.startsWith('xl/worksheets/sheet'))) {
+        sheetXml = arquivos[i].getDataAsString('UTF-8');
+      }
+    }
+
+    if (!sheetXml) {
+      return null;
+    }
+
+    const sst = extrairStringsCompartilhadasXlsx(sharedStringsXml);
+    return extrairLinhasPlanilhaXlsx(sheetXml, sst);
+  } catch (e) {
+    console.warn('Leitor nativo XLSX falhou: ' + e.message);
+    return null;
+  }
+}
+
+function converterLetraColunaParaIndice(colStr) {
+  if (!colStr) return 0;
+  let idx = 0;
+  const upper = colStr.toUpperCase();
+  for (let i = 0; i < upper.length; i++) {
+    idx = idx * 26 + (upper.charCodeAt(i) - 64);
+  }
+  return idx - 1;
+}
+
+function extrairStringsCompartilhadasXlsx(xmlStr) {
+  if (!xmlStr) return [];
+  const strings = [];
+  const siMatches = xmlStr.match(/<si\b[^>]*>([\s\S]*?)<\/si>/gi) || [];
+  for (let i = 0; i < siMatches.length; i++) {
+    const tMatches = siMatches[i].match(/<t\b[^>]*>([\s\S]*?)<\/t>/gi) || [];
+    let texto = '';
+    for (let j = 0; j < tMatches.length; j++) {
+      texto += tMatches[j].replace(/<[^>]+>/g, '');
+    }
+    texto = texto
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+    strings.push(texto);
+  }
+  return strings;
+}
+
+function extrairLinhasPlanilhaXlsx(sheetXml, sharedStrings) {
+  if (!sheetXml) return [];
+  const rows = [];
+  const rowMatches = sheetXml.match(/<row\b[^>]*>([\s\S]*?)<\/row>/gi) || [];
+
+  for (let r = 0; r < rowMatches.length; r++) {
+    const rowContent = rowMatches[r];
+    const cellMatches = rowContent.match(/<c\b[^>]*>([\s\S]*?)<\/c>|<c\b[^>]*\/>/gi) || [];
+    const row = [];
+    let maxCol = -1;
+
+    for (let c = 0; c < cellMatches.length; c++) {
+      const cell = cellMatches[c];
+      const rMatch = cell.match(/r="([A-Z]+)(\d+)"/i);
+      const tMatch = cell.match(/t="([a-z]+)"/i);
+      const vMatch = cell.match(/<v>([\s\S]*?)<\/v>/i);
+      const isMatch = cell.match(/<is>[\s\S]*?<t\b[^>]*>([\s\S]*?)<\/t>[\s\S]*?<\/is>/i);
+
+      let colIdx = c;
+      if (rMatch) {
+        colIdx = converterLetraColunaParaIndice(rMatch[1]);
+      }
+
+      let val = '';
+      const type = tMatch ? tMatch[1].toLowerCase() : '';
+
+      if (isMatch) {
+        val = isMatch[1].replace(/<[^>]+>/g, '').replace(/&amp;/g, '&');
+      } else if (vMatch) {
+        const raw = vMatch[1].trim();
+        if (type === 's') {
+          const sIdx = parseInt(raw, 10);
+          val = (sharedStrings && sharedStrings[sIdx] !== undefined) ? sharedStrings[sIdx] : raw;
+        } else if (type === 'str') {
+          val = raw.replace(/&amp;/g, '&');
+        } else if (type === 'b') {
+          val = (raw === '1');
+        } else {
+          const num = Number(raw);
+          val = isNaN(num) ? raw : num;
+        }
+      }
+
+      row[colIdx] = val;
+      if (colIdx > maxCol) maxCol = colIdx;
+    }
+
+    for (let k = 0; k <= maxCol; k++) {
+      if (row[k] === undefined) row[k] = '';
+    }
+
+    if (row.length > 0) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
+}
+
 function converterXlsxParaGoogleSheet(blob, tituloPersonalizado) {
+  const titulo = tituloPersonalizado || ('temp_sytex_conversion_' + new Date().getTime());
+
+  // 1. Se o serviço avançado Drive estiver ativado no Apps Script, usa diretamente
+  if (typeof Drive !== 'undefined' && Drive.Files && Drive.Files.insert) {
+    try {
+      const fileResource = {
+        title: titulo,
+        mimeType: MimeType.GOOGLE_SHEETS
+      };
+      const novoArquivo = Drive.Files.insert(fileResource, blob, { convert: true });
+      return novoArquivo.id;
+    } catch (e) {
+      console.warn('Drive.Files.insert falhou, tentando REST API: ' + e.message);
+    }
+  }
+
+  // 2. Fallback via REST API multipart
   const metadata = {
-    title: tituloPersonalizado || ('temp_sytex_conversion_' + new Date().getTime()),
+    title: titulo,
     mimeType: 'application/vnd.google-apps.spreadsheet'
   };
 
@@ -798,6 +976,16 @@ function converterXlsxParaGoogleSheet(blob, tituloPersonalizado) {
   if (statusCode >= 200 && statusCode < 300) {
     const json = JSON.parse(respostaTexto);
     return json.id;
+  }
+
+  if (statusCode === 403) {
+    throw new Error(
+      `Falha ao converter arquivo .xlsx (HTTP 403): Google Drive API não está ativada neste projeto do Apps Script.\n\n` +
+      `COMO ATIVAR NO EDITOR DO APPS SCRIPT:\n` +
+      `1. No menu à esquerda, clique no botão "+" ao lado de "Serviços" (Services).\n` +
+      `2. Localize "Google Drive API" (Identificador: Drive).\n` +
+      `3. Clique em "Adicionar".`
+    );
   }
 
   throw new Error(`Falha ao converter arquivo .xlsx (HTTP ${statusCode}): ${respostaTexto.slice(0, 300)}`);
