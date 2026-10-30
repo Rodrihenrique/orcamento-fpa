@@ -886,15 +886,24 @@ function obterSitesSytexEmMemoria(periodoInfo) {
             continue;
           }
 
-          const pertencePeriodo = dataFinalObj ? verificarPertenceAoPeriodo(dataFinalObj, periodoInfo) : true;
+          // FILTRO ESTRITO POR PERÍODO DO SYTEX:
+          // Apenas sites com status ATIVO cuja data de status pertença ao período selecionado (ex: OUT/2026)!
+          // Sites de outros meses/anos são descartados para evitar importar todo o histórico do Sytex.
+          if (periodoInfo) {
+            if (!dataFinalObj) {
+              continue; // Sem data de status identificável no Sytex, descarta
+            }
+            if (!verificarPertenceAoPeriodo(dataFinalObj, periodoInfo)) {
+              continue; // Data de status fora do período selecionado -> DESCARTA!
+            }
+          }
 
           if (!mapaSitesSytex[siteHigienizado]) {
             mapaSitesSytex[siteHigienizado] = {
               site: siteHigienizado,
               data: formatarDataBR(dataFinalObj || (colDataIdx !== -1 ? linha[colDataIdx] : '')),
               dataObj: dataFinalObj,
-              status: statusVal || 'Ativo',
-              pertenceAoPeriodo: pertencePeriodo
+              status: statusVal || 'Ativo'
             };
           }
         }
@@ -1281,8 +1290,8 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
     // Validação oficial primária: Pela data na Coluna P (CHAMADO FINALIZADO) dentro do período selecionado
     let pertenceAoPeriodo = verificarPertenceAoPeriodo(dataRaw, periodoInfo);
 
-    // Validação complementar pelas Colunas S (Mês) e T (Ano) ou pelo Sytex (garante todas as 82 linhas)
-    if (!pertenceAoPeriodo && periodoInfo) {
+    // Validação complementar pelas Colunas S (Mês) e T (Ano) apenas se dataRaw na Coluna P estiver vazia
+    if (!pertenceAoPeriodo && periodoInfo && (!dataRaw || String(dataRaw).trim() === '')) {
       if (mesColRaw && anoColRaw) {
         const mesLinhaNorm = normalizarTexto(mesColRaw);
         const anoLinhaStr = String(anoColRaw).trim();
@@ -1294,13 +1303,6 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
             dataFinalizadaObj = new Date(periodoInfo.ano, periodoInfo.mesIndex, 1, 12, 0, 0);
             dataFormatada = formatarDataBR(dataFinalizadaObj);
           }
-        }
-      }
-      if (!pertenceAoPeriodo && mapaSitesSytex && mapaSitesSytex[siteCanonico] && mapaSitesSytex[siteCanonico].pertenceAoPeriodo) {
-        pertenceAoPeriodo = true;
-        if (!dataFinalizadaObj && mapaSitesSytex[siteCanonico].dataObj) {
-          dataFinalizadaObj = mapaSitesSytex[siteCanonico].dataObj;
-          dataFormatada = mapaSitesSytex[siteCanonico].data;
         }
       }
     }
@@ -1326,25 +1328,20 @@ function carregarChamadosIntegracao(periodoInfo, mapaSitesSytex) {
       mapaGeralPorSite[siteCanonico] = registroChamado;
     }
 
-    // 1. Rejeita chamados explicitamente cancelados
-    if (statusNorm.includes('cancel')) {
+    // 1. Rejeita chamados explicitamente cancelados ou rejeitados
+    if (statusNorm.includes('cancel') || statusNorm.includes('rejeit')) {
       continue;
     }
 
-    // 2. Rejeita chamados que ainda estão 'EM ATENDIMENTO' ou em andamento
-    // Regra oficial: apenas chamados CONCLUÍDOS entram no import
-    if (statusNorm.includes('atend') || statusNorm.includes('andamento') || statusNorm.includes('planej') || statusNorm.includes('execuc')) {
+    // 2. Validação da Data na Coluna P (CHAMADO FINALIZADO) dentro do período selecionado
+    if (!pertenceAoPeriodo) {
       continue;
     }
 
     // 3. Regra de Validação Estrita com o Sytex:
     // "mesmo que na planilha esteja com data de finalização, mas no arquivo do Sytex não esteja ativo ele não deve ser importado."
-    if (mapaSitesSytex && !mapaSitesSytex[siteCanonico]) {
-      continue;
-    }
-
-    // 4. Se a data na Coluna P não pertencer ao período ativo, descarta
-    if (!pertenceAoPeriodo) {
+    // "Se na coluna C o status estiver EM ATENDIMENTO ou AGUARDANDO e tenha data de Chamado finalizado na coluna P, se ele não estiver com status ativo no arquivo do Sytex, esse site específico não será importado."
+    if (!mapaSitesSytex || !mapaSitesSytex[siteCanonico]) {
       continue;
     }
 
@@ -1693,7 +1690,7 @@ function gravarTabelaUnicaNaAba(planDestino, linhasDados, nomeAba, totais) {
   rangeCabecalho.setHorizontalAlignment('center');
 
   // 5. Limpa os dados e formatações antigos a partir da linha 5 (limpa 10 colunas para remover a antiga coluna J)
-  const maxLinhas = Math.max(planDestino.getLastRow(), 50);
+  const maxLinhas = Math.max(planDestino.getLastRow(), planDestino.getMaxRows(), 50);
   if (maxLinhas >= CONFIG.linhaDadosInicial) {
     planDestino.getRange(CONFIG.linhaDadosInicial, 1, maxLinhas - CONFIG.linhaDadosInicial + 1, 10).clear({ contentsOnly: true, formatOnly: true });
   }
