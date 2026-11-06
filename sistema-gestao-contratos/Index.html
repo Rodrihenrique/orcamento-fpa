@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Painel de Contratos | Gestão Telefonia - a brisanet</title>
+  <title>Painel de Contratos | Gestão Telefonia - brisanet</title>
   <!-- Tipografia Oficial: Figtree (primária) e Rubik (secundária) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +18,7 @@
       --brisa-blue: #2242D4;         /* Azul brisanet principal */
       --brisa-gray-light: #E8E8E8;   /* Cinza claro neutro */
 
+
       /* Cores Secundárias Oficiais */
       --brisa-terracotta: #9F4016;   /* Terracota */
       --brisa-orange-sec: #E47D20;   /* Laranja secundário */
@@ -26,11 +27,13 @@
       --brisa-pink: #DA2468;         /* Magenta / Rosa */
       --brisa-dark-blue: #0B316D;    /* Azul marinho profundo */
 
+
       /* Mapeamento Semântico da Aplicação */
       --primary: var(--brisa-blue);
       --primary-hover: var(--brisa-dark-blue);
       --primary-light: #f0f3ff;
       --primary-border: #c7d2fe;
+
 
       --brand-orange: var(--brisa-orange);
       --bg-body: #f8fafc;
@@ -41,22 +44,27 @@
       --text-muted: #64748b;
       --text-label: #1e293b;
 
+
       /* Badges de Status e Risco */
       --badge-active-bg: var(--brisa-lime);
       --badge-active-text: var(--brisa-dark-blue);
       --badge-active-border: #bbf750;
 
+
       --badge-warning-bg: var(--brisa-peach);
       --badge-warning-text: #78350f;
       --badge-warning-border: #fcd34d;
+
 
       --badge-danger-bg: #fee2e2;
       --badge-danger-text: var(--brisa-pink);
       --badge-danger-border: #fecdd3;
 
+
       --badge-neutral-bg: var(--brisa-gray-light);
       --badge-neutral-text: var(--brisa-dark-blue);
       --badge-neutral-border: #cbd5e1;
+
 
       --radius-sm: 6px;
       --radius-md: 8px;
@@ -68,25 +76,29 @@
       --font-family: 'Figtree', 'Rubik', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
+
     * {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
     }
 
+
     body {
       font-family: var(--font-family);
       background-color: var(--bg-body);
       color: var(--text-main);
-      line-height: 1.5;
-      padding: 24px;
+      line-height: 1.4;
+      padding: 16px;
       -webkit-font-smoothing: antialiased;
     }
+
 
     .container {
       max-width: 1380px;
       margin: 0 auto;
     }
+
 
     /* ==========================================================================
        CABEÇALHO PRINCIPAL
@@ -105,11 +117,13 @@
       gap: 16px;
     }
 
+
     .brand-section {
       display: flex;
       align-items: center;
       gap: 16px;
     }
+
 
     .brand-logo-pill {
       background: var(--brisa-orange);
@@ -127,6 +141,7 @@
       text-transform: lowercase;
     }
 
+
     .brand-titles h1 {
       font-size: 18px;
       font-weight: 800;
@@ -136,10 +151,12 @@
       gap: 8px;
     }
 
+
     .brand-divider {
       color: #cbd5e1;
       font-weight: 300;
     }
+
 
     .brand-subtitle {
       font-size: 11px;
@@ -149,12 +166,14 @@
       margin-top: 2px;
     }
 
+
     .header-meta {
       display: flex;
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
     }
+
 
     .user-pill {
       display: inline-flex;
@@ -169,6 +188,7 @@
       font-weight: 500;
     }
 
+
     .status-dot {
       width: 8px;
       height: 8px;
@@ -176,6 +196,7 @@
       border-radius: 50%;
       box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
     }
+
 
     .sheet-status-pill {
       display: inline-flex;
@@ -189,6 +210,7 @@
       color: var(--brisa-dark-blue);
       font-weight: 600;
     }
+
 
     .header-link-btn {
       display: inline-flex;
@@ -205,10 +227,12 @@
       transition: all 0.15s ease;
     }
 
+
     .header-link-btn:hover {
       background: #dbeafe;
       border-color: #93c5fd;
     }
+
 
     /* ==========================================================================
        ABAS DE NAVEGAÇÃO
@@ -219,6 +243,7 @@
       gap: 8px;
       margin-bottom: 24px;
     }
+
 
     .tab-btn {
       padding: 10px 22px;
@@ -235,16 +260,19 @@
       gap: 8px;
     }
 
+
     .tab-btn:hover {
       color: var(--text-main);
       background-color: #e2e8f0;
     }
+
 
     .tab-btn.active {
       background-color: var(--primary);
       color: #ffffff;
       box-shadow: 0 2px 4px rgba(29, 78, 216, 0.25);
     }
+
 
     /* ==========================================================================
        SUB-NAVEGAÇÃO INTERNA DA LISTA DE CONTRATOS (CONTRATOS vs LINKS OFF-NET)
@@ -259,6 +287,7 @@
       border-radius: var(--radius-lg);
       border: 1px solid var(--border-color);
     }
+
 
     .subpage-nav-btn {
       display: inline-flex;
@@ -276,10 +305,12 @@
       font-family: inherit;
     }
 
+
     .subpage-nav-btn:hover {
       color: var(--text-main);
       background: #e2e8f0;
     }
+
 
     .subpage-nav-btn.active {
       background: var(--primary);
@@ -287,6 +318,7 @@
       border-color: var(--primary);
       box-shadow: 0 2px 4px rgba(34, 66, 212, 0.2);
     }
+
 
     .subpage-count-badge {
       display: inline-flex;
@@ -303,10 +335,12 @@
       transition: all 0.2s ease;
     }
 
+
     .subpage-nav-btn.active .subpage-count-badge {
       background: rgba(255, 255, 255, 0.25);
       color: #ffffff;
     }
+
 
     .badge-implantacao {
       background-color: #dbeafe;
@@ -314,11 +348,13 @@
       border-color: #bfdbfe;
     }
 
+
     .badge-analise {
       background-color: #f3e8ff;
       color: #6b21a8;
       border-color: #e9d5ff;
     }
+
 
     .badge-uf {
       display: inline-flex;
@@ -334,6 +370,7 @@
       letter-spacing: 0.5px;
     }
 
+
     .badge-banda {
       display: inline-flex;
       align-items: center;
@@ -347,22 +384,25 @@
       border: 1px solid #bfdbfe;
     }
 
+
     /* ==========================================================================
        CARDS E SEÇÕES DO FORMULÁRIO
        ========================================================================== */
     .form-card {
       background: var(--bg-card);
       border: 1px solid var(--border-color);
-      border-radius: var(--radius-lg);
-      padding: 24px 28px;
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
       box-shadow: var(--shadow-sm);
-      margin-bottom: 24px;
+      margin-bottom: 16px;
       transition: box-shadow 0.2s ease;
     }
+
 
     .form-card:hover {
       box-shadow: var(--shadow-md);
     }
+
 
     .section-title {
       font-size: 13px;
@@ -370,16 +410,18 @@
       letter-spacing: 0.6px;
       text-transform: uppercase;
       color: var(--primary);
-      margin-bottom: 20px;
+      margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
+
     .grid {
       display: grid;
-      gap: 16px 20px;
+      gap: 12px 16px;
     }
+
 
     .grid-cols-1 { grid-template-columns: 1fr; }
     .grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
@@ -389,14 +431,16 @@
     .col-span-3 { grid-column: span 3; }
     .col-span-full { grid-column: 1 / -1; }
 
+
     .form-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
 
+
     .form-label {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-label);
       display: flex;
@@ -404,9 +448,11 @@
       gap: 4px;
     }
 
+
     .form-label .required {
       color: #dc2626;
     }
+
 
     .form-label .help-hint {
       font-weight: 400;
@@ -414,19 +460,21 @@
       color: var(--text-muted);
     }
 
+
     .form-control {
       width: 100%;
-      height: 42px;
-      padding: 8px 14px;
-      font-size: 14px;
+      height: 34px;
+      padding: 4px 10px;
+      font-size: 13px;
       font-family: inherit;
       color: var(--text-main);
       background-color: #f8fafc;
       border: 1px solid #cbd5e1;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-sm);
       transition: all 0.15s ease;
       outline: none;
     }
+
 
     .form-control:focus {
       background-color: #ffffff;
@@ -434,9 +482,11 @@
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
 
+
     .form-control::placeholder {
       color: #94a3b8;
     }
+
 
     .form-control:read-only {
       background-color: #f1f5f9;
@@ -444,12 +494,14 @@
       cursor: not-allowed;
     }
 
+
     textarea.form-control {
       height: auto;
-      min-height: 84px;
+      min-height: 60px;
       resize: vertical;
-      padding: 10px 14px;
+      padding: 8px 10px;
     }
+
 
     select.form-control {
       appearance: none;
@@ -460,6 +512,7 @@
       padding-right: 36px;
       cursor: pointer;
     }
+
 
     /* ==========================================================================
        ÁREA DE ANEXO DE ARQUIVOS (DRAG & DROP)
@@ -475,11 +528,13 @@
       position: relative;
     }
 
+
     .dropzone-container:hover,
     .dropzone-container.drag-over {
       border-color: var(--primary);
       background-color: var(--primary-light);
     }
+
 
     .dropzone-icon {
       width: 44px;
@@ -488,6 +543,7 @@
       color: var(--primary);
     }
 
+
     .dropzone-title {
       font-size: 15px;
       font-weight: 600;
@@ -495,14 +551,17 @@
       margin-bottom: 4px;
     }
 
+
     .dropzone-subtitle {
       font-size: 13px;
       color: var(--text-muted);
     }
 
+
     .file-input-hidden {
       display: none;
     }
+
 
     .attached-files-list {
       margin-top: 16px;
@@ -510,6 +569,7 @@
       flex-direction: column;
       gap: 8px;
     }
+
 
     .attached-file-item {
       display: flex;
@@ -522,6 +582,7 @@
       font-size: 13px;
     }
 
+
     .file-info {
       display: flex;
       align-items: center;
@@ -529,12 +590,14 @@
       overflow: hidden;
     }
 
+
     .file-info-icon {
       color: var(--primary);
       flex-shrink: 0;
       width: 18px;
       height: 18px;
     }
+
 
     .file-name {
       font-weight: 600;
@@ -545,10 +608,12 @@
       max-width: 450px;
     }
 
+
     .file-size {
       font-size: 12px;
       color: var(--text-muted);
     }
+
 
     .file-remove-btn {
       background: transparent;
@@ -563,9 +628,11 @@
       transition: background 0.15s ease;
     }
 
+
     .file-remove-btn:hover {
       background: #fee2e2;
     }
+
 
     .drive-notice {
       margin-top: 12px;
@@ -579,6 +646,7 @@
       gap: 8px;
     }
 
+
     /* ==========================================================================
        BARRA DE AÇÕES DO FORMULÁRIO
        ========================================================================== */
@@ -591,16 +659,17 @@
       margin-bottom: 40px;
     }
 
+
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
-      height: 44px;
-      padding: 0 24px;
-      font-size: 14px;
+      gap: 6px;
+      height: 34px;
+      padding: 0 16px;
+      font-size: 13px;
       font-weight: 600;
-      border-radius: var(--radius-md);
+      border-radius: var(--radius-sm);
       cursor: pointer;
       transition: all 0.15s ease;
       border: 1px solid transparent;
@@ -608,16 +677,19 @@
       text-decoration: none;
     }
 
+
     .btn-secondary {
       background-color: #ffffff;
       border-color: #cbd5e1;
       color: var(--text-label);
     }
 
+
     .btn-secondary:hover {
       background-color: #f1f5f9;
       border-color: #94a3b8;
     }
+
 
     .btn-primary {
       background-color: var(--primary);
@@ -625,9 +697,11 @@
       box-shadow: 0 2px 4px rgba(29, 78, 216, 0.25);
     }
 
+
     .btn-primary:hover {
       background-color: var(--primary-hover);
     }
+
 
     .btn-primary:disabled {
       background-color: #93c5fd;
@@ -635,12 +709,14 @@
       box-shadow: none;
     }
 
+
     /* ==========================================================================
        LISTA DE CONTRATOS (DASHBOARD)
        ========================================================================== */
     .list-section-header {
       margin-bottom: 20px;
     }
+
 
     .list-section-label {
       font-size: 12px;
@@ -651,6 +727,7 @@
       margin-bottom: 16px;
     }
 
+
     /* CARDS DE RESUMO */
     .stats-row {
       display: grid;
@@ -659,6 +736,7 @@
       margin-bottom: 20px;
     }
 
+
     .stat-card {
       background: #ffffff;
       border: 1px solid var(--border-color);
@@ -666,6 +744,7 @@
       padding: 16px 20px;
       box-shadow: var(--shadow-sm);
     }
+
 
     .stat-card-title {
       font-size: 12px;
@@ -676,11 +755,13 @@
       margin-bottom: 6px;
     }
 
+
     .stat-card-value {
       font-size: 22px;
       font-weight: 700;
       color: var(--text-main);
     }
+
 
     /* BARRA DE PESQUISA E FILTROS */
     .search-filter-card {
@@ -697,11 +778,13 @@
       flex-wrap: wrap;
     }
 
+
     .search-input-wrapper {
       flex: 1;
       min-width: 280px;
       position: relative;
     }
+
 
     .search-icon {
       position: absolute;
@@ -712,6 +795,7 @@
       height: 16px;
       color: #94a3b8;
     }
+
 
     .search-input {
       width: 100%;
@@ -725,17 +809,20 @@
       transition: all 0.15s ease;
     }
 
+
     .search-input:focus {
       background-color: #ffffff;
       border-color: var(--border-focus);
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
     }
 
+
     .filter-group {
       display: flex;
       align-items: center;
       gap: 10px;
     }
+
 
     .filter-select {
       height: 42px;
@@ -749,6 +836,7 @@
       cursor: pointer;
     }
 
+
     /* TABELA DE CONTRATOS */
     .table-container {
       background: #ffffff;
@@ -758,6 +846,7 @@
       overflow-x: auto;
     }
 
+
     .contracts-table {
       width: 100%;
       border-collapse: collapse;
@@ -765,39 +854,45 @@
       font-size: 13px;
     }
 
+
     .contracts-table th {
       background-color: #f8fafc;
-      padding: 12px 14px;
-      font-size: 11px;
+      padding: 8px 12px;
+      font-size: 10px;
       font-weight: 700;
-      letter-spacing: 0.6px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
       color: var(--text-muted);
       border-bottom: 1px solid var(--border-color);
       white-space: nowrap;
     }
 
+
     .contracts-table td {
-      padding: 10px 14px;
+      padding: 6px 12px;
       border-bottom: 1px solid #f1f5f9;
       color: var(--text-main);
       vertical-align: middle;
-      font-size: 13px;
+      font-size: 12px;
     }
+
 
     .contracts-table tbody tr:hover {
       background-color: #f8fafc;
     }
 
+
     .contracts-table tbody tr:last-child td {
       border-bottom: none;
     }
+
 
     .id-col {
       width: 65px;
       text-align: center;
       white-space: nowrap;
     }
+
 
     .id-badge {
       display: inline-flex;
@@ -814,6 +909,7 @@
       border-radius: 6px;
     }
 
+
     .supplier-col {
       font-weight: 700;
       color: var(--brisa-dark-blue);
@@ -821,6 +917,7 @@
       font-size: 13px;
       line-height: 1.3;
     }
+
 
     .object-col {
       max-width: 260px;
@@ -830,6 +927,7 @@
       color: var(--text-label);
     }
 
+
     .date-col {
       white-space: nowrap;
       font-family: monospace;
@@ -837,11 +935,13 @@
       color: #334155;
     }
 
+
     .value-col {
       font-weight: 700;
       white-space: nowrap;
       color: var(--text-main);
     }
+
 
     .badge {
       display: inline-flex;
@@ -856,11 +956,13 @@
       white-space: nowrap;
     }
 
+
     .badge-ativo {
       background-color: var(--badge-active-bg);
       color: var(--badge-active-text);
       border-color: var(--badge-active-border);
     }
+
 
     .badge-renovacao {
       background-color: var(--badge-warning-bg);
@@ -868,27 +970,32 @@
       border-color: var(--badge-warning-border);
     }
 
+
     .badge-encerrado {
       background-color: var(--badge-neutral-bg);
       color: var(--badge-neutral-text);
       border-color: var(--badge-neutral-border);
     }
 
+
     .badge-risco-baixo {
       background-color: #f1f5f9;
       color: #475569;
     }
+
 
     .badge-risco-medio {
       background-color: #fef9c3;
       color: #854d0e;
     }
 
+
     .badge-risco-alto {
       background-color: #fee2e2;
       color: #991b1b;
       font-weight: 700;
     }
+
 
     .table-action-btn {
       background: #ffffff;
@@ -902,11 +1009,13 @@
       transition: all 0.15s ease;
     }
 
+
     .table-action-btn:hover {
       background: var(--primary-light);
       border-color: var(--primary-border);
       color: var(--primary);
     }
+
 
     /* ==========================================================================
        MODAL DE DETALHES / MENSAGENS / SPINNER
@@ -926,9 +1035,11 @@
       backdrop-filter: blur(2px);
     }
 
+
     .modal-overlay.active {
       display: flex;
     }
+
 
     .modal-card {
       background: #ffffff;
@@ -944,10 +1055,12 @@
       animation: modalFadeIn 0.2s ease-out;
     }
 
+
     @keyframes modalFadeIn {
       from { opacity: 0; transform: translateY(12px) scale(0.98); }
       to { opacity: 1; transform: translateY(0) scale(1); }
     }
+
 
     .modal-header {
       padding: 20px 24px;
@@ -957,11 +1070,13 @@
       justify-content: space-between;
     }
 
+
     .modal-title {
       font-size: 17px;
       font-weight: 700;
       color: var(--text-main);
     }
+
 
     .modal-close-btn {
       background: transparent;
@@ -974,16 +1089,19 @@
       border-radius: 4px;
     }
 
+
     .modal-close-btn:hover {
       color: var(--text-main);
       background-color: #f1f5f9;
     }
+
 
     .modal-body {
       padding: 24px;
       overflow-y: auto;
       font-size: 14px;
     }
+
 
     .modal-footer {
       padding: 16px 24px;
@@ -995,11 +1113,13 @@
       background: #f8fafc;
     }
 
+
     .detail-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 12px;
     }
+
 
     .detail-item {
       display: flex;
@@ -1013,25 +1133,30 @@
       position: relative;
     }
 
+
     .detail-item:hover {
       background: #f1f5f9;
       border-color: #cbd5e1;
       box-shadow: 0 2px 6px rgba(11, 49, 109, 0.04);
     }
 
+
     .detail-item-full {
       grid-column: span 2;
     }
+
 
     .detail-item-destaque {
       border-color: #fbd5c8;
       background: #fff9f6;
     }
 
+
     .detail-item-destaque:hover {
       border-color: var(--brisa-orange);
       background: #fff4ed;
     }
+
 
     .detail-label-row {
       display: flex;
@@ -1041,6 +1166,7 @@
       margin-bottom: 2px;
     }
 
+
     .detail-label {
       font-size: 11px;
       font-weight: 700;
@@ -1048,6 +1174,7 @@
       letter-spacing: 0.5px;
       color: var(--text-muted);
     }
+
 
     .detail-value {
       font-size: 14px;
@@ -1057,12 +1184,14 @@
       line-height: 1.4;
     }
 
+
     .detail-hint {
       font-size: 11px;
       color: var(--text-muted);
       margin-top: 2px;
       font-style: italic;
     }
+
 
     .btn-edit-field-icon {
       background: transparent;
@@ -1081,11 +1210,13 @@
       line-height: 1;
     }
 
+
     .detail-item:hover .btn-edit-field-icon {
       color: var(--brisa-blue);
       border-color: #cbd5e1;
       background: #ffffff;
     }
+
 
     .btn-edit-field-icon:hover {
       color: #ffffff !important;
@@ -1095,6 +1226,7 @@
       box-shadow: 0 2px 4px rgba(34, 66, 212, 0.2);
     }
 
+
     /* ==========================================================================
        CÉLULA DE NOTAS ORGANIZADA (INLINE E COMPACTA)
        ========================================================================== */
@@ -1103,12 +1235,14 @@
       max-width: 320px;
     }
 
+
     .note-cell-box {
       display: flex;
       align-items: center;
       gap: 6px;
       width: 100%;
     }
+
 
     .note-input-container {
       position: relative;
@@ -1117,6 +1251,7 @@
       align-items: center;
       min-width: 120px;
     }
+
 
     .note-row-input {
       width: 100%;
@@ -1133,10 +1268,12 @@
       box-sizing: border-box;
     }
 
+
     .note-row-input:focus {
       border-color: var(--brisa-blue);
       box-shadow: 0 0 0 2px rgba(34, 66, 212, 0.12);
     }
+
 
     .btn-note-expand-icon {
       position: absolute;
@@ -1155,10 +1292,12 @@
       transition: color 0.15s ease;
     }
 
+
     .btn-note-expand-icon:hover {
       color: var(--brisa-blue);
       background-color: #f1f5f9;
     }
+
 
     .note-row-btns {
       display: flex;
@@ -1166,6 +1305,7 @@
       gap: 4px;
       flex-shrink: 0;
     }
+
 
     .btn-note-save {
       height: 32px;
@@ -1185,15 +1325,18 @@
       white-space: nowrap;
     }
 
+
     .btn-note-save:hover {
       background-color: var(--brisa-dark-blue);
       border-color: var(--brisa-dark-blue);
     }
 
+
     .btn-note-save.saved {
       background-color: #16a34a;
       border-color: #16a34a;
     }
+
 
     .btn-note-mail {
       height: 32px;
@@ -1213,10 +1356,12 @@
       white-space: nowrap;
     }
 
+
     .btn-note-mail:hover {
       background-color: #f0f3ff;
       border-color: var(--brisa-blue);
     }
+
 
     .actions-col {
       width: 90px;
@@ -1224,12 +1369,14 @@
       white-space: nowrap;
     }
 
+
     /* ==========================================================================
        TAGS DE VENCIMENTO, RISCO E MODAL AMPLIADO DE DETALHES / EDIÇÃO
        ========================================================================== */
     .modal-card-lg {
       max-width: 880px;
     }
+
 
     .expiry-tag {
       display: inline-flex;
@@ -1243,11 +1390,13 @@
       white-space: nowrap;
     }
 
+
     .expiry-90d {
       background-color: #eff6ff;
       color: #1d4ed8;
       border: 1px solid #bfdbfe;
     }
+
 
     .expiry-60d {
       background-color: #fff7ed;
@@ -1255,11 +1404,13 @@
       border: 1px solid #ffedd5;
     }
 
+
     .expiry-30d {
       background-color: #fef2f2;
       color: #b91c1c;
       border: 1px solid #fecaca;
     }
+
 
     .expiry-7d {
       background-color: #ffe4e6;
@@ -1269,11 +1420,13 @@
       animation: pulseRisk 2s infinite;
     }
 
+
     .expiry-vencido {
       background-color: #f1f5f9;
       color: #64748b;
       border: 1px solid #cbd5e1;
     }
+
 
     .badge-risco-vencimento {
       background-color: #fee2e2;
@@ -1282,10 +1435,12 @@
       font-weight: 700;
     }
 
+
     @keyframes pulseRisk {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.7; }
     }
+
 
     .expiry-alert-callout {
       background-color: #fffbeb;
@@ -1301,6 +1456,7 @@
       flex-wrap: wrap;
     }
 
+
     .expiry-alert-callout-text {
       font-size: 13px;
       color: #92400e;
@@ -1308,9 +1464,11 @@
       flex: 1;
     }
 
+
     .expiry-alert-callout-text strong {
       color: var(--brisa-dark-blue);
     }
+
 
     .edit-section-title {
       font-size: 12px;
@@ -1323,6 +1481,7 @@
       margin: 16px 0 12px 0;
     }
 
+
     .acessos-quick-container {
       margin-top: 6px;
       display: flex;
@@ -1330,6 +1489,7 @@
       gap: 6px;
       align-items: center;
     }
+
 
     .acessos-quick-chip {
       background: #f1f5f9;
@@ -1345,11 +1505,13 @@
       gap: 4px;
     }
 
+
     .acessos-quick-chip:hover {
       background: var(--primary-light);
       border-color: var(--brisa-blue);
       color: var(--brisa-blue);
     }
+
 
     /* ==========================================================================
        HISTÓRICO DE ALTERAÇÕES NO MODAL DE DETALHES
@@ -1360,6 +1522,7 @@
       padding-top: 20px;
       border-top: 1px solid var(--border-color);
     }
+
 
     .history-header-title {
       font-size: 12px;
@@ -1373,6 +1536,7 @@
       justify-content: space-between;
     }
 
+
     .history-list {
       display: flex;
       flex-direction: column;
@@ -1381,6 +1545,7 @@
       overflow-y: auto;
       padding-right: 4px;
     }
+
 
     .history-card {
       background: #f8fafc;
@@ -1391,6 +1556,7 @@
       font-size: 12px;
     }
 
+
     .history-card-header {
       display: flex;
       justify-content: space-between;
@@ -1400,20 +1566,24 @@
       color: var(--text-muted);
     }
 
+
     .history-card-user {
       font-weight: 700;
       color: var(--brisa-dark-blue);
     }
+
 
     .history-card-date {
       font-family: monospace;
       color: #64748b;
     }
 
+
     .history-card-body {
       color: var(--text-label);
       line-height: 1.4;
     }
+
 
     .history-card-diff {
       margin-top: 6px;
@@ -1425,9 +1595,11 @@
       color: #334155;
     }
 
+
     .history-card-diff strong {
       color: var(--brisa-orange);
     }
+
 
     .history-empty-msg {
       font-size: 12px;
@@ -1440,12 +1612,14 @@
       border: 1px dashed var(--border-color);
     }
 
+
     /* ==========================================================================
        MODAL DE ENVIO DE E-MAIL DE REGISTRO
        ========================================================================== */
     .email-modal-card {
       max-width: 600px;
     }
+
 
     .email-summary-box {
       background: #f0f3ff;
@@ -1456,6 +1630,7 @@
       font-size: 13px;
     }
 
+
     .email-summary-row {
       display: flex;
       justify-content: space-between;
@@ -1463,9 +1638,11 @@
       gap: 12px;
     }
 
+
     .email-summary-row:last-child {
       margin-bottom: 0;
     }
+
 
     .email-summary-label {
       color: var(--text-muted);
@@ -1476,6 +1653,7 @@
       white-space: nowrap;
     }
 
+
     .email-summary-val {
       color: var(--brisa-dark-blue);
       font-weight: 700;
@@ -1483,12 +1661,14 @@
       word-break: break-word;
     }
 
+
     .email-chips-container {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
       margin-top: 6px;
     }
+
 
     .email-chip {
       background: #ffffff;
@@ -1503,11 +1683,13 @@
       user-select: none;
     }
 
+
     .email-chip:hover {
       background: var(--primary-light);
       border-color: var(--brisa-blue);
       color: var(--brisa-blue);
     }
+
 
     /* TOAST NOTIFICAÇÃO */
     .toast-container {
@@ -1519,6 +1701,7 @@
       flex-direction: column;
       gap: 10px;
     }
+
 
     .toast {
       background: #ffffff;
@@ -1536,18 +1719,22 @@
       animation: toastIn 0.25s ease-out;
     }
 
+
     @keyframes toastIn {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
 
+
     .toast-success {
       border-left: 4px solid #22c55e;
     }
 
+
     .toast-error {
       border-left: 4px solid #ef4444;
     }
+
 
     /* SPINNER */
     .spinner {
@@ -1560,15 +1747,18 @@
       display: inline-block;
     }
 
+
     .spinner-dark {
       border: 2px solid rgba(0, 0, 0, 0.1);
       border-top: 2px solid var(--primary);
     }
 
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
 
     /* ESTADOS DE CARREGAMENTO */
     .loading-overlay {
@@ -1582,12 +1772,14 @@
       font-size: 14px;
     }
 
+
     /* RESPONSIVIDADE */
     @media (max-width: 900px) {
       .grid-cols-4, .grid-cols-3 { grid-template-columns: repeat(2, 1fr); }
       .stats-row { grid-template-columns: repeat(2, 1fr); }
       body { padding: 16px; }
     }
+
 
     @media (max-width: 600px) {
       .grid-cols-4, .grid-cols-3, .grid-cols-2 { grid-template-columns: 1fr; }
@@ -1596,11 +1788,77 @@
       .header-card { flex-direction: column; align-items: flex-start; }
       .search-filter-card { flex-direction: column; align-items: stretch; }
     }
+
+
+    /* ==========================================================================
+       CONTROLES DE PAGINAÇÃO DA TABELA
+       ========================================================================== */
+    .pagination-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #ffffff;
+      border: 1px solid var(--border-color);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      margin-top: -1px; /* Junta a borda com a tabela acima */
+    }
+
+
+    .pagination-info {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+
+    .pagination-controls {
+      display: flex;
+      gap: 4px;
+    }
+
+
+    .page-btn {
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-label);
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+
+    .page-btn:hover:not(:disabled) {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: var(--primary-border);
+    }
+
+
+    .page-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
+
+
+    .page-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+
   </style>
 </head>
 <body>
 
+
 <div class="container">
+
 
   <!-- ========================================================================
        CABEÇALHO CORPORATIVO - A BRISANET
@@ -1614,19 +1872,11 @@
           <span class="brand-divider">|</span>
           Gestão Telefonia
         </h1>
-        <div class="brand-subtitle">GERÊNCIA EXECUTIVA DE TELEFONIA · a brisanet</div>
+        <div class="brand-subtitle">GERÊNCIA EXECUTIVA DE TELEFONIA · BRISANET</div>
       </div>
     </div>
     
     <div class="header-meta">
-      <div class="sheet-status-pill" id="sheetStatusDisplay" title="Aba da Planilha Conectada">
-        <span class="status-dot"></span>
-        <span id="sheetNameDisplay">Conectando à planilha...</span>
-      </div>
-      <div class="user-pill" title="Usuário autenticado">
-        <span class="status-dot"></span>
-        <span id="userEmailDisplay">usuario.compras@grupobrisanet.com.br</span>
-      </div>
       <a id="spreadsheetHeaderLink" href="https://docs.google.com/spreadsheets/d/1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I/edit?gid=531593901" target="_blank" class="header-link-btn" title="Abrir Planilha de Contratos">
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
@@ -1642,6 +1892,7 @@
     </div>
   </header>
 
+
   <!-- ========================================================================
        BARRA DE ABAS
        ======================================================================== -->
@@ -1654,11 +1905,13 @@
     </button>
   </div>
 
+
   <!-- ========================================================================
        CONTEÚDO DA ABA: NOVO CONTRATO
        ======================================================================== -->
   <div id="viewNovoContrato">
     <form id="contractForm" onsubmit="submeterFormulario(event)">
+
 
       <!-- SEÇÃO 1: DADOS DO FORNECEDOR E OBJETO -->
       <section class="form-card">
@@ -1675,6 +1928,7 @@
             <input type="text" id="campoId" class="form-control" placeholder="Automático se em branco">
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoFornecedor">
               Fornecedor <span class="required">*</span>
@@ -1683,6 +1937,7 @@
             <datalist id="listFornecedores"></datalist>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoCnpj">
               CNPJ <span class="required">*</span>
@@ -1690,12 +1945,14 @@
             <input type="text" id="campoCnpj" class="form-control" placeholder="00.000.000/0000-00" maxlength="18" oninput="aplicarMascaraCnpj(this)" required>
           </div>
 
+
           <div class="form-group col-span-3">
             <label class="form-label" for="campoObjeto">
               Objeto do Contrato <span class="required">*</span>
             </label>
             <input type="text" id="campoObjeto" class="form-control" placeholder="Descrição resumida do serviço ou fornecimento" required>
           </div>
+
 
           <div class="form-group">
             <label class="form-label" for="campoCentroCusto">
@@ -1705,6 +1962,7 @@
             <datalist id="listCentrosCusto"></datalist>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoCategoria">
               Categoria / Pacote
@@ -1713,12 +1971,14 @@
             <datalist id="listCategorias"></datalist>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoContratoPo">
               Contrato / PO
             </label>
             <input type="text" id="campoContratoPo" class="form-control" placeholder="Ex: PO-2026-001 / CTR-123">
           </div>
+
 
           <div class="form-group col-span-3">
             <label class="form-label" for="campoContaContabil">
@@ -1728,8 +1988,10 @@
             <datalist id="listContasContabeis"></datalist>
           </div>
 
+
         </div>
       </section>
+
 
       <!-- SEÇÃO 2: RESPONSÁVEIS, VIGÊNCIA E STATUS -->
       <section class="form-card">
@@ -1737,6 +1999,7 @@
           2. RESPONSÁVEIS, VIGÊNCIA E STATUS
         </div>
         <div class="grid grid-cols-4">
+
 
           <div class="form-group">
             <label class="form-label" for="campoGerente">
@@ -1746,6 +2009,7 @@
             <datalist id="listGerentes"></datalist>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoAdministrativo">
               Apoio Administrativo
@@ -1753,6 +2017,7 @@
             <input type="text" id="campoAdministrativo" class="form-control" list="listAdministrativos" placeholder="Ex: Fernanda">
             <datalist id="listAdministrativos"></datalist>
           </div>
+
 
           <div class="form-group">
             <label class="form-label" for="campoTipo">
@@ -1767,6 +2032,7 @@
             </select>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoStatus">
               Status Atual
@@ -1780,6 +2046,7 @@
             </select>
           </div>
 
+
           <div class="form-group col-span-2">
             <label class="form-label" for="campoInicioVigencia">
               Início da Vigência
@@ -1787,12 +2054,17 @@
             <input type="date" id="campoInicioVigencia" class="form-control">
           </div>
 
+
           <div class="form-group">
-            <label class="form-label" for="campoFimVigencia">
-              Fim da Vigência
+            <label class="form-label" for="campoFimVigencia" style="justify-content: space-between;">
+              <span>Fim da Vigência</span>
+              <label style="display:flex; align-items:center; gap:4px; font-weight:normal; font-size:11px; cursor:pointer; color:var(--text-muted);">
+                <input type="checkbox" id="campoVigenciaIndeterminada" onchange="toggleVigenciaIndeterminada(this)" style="cursor:pointer; margin:0;"> Indeterminada
+              </label>
             </label>
             <input type="date" id="campoFimVigencia" class="form-control">
           </div>
+
 
           <div class="form-group">
             <label class="form-label" for="campoRenovacaoAutomatica">
@@ -1804,8 +2076,10 @@
             </select>
           </div>
 
+
         </div>
       </section>
+
 
       <!-- SEÇÃO 3: VALORES, PERIODICIDADE E REAJUSTES -->
       <section class="form-card">
@@ -1813,6 +2087,7 @@
           3. VALORES, PERIODICIDADE E REAJUSTES
         </div>
         <div class="grid grid-cols-4">
+
 
           <div class="form-group">
             <label class="form-label" for="campoMoeda">
@@ -1826,6 +2101,7 @@
             </select>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoTaxaCambio">
               Taxa de Câmbio
@@ -1834,12 +2110,14 @@
             <input type="text" id="campoTaxaCambio" class="form-control" value="1,00">
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoValorLancamento">
               Valor por Lançamento <span class="required">*</span>
             </label>
             <input type="text" id="campoValorLancamento" class="form-control" placeholder="0,00" oninput="aplicarMascaraMoeda(this)" required>
           </div>
+
 
           <div class="form-group">
             <label class="form-label" for="campoPeriodicidade">
@@ -1855,6 +2133,7 @@
             </select>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoPrimeiraCompetencia">
               1ª Competência
@@ -1862,12 +2141,14 @@
             <input type="date" id="campoPrimeiraCompetencia" class="form-control">
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoDataReajuste">
               Data do Reajuste
             </label>
             <input type="date" id="campoDataReajuste" class="form-control">
           </div>
+
 
           <div class="form-group">
             <label class="form-label" for="campoIndice">
@@ -1882,6 +2163,7 @@
             </select>
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoReajusteManual">
               Reajuste Manual (%)
@@ -1890,12 +2172,14 @@
             <input type="text" id="campoReajusteManual" class="form-control" placeholder="Ex: 4,50%">
           </div>
 
+
           <div class="form-group">
             <label class="form-label" for="campoImpostos">
               Impostos / Encargos (%)
             </label>
             <input type="text" id="campoImpostos" class="form-control" placeholder="Ex: 2,00%">
           </div>
+
 
           <div class="form-group">
             <label class="form-label" for="campoContingencia">
@@ -1904,8 +2188,10 @@
             <input type="text" id="campoContingencia" class="form-control" placeholder="Ex: 5,00%">
           </div>
 
+
         </div>
       </section>
+
 
       <!-- SEÇÃO 4: GOVERNANÇA, RISCO E MEMÓRIA DE CÁLCULO -->
       <section class="form-card">
@@ -1913,6 +2199,7 @@
           4. GOVERNANÇA, RISCO E MEMÓRIA DE CÁLCULO
         </div>
         <div class="grid grid-cols-3">
+
 
           <div class="form-group">
             <label class="form-label" for="campoRisco">
@@ -1925,12 +2212,14 @@
             </select>
           </div>
 
+
           <div class="form-group col-span-2">
             <label class="form-label" for="campoDescricaoRisco">
               Descrição do Risco / Contingência
             </label>
             <input type="text" id="campoDescricaoRisco" class="form-control" placeholder="Justificativa do risco ou reserva orçamentária">
           </div>
+
 
           <div class="form-group col-span-3">
             <label class="form-label" for="campoMemoriaCalculo">
@@ -1939,6 +2228,7 @@
             <textarea id="campoMemoriaCalculo" class="form-control" placeholder="Informações de suporte, cotação, histórico, quantidade ou detalhamento de custos..."></textarea>
           </div>
 
+
           <div class="form-group col-span-3">
             <label class="form-label" for="campoObservacoes">
               Observações Gerais
@@ -1946,14 +2236,17 @@
             <textarea id="campoObservacoes" class="form-control" placeholder="Anotações internas, condições de pagamento, prazos de renovação..."></textarea>
           </div>
 
+
         </div>
       </section>
+
 
       <!-- SEÇÃO 5: ANEXO DE ARQUIVOS (DRAG & DROP NO GOOGLE DRIVE) -->
       <section class="form-card">
         <div class="section-title">
           5. DOCUMENTOS E ANEXOS (GOOGLE DRIVE)
         </div>
+
 
         <div class="dropzone-container" id="dropzoneArea" onclick="document.getElementById('fileInput').click()">
           <input type="file" id="fileInput" class="file-input-hidden" multiple onchange="processarArquivosSelecionados(this.files)">
@@ -1964,8 +2257,10 @@
           <div class="dropzone-subtitle">Suporta arquivos PDF, planilhas XLSX, documentos Word, imagens e contratos assinados</div>
         </div>
 
+
         <!-- LISTAGEM DOS ARQUIVOS SELECIONADOS -->
         <div class="attached-files-list" id="attachedFilesList"></div>
+
 
         <div class="drive-notice">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1974,6 +2269,7 @@
           <span>Todos os anexos são salvos automaticamente na pasta oficial <strong>"Contratos - Anexos"</strong> do Google Drive e vinculados à planilha.</span>
         </div>
       </section>
+
 
       <!-- BARRA DE AÇÕES -->
       <div class="form-actions-bar">
@@ -1985,38 +2281,16 @@
         </button>
       </div>
 
+
     </form>
   </div>
+
 
   <!-- ========================================================================
        CONTEÚDO DA ABA: LISTA DE CONTRATOS (DASHBOARD)
        ======================================================================== -->
   <div id="viewListaContratos" style="display: none;">
-    
-    <!-- SUB-NAVEGAÇÃO: CONTRATOS DE TELEFONIA vs LINKS CONTRATADOS (OFF-NET) -->
-    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 20px;">
-      <div class="subpage-nav-bar">
-        <button type="button" class="subpage-nav-btn active" id="btnSubpageContratos" onclick="mudarSubpaginaLista('contratos')">
-          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <span>Contratos de Telefonia</span>
-          <span class="subpage-count-badge" id="badgeQtdContratos">0</span>
-        </button>
-        <button type="button" class="subpage-nav-btn" id="btnSubpageLinks" onclick="mudarSubpaginaLista('links')">
-          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-          <span>Links Contratados (Off-Net / Provedores)</span>
-          <span class="subpage-count-badge" id="badgeQtdLinks">0</span>
-        </button>
-      </div>
 
-      <div style="font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
-        <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--primary);"></span>
-        <span>Gerência Executiva de Telefonia · Operação Off-Net</span>
-      </div>
-    </div>
 
     <!-- ====================================================================
          SUBPÁGINA 1: CONTRATOS DE TELEFONIA (BASE GERAL)
@@ -2025,6 +2299,7 @@
       <div class="list-section-header">
         <div class="list-section-label">BASE GERAL DE CONTRATOS ATIVOS E INATIVOS</div>
       </div>
+
 
       <!-- CARDS DE ESTATÍSTICAS -->
       <div class="stats-row">
@@ -2050,6 +2325,7 @@
         </div>
       </div>
 
+
       <!-- BARRA DE PESQUISA E FILTROS -->
       <div class="search-filter-card">
         <div class="search-input-wrapper">
@@ -2058,6 +2334,7 @@
           </svg>
           <input type="text" id="filtroTexto" class="search-input" placeholder="Buscar por ID, Fornecedor ou Objeto..." oninput="filtrarTabela()">
         </div>
+
 
         <div class="filter-group">
           <select id="filtroStatus" class="filter-select" onchange="filtrarTabela()">
@@ -2068,6 +2345,7 @@
             <option value="Suspenso">Suspenso</option>
           </select>
 
+
           <select id="filtroRisco" class="filter-select" onchange="filtrarTabela()">
             <option value="">Risco: Todos</option>
             <option value="Baixo">Baixo</option>
@@ -2076,12 +2354,14 @@
             <option value="vencimento90">A Vencer (&le; 90 dias)</option>
           </select>
 
+
           <button type="button" class="btn btn-secondary" style="height: 42px; padding: 0 14px;" onclick="dispararVerificacaoVencimentos()" title="Verificar prazos de vencimento e enviar alertas por e-mail para a equipe da aba Acessos">
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
             Verificar Vencimentos
           </button>
+
 
           <button type="button" class="btn btn-primary" style="height: 42px; padding: 0 18px;" onclick="carregarDadosServidor(true)">
             <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2092,8 +2372,9 @@
         </div>
       </div>
 
+
       <!-- TABELA -->
-      <div class="table-container">
+      <div class="table-container" style="border-bottom-left-radius: 0; border-bottom-right-radius: 0;">
         <table class="contracts-table">
           <thead>
             <tr>
@@ -2104,13 +2385,12 @@
               <th>VALOR / MÊS</th>
               <th style="text-align:center;">STATUS</th>
               <th style="text-align:center;">RISCO</th>
-              <th class="notes-cell-col">NOTAS</th>
               <th class="actions-col">AÇÕES</th>
             </tr>
           </thead>
           <tbody id="contractsTableBody">
             <tr>
-              <td colspan="9">
+              <td colspan="8">
                 <div class="loading-overlay">
                   <div class="spinner spinner-dark" style="width:24px;height:24px;"></div>
                   <span>Carregando contratos da planilha...</span>
@@ -2120,127 +2400,15 @@
           </tbody>
         </table>
       </div>
+      <!-- CONTROLES DE PAGINAÇÃO -->
+      <div id="paginacaoContainer" class="pagination-container"></div>
     </div>
 
-    <!-- ====================================================================
-         SUBPÁGINA 2: LINKS CONTRATADOS (CIRCUITOS OFF-NET DE OUTROS PROVEDORES)
-         ==================================================================== -->
-    <div id="subpageLinks" style="display: none;">
-      <div class="list-section-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <div class="list-section-label">CIRCUITOS E LINKS DE INTERNET (OFF-NET)</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-            Links contratados de provedores e operadoras parceiras para atender localidades onde a Brisanet ainda não possui rede própria
-          </div>
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button type="button" class="btn btn-secondary" style="height: 38px; padding: 0 14px; font-size: 12px;" onclick="abrirModalNovoLinkSimulado()">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Novo Link Off-Net
-          </button>
-        </div>
-      </div>
-
-      <!-- CARDS DE ESTATÍSTICAS DOS LINKS -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-card-title">Total de Links</div>
-          <div class="stat-card-value" id="statTotalLinks">--</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-title">Links Ativos</div>
-          <div class="stat-card-value" id="statLinksAtivos">--</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-title">Custo Mensal Total</div>
-          <div class="stat-card-value" id="statValorMensalLinks">--</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-title">Provedores Parceiros</div>
-          <div class="stat-card-value" id="statProvedoresParceiros">--</div>
-        </div>
-        <div class="stat-card" style="border-left: 3px solid var(--brisa-orange);">
-          <div class="stat-card-title" style="color:var(--brisa-orange);">A Vencer (&le; 90 dias)</div>
-          <div class="stat-card-value" id="statLinksVencendo" style="color:var(--brisa-orange);">--</div>
-        </div>
-      </div>
-
-      <!-- BARRA DE PESQUISA E FILTROS DOS LINKS -->
-      <div class="search-filter-card">
-        <div class="search-input-wrapper">
-          <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input type="text" id="filtroTextoLinks" class="search-input" placeholder="Buscar por ID, Provedor, Cidade/UF, Cliente ou Designador..." oninput="filtrarTabelaLinks()">
-        </div>
-
-        <div class="filter-group">
-          <select id="filtroStatusLinks" class="filter-select" onchange="filtrarTabelaLinks()">
-            <option value="">Status: Todos</option>
-            <option value="Ativo">Ativo</option>
-            <option value="Em Implantação">Em Implantação</option>
-            <option value="Em Renovação">Em Renovação</option>
-            <option value="Em Análise">Em Análise</option>
-          </select>
-
-          <select id="filtroUfLinks" class="filter-select" onchange="filtrarTabelaLinks()">
-            <option value="">UF: Todas</option>
-            <option value="CE">Ceará (CE)</option>
-            <option value="RN">Rio Grande do Norte (RN)</option>
-            <option value="PB">Paraíba (PB)</option>
-            <option value="PE">Pernambuco (PE)</option>
-            <option value="AL">Alagoas (AL)</option>
-            <option value="SE">Sergipe (SE)</option>
-            <option value="BA">Bahia (BA)</option>
-            <option value="PI">Piauí (PI)</option>
-            <option value="MA">Maranhão (MA)</option>
-          </select>
-
-          <select id="filtroCapacidadeLinks" class="filter-select" onchange="filtrarTabelaLinks()">
-            <option value="">Banda: Todas</option>
-            <option value="Ate500M">Até 500 Mbps</option>
-            <option value="1G">1 Gbps</option>
-            <option value="2GouMais">2 Gbps ou mais</option>
-          </select>
-
-          <button type="button" class="btn btn-secondary" style="height: 42px; padding: 0 14px;" onclick="limparFiltrosLinks()" title="Limpar filtros da lista de links">
-            Limpar
-          </button>
-        </div>
-      </div>
-
-      <!-- TABELA DE LINKS CONTRATADOS -->
-      <div class="table-container">
-        <table class="contracts-table">
-          <thead>
-            <tr>
-              <th class="id-col" style="width: 140px;">ID / DESIGNADOR</th>
-              <th>PROVEDOR PARCEIRO</th>
-              <th>CLIENTE / PROJETO ATENDIDO</th>
-              <th>LOCALIDADE / UF</th>
-              <th>BANDA / MEIO</th>
-              <th>VALOR MENSAL</th>
-              <th>VENCIMENTO</th>
-              <th style="text-align:center;">STATUS</th>
-              <th class="actions-col" style="width: 110px;">AÇÕES</th>
-            </tr>
-          </thead>
-          <tbody id="linksTableBody">
-            <!-- Linhas de links off-net geradas dinamicamente -->
-          </tbody>
-        </table>
-      </div>
-    </div>
 
   </div>
 
-</div>
 
-<!-- ========================================================================
-     MODAL DE DETALHES DO CONTRATO (VISUALIZAÇÃO E EDIÇÃO COMPLETA)
-     ======================================================================== -->
+</div>
 <!-- ========================================================================
      MODAL DE DETALHES DO CONTRATO (VISUALIZAÇÃO COM EDIÇÃO VIA LÁPIS)
      ======================================================================== -->
@@ -2259,10 +2427,30 @@
       <!-- BANNER DE ALERTA DE VENCIMENTO -->
       <div id="detalhesExpiryBanner" style="display:none;"></div>
 
+
       <!-- GRADE DE CAMPOS DO CONTRATO (COM ÍCONE DE LÁPIS EM CADA RESPOSTA) -->
       <div id="modalDetalhesView">
         <div class="detail-grid" id="modalDetalhesCorpo"></div>
       </div>
+
+
+      <!-- BARRA RÁPIDA DE NOTAS E REGISTROS (MOVIDA DA TABELA) -->
+      <div style="margin-top: 20px; padding: 16px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: var(--radius-md);">
+        <div style="font-size:12px; font-weight:700; color:var(--brisa-blue); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">Nota / Registro Rápido</div>
+        <div class="note-cell-box">
+          <div class="note-input-container">
+            <input type="text" class="note-row-input" id="modalQuickNoteInput" placeholder="Adicionar nova nota ou acordo..." onkeydown="if(event.key==='Enter') salvarNotaModal()">
+            <button type="button" class="btn-note-expand-icon" onclick="abrirModalEditarNota(appState.detalhesIndexAtual)" title="Abrir editor completo de notas">
+              <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+            </button>
+          </div>
+          <div class="note-row-btns">
+            <button type="button" class="btn-note-save" id="btnSaveNoteModal" onclick="salvarNotaModal()">Salvar</button>
+            <button type="button" class="btn-note-mail" onclick="abrirModalEmail(appState.detalhesIndexAtual)">E-mail</button>
+          </div>
+        </div>
+      </div>
+
 
       <!-- HISTÓRICO DE ALTERAÇÕES E AUDITORIA (SEMPRE VISÍVEL NO MODAL) -->
       <div class="history-section-wrapper">
@@ -2283,6 +2471,7 @@
   </div>
 </div>
 
+
 <!-- ========================================================================
      MODAL DE EDIÇÃO DE CAMPO INDIVIDUAL (LÁPIS)
      ======================================================================== -->
@@ -2300,11 +2489,13 @@
       <input type="hidden" id="editCampoContratoId" value="">
       <input type="hidden" id="editCampoRowNumber" value="">
 
+
       <div class="modal-body" style="display:flex;flex-direction:column;gap:16px;">
         <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;">
           <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;">Valor Atual</div>
           <div id="modalEditarCampoValorAtual" style="font-size:14px;font-weight:600;color:var(--text-main);margin-top:4px;word-break:break-word;">-</div>
         </div>
+
 
         <div class="form-group" style="margin-bottom:0;">
           <label class="form-label required" id="modalEditarCampoLabelNovo">Novo Valor</label>
@@ -2317,6 +2508,7 @@
         </div>
       </div>
 
+
       <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:10px;">
         <button type="button" class="btn btn-secondary" onclick="fecharModalEditarCampo()">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btnSalvarCampoIndividual">
@@ -2326,6 +2518,7 @@
     </form>
   </div>
 </div>
+
 
 <!-- ========================================================================
      MODAL DE ENVIO DE E-MAIL DE REGISTRO
@@ -2353,9 +2546,11 @@
           </div>
         </div>
 
+
         <input type="hidden" id="emailContratoId" value="">
         <input type="hidden" id="emailContratoProtocol" value="">
         <input type="hidden" id="emailContratoStatus" value="">
+
 
         <div class="form-group" style="margin-bottom:14px;">
           <label class="form-label" for="campoEmailDestinatarios">
@@ -2375,12 +2570,14 @@
           <div class="acessos-quick-container" id="emailAcessosChipsContainer"></div>
         </div>
 
+
         <div class="form-group" style="margin-bottom:14px;">
           <label class="form-label" for="campoEmailAssunto">
             Assunto do E-mail <span class="required">*</span>
           </label>
           <input type="text" id="campoEmailAssunto" class="form-control" required>
         </div>
+
 
         <div class="form-group">
           <label class="form-label" for="campoEmailMensagem">
@@ -2397,6 +2594,7 @@
     </form>
   </div>
 </div>
+
 
 <!-- ========================================================================
      MODAL DE EDIÇÃO DE NOTAS DO CONTRATO
@@ -2419,7 +2617,9 @@
         </div>
       </div>
 
+
       <input type="hidden" id="modalNotaIndex" value="">
+
 
       <div class="form-group" style="margin-bottom: 12px;">
         <label class="form-label" for="modalNotaTextarea">
@@ -2428,6 +2628,7 @@
         <textarea id="modalNotaTextarea" class="form-control" rows="6" 
                   placeholder="Digite aqui acordos, dados extras ou observações do contrato..."></textarea>
       </div>
+
 
       <div style="font-size:11px;color:var(--text-muted);line-height:1.4;">
         Ao salvar, o registro é gravado na coluna 32 (AF) da planilha e registrado no histórico de alterações.
@@ -2444,147 +2645,32 @@
         </button>
       </div>
     </div>
-  <!-- ========================================================================
-     MODAL DE DETALHES DO LINK CONTRATADO (CIRCUITO OFF-NET)
-     ======================================================================== -->
-<div class="modal-overlay" id="modalDetalhesLink">
-  <div class="modal-card modal-card-lg">
-    <div class="modal-header">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <div class="modal-title" id="modalLinkTitulo">Detalhes do Link Off-Net</div>
-        <span id="modalLinkBadgeStatus"></span>
-        <span id="modalLinkBadgeUf" class="badge-uf"></span>
-      </div>
-      <button type="button" class="modal-close-btn" onclick="fecharModalDetalhesLink()">×</button>
-    </div>
-    <div class="modal-body">
-      <!-- BANNER DE ALERTA DE VENCIMENTO DO LINK -->
-      <div id="modalLinkExpiryBanner" style="display:none;"></div>
-
-      <!-- GRADE DE DETALHES TÉCNICOS E CONTRATUAIS DO LINK -->
-      <div class="detail-grid" id="modalLinkCorpo"></div>
-
-      <!-- INFORMAÇÕES DE REDE E SUPORTE NOC -->
-      <div class="history-section-wrapper" style="margin-top:20px;">
-        <div class="history-header-title">
-          <span>Dados Técnicos de Engenharia e Operação NOC</span>
-          <span style="font-size:11px;font-weight:600;color:var(--text-muted);">Suporte Operacional</span>
-        </div>
-        <div id="modalLinkDadosNoc" style="padding:14px;background:#f8fafc;border-radius:var(--radius-md);border:1px solid #e2e8f0;font-size:12px;line-height:1.6;color:var(--text-main);">
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
-        <div style="font-size:11px;color:var(--text-muted);">
-          Circuito off-net fornecido por parceiro homologado Brisanet.
-        </div>
-        <button type="button" class="btn btn-secondary" onclick="fecharModalDetalhesLink()">Fechar</button>
-      </div>
-    </div>
   </div>
-</div>
+</div> 
+
 
 <!-- ========================================================================
-     MODAL DE CADASTRO DE NOVO LINK CONTRATADO (SIMULADO / FICTÍCIO)
+     MODAL DE RELATÓRIO DE VERIFICAÇÃO DE VENCIMENTOS
      ======================================================================== -->
-<div class="modal-overlay" id="modalNovoLink">
-  <div class="modal-card" style="max-width: 650px;">
+<div class="modal-overlay" id="modalRelatorioVencimentos" style="z-index: 2000;">
+  <div class="modal-card" style="max-width: 520px;">
     <div class="modal-header">
-      <div>
-        <div class="modal-title">Cadastrar Novo Link Off-Net</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-          Adicionar novo circuito contratado de provedor parceiro
-        </div>
-      </div>
-      <button type="button" class="modal-close-btn" onclick="fecharModalNovoLinkSimulado()">×</button>
+      <div class="modal-title">Diagnóstico de Vencimentos</div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalRelatorioVencimentos()">×</button>
     </div>
-    <form id="formNovoLinkSimulado" onsubmit="salvarNovoLinkSimulado(event)">
-      <div class="modal-body">
-        <div class="grid grid-cols-2" style="gap:12px;">
-          <div class="form-group">
-            <label class="form-label" for="novoLinkProvedor">Provedor Parceiro <span class="required">*</span></label>
-            <input type="text" id="novoLinkProvedor" class="form-control" required placeholder="Ex: V.tal, Embratel, Cirion, Provedor Regional">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="novoLinkCliente">Cliente / Projeto Atendido <span class="required">*</span></label>
-            <input type="text" id="novoLinkCliente" class="form-control" required placeholder="Ex: Cliente B2B Banco do Nordeste, POP Off-Net">
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3" style="gap:12px;">
-          <div class="form-group" style="grid-column: span 2;">
-            <label class="form-label" for="novoLinkLocalidade">Cidade / Localidade <span class="required">*</span></label>
-            <input type="text" id="novoLinkLocalidade" class="form-control" required placeholder="Ex: Juazeiro do Norte, Mossoró, Sobral">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="novoLinkUf">UF <span class="required">*</span></label>
-            <select id="novoLinkUf" class="form-control" required>
-              <option value="CE">CE</option>
-              <option value="RN">RN</option>
-              <option value="PB">PB</option>
-              <option value="PE">PE</option>
-              <option value="AL">AL</option>
-              <option value="SE">SE</option>
-              <option value="BA">BA</option>
-              <option value="PI">PI</option>
-              <option value="MA">MA</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-2" style="gap:12px;">
-          <div class="form-group">
-            <label class="form-label" for="novoLinkCapacidade">Capacidade / Banda <span class="required">*</span></label>
-            <input type="text" id="novoLinkCapacidade" class="form-control" required placeholder="Ex: 500 Mbps PTP, 1 Gbps Dedicado">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="novoLinkTecnologia">Meio / Tecnologia <span class="required">*</span></label>
-            <select id="novoLinkTecnologia" class="form-control" required>
-              <option value="Fibra Óptica Dedicada">Fibra Óptica Dedicada</option>
-              <option value="Lan-to-Lan DWDM">Lan-to-Lan DWDM</option>
-              <option value="Rádio Digital Micro-ondas">Rádio Digital Micro-ondas</option>
-              <option value="Trânsito IP BGP">Trânsito IP BGP</option>
-              <option value="MPLS IP-VPN">MPLS IP-VPN</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-3" style="gap:12px;">
-          <div class="form-group">
-            <label class="form-label" for="novoLinkValor">Valor Mensal (R$) <span class="required">*</span></label>
-            <input type="number" step="0.01" id="novoLinkValor" class="form-control" required placeholder="Ex: 2500.00">
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="novoLinkVencimento">Vencimento <span class="required">*</span></label>
-            <input type="date" id="novoLinkVencimento" class="form-control" required>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="novoLinkStatus">Status <span class="required">*</span></label>
-            <select id="novoLinkStatus" class="form-control" required>
-              <option value="Ativo">Ativo</option>
-              <option value="Em Implantação">Em Implantação</option>
-              <option value="Em Renovação">Em Renovação</option>
-              <option value="Em Análise">Em Análise</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label" for="novoLinkObs">Observações Técnicas / Justificativa</label>
-          <textarea id="novoLinkObs" class="form-control" rows="2" placeholder="Ex: Atendimento off-net de urgência para licitação corporativa..."></textarea>
-        </div>
-      </div>
-      <div class="modal-footer" style="justify-content: flex-end; gap: 8px;">
-        <button type="button" class="btn btn-secondary" onclick="fecharModalNovoLinkSimulado()">Cancelar</button>
-        <button type="submit" class="btn btn-primary">Cadastrar Link</button>
-      </div>
-    </form>
+    <div class="modal-body" id="modalRelatorioBody" style="padding: 24px;">
+      <!-- O conteúdo do relatório será injetado dinamicamente via JavaScript -->
+    </div>
+    <div class="modal-footer" style="justify-content: flex-end;">
+      <button type="button" class="btn btn-secondary" onclick="fecharModalRelatorioVencimentos()">Fechar Relatório</button>
+    </div>
   </div>
 </div>
+
 
 <!-- CONTAINER DE TOASTS -->
 <div class="toast-container" id="toastContainer"></div>
+
 
 <!-- ========================================================================
      SCRIPTS DE FUNCIONAMENTO (JAVASCRIPT CLIENT-SIDE)
@@ -2593,6 +2679,9 @@
   // Estado da Aplicação
   var appState = {
     contracts: [],
+    filteredContracts: [],
+    currentPage: 1,
+    itemsPerPage: 15,
     filesToUpload: [],
     nextId: 1,
     nextProtocol: '',
@@ -2603,11 +2692,13 @@
     linksContratados: []
   };
 
+
   // Inicialização ao carregar página
   window.addEventListener('DOMContentLoaded', function() {
     configurarDropzone();
     carregarDadosServidor(false);
   });
+
 
   // Alternância de Abas Principais
   function trocarAba(aba) {
@@ -2616,6 +2707,7 @@
     var btnLista = document.getElementById('tabBtnLista');
     var viewNovo = document.getElementById('viewNovoContrato');
     var viewLista = document.getElementById('viewListaContratos');
+
 
     if (aba === 'novo') {
       btnNovo.classList.add('active');
@@ -2635,6 +2727,7 @@
     }
   }
 
+
   // Alternância entre Subpáginas da Lista: Contratos vs Links Off-Net
   function mudarSubpaginaLista(sub) {
     appState.activeSubpage = sub;
@@ -2642,6 +2735,7 @@
     var btnLinks = document.getElementById('btnSubpageLinks');
     var subContratos = document.getElementById('subpageContratos');
     var subLinks = document.getElementById('subpageLinks');
+
 
     if (sub === 'links') {
       if (btnLinks) btnLinks.classList.add('active');
@@ -2657,6 +2751,7 @@
       filtrarTabela();
     }
   }
+
 
   // Carregamento de dados do Google Apps Script
   function carregarDadosServidor(forcarExibicaoToast) {
@@ -2683,6 +2778,7 @@
     }
   }
 
+
   function processarRespostaServidor(res) {
     appState.contracts = res.contracts || [];
     appState.nextId = res.nextId || 1;
@@ -2690,30 +2786,29 @@
     appState.folderUrl = res.folderUrl || '';
     appState.spreadsheetUrl = res.spreadsheetUrl || '';
 
-    // Atualizar email do usuário
-    if (res.userEmail) {
-      document.getElementById('userEmailDisplay').textContent = res.userEmail;
+
+    // Inverter array para exibir os recém adicionados (últimas linhas da planilha) primeiro
+    if (appState.contracts.length > 0) {
+      appState.contracts.reverse();
     }
 
-    // Atualizar indicador de aba conectada e link da planilha
-    if (res.sheetName) {
-      document.getElementById('sheetNameDisplay').textContent = 'aba: ' + res.sheetName;
-    }
+
     if (res.spreadsheetUrl) {
       document.getElementById('spreadsheetHeaderLink').href = res.spreadsheetUrl;
     }
-
     // Atualizar link da pasta
     if (res.folderUrl) {
       var folderBtn = document.getElementById('driveFolderHeaderLink');
       folderBtn.href = res.folderUrl;
     }
 
+
     // Preencher placeholder do ID
     var inputId = document.getElementById('campoId');
     if (!inputId.value) {
       inputId.placeholder = 'Automático (ID ' + appState.nextId + ')';
     }
+
 
     // Preencher datalists de autocomplete
     if (res.autocomplete) {
@@ -2724,6 +2819,7 @@
       popularDatalist('listGerentes', res.autocomplete.gerentes);
       popularDatalist('listAdministrativos', res.autocomplete.administrativos);
     }
+
 
     // Atualizar estatísticas dos contratos
     if (res.summary) {
@@ -2737,14 +2833,17 @@
       document.getElementById('statValorMensal').textContent = formatarMoedaBRL(res.summary.somaValorMensal);
     }
 
+
     // Atualizar contadores das subpáginas
     var badgeContratos = document.getElementById('badgeQtdContratos');
     if (badgeContratos) {
       badgeContratos.textContent = appState.contracts.length;
     }
 
+
     appState.usuariosAcessos = res.usuariosAcessos || [];
     appState.listaEmailsAcessos = res.listaEmailsAcessos || [];
+
 
     // Carregar Links Contratados (do servidor ou do mock rico)
     if (res.linksContratados && res.linksContratados.length > 0) {
@@ -2753,11 +2852,11 @@
       appState.linksContratados = obterDadosMockLinks();
     }
 
-    // Atualizar estatísticas e tabelas
-    atualizarEstatisticasLinks();
-    renderizarTabela(appState.contracts);
-    renderizarTabelaLinks(appState.linksContratados);
+
+    // Dispara o filtro inicial que, por sua vez, aplicará a paginação
+    filtrarTabela();
   }
+
 
   function popularDatalist(elementId, items) {
     if (!items || !items.length) return;
@@ -2773,24 +2872,29 @@
     });
   }
 
+
   // Renderização da tabela
   function renderizarTabela(contratos) {
     var tbody = document.getElementById('contractsTableBody');
     tbody.innerHTML = '';
+
 
     if (!contratos || contratos.length === 0) {
       tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#64748b;">Nenhum contrato encontrado.</td></tr>';
       return;
     }
 
+
     contratos.forEach(function(c, index) {
       var tr = document.createElement('tr');
+
 
       // Badges de Status
       var statusClass = 'badge-ativo';
       var statusLower = (c.status || '').toLowerCase();
       if (statusLower.indexOf('renov') !== -1) statusClass = 'badge-renovacao';
       else if (statusLower.indexOf('encerr') !== -1 || statusLower.indexOf('susp') !== -1) statusClass = 'badge-encerrado';
+
 
       // Badge / Tag de Prazo de Vencimento
       var expiryTagHtml = '';
@@ -2808,10 +2912,12 @@
         }
       }
 
+
       // Regra de Risco: Contratos com <= 90 dias de vencimento são automaticamente marcados como risco!
       var riscoClass = 'badge-risco-baixo';
       var riscoTexto = c.risco || 'Baixo';
       var riscoLower = riscoTexto.toLowerCase();
+
 
       if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && statusLower.indexOf('encerr') === -1 && statusLower.indexOf('cancel') === -1) {
         riscoClass = 'badge-risco-vencimento';
@@ -2821,6 +2927,7 @@
       } else if (riscoLower === 'médio' || riscoLower === 'medio') {
         riscoClass = 'badge-risco-medio';
       }
+
 
       tr.innerHTML = 
         '<td class="id-col"><span class="id-badge">#' + escapeHtml(c.id) + '</span></td>' +
@@ -2833,45 +2940,34 @@
         '<td class="value-col">' + formatarMoedaBRL(c.valorLancamento) + '</td>' +
         '<td style="text-align:center;"><span class="badge ' + statusClass + '">' + escapeHtml(c.status || 'Ativo') + '</span></td>' +
         '<td style="text-align:center;"><span class="badge ' + riscoClass + '" title="' + (c.diasParaVencer !== null && c.diasParaVencer <= 90 ? 'Vence em ' + c.diasParaVencer + ' dias' : escapeHtml(riscoTexto)) + '">' + escapeHtml(riscoTexto) + '</span></td>' +
-        '<td class="notes-cell-col">' +
-          '<div class="note-cell-box">' +
-            '<div class="note-input-container">' +
-              '<input type="text" class="note-row-input" id="noteInput_' + index + '" ' +
-                     'value="' + escapeHtml(c.observacoes || '') + '" ' +
-                     'placeholder="Adicionar nota..." ' +
-                     'title="' + escapeHtml(c.observacoes || '') + '" ' +
-                     'onkeydown="if(event.key===\'Enter\') salvarNotaLinha(' + index + ')">' +
-              '<button type="button" class="btn-note-expand-icon" onclick="abrirModalEditarNota(' + index + ')" title="Abrir editor completo de notas">' +
-                '<svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>' +
-              '</button>' +
-            '</div>' +
-            '<div class="note-row-btns">' +
-              '<button type="button" class="btn-note-save" id="btnSaveNote_' + index + '" onclick="salvarNotaLinha(' + index + ')" title="Salvar nota na planilha">Salvar</button>' +
-              '<button type="button" class="btn-note-mail" onclick="abrirModalEmail(' + index + ')" title="Enviar e-mail de registro">E-mail</button>' +
-            '</div>' +
-          '</div>' +
-        '</td>' +
         '<td class="actions-col"><button type="button" class="table-action-btn" onclick="abrirModalDetalhes(\'' + escapeHtml(c.id) + '\')">Detalhes</button></td>';
+
 
       tbody.appendChild(tr);
     });
   }
 
-  // Salvar nota editada diretamente na tabela
-  function salvarNotaLinha(index) {
+
+  // Salvar nota editada diretamente no modal de detalhes
+  function salvarNotaModal() {
+    var index = appState.detalhesIndexAtual;
     var c = appState.contracts[index];
     if (!c) return;
 
-    var inputEl = document.getElementById('noteInput_' + index);
-    var btnSave = document.getElementById('btnSaveNote_' + index);
+
+    var inputEl = document.getElementById('modalQuickNoteInput');
+    var btnSave = document.getElementById('btnSaveNoteModal');
     if (!inputEl) return;
 
+
     var novaNota = inputEl.value.trim();
+
 
     if (btnSave) {
       btnSave.disabled = true;
       btnSave.textContent = 'Salvando...';
     }
+
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -2886,9 +2982,9 @@
             }, 2500);
           }
 
+
           if (response && response.success) {
             c.observacoes = novaNota;
-            inputEl.title = novaNota;
             if (!Array.isArray(c.history)) c.history = [];
             c.history.unshift({
               dataHora: response.dataHora || formatarDataHoraAgora(),
@@ -2901,7 +2997,9 @@
               usuario: response.usuario || 'Você',
               notificacao: 'Não'
             });
-            mostrarToast('Nota do contrato #' + c.id + ' salva na planilha e histórico registrado!', 'success');
+            mostrarToast('Nota do contrato #' + c.id + ' salva com sucesso!', 'success');
+            atualizarVisualizacaoDetalhes(c);
+            renderizarHistoricoModalDetalhes(c.history);
           } else {
             mostrarToast('Aviso: ' + (response ? response.error : 'Não foi possível salvar a nota.'), 'warning');
           }
@@ -2913,11 +3011,9 @@
           }
           mostrarToast('Erro ao salvar nota: ' + (err.message || err), 'error');
         })
-        .atualizarNotasContrato(c.id, c.rowNumber, novaNota, 'Atualização direta pela tabela');
+        .atualizarNotasContrato(c.id, c.rowNumber, novaNota, 'Atualização pelo modal');
     } else {
-      // Demonstração local
       c.observacoes = novaNota;
-      inputEl.title = novaNota;
       if (!Array.isArray(c.history)) c.history = [];
       c.history.unshift({
         dataHora: formatarDataHoraAgora(),
@@ -2939,17 +3035,22 @@
           btnSave.classList.remove('saved');
         }, 2000);
       }
-      mostrarToast('Modo demonstração: Nota do contrato #' + c.id + ' atualizada!', 'info');
+      atualizarVisualizacaoDetalhes(c);
+      renderizarHistoricoModalDetalhes(c.history);
+      mostrarToast('Modo demonstração: Nota salva!', 'info');
     }
   }
+
 
   // Modal de Edição Completa de Notas
   function abrirModalEditarNota(index) {
     var c = appState.contracts[index];
     if (!c) return;
 
-    var inputEl = document.getElementById('noteInput_' + index);
+
+    var inputEl = document.getElementById('modalQuickNoteInput');
     var notaAtual = inputEl ? inputEl.value : (c.observacoes || '');
+
 
     document.getElementById('modalNotaIndex').value = index;
     document.getElementById('modalEditarNotaTitulo').textContent = 'Notas e Acordos - Contrato #' + c.id;
@@ -2957,48 +3058,59 @@
     document.getElementById('modalNotaResumoFornecedor').textContent = c.fornecedor || '-';
     document.getElementById('modalNotaTextarea').value = notaAtual;
 
+
     document.getElementById('modalEditarNota').classList.add('active');
     document.getElementById('modalNotaTextarea').focus();
   }
 
+
   function fecharModalEditarNota() {
     document.getElementById('modalEditarNota').classList.remove('active');
   }
+
 
   function salvarModalNota() {
     var index = document.getElementById('modalNotaIndex').value;
     var c = appState.contracts[index];
     if (!c) return;
 
+
     var texto = document.getElementById('modalNotaTextarea').value.trim();
-    var inputEl = document.getElementById('noteInput_' + index);
+    var inputEl = document.getElementById('modalQuickNoteInput');
     if (inputEl) inputEl.value = texto;
 
+
     fecharModalEditarNota();
-    salvarNotaLinha(index);
+    salvarNotaModal();
   }
+
 
   function salvarEEmailModalNota() {
     var index = document.getElementById('modalNotaIndex').value;
     var c = appState.contracts[index];
     if (!c) return;
 
+
     var texto = document.getElementById('modalNotaTextarea').value.trim();
-    var inputEl = document.getElementById('noteInput_' + index);
+    var inputEl = document.getElementById('modalQuickNoteInput');
     if (inputEl) inputEl.value = texto;
 
+
     fecharModalEditarNota();
-    salvarNotaLinha(index);
+    salvarNotaModal();
     abrirModalEmail(index);
   }
+
 
   // Modal de Envio de E-mail de Registro
   function abrirModalEmail(index) {
     var c = appState.contracts[index];
     if (!c) return;
 
-    var inputEl = document.getElementById('noteInput_' + index);
+
+    var inputEl = document.getElementById('modalQuickNoteInput');
     var notaAtual = inputEl ? inputEl.value.trim() : (c.observacoes || '');
+
 
     document.getElementById('emailContratoId').value = c.id;
     document.getElementById('emailContratoProtocol').value = 'Contrato #' + c.id;
@@ -3008,9 +3120,11 @@
     document.getElementById('emailResumoFornecedor').textContent = c.fornecedor || '-';
     document.getElementById('emailResumoObjeto').textContent = c.objeto || '-';
 
+
     document.getElementById('campoEmailAssunto').value = '[a brisanet] Registro Contratual - Contrato #' + c.id + ' (' + (c.fornecedor || '') + ')';
     document.getElementById('campoEmailMensagem').value = notaAtual;
     document.getElementById('campoEmailDestinatarios').value = '';
+
 
     // Preencher chips da equipe da aba Acessos
     var containerAcessosChips = document.getElementById('emailAcessosChipsContainer');
@@ -3023,6 +3137,7 @@
         labelAcessos.style.color = 'var(--text-muted)';
         labelAcessos.textContent = 'Equipe Acessos:';
         containerAcessosChips.appendChild(labelAcessos);
+
 
         appState.usuariosAcessos.forEach(function(u) {
           var chip = document.createElement('span');
@@ -3037,12 +3152,15 @@
       }
     }
 
+
     document.getElementById('modalEmail').classList.add('active');
   }
+
 
   function fecharModalEmail() {
     document.getElementById('modalEmail').classList.remove('active');
   }
+
 
   function adicionarDestinatarioEmail(email) {
     var campo = document.getElementById('campoEmailDestinatarios');
@@ -3058,8 +3176,10 @@
     campo.focus();
   }
 
+
   function enviarEmailNotificacao(event) {
     if (event) event.preventDefault();
+
 
     var contractId = document.getElementById('emailContratoId').value;
     var protocol = document.getElementById('emailContratoProtocol').value;
@@ -3070,21 +3190,25 @@
     var assunto = document.getElementById('campoEmailAssunto').value.trim();
     var mensagem = document.getElementById('campoEmailMensagem').value.trim();
 
+
     if (!destinatarios) {
       mostrarToast('Por favor, informe ao menos um e-mail de destinatário.', 'warning');
       return;
     }
+
 
     if (!mensagem) {
       mostrarToast('Por favor, descreva a nota ou acordo a ser enviado.', 'warning');
       return;
     }
 
+
     var btn = document.getElementById('btnConfirmarEnvioEmail');
     if (btn) {
       btn.disabled = true;
       btn.textContent = 'Enviando e-mail...';
     }
+
 
     var payload = {
       id: contractId,
@@ -3098,6 +3222,7 @@
       mensagem: mensagem,
       novaNota: mensagem
     };
+
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -3173,11 +3298,13 @@
     }
   }
 
+
   // Filtros de Tabela
   function filtrarTabela() {
     var termo = (document.getElementById('filtroTexto').value || '').toLowerCase().trim();
     var filtroStatus = (document.getElementById('filtroStatus').value || '').toLowerCase().trim();
     var filtroRisco = (document.getElementById('filtroRisco').value || '').toLowerCase().trim();
+
 
     var filtrados = appState.contracts.filter(function(c) {
       var matchTermo = true;
@@ -3194,10 +3321,12 @@
         matchTermo = textoConcatenado.indexOf(termo) !== -1;
       }
 
+
       var matchStatus = true;
       if (filtroStatus) {
         matchStatus = (c.status || '').toLowerCase().indexOf(filtroStatus) !== -1;
       }
+
 
       var matchRisco = true;
       if (filtroRisco) {
@@ -3208,15 +3337,91 @@
         }
       }
 
+
       return matchTermo && matchStatus && matchRisco;
     });
 
-    renderizarTabela(filtrados);
+
+    appState.filteredContracts = filtrados;
+    appState.currentPage = 1;
+    renderizarPaginaAtual();
   }
+
+
+  // ========================================================================
+  // LÓGICA DE PAGINAÇÃO DA LISTA DE CONTRATOS
+  // ========================================================================
+  function renderizarPaginaAtual() {
+    var inicio = (appState.currentPage - 1) * appState.itemsPerPage;
+    var fim = inicio + appState.itemsPerPage;
+    var paginaContratos = appState.filteredContracts.slice(inicio, fim);
+    
+    renderizarTabela(paginaContratos);
+    renderizarControlesPaginacao();
+  }
+
+
+  function mudarPagina(novaPagina) {
+    var totalPaginas = Math.ceil(appState.filteredContracts.length / appState.itemsPerPage);
+    if (novaPagina < 1 || novaPagina > totalPaginas) return;
+    
+    appState.currentPage = novaPagina;
+    renderizarPaginaAtual();
+  }
+
+
+  function renderizarControlesPaginacao() {
+    var container = document.getElementById('paginacaoContainer');
+    if (!container) return;
+    
+    var totalItems = appState.filteredContracts.length;
+    var totalPaginas = Math.ceil(totalItems / appState.itemsPerPage);
+    
+    if (totalItems === 0) {
+      container.innerHTML = '<div class="pagination-info">Nenhum contrato encontrado.</div>';
+      return;
+    }
+
+
+    var inicioItem = ((appState.currentPage - 1) * appState.itemsPerPage) + 1;
+    var fimItem = Math.min(appState.currentPage * appState.itemsPerPage, totalItems);
+
+
+    var html = '<div class="pagination-info">Mostrando ' + inicioItem + ' a ' + fimItem + ' de ' + totalItems + ' contratos</div>';
+    html += '<div class="pagination-controls">';
+    
+    // Botão Anterior
+    html += '<button type="button" class="page-btn" ' + (appState.currentPage === 1 ? 'disabled' : '') + ' onclick="mudarPagina(' + (appState.currentPage - 1) + ')">Anterior</button>';
+    
+    // Limitar botões visíveis (max 5)
+    var maxBotoes = 5;
+    var startPage = Math.max(1, appState.currentPage - 2);
+    var endPage = Math.min(totalPaginas, startPage + maxBotoes - 1);
+    
+    if (endPage - startPage + 1 < maxBotoes) {
+      startPage = Math.max(1, endPage - maxBotoes + 1);
+    }
+
+
+    for (var i = startPage; i <= endPage; i++) {
+      var activeClass = i === appState.currentPage ? 'active' : '';
+      html += '<button type="button" class="page-btn ' + activeClass + '" onclick="mudarPagina(' + i + ')">' + i + '</button>';
+    }
+
+
+    // Botão Próxima
+    html += '<button type="button" class="page-btn" ' + (appState.currentPage === totalPaginas ? 'disabled' : '') + ' onclick="mudarPagina(' + (appState.currentPage + 1) + ')">Próxima</button>';
+    html += '</div>';
+
+
+    container.innerHTML = html;
+  }
+
 
   // ========================================================================
   // GESTÃO DE LINKS CONTRATADOS (CIRCUITOS OFF-NET DE PROVEDORES PARCEIROS)
   // ========================================================================
+
 
   // Atualizar Indicadores e Cards dos Links
   function atualizarEstatisticasLinks() {
@@ -3226,6 +3431,7 @@
     var somaValor = 0;
     var parceiros = {};
     var vencendo90 = 0;
+
 
     links.forEach(function(l) {
       var st = (l.status || '').toLowerCase();
@@ -3241,32 +3447,41 @@
       }
     });
 
+
     var qtdParceiros = Object.keys(parceiros).length;
+
 
     var elTotal = document.getElementById('statTotalLinks');
     if (elTotal) elTotal.textContent = total;
 
+
     var elAtivos = document.getElementById('statLinksAtivos');
     if (elAtivos) elAtivos.textContent = ativos;
+
 
     var elValor = document.getElementById('statValorMensalLinks');
     if (elValor) elValor.textContent = formatarMoedaBRL(somaValor);
 
+
     var elParceiros = document.getElementById('statProvedoresParceiros');
     if (elParceiros) elParceiros.textContent = qtdParceiros;
+
 
     var elVencendo = document.getElementById('statLinksVencendo');
     if (elVencendo) elVencendo.textContent = vencendo90;
 
+
     var badgeLinks = document.getElementById('badgeQtdLinks');
     if (badgeLinks) badgeLinks.textContent = total;
   }
+
 
   // Renderizar Tabela de Links Contratados
   function renderizarTabelaLinks(links) {
     var tbody = document.getElementById('linksTableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
+
 
     if (!links || links.length === 0) {
       var trVazio = document.createElement('tr');
@@ -3277,8 +3492,10 @@
       return;
     }
 
+
     links.forEach(function(l) {
       var tr = document.createElement('tr');
+
 
       // Status Badge
       var stLower = (l.status || '').toLowerCase();
@@ -3291,6 +3508,7 @@
         statusBadgeClass = 'badge-analise';
       }
 
+
       // Vencimento indicator
       var vencHtml = '';
       if (l.diasParaVencer !== null && l.diasParaVencer !== undefined) {
@@ -3302,6 +3520,7 @@
           vencHtml = '<div style="font-size:11px;color:var(--text-muted);">' + l.diasParaVencer + ' dias restantes</div>';
         }
       }
+
 
       tr.innerHTML = 
         '<td class="id-col">' +
@@ -3340,9 +3559,11 @@
           '<button type="button" class="table-action-btn" onclick="abrirModalDetalhesLink(\'' + escapeHtml(l.id) + '\')" title="Ver detalhes completos do link off-net">Detalhes</button>' +
         '</td>';
 
+
       tbody.appendChild(tr);
     });
   }
+
 
   // Filtragem dos Links Contratados
   function filtrarTabelaLinks() {
@@ -3351,7 +3572,9 @@
     var uf = (document.getElementById('filtroUfLinks') ? document.getElementById('filtroUfLinks').value : '').toUpperCase().trim();
     var cap = (document.getElementById('filtroCapacidadeLinks') ? document.getElementById('filtroCapacidadeLinks').value : '').trim();
 
+
     var lista = appState.linksContratados || [];
+
 
     var filtrados = lista.filter(function(l) {
       var matchTermo = true;
@@ -3369,15 +3592,18 @@
         matchTermo = textoConcatenado.indexOf(termo) !== -1;
       }
 
+
       var matchStatus = true;
       if (status) {
         matchStatus = (l.status || '').toLowerCase().indexOf(status) !== -1;
       }
 
+
       var matchUf = true;
       if (uf) {
         matchUf = (l.uf || '').toUpperCase() === uf;
       }
+
 
       var matchCap = true;
       if (cap) {
@@ -3391,11 +3617,14 @@
         }
       }
 
+
       return matchTermo && matchStatus && matchUf && matchCap;
     });
 
+
     renderizarTabelaLinks(filtrados);
   }
+
 
   // Limpar Filtros dos Links
   function limparFiltrosLinks() {
@@ -3405,6 +3634,7 @@
     if (document.getElementById('filtroCapacidadeLinks')) document.getElementById('filtroCapacidadeLinks').value = '';
     filtrarTabelaLinks();
   }
+
 
   // Abrir Modal de Detalhes do Link
   function abrirModalDetalhesLink(id) {
@@ -3421,7 +3651,9 @@
       return;
     }
 
+
     document.getElementById('modalLinkTitulo').textContent = 'Link Off-Net · ' + link.id;
+
 
     // Badges
     var stLower = (link.status || '').toLowerCase();
@@ -3436,7 +3668,9 @@
     document.getElementById('modalLinkBadgeStatus').className = 'badge ' + statusBadgeClass;
     document.getElementById('modalLinkBadgeStatus').textContent = link.status;
 
+
     document.getElementById('modalLinkBadgeUf').textContent = link.uf;
+
 
     // Banner de Vencimento
     var banner = document.getElementById('modalLinkExpiryBanner');
@@ -3455,9 +3689,11 @@
       banner.innerHTML = '';
     }
 
+
     // Grid de Campos
     var corpo = document.getElementById('modalLinkCorpo');
     corpo.innerHTML = '';
+
 
     var campos = [
       { label: 'Designador do Circuito', val: link.designador, mono: true },
@@ -3478,13 +3714,16 @@
       { label: 'Observações / Justificativa', val: link.observacoes || 'Nenhuma observação informada.', full: true }
     ];
 
+
     campos.forEach(function(item) {
       var col = document.createElement('div');
       col.className = 'detail-item' + (item.full ? ' detail-full-width' : '');
 
+
       var labelEl = document.createElement('div');
       labelEl.className = 'detail-label';
       labelEl.textContent = item.label;
+
 
       var valEl = document.createElement('div');
       valEl.className = 'detail-value';
@@ -3495,10 +3734,12 @@
       }
       valEl.textContent = item.val || '--';
 
+
       col.appendChild(labelEl);
       col.appendChild(valEl);
       corpo.appendChild(col);
     });
+
 
     // Dados NOC e Suporte Técnico
     var dadosNoc = document.getElementById('modalLinkDadosNoc');
@@ -3518,13 +3759,16 @@
         '</div>' +
       '</div>';
 
+
     document.getElementById('modalDetalhesLink').classList.add('active');
   }
+
 
   function fecharModalDetalhesLink() {
     var modal = document.getElementById('modalDetalhesLink');
     if (modal) modal.classList.remove('active');
   }
+
 
   // Abrir Modal de Cadastro de Novo Link Simulado
   function abrirModalNovoLinkSimulado() {
@@ -3533,14 +3777,17 @@
     document.getElementById('modalNovoLink').classList.add('active');
   }
 
+
   function fecharModalNovoLinkSimulado() {
     var modal = document.getElementById('modalNovoLink');
     if (modal) modal.classList.remove('active');
   }
 
+
   // Salvar Novo Link Simulado (Fictício)
   function salvarNovoLinkSimulado(event) {
     if (event) event.preventDefault();
+
 
     var provedor = document.getElementById('novoLinkProvedor').value.trim();
     var cliente = document.getElementById('novoLinkCliente').value.trim();
@@ -3553,14 +3800,17 @@
     var status = document.getElementById('novoLinkStatus').value;
     var obs = document.getElementById('novoLinkObs').value.trim();
 
+
     if (!provedor || !cliente || !localidade || !vencimentoInput) {
       mostrarToast('Por favor, preencha todos os campos obrigatórios.', 'warning');
       return;
     }
 
+
     // Formatar data DD/MM/AAAA
     var pData = vencimentoInput.split('-');
     var vencimentoFormatado = pData[2] + '/' + pData[1] + '/' + pData[0];
+
 
     // Calcular dias para vencer
     var agora = new Date();
@@ -3568,15 +3818,18 @@
     var diffMs = dataFim.getTime() - agora.getTime();
     var diasParaVencer = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
+
     var numSeq = (appState.linksContratados ? appState.linksContratados.length : 0) + 1;
     var idNovo = 'LNK-' + uf + '-' + String(numSeq).padStart(3, '0');
     var designadorNovo = provedor.substring(0, 4).toUpperCase() + '-' + uf + '-' + Math.floor(1000 + Math.random() * 9000);
+
 
     // Extrair capacidade numérica
     var capNum = parseInt(capacidade.replace(/\D/g, ''), 10) || 500;
     if (capacidade.toLowerCase().indexOf('g') !== -1 && capNum < 100) {
       capNum = capNum * 1000;
     }
+
 
     var novoLink = {
       id: idNovo,
@@ -3602,18 +3855,23 @@
       observacoes: obs || 'Circuito cadastrado para atendimento em área off-net.'
     };
 
+
     if (!Array.isArray(appState.linksContratados)) {
       appState.linksContratados = [];
     }
 
+
     appState.linksContratados.unshift(novoLink);
+
 
     fecharModalNovoLinkSimulado();
     atualizarEstatisticasLinks();
     filtrarTabelaLinks();
 
+
     mostrarToast('Link off-net ' + idNovo + ' adicionado com sucesso (modo fictício)!', 'success');
   }
+
 
   function formatarDataExibicaoLocal(d) {
     if (!d) return '';
@@ -3622,6 +3880,7 @@
     var ano = d.getFullYear();
     return dia + '/' + mes + '/' + ano;
   }
+
 
   // Base Inicial de Dados Fictícios de Links Contratados
   function obterDadosMockLinks() {
@@ -3813,6 +4072,7 @@
     ];
   }
 
+
   // Converte data DD/MM/AAAA para AAAA-MM-DD para preencher <input type="date">
   function formatarDataParaInputDate(val) {
     if (!val) return '';
@@ -3827,6 +4087,7 @@
     return '';
   }
 
+
   // ========================================================================
   // MODAL DE DETALHES DO CONTRATO (VISUALIZAÇÃO E EDIÇÃO)
   // ========================================================================
@@ -3836,8 +4097,10 @@
       return;
     }
 
+
     var c = null;
     var indexReal = -1;
+
 
     // 1. Procurar por ID ou Protocolo
     if (indexOuId !== undefined && indexOuId !== null) {
@@ -3852,6 +4115,7 @@
       }
     }
 
+
     // 2. Se não encontrou por ID, tentar por índice numérico
     if (!c && typeof indexOuId === 'number' && appState.contracts[indexOuId]) {
       c = appState.contracts[indexOuId];
@@ -3864,13 +4128,16 @@
       }
     }
 
+
     if (!c) {
       console.warn('Contrato não localizado para exibição de detalhes:', indexOuId);
       mostrarToast('Contrato não localizado para exibição dos detalhes.', 'warning');
       return;
     }
 
+
     appState.detalhesIndexAtual = indexReal >= 0 ? indexReal : 0;
+
 
     // Abrir o modal imediatamente no início para resposta instantânea ao clique
     var modalEl = document.getElementById('modalDetalhes');
@@ -3878,11 +4145,21 @@
       modalEl.classList.add('active');
     }
 
+
     // Atualizar títulos, badges e alertas do topo
     atualizarHeaderEBannerDetalhes(c);
 
+
     // Preencher campos com ícones de edição
     atualizarVisualizacaoDetalhes(c);
+
+
+    // Preencher a barra de notas rápida
+    var quickNoteInput = document.getElementById('modalQuickNoteInput');
+    if (quickNoteInput) {
+      quickNoteInput.value = c.observacoes || '';
+    }
+
 
     // Carregar histórico de alterações da planilha com proteção contra erro
     try {
@@ -3894,9 +4171,11 @@
     }
   }
 
+
   function fecharModalDetalhes() {
     document.getElementById('modalDetalhes').classList.remove('active');
   }
+
 
   // Atualiza o cabeçalho e banner de vencimento do modal de detalhes
   function atualizarHeaderEBannerDetalhes(c) {
@@ -3904,6 +4183,7 @@
     if (tituloEl) {
       tituloEl.textContent = 'Contrato #' + c.id + ' - ' + (c.fornecedor || '');
     }
+
 
     var badgeRiscoHeader = document.getElementById('modalDetalhesBadgeRisco');
     if (badgeRiscoHeader) {
@@ -3914,6 +4194,7 @@
         badgeRiscoHeader.innerHTML = '<span class="badge ' + rClass + '">' + escapeHtml(c.risco || 'Baixo') + '</span>';
       }
     }
+
 
     var banner = document.getElementById('detalhesExpiryBanner');
     if (banner) {
@@ -3937,11 +4218,13 @@
     }
   }
 
+
   // Preenche a grade de campos em modo visualização com botão de lápis em cada item editável
   function atualizarVisualizacaoDetalhes(c) {
     var container = document.getElementById('modalDetalhesCorpo');
     if (!container) return;
     container.innerHTML = '';
+
 
     var campos = [
       { label: 'ID do Contrato', val: '#' + c.id, chave: null },
@@ -3982,12 +4265,14 @@
       { label: 'Notas / Observações Gerais', val: c.observacoes, chave: 'observacoes', fullWidth: true }
     ];
 
+
     campos.forEach(function(item) {
       var div = document.createElement('div');
       var classes = ['detail-item'];
       if (item.fullWidth) classes.push('detail-item-full');
       if (item.destaque) classes.push('detail-item-destaque');
       div.className = classes.join(' ');
+
 
       var editBtnHtml = '';
       if (item.chave) {
@@ -4001,7 +4286,9 @@
           '</button>';
       }
 
+
       var infoHtml = item.info ? '<div class="detail-hint">' + escapeHtml(item.info) + '</div>' : '';
+
 
       div.innerHTML = 
         '<div class="detail-label-row">' +
@@ -4011,9 +4298,11 @@
         '<div class="detail-value">' + (item.val ? formatarTextoComLinks(item.val) : '-') + '</div>' +
         infoHtml;
 
+
       container.appendChild(div);
     });
   }
+
 
   // Abre o modal de edição exclusivo para um único campo clicado pelo usuário
   function abrirModalEditarCampo(chaveCampo, labelCampo) {
@@ -4024,13 +4313,16 @@
       return;
     }
 
+
     document.getElementById('editCampoChave').value = chaveCampo;
     document.getElementById('editCampoContratoId').value = c.id;
     document.getElementById('editCampoRowNumber').value = c.rowNumber || '';
 
+
     document.getElementById('modalEditarCampoTitulo').textContent = 'Editar ' + labelCampo;
     document.getElementById('modalEditarCampoSubtitulo').textContent = 'Contrato #' + c.id + ' · ' + (c.fornecedor || 'Fornecedor');
     document.getElementById('modalEditarCampoLabelNovo').textContent = 'Novo(a) ' + labelCampo;
+
 
     // Exibir valor atual formatado
     var valAtualStr = '-';
@@ -4046,12 +4338,15 @@
     }
     document.getElementById('modalEditarCampoValorAtual').textContent = valAtualStr;
 
+
     // Renderizar o controle de input adequado
     var containerInput = document.getElementById('modalEditarCampoContainerInput');
     containerInput.innerHTML = '';
 
+
     var dicaEl = document.getElementById('modalEditarCampoDica');
     dicaEl.textContent = 'Apenas este campo será alterado e registrado no histórico de auditoria do contrato.';
+
 
     // Datas
     if (chaveCampo === 'inicioVigencia' || chaveCampo === 'fimVigencia' || chaveCampo === 'primeiraCompetencia' || chaveCampo === 'dataReajuste') {
@@ -4139,6 +4434,7 @@
       textInput.id = 'inputEditCampoValor';
       textInput.value = c[chaveCampo] || '';
 
+
       if (chaveCampo === 'centroCusto') textInput.setAttribute('list', 'listCentrosCusto');
       else if (chaveCampo === 'categoria') textInput.setAttribute('list', 'listCategorias');
       else if (chaveCampo === 'fornecedor') {
@@ -4149,10 +4445,13 @@
       else if (chaveCampo === 'administrativo') textInput.setAttribute('list', 'listAdministrativos');
       else if (chaveCampo === 'contaContabil') textInput.setAttribute('list', 'listContasContabeis');
 
+
       containerInput.appendChild(textInput);
     }
 
+
     document.getElementById('modalEditarCampo').classList.add('active');
+
 
     // Focar no campo de entrada
     setTimeout(function() {
@@ -4164,9 +4463,11 @@
     }, 100);
   }
 
+
   function fecharModalEditarCampo() {
     document.getElementById('modalEditarCampo').classList.remove('active');
   }
+
 
   function criarSelectParaCampo(opcoes, valorAtual) {
     var sel = document.createElement('select');
@@ -4182,17 +4483,21 @@
     return sel;
   }
 
+
   // Salva a alteração exclusiva do campo individual na planilha e registra o log
   function salvarEdicaoCampoIndividual(event) {
     if (event) event.preventDefault();
+
 
     var chaveCampo = document.getElementById('editCampoChave').value;
     var contractId = document.getElementById('editCampoContratoId').value;
     var rowNumber = parseInt(document.getElementById('editCampoRowNumber').value, 10);
 
+
     var inputEl = document.getElementById('inputEditCampoValor');
     if (!inputEl) return;
     var novoValor = inputEl.value;
+
 
     var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ?
       appState.contracts[appState.detalhesIndexAtual] : null;
@@ -4201,12 +4506,14 @@
       return;
     }
 
+
     var btnSalvar = document.getElementById('btnSalvarCampoIndividual');
     var btnTexto = document.getElementById('btnSalvarCampoTexto');
     if (btnSalvar) {
       btnSalvar.disabled = true;
       if (btnTexto) btnTexto.textContent = 'Gravando...';
     }
+
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -4216,9 +4523,11 @@
             if (btnTexto) btnTexto.textContent = 'Salvar Alteração';
           }
 
+
           if (res && res.success) {
             fecharModalEditarCampo();
             mostrarToast('Campo ' + res.campoFormatado + ' atualizado com sucesso!', 'success');
+
 
             // Atualizar o objeto local do contrato
             if (res.novoValorRaw !== undefined) {
@@ -4226,6 +4535,7 @@
             } else {
               c[chaveCampo] = novoValor;
             }
+
 
             if (chaveCampo === 'fimVigencia') {
               c.fimVigencia = res.novoValor;
@@ -4235,6 +4545,7 @@
             if (res.valorBaseBRL !== undefined) c.valorBaseBRL = res.valorBaseBRL;
             if (res.valorOrcado !== undefined) c.valorOrcado = res.valorOrcado;
             if (res.reajusteAplicado !== undefined) c.reajusteAplicado = res.reajusteAplicado;
+
 
             // Injetar estritamente o log DESTA alteração única
             if (!Array.isArray(c.history)) c.history = [];
@@ -4250,10 +4561,12 @@
               notificacao: 'Não'
             });
 
+
             // Atualizar visualização dos detalhes e histórico
             atualizarHeaderEBannerDetalhes(c);
             atualizarVisualizacaoDetalhes(c);
             renderizarHistoricoModalDetalhes(c.history);
+
 
             // Atualizar tabela de contratos
             renderizarTabela(appState.contracts);
@@ -4277,11 +4590,13 @@
       }
       fecharModalEditarCampo();
 
+
       var valAntDemo = String(c[chaveCampo] || '-');
       c[chaveCampo] = novoValor;
       if (chaveCampo === 'fimVigencia') {
         c.fimVigencia = novoValor;
       }
+
 
       if (!Array.isArray(c.history)) c.history = [];
       c.history.unshift({
@@ -4296,6 +4611,7 @@
         notificacao: 'Não'
       });
 
+
       atualizarHeaderEBannerDetalhes(c);
       atualizarVisualizacaoDetalhes(c);
       renderizarHistoricoModalDetalhes(c.history);
@@ -4303,6 +4619,7 @@
       mostrarToast('Modo demonstração: Campo atualizado localmente!', 'info');
     }
   }
+
 
   // Formata data e hora atual no padrão dd/MM/yyyy HH:mm:ss
   function formatarDataHoraAgora() {
@@ -4312,11 +4629,13 @@
            pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
   }
 
+
   // Renderiza a lista de histórico no container do modal de detalhes
   function renderizarHistoricoModalDetalhes(history) {
     var historyContainer = document.getElementById('modalDetalhesHistorico');
     var historyBadge = document.getElementById('historyCounterBadge');
     if (!historyContainer) return;
+
 
     if (!history || !Array.isArray(history) || history.length === 0) {
       if (historyBadge) historyBadge.textContent = '(0 registros)';
@@ -4324,9 +4643,11 @@
       return;
     }
 
+
     if (historyBadge) {
       historyBadge.textContent = '(' + history.length + ' registro' + (history.length > 1 ? 's' : '') + ')';
     }
+
 
     historyContainer.innerHTML = '';
     history.forEach(function(item) {
@@ -4345,6 +4666,7 @@
         diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>';
       }
 
+
       card.innerHTML = 
         '<div class="history-card-header">' +
           '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
@@ -4359,16 +4681,20 @@
     });
   }
 
+
   // Carrega histórico de alterações no modal com sincronização resiliente
   function carregarHistoricoModalDetalhes(contractId, protocol) {
     var c = (appState.detalhesIndexAtual !== null && appState.detalhesIndexAtual !== undefined) ? 
       appState.contracts[appState.detalhesIndexAtual] : null;
 
+
     var historyContainer = document.getElementById('modalDetalhesHistorico');
     var historyBadge = document.getElementById('historyCounterBadge');
 
+
     var idParaBuscar = contractId !== undefined && contractId !== null ? contractId : (c ? c.id : '');
     var protoParaBuscar = protocol || (c ? (c.protocol || '') : '');
+
 
     // Se o contrato já possui histórico em cache na memória, exibir imediatamente
     if (c && Array.isArray(c.history) && c.history.length > 0) {
@@ -4382,6 +4708,7 @@
       }
       if (historyBadge) historyBadge.textContent = '';
     }
+
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -4417,38 +4744,127 @@
     }
   }
 
-  // Dispara verificação manual de vencimentos e alertas
+
+
+
+  // Fecha o modal de relatório
+  function fecharModalRelatorioVencimentos() {
+    document.getElementById('modalRelatorioVencimentos').classList.remove('active');
+  }
+
+
+  // Dispara verificação manual de vencimentos e alertas com Modal Customizado
   function dispararVerificacaoVencimentos() {
-    mostrarToast('Verificando prazos de contratos na planilha e aba Acessos...', 'info');
+    mostrarToast('Verificando prazos de contratos na planilha. Aguarde...', 'info');
+
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(res) {
           if (res && res.success) {
+            var bodyHtml = '';
+            
+            // Cenário 1: Alertas foram enviados hoje
             if (res.alertasEnviadosCount > 0) {
-              mostrarToast('Sucesso: ' + res.alertasEnviadosCount + ' alerta(s) de vencimento enviado(s) para a equipe da aba Acessos!', 'success');
-            } else {
-              mostrarToast('Verificação concluída: Nenhum novo marco de alerta hoje (' + res.totalContratosEmRisco + ' contrato(s) com risco <= 90 dias).', 'info');
+              bodyHtml += '<div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:16px; border-radius:8px; margin-bottom:16px;">';
+              bodyHtml += '  <div style="color:#166534; font-weight:700; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">';
+              bodyHtml += '    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+              bodyHtml += '    Verificação Concluída com Alertas';
+              bodyHtml += '  </div>';
+              bodyHtml += '  <div style="color:#15803d; font-size:13px; margin-left:26px;">Foram disparados <strong>' + res.alertasEnviadosCount + ' e-mail(s)</strong> automáticos.</div>';
+              bodyHtml += '</div>';
+
+
+              bodyHtml += '<div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Equipe Notificada:</div>';
+              bodyHtml += '<div style="background:#f8fafc; border:1px solid #cbd5e1; padding:10px 14px; border-radius:6px; font-size:13px; color:var(--text-main); margin-bottom:20px; word-break:break-word; line-height:1.5;">' + (res.destinatarios || []).join(', ') + '</div>';
+
+
+              bodyHtml += '<div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Contratos Alertados:</div>';
+              bodyHtml += '<div style="display:flex; flex-direction:column; gap:8px;">';
+              var contratos = res.contratosAlertados || [];
+              for(var i=0; i<contratos.length; i++) {
+                bodyHtml += '<div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3px solid var(--brisa-orange); padding:10px 14px; border-radius:6px; font-size:13px; color:var(--text-main);">' + escapeHtml(contratos[i]) + '</div>';
+              }
+              bodyHtml += '</div>';
+
+
+            } 
+            // Cenário 2: Nenhum contrato novo atingiu o prazo hoje
+            else {
+              bodyHtml += '<div style="background:#f8fafc; border:1px solid #e2e8f0; padding:16px; border-radius:8px; margin-bottom:20px;">';
+              bodyHtml += '  <div style="color:var(--text-main); font-weight:700; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">';
+              bodyHtml += '    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:#22c55e;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+              bodyHtml += '    Verificação Concluída';
+              bodyHtml += '  </div>';
+              bodyHtml += '  <div style="color:var(--text-muted); font-size:13px; margin-left:26px;">Nenhum contrato atingiu novos marcos de alerta de vencimento na data de hoje.</div>';
+              bodyHtml += '</div>';
+
+
+              bodyHtml += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">';
+              bodyHtml += '  <div style="background:#ffffff; border:1px solid #cbd5e1; padding:16px; border-radius:8px; text-align:center;">';
+              bodyHtml += '    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Contratos em Risco<br>(≤ 90 dias)</div>';
+              bodyHtml += '    <div style="font-size:24px; font-weight:800; color:var(--brisa-orange); margin-top:8px;">' + res.totalContratosEmRisco + '</div>';
+              bodyHtml += '  </div>';
+              
+              bodyHtml += '  <div style="background:#ffffff; border:1px solid #cbd5e1; padding:16px; border-radius:8px; text-align:center;">';
+              bodyHtml += '    <div style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">Colaboradores no<br>Mailing de Acesso</div>';
+              bodyHtml += '    <div style="font-size:24px; font-weight:800; color:var(--brisa-blue); margin-top:8px;">' + (res.destinatarios || []).length + '</div>';
+              bodyHtml += '  </div>';
+              bodyHtml += '</div>';
             }
+            
+            // Injeta o HTML montado dentro do modal e o exibe
+            document.getElementById('modalRelatorioBody').innerHTML = bodyHtml;
+            document.getElementById('modalRelatorioVencimentos').classList.add('active');
+            
+            // Atualiza os dados da tabela por trás
             carregarDadosServidor(false);
           } else {
             mostrarToast('Aviso: ' + (res.message || res.error || 'Verificação concluída.'), 'warning');
           }
         })
         .withFailureHandler(function(err) {
-          mostrarToast('Erro na verificação de vencimentos: ' + (err.message || err), 'error');
+          mostrarToast('Erro na verificação: ' + (err.message || err), 'error');
         })
         .verificarVencimentosEEnviarAlertas();
     } else {
-      mostrarToast('Modo demonstração: Verificação de vencimentos simulada com sucesso.', 'info');
+      // MODO DEMONSTRAÇÃO (Se estiver testando fora do Apps Script)
+      mostrarToast('Modo demonstração ativado.', 'info');
+      
+      var mockHtml = '';
+      mockHtml += '<div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:16px; border-radius:8px; margin-bottom:16px;">';
+      mockHtml += '  <div style="color:#166534; font-weight:700; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:8px;">';
+      mockHtml += '    <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>';
+      mockHtml += '    Verificação Concluída (Modo Demonstração)';
+      mockHtml += '  </div>';
+      mockHtml += '  <div style="color:#15803d; font-size:13px; margin-left:26px;">Foram disparados <strong>2 e-mail(s)</strong> simulados.</div>';
+      mockHtml += '</div>';
+
+
+      mockHtml += '<div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Equipe Notificada:</div>';
+      mockHtml += '<div style="background:#f8fafc; border:1px solid #cbd5e1; padding:10px 14px; border-radius:6px; font-size:13px; color:var(--text-main); margin-bottom:20px;">teste.compras@brisanet.com.br, gestao@brisanet.com.br</div>';
+
+
+      mockHtml += '<div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Contratos Alertados:</div>';
+      mockHtml += '<div style="display:flex; flex-direction:column; gap:8px;">';
+      mockHtml += '  <div style="background:#ffffff; border:1px solid #e2e8f0; border-left:3px solid var(--brisa-orange); padding:10px 14px; border-radius:6px; font-size:13px; color:var(--text-main);">Contrato #1 (TROPICO) - marco de 90 dias</div>';
+      mockHtml += '</div>';
+
+
+      document.getElementById('modalRelatorioBody').innerHTML = mockHtml;
+      document.getElementById('modalRelatorioVencimentos').classList.add('active');
     }
   }
+
+
+
 
   // ========================================================================
   // GERENCIAMENTO DE ARQUIVOS (DRAG & DROP)
   // ========================================================================
   function configurarDropzone() {
     var dropzone = document.getElementById('dropzoneArea');
+
 
     ['dragenter', 'dragover'].forEach(function(eventName) {
       dropzone.addEventListener(eventName, function(e) {
@@ -4458,6 +4874,7 @@
       }, false);
     });
 
+
     ['dragleave', 'drop'].forEach(function(eventName) {
       dropzone.addEventListener(eventName, function(e) {
         e.preventDefault();
@@ -4466,6 +4883,7 @@
       }, false);
     });
 
+
     dropzone.addEventListener('drop', function(e) {
       var dt = e.dataTransfer;
       var files = dt.files;
@@ -4473,8 +4891,10 @@
     }, false);
   }
 
+
   function processarArquivosSelecionados(files) {
     if (!files || !files.length) return;
+
 
     for (var i = 0; i < files.length; i++) {
       var file = files[i];
@@ -4487,11 +4907,13 @@
     }
   }
 
+
   function lerArquivoComoBase64(file) {
     var reader = new FileReader();
     reader.onload = function(e) {
       var fullDataUrl = e.target.result;
       var base64Content = fullDataUrl.split(',')[1];
+
 
       appState.filesToUpload.push({
         name: file.name,
@@ -4500,14 +4922,17 @@
         base64: base64Content
       });
 
+
       renderizarArquivosAnexados();
     };
     reader.readAsDataURL(file);
   }
 
+
   function renderizarArquivosAnexados() {
     var list = document.getElementById('attachedFilesList');
     list.innerHTML = '';
+
 
     appState.filesToUpload.forEach(function(f, idx) {
       var item = document.createElement('div');
@@ -4531,10 +4956,24 @@
     });
   }
 
+
   function removerArquivo(idx) {
     appState.filesToUpload.splice(idx, 1);
     renderizarArquivosAnexados();
   }
+
+
+  // Alterna o estado do campo Fim da Vigência (Indeterminado)
+  function toggleVigenciaIndeterminada(checkbox) {
+    var inputFim = document.getElementById('campoFimVigencia');
+    if (checkbox.checked) {
+      inputFim.value = '';
+      inputFim.disabled = true;
+    } else {
+      inputFim.disabled = false;
+    }
+  }
+
 
   // ========================================================================
   // SUBMISSÃO DO FORMULÁRIO DE NOVO CONTRATO
@@ -4542,8 +4981,10 @@
   function submeterFormulario(event) {
     event.preventDefault();
 
+
     var btn = document.getElementById('btnSalvarContrato');
     var btnTexto = document.getElementById('btnSalvarTexto');
+
 
     // Montar objeto de dados
     var formData = {
@@ -4560,7 +5001,7 @@
       tipo: document.getElementById('campoTipo').value,
       status: document.getElementById('campoStatus').value,
       inicioVigencia: document.getElementById('campoInicioVigencia').value,
-      fimVigencia: document.getElementById('campoFimVigencia').value,
+      fimVigencia: document.getElementById('campoVigenciaIndeterminada').checked ? 'Indeterminada' : document.getElementById('campoFimVigencia').value,
       renovacaoAutomatica: document.getElementById('campoRenovacaoAutomatica').value,
       moeda: document.getElementById('campoMoeda').value,
       taxaCambio: document.getElementById('campoTaxaCambio').value.trim(),
@@ -4578,20 +5019,24 @@
       observacoes: document.getElementById('campoObservacoes').value.trim()
     };
 
+
     if (!formData.fornecedor || !formData.objeto || !formData.valorLancamento) {
       mostrarToast('Preencha os campos obrigatórios (Fornecedor, Objeto e Valor).', 'error');
       return;
     }
 
+
     // Ativar spinner
     btn.disabled = true;
     btnTexto.innerHTML = '<span class="spinner"></span> Gravando contrato...';
+
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(response) {
           btn.disabled = false;
           btnTexto.textContent = 'Salvar Contrato';
+
 
           if (response && response.success) {
             var localizacao = '';
@@ -4626,10 +5071,19 @@
     }
   }
 
+
   function limparFormulario() {
     document.getElementById('contractForm').reset();
     appState.filesToUpload = [];
     renderizarArquivosAnexados();
+    
+    // Resetar campo de vigência indeterminada
+    var cbIndeterminada = document.getElementById('campoVigenciaIndeterminada');
+    if (cbIndeterminada) cbIndeterminada.checked = false;
+    var inputFim = document.getElementById('campoFimVigencia');
+    if (inputFim) inputFim.disabled = false;
+
+
     document.getElementById('campoId').placeholder = 'Automático (ID ' + appState.nextId + ')';
     document.getElementById('campoMoeda').value = 'BRL';
     document.getElementById('campoTaxaCambio').value = '1,00';
@@ -4641,6 +5095,7 @@
     document.getElementById('campoRenovacaoAutomatica').value = 'Não';
     document.getElementById('campoPeriodicidade').value = 'Mensal';
   }
+
 
   // ========================================================================
   // MÁSCARAS E FORMATAÇÕES DE ENTRADA
@@ -4661,6 +5116,7 @@
     }
   }
 
+
   function aplicarMascaraMoeda(input) {
     var v = input.value.replace(/\D/g, '');
     if (!v) {
@@ -4670,6 +5126,7 @@
     var num = parseFloat(v) / 100;
     input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
 
   function atualizarPrefixoMoeda() {
     var m = document.getElementById('campoMoeda').value;
@@ -4692,11 +5149,13 @@
     }
   }
 
+
   function formatarMoedaBRL(val) {
     var num = parseFloat(val);
     if (isNaN(num)) return 'R$ 0,00';
     return 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
+
 
   function formatarTamanhoBytes(bytes) {
     if (!bytes || bytes === 0) return '0 Bytes';
@@ -4706,12 +5165,14 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 
+
   function formatarTextoComLinks(txt) {
     if (!txt) return '';
     var safe = escapeHtml(String(txt));
     // Converte links http/https em tags clicáveis seguras
     return safe.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color:#1d4ed8;text-decoration:underline;">$1</a>');
   }
+
 
   function escapeHtml(string) {
     var entityMap = {
@@ -4726,6 +5187,7 @@
     });
   }
 
+
   // Notificações Toast
   function mostrarToast(mensagem, tipo) {
     var container = document.getElementById('toastContainer');
@@ -4734,6 +5196,7 @@
     toast.innerHTML = 
       '<span>' + escapeHtml(mensagem) + '</span>';
     container.appendChild(toast);
+
 
     setTimeout(function() {
       toast.style.transition = 'opacity 0.4s ease, transform 0.4s ease';
@@ -4744,6 +5207,7 @@
       }, 400);
     }, 4500);
   }
+
 
   // Dados Mock para desenvolvimento / visualização inicial
   function gerarDadosMock() {
@@ -4815,6 +5279,7 @@
     };
   }
 </script>
+
 
 </body>
 </html>

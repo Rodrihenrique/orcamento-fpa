@@ -5,6 +5,7 @@
  * ============================================================================
  */
 
+
 // Configurações Globais
 var CONFIG = {
   // ID da Planilha Principal
@@ -32,12 +33,19 @@ var CONFIG = {
   TIMEZONE: 'America/Fortaleza'
 };
 
+
 /**
- * Retorna o fuso horário oficial adotado no sistema
+ * Retorna o fuso horário oficial adotado no sistema (Com Proteção)
  */
 function obterTimezoneOficial_() {
-  return CONFIG.TIMEZONE || 'America/Fortaleza';
+  try {
+    // Tenta pegar o fuso do próprio script/planilha, se falhar usa o padrão universal de SP
+    return Session.getScriptTimeZone() || 'America/Sao_Paulo';
+  } catch(e) {
+    return 'America/Sao_Paulo';
+  }
 }
+
 
 /**
  * Ponto de entrada do Web App
@@ -49,6 +57,7 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
+
 
 /**
  * Cria menu personalizado na planilha quando aberta no Google Sheets
@@ -71,6 +80,7 @@ function onOpen() {
     .addToUi();
 }
 
+
 /**
  * Função para forçar a autorização de permissões de envio de e-mail e acesso do sistema.
  * Execute-a diretamente no editor do Apps Script (botão Executar) ou pelo menu da planilha.
@@ -84,9 +94,11 @@ function autorizarPermissoes() {
     user = 'Usuário autenticado';
   }
 
+
   Logger.log('Autorização concluída com sucesso!');
   Logger.log('Usuário: ' + user);
   Logger.log('Cota diária restante de e-mails: ' + quota);
+
 
   try {
     var ui = SpreadsheetApp.getUi();
@@ -101,12 +113,14 @@ function autorizarPermissoes() {
     // Caso executado direto pelo editor de scripts
   }
 
+
   return {
     success: true,
     user: user,
     remainingQuota: quota
   };
 }
+
 
 /**
  * Diagnóstico para o usuário conferir qual aba e linha estão ativas na planilha
@@ -117,6 +131,7 @@ function verificarAbaDetectada() {
   var headerRow = obterLinhaCabecalho_(sheet);
   var lastRow = sheet.getLastRow();
   var ui = SpreadsheetApp.getUi();
+
 
   ui.alert(
     'Diagnóstico da Planilha',
@@ -129,6 +144,7 @@ function verificarAbaDetectada() {
   );
 }
 
+
 /**
  * Abre o formulário em janela modal dentro do Google Sheets
  */
@@ -140,6 +156,7 @@ function abrirModalContratos() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Painel de Contratos');
 }
 
+
 /**
  * Abre o formulário na barra lateral do Google Sheets
  */
@@ -148,6 +165,7 @@ function abrirSidebarContratos() {
     .setTitle('Painel de Contratos');
   SpreadsheetApp.getUi().showSidebar(html);
 }
+
 
 /**
  * Exibe o link do Web App publicado
@@ -172,6 +190,7 @@ function abrirLinkWebApp() {
   }
 }
 
+
 /**
  * Abre diretamente a pasta de anexos do Drive
  */
@@ -187,6 +206,7 @@ function abrirPastaAnexosDrive() {
   SpreadsheetApp.getUi().showModalDialog(html, 'Pasta de Anexos');
 }
 
+
 /**
  * Garante a criação da pasta e salva no ScriptProperties
  */
@@ -199,6 +219,7 @@ function configurarPastaDrive() {
     ui.ButtonSet.OK
   );
 }
+
 
 /**
  * Obtém a planilha ativa ou abre pelo ID configurado
@@ -217,6 +238,7 @@ function obterPlanilha_() {
     // Caso executado fora do contexto da planilha
   }
 
+
   var props = PropertiesService.getScriptProperties();
   var savedId = props.getProperty('ACTIVE_SPREADSHEET_ID');
   if (savedId) {
@@ -225,8 +247,10 @@ function obterPlanilha_() {
     } catch (e) {}
   }
 
+
   return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
 }
+
 
 /**
  * Localiza a aba correta de cadastro de contratos através de validação rigorosa de cabeçalhos
@@ -234,6 +258,7 @@ function obterPlanilha_() {
 function obterAbaContratos_() {
   var ss = obterPlanilha_();
   var sheets = ss.getSheets();
+
 
   // 1. Prioridade Máxima: Procurar aba pelo cabeçalho oficial que contém "fornecedor" e ("objeto" ou "cnpj" ou "id")
   for (var j = 0; j < sheets.length; j++) {
@@ -248,6 +273,7 @@ function obterAbaContratos_() {
         var hasCnpj = rowText.some(function(col) { return col.indexOf('cnpj') !== -1; });
         var hasCentroCusto = rowText.some(function(col) { return col.indexOf('centro de custo') !== -1; });
 
+
         // A aba de contratos possui obrigatoriamente Fornecedor e (Objeto ou CNPJ ou Centro de Custo)
         if (hasFornecedor && (hasObjeto || hasCnpj || hasCentroCusto)) {
           return s;
@@ -256,11 +282,13 @@ function obterAbaContratos_() {
     }
   }
 
+
   // 2. Procurar pelos nomes conhecidos da aba de cadastro
   for (var k = 0; k < CONFIG.TARGET_SHEET_NAMES.length; k++) {
     var sheet = ss.getSheetByName(CONFIG.TARGET_SHEET_NAMES[k]);
     if (sheet) return sheet;
   }
+
 
   // 3. Procurar por qualquer aba cujo nome contenha "cadastro"
   for (var m = 0; m < sheets.length; m++) {
@@ -270,9 +298,11 @@ function obterAbaContratos_() {
     }
   }
 
+
   // 4. Fallback seguro
   return sheets[0];
 }
+
 
 /**
  * Localiza a linha do cabeçalho na aba de cadastro
@@ -280,6 +310,7 @@ function obterAbaContratos_() {
 function obterLinhaCabecalho_(sheet) {
   var maxCheck = Math.min(sheet.getLastRow(), 20);
   if (maxCheck < 1) return 1;
+
 
   var values = sheet.getRange(1, 1, maxCheck, Math.min(sheet.getLastColumn(), 32)).getValues();
   for (var r = 0; r < values.length; r++) {
@@ -294,12 +325,14 @@ function obterLinhaCabecalho_(sheet) {
   return 1;
 }
 
+
 /**
  * Obtém ou cria a pasta de anexos no Google Drive
  */
 function obterOuCriarPastaAnexos_() {
   var props = PropertiesService.getScriptProperties();
   var savedFolderId = props.getProperty('CONTRACTS_ATTACHMENT_FOLDER_ID');
+
 
   if (savedFolderId) {
     try {
@@ -312,6 +345,7 @@ function obterOuCriarPastaAnexos_() {
     }
   }
 
+
   // Buscar pasta existente com o nome
   var folders = DriveApp.getFoldersByName(CONFIG.DRIVE_FOLDER_NAME);
   if (folders.hasNext()) {
@@ -320,12 +354,14 @@ function obterOuCriarPastaAnexos_() {
     return existingFolder;
   }
 
+
   // Criar nova pasta
   var newFolder = DriveApp.createFolder(CONFIG.DRIVE_FOLDER_NAME);
   newFolder.setDescription('Pasta de armazenamento de contratos e documentos anexados via Sistema de Gestão de Contratos.');
   props.setProperty('CONTRACTS_ATTACHMENT_FOLDER_ID', newFolder.getId());
   return newFolder;
 }
+
 
 /**
  * Obtém os dados iniciais para carregar a interface (Next ID, Estatísticas, Lista, Opções)
@@ -338,6 +374,7 @@ function getInitialData() {
     var folder = obterOuCriarPastaAnexos_();
     var userEmail = '';
 
+
     try {
       userEmail = Session.getActiveUser().getEmail();
       if (!userEmail) {
@@ -347,9 +384,11 @@ function getInitialData() {
       userEmail = 'usuario.compras@grupobrisanet.com.br';
     }
 
+
     if (!userEmail) {
       userEmail = 'usuario.compras@grupobrisanet.com.br';
     }
+
 
     var contracts = [];
     var maxId = 0;
@@ -360,11 +399,13 @@ function getInitialData() {
     var gerentes = {};
     var administrativos = {};
 
+
     var totalContratos = 0;
     var contratosAtivos = 0;
     var contratosRiscoAlto = 0;
     var contratosVencendo90Dias = 0;
     var somaValorMensal = 0;
+
 
     if (lastRow > headerRow) {
       var numRows = lastRow - headerRow;
@@ -372,26 +413,32 @@ function getInitialData() {
       var range = sheet.getRange(headerRow + 1, 1, numRows, 32);
       var values = range.getValues();
 
+
       for (var i = 0; i < values.length; i++) {
         var row = values[i];
         var rawId = row[0];
         var fornecedor = String(row[3] || '').trim();
 
+
         // Ignorar linhas vazias
         if (!rawId && !fornecedor) continue;
+
 
         var numId = parseInt(rawId, 10);
         if (!isNaN(numId) && numId > maxId) {
           maxId = numId;
         }
 
+
         var status = String(row[9] || '').trim();
         var risco = String(row[28] || '').trim();
         var valorLancamento = parseFloat(row[14]) || 0;
         var valorOrçado = parseFloat(row[25]) || valorLancamento;
 
+
         var diasParaVencer = calcularDiasParaVencer_(row[11]);
         var riscoVencimento = (diasParaVencer !== null && diasParaVencer <= 90);
+
 
         totalContratos++;
         var statusLower = status.toLowerCase();
@@ -406,6 +453,7 @@ function getInitialData() {
         }
         somaValorMensal += valorLancamento;
 
+
         // Coletar opções para autocomplete
         if (row[1]) centrosCusto[String(row[1]).trim()] = true;
         if (row[2]) categorias[String(row[2]).trim()] = true;
@@ -414,7 +462,9 @@ function getInitialData() {
         if (row[7]) administrativos[String(row[7]).trim()] = true;
         if (row[26]) contasContabeis[String(row[26]).trim()] = true;
 
+
         var protocol = formatarProtocolo_(rawId);
+
 
         contracts.push({
           rowNumber: headerRow + 1 + i,
@@ -457,8 +507,10 @@ function getInitialData() {
       }
     }
 
+
     var nextId = maxId > 0 ? (maxId + 1) : 1;
     var nextProtocol = formatarProtocolo_(nextId);
+
 
     return {
       success: true,
@@ -498,6 +550,7 @@ function getInitialData() {
   }
 }
 
+
 /**
  * Salva um novo contrato na planilha e processa arquivos anexados no Drive
  * @param {Object} data - Objeto com os campos do formulário
@@ -509,9 +562,11 @@ function salvarContrato(data, files) {
       throw new Error('Dados do contrato não fornecidos.');
     }
 
+
     var sheet = obterAbaContratos_();
     var headerRow = obterLinhaCabecalho_(sheet);
     var lastRow = sheet.getLastRow();
+
 
     // 1. Determinar o ID caso não informado
     var idFinal = data.id;
@@ -527,15 +582,19 @@ function salvarContrato(data, files) {
       idFinal = maxId > 0 ? (maxId + 1) : 1;
     }
 
+
     var protocol = formatarProtocolo_(idFinal);
+
 
     // 2. Upload de arquivos no Google Drive
     var fileUrls = [];
     var folderUrl = '';
 
+
     if (files && files.length > 0) {
       var rootFolder = obterOuCriarPastaAnexos_();
       folderUrl = rootFolder.getUrl();
+
 
       // Criar subpasta organizada por contrato
       var subFolderName = protocol + ' - ' + (data.fornecedor || 'Fornecedor').substring(0, 30).trim();
@@ -547,6 +606,7 @@ function salvarContrato(data, files) {
         contractFolder = rootFolder.createFolder(subFolderName);
       }
       folderUrl = contractFolder.getUrl();
+
 
       for (var f = 0; f < files.length; f++) {
         var fileObj = files[f];
@@ -562,6 +622,7 @@ function salvarContrato(data, files) {
             // Caso domínio corporativo proíba link público, manter padrão
           }
 
+
           fileUrls.push({
             name: fileObj.name,
             url: createdFile.getUrl()
@@ -569,6 +630,7 @@ function salvarContrato(data, files) {
         }
       }
     }
+
 
     // 3. Formatar links para armazenamento na planilha
     var linksTexto = '';
@@ -581,6 +643,7 @@ function salvarContrato(data, files) {
       }
     }
 
+
     // Montar Fonte / Memória de cálculo incluindo arquivos caso não digitado
     var memoriaFinal = (data.memoriaCalculo || '').trim();
     if (linksTexto) {
@@ -591,15 +654,18 @@ function salvarContrato(data, files) {
       }
     }
 
+
     // 4. Cálculos Automáticos de Colunas Financeiras
     var moeda = data.moeda || 'BRL';
     var valorLancamento = normalizarNumero_(data.valorLancamento);
     var taxaCambio = 1;
 
+
     // Buscar taxa de câmbio se em moeda estrangeira
     if (moeda === 'USD') taxaCambio = 5.3;
     else if (moeda === 'EUR') taxaCambio = 5.9;
     else if (moeda === 'GBP') taxaCambio = 6.8;
+
 
     // Reajuste aplicado
     var reajusteManual = normalizarPorcentagem_(data.reajusteManual);
@@ -614,12 +680,14 @@ function salvarContrato(data, files) {
       reajusteAplicado = 0;
     }
 
+
     var contingencia = normalizarPorcentagem_(data.contingencia);
     var valorBaseBRL = valorLancamento * taxaCambio;
     var valorOrcado = valorBaseBRL;
     if (contingencia !== '' && typeof contingencia === 'number') {
       valorOrcado = valorBaseBRL * (1 + contingencia);
     }
+
 
     // 5. Mapeamento das 32 Colunas (A até AF)
     // A: ID
@@ -654,6 +722,7 @@ function salvarContrato(data, files) {
     // AD: Descrição do risco/contingência
     // AE: Fonte/Memória de cálculo
     // AF: Observações
+
 
     var novaLinha = [
       idFinal,                                    // A (1)
@@ -690,10 +759,12 @@ function salvarContrato(data, files) {
       data.observacoes || ''                      // AF (32) Observações
     ];
 
+
     // Localizar a linha exata de inserção no cadastro (ESTRITAMENTE A PARTIR DA LINHA 18):
     var minRow = CONFIG.MIN_DATA_ROW || 18;
     var targetRow = -1;
     var maxCheckRows = Math.max(lastRow, minRow);
+
 
     if (maxCheckRows >= minRow) {
       var numRowsToCheck = maxCheckRows - minRow + 1;
@@ -709,15 +780,18 @@ function salvarContrato(data, files) {
       }
     }
 
+
     // Se todas as linhas até lastRow estiverem ocupadas, insere na próxima linha disponível após minRow
     if (targetRow === -1) {
       targetRow = Math.max(minRow, lastRow + 1);
     }
 
+
     // Garantir que a linha existe na planilha (expandir se necessário)
     if (targetRow > sheet.getMaxRows()) {
       sheet.insertRowsAfter(sheet.getMaxRows(), 5);
     }
+
 
     // Se houver linha anterior com fórmulas, replicar fórmulas e formatos
     var refRow = targetRow > (headerRow + 1) ? (targetRow - 1) : (headerRow + 1);
@@ -726,8 +800,10 @@ function salvarContrato(data, files) {
         var prevRange = sheet.getRange(refRow, 1, 1, 32);
         var targetRange = sheet.getRange(targetRow, 1, 1, 32);
 
+
         // Copiar formatação
         prevRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+
 
         // Verificar e copiar fórmulas existentes
         var prevFormulas = prevRange.getFormulasR1C1()[0];
@@ -744,11 +820,14 @@ function salvarContrato(data, files) {
       }
     }
 
+
     // Inserir os dados na planilha na linha exata
     sheet.getRange(targetRow, 1, 1, 32).setValues([novaLinha]);
 
+
     // Forçar atualização do Google Sheets imediatamente
     SpreadsheetApp.flush();
+
 
     // Garantir formatação consistente das células numéricas e de texto
     try {
@@ -762,6 +841,7 @@ function salvarContrato(data, files) {
       // Ignorar se formatação secundária falhar
     }
 
+
     // Registrar log de cadastro inicial no histórico
     var usuarioCad = '';
     try {
@@ -771,6 +851,7 @@ function salvarContrato(data, files) {
     }
     if (!usuarioCad) usuarioCad = 'usuario.compras@grupobrisanet.com.br';
     registrarLogAlteracao_(idFinal, protocol, data.fornecedor || '', 'Cadastro Inicial', '', 'Contrato cadastrado no sistema', usuarioCad, 'Não');
+
 
     return {
       success: true,
@@ -791,6 +872,7 @@ function salvarContrato(data, files) {
   }
 }
 
+
 /**
  * Retorna lista de contratos atualizada
  */
@@ -808,9 +890,11 @@ function listarContratos() {
   return init;
 }
 
+
 // ============================================================================
 // FUNÇÕES AUXILIARES DE FORMATAÇÃO E CONVERSÃO
 // ============================================================================
+
 
 function formatarProtocolo_(id) {
   if (!id) return '';
@@ -822,6 +906,7 @@ function formatarProtocolo_(id) {
   }
   return String(id);
 }
+
 
 function normalizarNumero_(valor) {
   if (valor === null || valor === undefined || valor === '') return 0;
@@ -836,6 +921,7 @@ function normalizarNumero_(valor) {
   var parsed = parseFloat(str);
   return isNaN(parsed) ? 0 : parsed;
 }
+
 
 function normalizarPorcentagem_(valor) {
   if (valor === null || valor === undefined || valor === '') return '';
@@ -853,6 +939,7 @@ function normalizarPorcentagem_(valor) {
   return parsed;
 }
 
+
 function formatarCnpjLimpo_(cnpj) {
   if (!cnpj) return '';
   var s = String(cnpj).replace(/\D/g, '');
@@ -861,6 +948,7 @@ function formatarCnpjLimpo_(cnpj) {
   }
   return cnpj;
 }
+
 
 function formatarDataParaPlanilha_(dataStr) {
   if (!dataStr) return '';
@@ -877,6 +965,7 @@ function formatarDataParaPlanilha_(dataStr) {
   return s;
 }
 
+
 function formatarDataExibicao_(val) {
   if (!val) return '';
   if (val instanceof Date) {
@@ -890,6 +979,7 @@ function formatarDataExibicao_(val) {
   return s;
 }
 
+
 function formatarDataHoraExibicao_(val) {
   if (!val) return '';
   if (val instanceof Date) {
@@ -897,6 +987,7 @@ function formatarDataHoraExibicao_(val) {
   }
   return String(val);
 }
+
 
 /**
  * Converte diferentes formatos de data (Date, AAAA-MM-DD, DD/MM/AAAA) em objeto Date zerado
@@ -925,6 +1016,7 @@ function converterParaData_(val) {
   return null;
 }
 
+
 /**
  * Calcula a quantidade de dias restantes para o vencimento em relação ao dia de hoje (00:00:00)
  * Retorna número inteiro de dias (positivo = a vencer, 0 = vence hoje, negativo = vencido) ou null
@@ -938,6 +1030,7 @@ function calcularDiasParaVencer_(val) {
   var diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
 }
+
 
 /**
  * Converte data/hora para timestamp para ordenacao segura
@@ -960,6 +1053,7 @@ function converterParaDataHoraValida_(val) {
   return isNaN(parsed.getTime()) ? null : parsed;
 }
 
+
 /**
  * Normaliza ID para comparacao resiliente (lida com 1.0, 1, #1, espacos e numeros)
  */
@@ -976,6 +1070,7 @@ function normalizarIdParaComparacao_(val) {
   }
   return s.toLowerCase();
 }
+
 
 /**
  * Extrai numero sequencial do protocolo (ex: BRISA-CON-2026-0001 -> 1)
@@ -995,6 +1090,7 @@ function extrairNumeroDoProtocolo_(proto) {
   }
   return null;
 }
+
 
 /**
  * Obtem ou cria a aba de historico de alteracoes de contratos com busca ampla de nomes
@@ -1016,10 +1112,12 @@ function obterAbaLogs_() {
     'Logs'
   ];
 
+
   for (var i = 0; i < candidateNames.length; i++) {
     var s = ss.getSheetByName(candidateNames[i]);
     if (s) return s;
   }
+
 
   // Se nao encontrou por nome exato, buscar por palavra-chave no nome da aba
   var allSheets = ss.getSheets();
@@ -1029,6 +1127,7 @@ function obterAbaLogs_() {
       return allSheets[j];
     }
   }
+
 
   var sheet = ss.insertSheet(CONFIG.LOG_SHEET_NAME);
   var headers = [
@@ -1048,78 +1147,79 @@ function obterAbaLogs_() {
   return sheet;
 }
 
+
 /**
- * Registra uma alteracao no log da planilha
+ * Registra uma alteracao no log da planilha de forma garantida e à prova de falhas
  */
 function registrarLogAlteracao_(contractId, protocol, fornecedor, campo, valorAnterior, novoValor, usuario, notificacao) {
   try {
     var logSheet = obterAbaLogs_();
-    var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
+    
+    // Captura o Fuso Horário de forma segura
+    var timezone = 'America/Sao_Paulo';
+    try { timezone = Session.getScriptTimeZone() || timezone; } catch(e) {}
+    var nowStr = Utilities.formatDate(new Date(), timezone, 'dd/MM/yyyy HH:mm:ss');
+    
+    // GARANTIA DE USUÁRIO: Força a captura do e-mail real se vier em branco
+    var finalUser = usuario;
+    if (!finalUser || String(finalUser).trim() === '' || String(finalUser).indexOf('usuario.compras') !== -1) {
+      try {
+        finalUser = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'Sistema / Usuário Web';
+      } catch(e) {
+        finalUser = 'Sistema / Usuário Web';
+      }
+    }
+
+
     var rowData = [
       nowStr,
-      contractId !== undefined && contractId !== null ? String(contractId) : '',
+      contractId ? String(contractId) : '',
       protocol || (contractId ? formatarProtocolo_(contractId) : ''),
-      fornecedor || '',
-      campo || '',
-      String(valorAnterior !== null && valorAnterior !== undefined ? valorAnterior : ''),
-      String(novoValor !== null && novoValor !== undefined ? novoValor : ''),
-      usuario || '',
-      notificacao || 'Não'
+      fornecedor ? String(fornecedor) : '',
+      campo ? String(campo) : '',
+      valorAnterior !== null && valorAnterior !== undefined ? String(valorAnterior) : '',
+      novoValor !== null && novoValor !== undefined ? String(novoValor) : '',
+      String(finalUser),
+      notificacao ? String(notificacao) : 'Não'
     ];
 
+
+    // 1. Assegura que o cabeçalho existe
     var lastRow = logSheet.getLastRow();
-    if (lastRow === 0) {
-      var headers = [
-        'Data/Hora',
-        'ID Contrato',
-        'Protocolo',
-        'Fornecedor',
-        'Campo Alterado',
-        'Valor Anterior',
-        'Novo Valor',
-        'Usuário',
-        'Notificação Enviada'
-      ];
+    if (lastRow === 0 || String(logSheet.getRange(1, 1).getValue()).trim() === '') {
+      var headers = ['Data/Hora', 'ID Contrato', 'Protocolo', 'Fornecedor', 'Campo Alterado', 'Valor Anterior', 'Novo Valor', 'Usuário', 'Notificação Enviada'];
       logSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-      logSheet.getRange(2, 1).setNumberFormat('@');
-      logSheet.getRange(2, 1, 1, rowData.length).setValues([rowData]);
-    } else {
-      var headerRow = 1;
-      var valA1 = String(logSheet.getRange(1, 1).getValue() || '').trim().toLowerCase();
-      if (valA1 !== 'data/hora' && valA1 !== 'data') {
-        for (var r = 1; r <= Math.min(lastRow, 10); r++) {
-          var rText = String(logSheet.getRange(r, 1).getValue() || '').trim().toLowerCase();
-          if (rText === 'data/hora' || rText === 'data' || rText === 'versão' || rText === 'versao') {
-            headerRow = r;
-            break;
-          }
-        }
-      }
-
-      var targetRow = -1;
-      if (lastRow > headerRow) {
-        var numCheck = Math.min(lastRow - headerRow, 500);
-        var checkVals = logSheet.getRange(headerRow + 1, 1, numCheck, 2).getValues();
-        for (var k = 0; k < checkVals.length; k++) {
-          if (String(checkVals[k][0] || '').trim() === '' && String(checkVals[k][1] || '').trim() === '') {
-            targetRow = headerRow + 1 + k;
-            break;
-          }
-        }
-      }
-
-      if (targetRow === -1) {
-        targetRow = lastRow + 1;
-      }
-
-      logSheet.getRange(targetRow, 1).setNumberFormat('@');
-      logSheet.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
+      logSheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#E8E8E8');
+      logSheet.setFrozenRows(1);
     }
+
+
+    // 2. Busca a verdadeira última linha preenchida na Coluna A (Data/Hora) de baixo para cima
+    var targetRow = logSheet.getLastRow() + 1;
+    var values = logSheet.getRange("A1:A" + Math.max(1, logSheet.getLastRow())).getValues();
+    for (var i = values.length - 1; i >= 0; i--) {
+      if (String(values[i][0]).trim() !== "") {
+        targetRow = i + 2; // +1 porque array começa no 0, e +1 para pegar a próxima linha em branco
+        break;
+      }
+    }
+    
+    // Trava de segurança para nunca sobrescrever o cabeçalho
+    if (targetRow < 2) targetRow = 2;
+
+
+    // 3. Grava os dados forçando a formatação da data como texto simples
+    logSheet.getRange(targetRow, 1).setNumberFormat('@'); 
+    logSheet.getRange(targetRow, 1, 1, rowData.length).setValues([rowData]);
+    
+    // Força o Google Sheets a salvar imediatamente antes de o usuário fechar o modal
     SpreadsheetApp.flush();
+    
   } catch (e) {
-    Logger.log('Erro ao registrar log: ' + e.message);
+    Logger.log('Erro CRÍTICO ao registrar log: ' + e.message);
   }
 }
+
 
 /**
  * Atualiza o campo de notas/observações de um contrato diretamente na planilha
@@ -1134,9 +1234,11 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
       throw new Error('Identificador do contrato não informado.');
     }
 
+
     var sheet = obterAbaContratos_();
     var headerRow = obterLinhaCabecalho_(sheet);
     var targetRow = -1;
+
 
     // 1. Validar se rowNumber fornecido corresponde ao ID
     if (rowNumber && rowNumber > headerRow) {
@@ -1145,6 +1247,7 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
         targetRow = rowNumber;
       }
     }
+
 
     // 2. Se não bateu ou não informado, procurar a linha pelo ID
     if (targetRow === -1) {
@@ -1160,17 +1263,21 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
       }
     }
 
+
     if (targetRow === -1) {
       throw new Error('Contrato com ID ' + contractId + ' não foi localizado na planilha.');
     }
+
 
     // Coluna AF (32) é Observações / Notas
     var rangeNota = sheet.getRange(targetRow, 32);
     var valorAnterior = String(rangeNota.getValue() || '');
 
+
     // Atualizar valor
     rangeNota.setValue(novaNota);
     SpreadsheetApp.flush();
+
 
     // Dados do contrato para o log
     var fornecedor = String(sheet.getRange(targetRow, 4).getValue() || '');
@@ -1183,8 +1290,10 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
     }
     if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
 
+
     // Registrar no histórico
     registrarLogAlteracao_(contractId, protocol, fornecedor, 'Notas / Observações', valorAnterior, novaNota, usuario, 'Não');
+
 
     return {
       success: true,
@@ -1204,6 +1313,7 @@ function atualizarNotasContrato(contractId, rowNumber, novaNota, motivo) {
   }
 }
 
+
 /**
  * Extrai historico de alteracoes de uma aba especifica com mapeamento inteligente de colunas
  */
@@ -1212,9 +1322,11 @@ function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
   var lastCol = sheet.getLastColumn();
   if (lastRow < 2 || lastCol < 2) return [];
 
+
   var numCols = Math.min(lastCol, 15);
   var values = sheet.getRange(1, 1, lastRow, numCols).getValues();
   if (!values || values.length === 0) return [];
+
 
   // Mapear cabecalhos dinamicamente
   var headerRowIdx = -1;
@@ -1229,6 +1341,7 @@ function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
     usuario: 7,
     notificacao: 8
   };
+
 
   for (var r = 0; r < Math.min(values.length, 10); r++) {
     var rowText = values[r].map(function(v) { return String(v || '').toLowerCase(); }).join(' | ');
@@ -1251,12 +1364,15 @@ function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
     }
   }
 
+
   var startRow = headerRowIdx !== -1 ? (headerRowIdx + 1) : 1;
   var logs = [];
+
 
   var targetIdNorm = normalizarIdParaComparacao_(targetId);
   var targetProtoNorm = normalizarIdParaComparacao_(targetProtocol || (targetId ? formatarProtocolo_(targetId) : ''));
   var targetProtoNum = extrairNumeroDoProtocolo_(targetProtocol) || extrairNumeroDoProtocolo_(targetId);
+
 
   for (var i = startRow; i < values.length; i++) {
     var row = values[i];
@@ -1270,13 +1386,17 @@ function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
     var valUser = row[colMap.usuario];
     var valNotif = row[colMap.notificacao];
 
+
     if (!valId && !valProto && !valCampo && !valNov) continue;
+
 
     var rowIdNorm = normalizarIdParaComparacao_(valId);
     var rowProtoNorm = normalizarIdParaComparacao_(valProto);
     var rowProtoNum = extrairNumeroDoProtocolo_(valProto) || extrairNumeroDoProtocolo_(valId);
 
+
     var match = false;
+
 
     // 1. Comparacao direta de ID normalizado (ex: 1 vs 1, 1.0 vs 1, #1 vs 1)
     if (rowIdNorm && targetIdNorm && rowIdNorm === targetIdNorm) {
@@ -1299,6 +1419,7 @@ function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
       match = true;
     }
 
+
     if (match) {
       logs.push({
         dataHora: formatarDataHoraExibicao_(valData),
@@ -1314,8 +1435,10 @@ function extrairLogsDaAba_(sheet, targetId, targetProtocol) {
     }
   }
 
+
   return logs;
 }
+
 
 /**
  * Retorna todo o historico de alteracoes registradas para um determinado contrato
@@ -1326,6 +1449,7 @@ function obterHistoricoContrato(contractId, protocol) {
   try {
     var ss = obterPlanilha_();
     var history = [];
+
 
     var candidateNames = [
       CONFIG.LOG_SHEET_NAME,
@@ -1342,6 +1466,7 @@ function obterHistoricoContrato(contractId, protocol) {
       'Logs'
     ];
 
+
     var visitedSheets = {};
     for (var s = 0; s < candidateNames.length; s++) {
       var sName = candidateNames[s];
@@ -1354,6 +1479,7 @@ function obterHistoricoContrato(contractId, protocol) {
         }
       }
     }
+
 
     // Se ainda nao encontrou em nenhuma das candidatas, varrer todas as abas
     if (history.length === 0) {
@@ -1373,6 +1499,7 @@ function obterHistoricoContrato(contractId, protocol) {
       }
     }
 
+
     // Ordenar do mais recente para o mais antigo
     history.sort(function(a, b) {
       var dateA = converterParaDataHoraValida_(a.dataHora);
@@ -1380,6 +1507,7 @@ function obterHistoricoContrato(contractId, protocol) {
       if (dateA && dateB) return dateB.getTime() - dateA.getTime();
       return 0;
     });
+
 
     return {
       success: true,
@@ -1397,6 +1525,7 @@ function obterHistoricoContrato(contractId, protocol) {
   }
 }
 
+
 /**
  * Envia notificação por e-mail sobre alterações / novos registros no contrato
  * @param {Object} dados - Informações de contrato, destinatários e mensagem
@@ -1406,6 +1535,7 @@ function enviarEmailRegistro(dados) {
     if (!dados || !dados.destinatarios) {
       throw new Error('Informe ao menos um endereço de e-mail de destinatário.');
     }
+
 
     // Tratar destinatários
     var rawList = String(dados.destinatarios).split(/[,;]/);
@@ -1418,9 +1548,11 @@ function enviarEmailRegistro(dados) {
       }
     }
 
+
     if (validEmails.length === 0) {
       throw new Error('Nenhum e-mail de destinatário válido foi informado.');
     }
+
 
     var usuario = '';
     try {
@@ -1430,17 +1562,21 @@ function enviarEmailRegistro(dados) {
     }
     if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
 
+
     var protocol = dados.protocol || formatarProtocolo_(dados.id);
     var fornecedor = dados.fornecedor || 'Fornecedor';
     var objeto = dados.objeto || 'Contrato de Fornecimento';
     var notaAlteracao = dados.mensagem || dados.novaNota || dados.observacoes || 'Atualização cadastral realizada.';
     var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm');
 
+
     var ssUrl = obterPlanilha_().getUrl();
     var folderUrl = obterOuCriarPastaAnexos_().getUrl();
 
+
     var idDisplay = 'Contrato #' + (dados.id || dados.contractId || '-');
     var assunto = dados.assunto || ('[a brisanet] Registro Contratual - ' + idDisplay + ' (' + fornecedor + ')');
+
 
     // Corpo HTML do e-mail com a identidade visual oficial da brisanet
     var htmlBody = 
@@ -1453,11 +1589,13 @@ function enviarEmailRegistro(dados) {
             '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;">GERÊNCIA EXECUTIVA DE TELEFONIA · a brisanet</p>' +
           '</div>' +
 
+
           '<div style="padding:24px;">' +
             '<p style="font-size:14px;line-height:1.6;color:#334155;margin-top:0;">' +
               'Olá,<br><br>' +
               'Informamos que foi registrado um novo acordo ou atualização no contrato corporativo detalhado abaixo:' +
             '</p>' +
+
 
             '<div style="background:#f0f3ff;border-left:4px solid #2242D4;border-radius:6px;padding:16px;margin:20px 0;">' +
               '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
@@ -1480,29 +1618,36 @@ function enviarEmailRegistro(dados) {
               '</table>' +
             '</div>' +
 
+
             '<div style="background:#ffffff;border:1px solid #E8E8E8;border-radius:8px;padding:16px;margin:20px 0;">' +
               '<h4 style="margin:0 0 8px 0;font-size:12px;font-weight:800;color:#FF5022;text-transform:uppercase;letter-spacing:0.5px;">Nota / Acordo Registrado:</h4>' +
               '<p style="margin:0;font-size:13px;color:#0B316D;white-space:pre-wrap;line-height:1.6;">' + notaAlteracao + '</p>' +
             '</div>' +
+
 
             '<p style="font-size:12px;color:#64748b;margin:16px 0 24px 0;">' +
               '<strong>Registrado por:</strong> ' + usuario + '<br>' +
               '<strong>Data e hora:</strong> ' + nowStr +
             '</p>' +
 
+
             '<div style="text-align:center;margin-top:24px;">' +
               '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;margin-right:10px;">Abrir Planilha de Contratos</a>' +
               '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;">Acessar Pasta no Drive</a>' +
             '</div>' +
 
+
           '</div>' +
+
 
           '<div style="background:#f8fafc;border-top:1px solid #E8E8E8;padding:14px 24px;text-align:center;font-size:11px;color:#94a3b8;">' +
             'Este é um comunicado automático gerado pelo Sistema de Gestão de Contratos · a brisanet' +
           '</div>' +
 
+
         '</div>' +
       '</div>';
+
 
     MailApp.sendEmail({
       to: validEmails.join(','),
@@ -1510,7 +1655,9 @@ function enviarEmailRegistro(dados) {
       htmlBody: htmlBody
     });
 
+
     registrarLogAlteracao_(dados.id || dados.contractId, protocol, fornecedor, 'Notificação por E-mail', '', notaAlteracao, usuario, validEmails.join(', '));
+
 
     return {
       success: true,
@@ -1525,9 +1672,11 @@ function enviarEmailRegistro(dados) {
   }
 }
 
+
 // ============================================================================
 // GESTÃO DE ACESSOS E DESTINATÁRIOS (ABA ACESSOS)
 // ============================================================================
+
 
 /**
  * Obtém ou cria a aba "Acessos" onde ficam registrados os colaboradores e e-mails
@@ -1546,6 +1695,7 @@ function obterAbaAcessos_() {
   }
   return sheet;
 }
+
 
 /**
  * Lê todos os colaboradores e e-mails válidos da aba "Acessos" a partir da linha 2
@@ -1577,6 +1727,7 @@ function obterUsuariosAcessos_() {
   }
 }
 
+
 /**
  * Retorna lista única de e-mails cadastrados na aba Acessos
  */
@@ -1590,6 +1741,7 @@ function obterListaEmailsAcessos_() {
   }
   return emails;
 }
+
 
 /**
  * Diagnóstico rápido pelo menu da planilha para conferir quem está cadastrado na aba Acessos
@@ -1614,9 +1766,11 @@ function verificarUsuariosAcessosMenu() {
   );
 }
 
+
 // ============================================================================
 // MOTOR DE ALERTAS AUTOMÁTICOS DE RISCO DE VENCIMENTO (90, 60, 30 E 7 DIAS)
 // ============================================================================
+
 
 /**
  * Verifica contratos próximos do vencimento e dispara alertas por e-mail para os usuários da aba Acessos
@@ -1627,6 +1781,7 @@ function verificarVencimentosEEnviarAlertas() {
     var sheet = obterAbaContratos_();
     var headerRow = obterLinhaCabecalho_(sheet);
     var lastRow = sheet.getLastRow();
+
 
     // 1. Obter destinatários cadastrados na aba Acessos
     var emailsDestino = obterListaEmailsAcessos_();
@@ -1641,6 +1796,7 @@ function verificarVencimentosEEnviarAlertas() {
       };
     }
 
+
     if (lastRow <= headerRow) {
       return {
         success: true,
@@ -1650,6 +1806,7 @@ function verificarVencimentosEEnviarAlertas() {
         destinatarios: emailsDestino
       };
     }
+
 
     // 2. Mapear alertas já enviados para evitar repetições indesejadas
     var logSheet = obterAbaLogs_();
@@ -1668,17 +1825,20 @@ function verificarVencimentosEEnviarAlertas() {
       }
     }
 
+
     // 3. Ler contratos cadastrados
     var numRows = lastRow - headerRow;
     var values = sheet.getRange(headerRow + 1, 1, numRows, 32).getValues();
     var alertasEnviados = [];
     var contratosEmRiscoCount = 0;
 
+
     for (var i = 0; i < values.length; i++) {
       var row = values[i];
       var rawId = row[0];
       var fornecedor = String(row[3] || '').trim();
       if (!rawId && !fornecedor) continue;
+
 
       var status = String(row[9] || 'Ativo').trim();
       var statusLower = status.toLowerCase();
@@ -1687,16 +1847,20 @@ function verificarVencimentosEEnviarAlertas() {
         continue;
       }
 
+
       var fimVigenciaRaw = row[11];
       var diasRestantes = calcularDiasParaVencer_(fimVigenciaRaw);
       if (diasRestantes === null) continue;
 
+
       var fimVigenciaFormatado = formatarDataExibicao_(fimVigenciaRaw);
+
 
       // Regra de Risco: contratos com <= 90 dias
       if (diasRestantes <= 90) {
         contratosEmRiscoCount++;
       }
+
 
       // Determinar o marco aplicável (90, 60, 30 ou 7 dias)
       var marco = null;
@@ -1710,16 +1874,20 @@ function verificarVencimentosEEnviarAlertas() {
         marco = 90;
       }
 
+
       if (marco === null) continue;
+
 
       var nomeCampoAlerta = 'Alerta de Vencimento (' + marco + ' dias)';
       var valorReferencia = 'Vencimento: ' + fimVigenciaFormatado;
       var chaveVerificacao = rawId + '::' + nomeCampoAlerta + '::' + valorReferencia;
 
+
       // Se o alerta para este marco com esta data já foi enviado, não repete
       if (alertasJaDisparados[chaveVerificacao]) {
         continue;
       }
+
 
       // Preparar dados e disparar o e-mail de alerta
       var dadosAlerta = {
@@ -1738,6 +1906,7 @@ function verificarVencimentosEEnviarAlertas() {
         destinatarios: emailsDestino
       };
 
+
       var envioRes = enviarEmailAlertaVencimento_(dadosAlerta);
       if (envioRes.success) {
         registrarLogAlteracao_(
@@ -1754,6 +1923,7 @@ function verificarVencimentosEEnviarAlertas() {
         alertasEnviados.push('Contrato #' + rawId + ' (' + fornecedor + '): marco de ' + marco + ' dias (' + diasRestantes + 'd restantes)');
       }
     }
+
 
     return {
       success: true,
@@ -1774,6 +1944,7 @@ function verificarVencimentosEEnviarAlertas() {
   }
 }
 
+
 /**
  * Envia e-mail corporativo formatado de alerta de vencimento para a equipe
  */
@@ -1784,10 +1955,12 @@ function enviarEmailAlertaVencimento_(dados) {
       throw new Error('Nenhum e-mail de destinatário informado.');
     }
 
+
     var idDisplay = 'Contrato #' + dados.id;
     var assunto = dados.marco === 7 ?
       '[a brisanet] ALERTA CRÍTICO: Vencimento em 7 dias - ' + idDisplay + ' (' + dados.fornecedor + ')' :
       '[a brisanet] Alerta de Vencimento (' + dados.marco + ' dias) - ' + idDisplay + ' (' + dados.fornecedor + ')';
+
 
     var corMarco = '#2242D4'; // 90 dias (azul)
     var textoMarco = 'Antecedência de 90 dias';
@@ -1802,9 +1975,11 @@ function enviarEmailAlertaVencimento_(dados) {
       textoMarco = 'Urgência Máxima: Últimos 7 dias de vigência';
     }
 
+
     var ssUrl = obterPlanilha_().getUrl();
     var folderUrl = obterOuCriarPastaAnexos_().getUrl();
     var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm');
+
 
     var htmlBody = 
       '<div style="font-family:\'Figtree\',Arial,sans-serif;background-color:#f8fafc;padding:24px;color:#0B316D;">' +
@@ -1819,12 +1994,14 @@ function enviarEmailAlertaVencimento_(dados) {
             '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;text-transform:lowercase;">gestão e governança de contratos · acompanhamento de vigência</p>' +
           '</div>' +
 
+
           '<div style="padding:24px;">' +
             '<p style="font-size:14px;line-height:1.6;color:#334155;margin-top:0;">' +
               'Prezados,<br><br>' +
               'Identificamos que o contrato abaixo atingiu o marco de <strong>' + dados.marco + ' dias de antecedência</strong> para o término de sua vigência. ' +
               'Favor avaliar com a equipe a necessidade de renovação, aditivo ou encerramento das atividades com o fornecedor.' +
             '</p>' +
+
 
             '<div style="background:#f0f3ff;border-left:4px solid ' + corMarco + ';border-radius:6px;padding:16px;margin:20px 0;">' +
               '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
@@ -1857,6 +2034,7 @@ function enviarEmailAlertaVencimento_(dados) {
               '</table>' +
             '</div>' +
 
+
             '<div style="background:#fffbeb;border:1px solid #fef3c7;border-radius:8px;padding:14px;margin:20px 0;">' +
               '<h4 style="margin:0 0 6px 0;font-size:12px;font-weight:800;color:#b45309;text-transform:uppercase;letter-spacing:0.5px;">Ação Recomendada:</h4>' +
               '<p style="margin:0;font-size:13px;color:#92400e;line-height:1.5;">' +
@@ -1865,25 +2043,31 @@ function enviarEmailAlertaVencimento_(dados) {
               '</p>' +
             '</div>' +
 
+
             '<div style="text-align:center;margin-top:24px;">' +
               '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;margin-right:10px;">Abrir Planilha de Contratos</a>' +
               '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;">Acessar Pasta no Drive</a>' +
             '</div>' +
 
+
           '</div>' +
+
 
           '<div style="background:#f8fafc;border-top:1px solid #E8E8E8;padding:14px 24px;text-align:center;font-size:11px;color:#94a3b8;">' +
             'Este alerta automático foi emitido com base nos colaboradores cadastrados na aba Acessos · a brisanet (' + nowStr + ')' +
           '</div>' +
 
+
         '</div>' +
       '</div>';
+
 
     MailApp.sendEmail({
       to: validEmails.join(','),
       subject: assunto,
       htmlBody: htmlBody
     });
+
 
     return {
       success: true,
@@ -1898,6 +2082,7 @@ function enviarEmailAlertaVencimento_(dados) {
   }
 }
 
+
 /**
  * Configura gatilho diário automático (às 08:00) para verificação de vencimentos
  */
@@ -1909,11 +2094,13 @@ function configurarGatilhoDiario() {
     }
   }
 
+
   ScriptApp.newTrigger('verificarVencimentosEEnviarAlertas')
     .timeBased()
     .atHour(8)
     .everyDays(1)
     .create();
+
 
   try {
     var ui = SpreadsheetApp.getUi();
@@ -1924,11 +2111,13 @@ function configurarGatilhoDiario() {
     );
   } catch (e) {}
 
+
   return {
     success: true,
     message: 'Gatilho diário automático configurado com sucesso para as 08:00.'
   };
 }
+
 
 /**
  * Executa verificação manual e exibe resultado ao usuário
@@ -1952,9 +2141,11 @@ function verificarVencimentosManualmente() {
   return res;
 }
 
+
 // ============================================================================
 // ATUALIZAÇÃO DE CAMPO INDIVIDUAL (EDIÇÃO VIA LÁPIS COM LOG EXCLUSIVO DO CAMPO)
 // ============================================================================
+
 
 /**
  * Atualiza um único campo específico do contrato diretamente na célula da planilha
@@ -1973,9 +2164,11 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       throw new Error('Campo para alteração não informado.');
     }
 
+
     var sheet = obterAbaContratos_();
     var headerRow = obterLinhaCabecalho_(sheet);
     var targetRow = -1;
+
 
     // 1. Validar se rowNumber fornecido corresponde ao ID
     if (rowNumber && rowNumber > headerRow) {
@@ -1984,6 +2177,7 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
         targetRow = rowNumber;
       }
     }
+
 
     // 2. Se não bateu ou não informado, procurar a linha pelo ID
     if (targetRow === -1) {
@@ -1999,9 +2193,11 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       }
     }
 
+
     if (targetRow === -1) {
       throw new Error('Contrato #' + contractId + ' não foi localizado na planilha.');
     }
+
 
     // Mapa de campos para coluna da planilha (1-indexed, 1 a 32) e nome amigável
     var mapaCampos = {
@@ -2034,19 +2230,23 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       observacoes: { col: 32, nome: 'Notas / Observações', tipo: 'textarea' }
     };
 
+
     var configCampo = mapaCampos[chaveCampo];
     if (!configCampo) {
       throw new Error('Campo "' + chaveCampo + '" não é reconhecido para edição.');
     }
 
+
     var colIndex = configCampo.col;
     var range = sheet.getRange(targetRow, colIndex);
     var valorAnteriorRaw = range.getValue();
+
 
     // Formatar valor anterior e novo valor
     var valorAnteriorFormatado = '';
     var novoValorFormatado = '';
     var valorParaGravar = novoValor;
+
 
     if (configCampo.tipo === 'date') {
       valorAnteriorFormatado = formatarDataExibicao_(valorAnteriorRaw);
@@ -2072,8 +2272,10 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       novoValorFormatado = valorParaGravar;
     }
 
+
     // Gravar o novo valor na célula
     range.setValue(valorParaGravar);
+
 
     // Se for campo financeiro, recalcular colunas dependentes caso não contenham fórmulas
     var moeda = String(sheet.getRange(targetRow, 14).getValue() || 'BRL');
@@ -2082,10 +2284,12 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
     var reajusteMan = normalizarPorcentagem_(sheet.getRange(targetRow, 20).getValue());
     var conting = normalizarPorcentagem_(sheet.getRange(targetRow, 25).getValue());
 
+
     var taxaCambio = 1;
     if (moeda === 'USD') taxaCambio = 5.3;
     else if (moeda === 'EUR') taxaCambio = 5.9;
     else if (moeda === 'GBP') taxaCambio = 6.8;
+
 
     var reajusteAplicado = '';
     if (reajusteMan !== '') {
@@ -2098,11 +2302,13 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       reajusteAplicado = 0;
     }
 
+
     var valorBaseBRL = valorLanc * taxaCambio;
     var valorOrcado = valorBaseBRL;
     if (conting !== '' && typeof conting === 'number') {
       valorOrcado = valorBaseBRL * (1 + conting);
     }
+
 
     // Verificar se as células têm fórmulas antes de sobrepor
     var formulas = sheet.getRange(targetRow, 21, 1, 6).getFormulasR1C1()[0];
@@ -2115,7 +2321,9 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
     // Col 26 (Z): valorOrcado
     if (!formulas[5]) sheet.getRange(targetRow, 26).setValue(valorOrcado);
 
+
     SpreadsheetApp.flush();
+
 
     // Obter usuário e dados adicionais para o log
     var usuario = '';
@@ -2126,8 +2334,10 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
     }
     if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
 
+
     var fornecedor = String(sheet.getRange(targetRow, 4).getValue() || '');
     var protocol = formatarProtocolo_(contractId);
+
 
     // Registrar EXCLUSIVAMENTE o log desta alteração única
     registrarLogAlteracao_(
@@ -2141,9 +2351,11 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       'Não'
     );
 
+
     var dataFimRow = sheet.getRange(targetRow, 12).getValue();
     var diasParaVencer = calcularDiasParaVencer_(dataFimRow);
     var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
+
 
     return {
       success: true,
@@ -2172,9 +2384,11 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
   }
 }
 
+
 // ============================================================================
 // ATUALIZAÇÃO COMPLETA DE CONTRATO (MODAL DE DETALHES COM LOG DETALHADO)
 // ============================================================================
+
 
 /**
  * Atualiza os dados completos de um contrato diretamente na planilha e registra alterações no log
@@ -2186,9 +2400,11 @@ function atualizarContratoCompleto(dados) {
       throw new Error('ID do contrato não informado para atualização.');
     }
 
+
     var sheet = obterAbaContratos_();
     var headerRow = obterLinhaCabecalho_(sheet);
     var targetRow = -1;
+
 
     // 1. Validar rowNumber ou localizar por ID
     if (dados.rowNumber && dados.rowNumber > headerRow) {
@@ -2197,6 +2413,7 @@ function atualizarContratoCompleto(dados) {
         targetRow = dados.rowNumber;
       }
     }
+
 
     if (targetRow === -1) {
       var lastRow = sheet.getLastRow();
@@ -2211,12 +2428,15 @@ function atualizarContratoCompleto(dados) {
       }
     }
 
+
     if (targetRow === -1) {
       throw new Error('Contrato #' + dados.id + ' não foi localizado na planilha.');
     }
 
+
     // 2. Ler valores atuais da linha
     var valoresAtuais = sheet.getRange(targetRow, 1, 1, 32).getValues()[0];
+
 
     // 3. Processar cálculos financeiros
     var moeda = dados.moeda || valoresAtuais[13] || 'BRL';
@@ -2225,6 +2445,7 @@ function atualizarContratoCompleto(dados) {
     if (moeda === 'USD') taxaCambio = 5.3;
     else if (moeda === 'EUR') taxaCambio = 5.9;
     else if (moeda === 'GBP') taxaCambio = 6.8;
+
 
     var reajusteManual = dados.reajusteManual !== undefined ? normalizarPorcentagem_(dados.reajusteManual) : valoresAtuais[19];
     var reajusteAplicado = '';
@@ -2239,6 +2460,7 @@ function atualizarContratoCompleto(dados) {
       reajusteAplicado = 0;
     }
 
+
     var contingencia = dados.contingencia !== undefined ? normalizarPorcentagem_(dados.contingencia) : valoresAtuais[24];
     var valorBaseBRL = valorLancamento * taxaCambio;
     var valorOrcado = valorBaseBRL;
@@ -2246,11 +2468,13 @@ function atualizarContratoCompleto(dados) {
       valorOrcado = valorBaseBRL * (1 + contingencia);
     }
 
+
     // 4. Montar nova linha com dados formatados
     var dataInicioFormatada = dados.inicioVigencia !== undefined ? formatarDataParaPlanilha_(dados.inicioVigencia) : valoresAtuais[10];
     var dataFimFormatada = dados.fimVigencia !== undefined ? formatarDataParaPlanilha_(dados.fimVigencia) : valoresAtuais[11];
     var dataCompetenciaFormatada = dados.primeiraCompetencia !== undefined ? formatarDataParaPlanilha_(dados.primeiraCompetencia) : valoresAtuais[16];
     var dataReajusteFormatada = dados.dataReajuste !== undefined ? formatarDataParaPlanilha_(dados.dataReajuste) : valoresAtuais[17];
+
 
     var novaLinha = [
       dados.id,                                              // A (1) ID
@@ -2287,6 +2511,7 @@ function atualizarContratoCompleto(dados) {
       dados.observacoes !== undefined ? (dados.observacoes || '') : valoresAtuais[31]        // AF (32)
     ];
 
+
     // Preservar fórmulas pré-existentes na planilha
     var formulas = sheet.getRange(targetRow, 1, 1, 32).getFormulasR1C1()[0];
     for (var f = 0; f < formulas.length; f++) {
@@ -2296,6 +2521,7 @@ function atualizarContratoCompleto(dados) {
         }
       }
     }
+
 
     // 5. Comparar campos alterados para auditoria e logs
     var nomesCampos = [
@@ -2308,13 +2534,16 @@ function atualizarContratoCompleto(dados) {
       'Memória de Cálculo', 'Notas / Observações'
     ];
 
+
     var diffs = [];
     for (var col = 1; col < 32; col++) {
       var vAnt = valoresAtuais[col];
       var vNov = novaLinha[col];
 
+
       var strAnt = String(vAnt !== null && vAnt !== undefined ? vAnt : '').trim();
       var strNov = String(vNov !== null && vNov !== undefined ? vNov : '').trim();
+
 
       if (col === 10 || col === 11 || col === 16 || col === 17) {
         strAnt = formatarDataExibicao_(vAnt);
@@ -2330,6 +2559,7 @@ function atualizarContratoCompleto(dados) {
         }
       }
 
+
       if (strAnt !== strNov) {
         diffs.push({
           coluna: col + 1,
@@ -2340,9 +2570,11 @@ function atualizarContratoCompleto(dados) {
       }
     }
 
+
     // 6. Gravar nova linha na planilha
     sheet.getRange(targetRow, 1, 1, 32).setValues([novaLinha]);
     SpreadsheetApp.flush();
+
 
     // 7. Obter usuário ativo e registrar histórico
     var usuario = '';
@@ -2353,8 +2585,10 @@ function atualizarContratoCompleto(dados) {
     }
     if (!usuario) usuario = 'usuario.compras@grupobrisanet.com.br';
 
+
     var protocol = formatarProtocolo_(dados.id);
     var fornecedorFinal = novaLinha[3] || 'Fornecedor';
+
 
     for (var d = 0; d < diffs.length; d++) {
       registrarLogAlteracao_(
@@ -2369,7 +2603,9 @@ function atualizarContratoCompleto(dados) {
       );
     }
 
+
     var diasParaVencer = calcularDiasParaVencer_(novaLinha[11]);
+
 
     return {
       success: true,
@@ -2390,6 +2626,7 @@ function atualizarContratoCompleto(dados) {
     };
   }
 }
+
 
 /**
  * Obtém os Links Contratados (Circuitos de Internet Off-Net)
@@ -2438,6 +2675,7 @@ function obterLinksContratados_() {
   }
   return obterLinksContratadosFicticios_();
 }
+
 
 /**
  * Retorna lista de links fictícios para demonstração e homologação
