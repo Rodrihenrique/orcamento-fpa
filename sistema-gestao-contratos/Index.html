@@ -981,6 +981,7 @@
       align-items: center;
       z-index: 1000;
       padding: 20px;
+      overflow-y: auto;
     }
 
     .modal-content {
@@ -992,7 +993,75 @@
       display: flex;
       flex-direction: column;
       box-shadow: var(--shadow-lg);
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: #CBD5E1 #F1F5F9;
+    }
+
+    .modal-content::-webkit-scrollbar,
+    .modal-body::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .modal-content::-webkit-scrollbar-track,
+    .modal-body::-webkit-scrollbar-track {
+      background: #F1F5F9;
+      border-radius: 4px;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb,
+    .modal-body::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+
+    .modal-content::-webkit-scrollbar-thumb:hover,
+    .modal-body::-webkit-scrollbar-thumb:hover {
+      background: var(--brisa-orange);
+    }
+
+    /* Rolagem e fixacao de cabecalho e rodape do Modal Novo Contrato */
+    #modalNovoContratoParaFornecedor .modal-content {
+      max-width: 960px;
+      max-height: 90vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    #modalNovoContratoParaFornecedor .modal-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      flex-shrink: 0;
+    }
+
+    #modalNovoContratoParaFornecedor #formNovoContratoModal {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: min-content;
+    }
+
+    #modalNovoContratoParaFornecedor .modal-body {
+      overflow-y: visible;
+      flex: none;
+      padding: 24px;
+      padding-bottom: 24px;
+    }
+
+    #modalNovoContratoParaFornecedor .modal-footer {
+      position: sticky;
+      bottom: 0;
+      z-index: 20;
+      background: #F8FAFC;
+      border-top: 1px solid var(--border-subtle);
+      box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.05);
+      flex-shrink: 0;
+      padding: 14px 24px;
     }
 
     .modal-header {
@@ -1152,7 +1221,7 @@
           <span class="brand-divider">|</span>
           Telefonia
         </h1>
-        <div class="brand-subtitle">GERÊNCIA EXECUTIVA DE TELEFONIA · A BRISANET</div>
+        <div class="brand-subtitle">GERÊNCIA EXECUTIVA DE TELEFONIA · BRISANET</div>
       </div>
     </div>
 
@@ -1501,7 +1570,7 @@
         </div>
 
         <!-- Painel Dinamico: Tabela de Valores por Base de Clientes -->
-        <div id="containerTabelaBaseClientes" style="display: none; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px;">
+        <div id="containerTabelaBaseClientes" style="display: none; background: #F8FAFC; border: 1px solid #CBD5E1; border-radius: var(--radius-md); padding: 14px; margin-bottom: 20px; overflow-x: auto;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div style="font-size: 12px; font-weight: 700; color: var(--brisa-dark-blue);">
               Faixas de Valores por Base de Clientes (Assinantes)
