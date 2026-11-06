@@ -8,8 +8,9 @@
 O **Sistema de Gestão de Contratos da Telefonia** é a plataforma corporativa oficial desenvolvida exclusivamente para atender as operações, a esteira de governança e a gestão documental da **Gerência Executiva de Telefonia** d'**a brisanet**.
 
 ### Principais Benefícios:
+*   **Base Oficial Dedicada:** A Telefonia opera em uma nova base independente denominada `Base Oficial de Contratos - Gerência Executiva de Telefonia`, garantindo isolamento total contra alterações na planilha anterior.
 *   **Visão Centrada no Fornecedor (Modelo Acordeão):** Apresentação consolidada dos parceiros comerciais com expansão imediata para a lista de contratos vinculados.
-*   **Repositório Oficial no Google Drive:** Criação e organização automática da pasta raiz `Contratos - Gerência Executiva de Telefonia` com 5 subpastas padronizadas por contrato.
+*   **Repositório Oficial no Google Drive:** Criação e organização automática da pasta raiz `Contratos - Gerência Executiva de Telefonia` com 5 subpastas padronizadas por contrato e upload direto de arquivos (PDF, PNG, JPEG, DOCX).
 *   **Esteira Formal de Alçadas de Aprovação:** Fluxo integrado para validações formais de Coordenadores, Gerentes e Gerente Executivo.
 *   **Trilha Oficial de Auditoria Imutável:** Registro cronológico à prova de adulteração com data/hora no Horário de Brasília (UTC-3), e-mail corporativo, ação, valores antes/depois e pareceres.
 *   **Certificado Oficial de Conformidade:** Emissão de folha de rosto com assinatura digital em hash para anexação comprobatória.
@@ -46,10 +47,11 @@ O setor **Gestão Telefonia** atua como operador mestre do sistema, responsável
 ### 3.2 Cadastrar um Novo Contrato e Provisionar o Drive
 1.  Clique na aba superior **Novo Contrato**.
 2.  **Seção 1 - Fornecedor:** Informe a Razão Social, Nome Fantasia, CNPJ e o Objeto resumido da contratação.
-3.  **Seção 2 - Vigência:** Selecione a modalidade (Voz, Links Dedicados, Torres, Infraestrutura, etc.), data de início e término da vigência.
+3.  **Seção 2 - Vigência:** Selecione a modalidade (Voz, Links Dedicados, Torres, Infraestrutura, etc.) e a data de início da vigência. Caso o contrato não possua data de encerramento prevista, marque a caixa **Vigência Indeterminada** (o campo de data final será desabilitado e limpo automaticamente).
 4.  **Seção 3 - Financeiro & Classificação:** Preencha o valor mensal em R$, índice de reajuste contratual (IPCA, IGP-M, etc.), mês de aniversário, centro de custo e o e-mail do gestor técnico.
-5.  Clique em **Cadastrar Contrato e Criar Pastas no Drive**.
-6.  **O que o sistema faz automaticamente:**
+5.  **Seção 4 - Documentos e Arquivo do Contrato:** Arraste e solte ou clique na área de upload para anexar os arquivos do contrato (PDF, PNG, JPEG, DOCX, XLSX). O sistema codifica os documentos e envia diretamente para a subpasta oficial `01_Contrato_Principal` dentro da pasta do fornecedor no Google Drive.
+6.  Clique em **Cadastrar Contrato, Anexar Arquivos e Criar Pastas no Drive**.
+7.  **O que o sistema faz automaticamente:**
     *   Gera o protocolo sequencial oficial no padrão `BRISA-TEL-{ANO}-{ID}`.
     *   Cria a pasta do fornecedor no Google Drive caso seja um parceiro novo.
     *   Cria a pasta do contrato com as **5 subpastas padronizadas**:
@@ -58,7 +60,8 @@ O setor **Gestão Telefonia** atua como operador mestre do sistema, responsável
         *   `03_Documentos_Tecnicos`
         *   `04_Boletins_Medicao`
         *   `05_Aprovacoes_e_Pareceres`
-    *   Registra o evento inaugural na Trilha Oficial de Auditoria.
+    *   Faz o upload dos arquivos anexados para a subpasta `01_Contrato_Principal`.
+    *   Registra o evento inaugural e o upload na Trilha Oficial de Auditoria.
 
 ### 3.3 Utilizar a Ficha 360° do Contrato
 Na lista de contratos vinculados ao fornecedor, clique no botão **Abrir Ficha 360°**:

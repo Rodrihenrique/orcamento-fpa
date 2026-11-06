@@ -621,6 +621,11 @@
       color: var(--success);
     }
 
+    .badge-urgency.flat {
+      background: #F1F5F9;
+      color: var(--text-muted);
+    }
+
     .badge-mom {
       display: inline-flex;
       align-items: center;
@@ -722,7 +727,7 @@
     }
 
     /* ==========================================================================
-       FORMULARIO NOVO CONTRATO
+       FORMULARIO NOVO CONTRATO & UPLOAD DROPZONE
        ========================================================================== */
     .form-card {
       background: var(--bg-surface);
@@ -799,6 +804,85 @@
     textarea.form-control {
       height: auto;
       padding: 10px 12px;
+    }
+
+    /* Dropzone de Upload */
+    .file-dropzone {
+      border: 2px dashed #CBD5E1;
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      text-align: center;
+      background: #F8FAFC;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .file-dropzone:hover, .file-dropzone.dragover {
+      border-color: var(--brisa-blue);
+      background: #EFF6FF;
+    }
+
+    .dropzone-icon {
+      width: 36px;
+      height: 36px;
+      color: var(--brisa-blue);
+      margin-bottom: 8px;
+    }
+
+    .dropzone-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--brisa-dark-blue);
+    }
+
+    .dropzone-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .files-list-container {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .file-item-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .file-item-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-item-name {
+      font-weight: 600;
+      color: var(--brisa-dark-blue);
+    }
+
+    .file-item-size {
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .btn-remove-file {
+      background: none;
+      border: none;
+      color: var(--brisa-terracotta);
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px;
+      font-size: 14px;
     }
 
     /* ==========================================================================
@@ -988,11 +1072,11 @@
         <span class="user-profile-email" id="userEmailBadge">carregando...</span>
         <span class="user-profile-role" id="userRoleBadge">Gestão Telefonia</span>
       </div>
-      <a id="spreadsheetHeaderLink" href="https://docs.google.com/spreadsheets/d/1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I/edit" target="_blank" class="header-link-btn" title="Abrir Planilha de Contratos">
+      <a id="spreadsheetHeaderLink" href="#" target="_blank" class="header-link-btn" title="Abrir Planilha Oficial da Telefonia">
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
         </svg>
-        Planilha Oficial
+        Planilha Oficial (Telefonia)
       </a>
       <a id="driveRootHeaderLink" href="#" target="_blank" class="header-link-btn" title="Abrir Pasta Raiz no Drive">
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1139,7 +1223,7 @@
   </div>
 
   <!-- ========================================================================
-       ABA 3: NOVO CONTRATO & FORNECEDOR
+       ABA 3: NOVO CONTRATO & FORNECEDOR COM UPLOAD E VIGENCIA INDETERMINADA
        ======================================================================== -->
   <div id="viewNovoContrato" style="display: none;">
     <form id="formNovoContrato" onsubmit="submeterNovoContrato(event)">
@@ -1161,12 +1245,12 @@
           </div>
           <div class="form-group col-span-4">
             <label class="form-label required">Objeto do Contrato</label>
-            <textarea id="novoContratoObjeto" class="form-control" rows="2" placeholder="Descreva sucintamente os servicos ou infraestrutura contratada..." required></textarea>
+            <textarea id="novoContratoObjeto" class="form-control" rows="2" placeholder="Descreva sucintamente os serviços ou infraestrutura contratada..." required></textarea>
           </div>
         </div>
       </section>
 
-      <!-- Secao 2: Vigencia e Modalidade -->
+      <!-- Secao 2: Vigencia e Modalidade com Vigencia Indeterminada -->
       <section class="form-card">
         <div class="section-title">2. Vigência, Prazos e Modalidade</div>
         <div class="form-grid">
@@ -1188,6 +1272,10 @@
           <div class="form-group">
             <label class="form-label">Término da Vigência</label>
             <input type="date" id="novoContratoDataFim" class="form-control">
+            <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; cursor: pointer;">
+              <input type="checkbox" id="novoContratoPrazoIndeterminado" onchange="alternarPrazoIndeterminado(this.checked)">
+              <span style="font-weight: 600; color: var(--brisa-dark-blue);">Vigência Indeterminada</span>
+            </label>
           </div>
           <div class="form-group">
             <label class="form-label">Aviso Prévio (Dias)</label>
@@ -1232,10 +1320,29 @@
         </div>
       </section>
 
+      <!-- Secao 4: Anexo do Arquivo do Contrato (Upload Automatico no Drive) -->
+      <section class="form-card">
+        <div class="section-title">4. Documentos e Arquivos do Contrato (Upload no Drive)</div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">
+          Anexe o contrato assinado, minuta ou proposta técnica (PDF, PNG, JPEG, DOCX). Os arquivos serão arquivados automaticamente na pasta do fornecedor e na subpasta oficial <code>01_Contrato_Principal</code> no Google Drive.
+        </p>
+
+        <div class="file-dropzone" id="dropzoneNovoContrato" onclick="document.getElementById('inputArquivoContrato').click()">
+          <input type="file" id="inputArquivoContrato" style="display: none;" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.zip" onchange="manipularSelecaoArquivos(this.files)">
+          <svg class="dropzone-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          <div class="dropzone-text">Arraste e solte o arquivo do contrato aqui, ou clique para selecionar</div>
+          <div class="dropzone-hint">Formatos suportados: PDF, PNG, JPG, JPEG, DOCX, XLSX (Arquivamento direto no Google Drive)</div>
+        </div>
+
+        <div class="files-list-container" id="listaArquivosAnexados"></div>
+      </section>
+
       <div style="display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 40px;">
-        <button type="reset" class="btn btn-secondary">Limpar</button>
+        <button type="reset" class="btn btn-secondary" onclick="limparArquivosSelecionados()">Limpar</button>
         <button type="submit" class="btn btn-primary" id="btnSalvarContrato">
-          Cadastrar Contrato e Criar Pastas no Drive
+          Cadastrar Contrato, Anexar Arquivos e Criar Pastas no Drive
         </button>
       </div>
     </form>
@@ -1413,13 +1520,115 @@
     activeTab: 'fornecedores',
     contratoSelecionado: null,
     abaFichaAtiva: 'resumo',
-    fornecedoresExpandidos: {}
+    fornecedoresExpandidos: {},
+    arquivosParaUpload: []
   };
 
   // Inicializacao
   window.addEventListener('DOMContentLoaded', function() {
+    configurarDropzoneNovoContrato();
     carregarDadosServidor(false);
   });
+
+  // Alternancia de Vigencia Indeterminada
+  function alternarPrazoIndeterminado(isIndeterminado) {
+    var inputFim = document.getElementById('novoContratoDataFim');
+    if (!inputFim) return;
+    if (isIndeterminado) {
+      inputFim.value = '';
+      inputFim.disabled = true;
+      inputFim.style.backgroundColor = '#F1F5F9';
+      inputFim.style.cursor = 'not-allowed';
+    } else {
+      inputFim.disabled = false;
+      inputFim.style.backgroundColor = '#FFFFFF';
+      inputFim.style.cursor = 'text';
+    }
+  }
+
+  // Configuracao da Dropzone de Arquivos no Cadastro
+  function configurarDropzoneNovoContrato() {
+    var dropzone = document.getElementById('dropzoneNovoContrato');
+    if (!dropzone) return;
+
+    ['dragenter', 'dragover'].forEach(function(eventName) {
+      dropzone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('dragover');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(function(eventName) {
+      dropzone.addEventListener(eventName, function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('dragover');
+      }, false);
+    });
+
+    dropzone.addEventListener('drop', function(e) {
+      var dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length) {
+        manipularSelecaoArquivos(dt.files);
+      }
+    }, false);
+  }
+
+  function manipularSelecaoArquivos(fileList) {
+    if (!fileList || !fileList.length) return;
+    for (var i = 0; i < fileList.length; i++) {
+      (function(file) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          var base64 = evt.target.result.split(',')[1];
+          appState.arquivosParaUpload.push({
+            nome: file.name,
+            tamanho: file.size,
+            mimeType: file.type || 'application/octet-stream',
+            base64: base64,
+            subpasta: '01_Contrato_Principal'
+          });
+          renderizarListaArquivosAnexados();
+        };
+        reader.readAsDataURL(file);
+      })(fileList[i]);
+    }
+  }
+
+  function renderizarListaArquivosAnexados() {
+    var container = document.getElementById('listaArquivosAnexados');
+    if (!container) return;
+    if (!appState.arquivosParaUpload.length) {
+      container.innerHTML = '';
+      return;
+    }
+
+    var html = '';
+    appState.arquivosParaUpload.forEach(function(f, idx) {
+      var sizeKb = (f.tamanho / 1024).toFixed(1) + ' KB';
+      html += '<div class="file-item-card">';
+      html += '  <div class="file-item-info">';
+      html += '    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:var(--brisa-blue);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
+      html += '    <span class="file-item-name">' + escapeHtml(f.nome) + '</span>';
+      html += '    <span class="file-item-size">(' + sizeKb + ') &rarr; Subpasta: 01_Contrato_Principal</span>';
+      html += '  </div>';
+      html += '  <button type="button" class="btn-remove-file" onclick="removerArquivoAnexado(' + idx + ')" title="Remover anexo">&times;</button>';
+      html += '</div>';
+    });
+    container.innerHTML = html;
+  }
+
+  function removerArquivoAnexado(index) {
+    appState.arquivosParaUpload.splice(index, 1);
+    renderizarListaArquivosAnexados();
+  }
+
+  function limparArquivosSelecionados() {
+    appState.arquivosParaUpload = [];
+    renderizarListaArquivosAnexados();
+    alternarPrazoIndeterminado(false);
+  }
 
   // Alternancia de Abas Principais
   function trocarAbaPrincipal(aba) {
@@ -1478,9 +1687,18 @@
     appState.usuarioAtual = res.usuarioAtual || { email: 'usuario@grupobrisanet.com.br', papel: 'Gestão Telefonia' };
     appState.kpis = res.kpis || {};
 
-    // Atualizar Header e Badges
+    // Atualizar Header e Links
     document.getElementById('userEmailBadge').textContent = appState.usuarioAtual.email;
     document.getElementById('userRoleBadge').textContent = appState.usuarioAtual.papel;
+
+    if (res.spreadsheetUrl) {
+      var ssLink = document.getElementById('spreadsheetHeaderLink');
+      if (ssLink) ssLink.href = res.spreadsheetUrl;
+    }
+    if (res.driveRootUrl) {
+      var driveLink = document.getElementById('driveRootHeaderLink');
+      if (driveLink) driveLink.href = res.driveRootUrl;
+    }
 
     // Atualizar KPIs
     document.getElementById('statFornecedores').textContent = appState.kpis.totalFornecedores || appState.fornecedores.length;
@@ -1570,7 +1788,13 @@
         f.contratos.forEach(function(c) {
           var urgencyClass = 'ok';
           var diasTxt = 'Indeterminada';
-          if (!c.prazoIndeterminado && c.diasRestantes !== null && c.diasRestantes !== undefined) {
+          var vigenciaTxt = c.dataFim || 'Indeterminada';
+
+          if (c.prazoIndeterminado || !c.dataFim) {
+            urgencyClass = 'flat';
+            diasTxt = 'Indeterminada';
+            vigenciaTxt = 'Indeterminada';
+          } else if (c.diasRestantes !== null && c.diasRestantes !== undefined) {
             if (c.diasRestantes <= 30) { urgencyClass = 'critical'; diasTxt = c.diasRestantes + ' dias'; }
             else if (c.diasRestantes <= 60) { urgencyClass = 'warning'; diasTxt = c.diasRestantes + ' dias'; }
             else { urgencyClass = 'ok'; diasTxt = c.diasRestantes + ' dias'; }
@@ -1585,7 +1809,7 @@
           html += '          <td><span class="protocol-chip">' + escapeHtml(c.protocolo) + '</span></td>';
           html += '          <td><div class="contract-obj-text" title="' + escapeHtml(c.objeto) + '">' + escapeHtml(c.objeto) + '</div></td>';
           html += '          <td>';
-          html += '            <div>' + (c.dataFim || 'Indeterminada') + '</div>';
+          html += '            <div>' + escapeHtml(vigenciaTxt) + '</div>';
           html += '            <span class="badge-urgency ' + urgencyClass + '">' + diasTxt + '</span>';
           html += '          </td>';
           html += '          <td style="font-weight: 700;">' + formatarMoedaBRL(c.valorMensal) + '</td>';
@@ -1622,7 +1846,6 @@
     }
   }
 
-  // Expandir ou Recolher Todos
   function alternarTodosFornecedores() {
     var cards = document.querySelectorAll('.supplier-accordion-card');
     var algumRecolhido = false;
@@ -1641,7 +1864,6 @@
     });
   }
 
-  // Filtros de Fornecedores e Contratos
   function filtrarFornecedores() {
     var termo = (document.getElementById('filtroFornecedoresInput').value || '').toLowerCase().trim();
     var status = (document.getElementById('filtroStatusContrato').value || '').toLowerCase().trim();
@@ -1690,7 +1912,7 @@
     });
 
     if (lista.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">Nenhuma solicitacao encontrada.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">Nenhuma solicitação encontrada.</td></tr>';
       return;
     }
 
@@ -1718,13 +1940,12 @@
     tbody.innerHTML = html;
   }
 
-  // Modais de Decisao
   function abrirModalDecisao(idAprovacao, tipoDecisao, nivelAlcada) {
     document.getElementById('decisaoIdAprovacao').value = idAprovacao;
     document.getElementById('decisaoTipoAcao').value = tipoDecisao;
     var msg = (tipoDecisao === 'APROVADO')
-      ? 'Voce esta registrando a APROVACAO formal na alcada de ' + nivelAlcada + '.'
-      : 'Voce esta devolvendo o contrato para AJUSTES. Descreva os apontamentos obrigatorios abaixo.';
+      ? 'Você está registrando a APROVAÇÃO formal na alçada de ' + nivelAlcada + '.'
+      : 'Você está devolvendo o contrato para AJUSTES. Descreva os apontamentos obrigatórios abaixo.';
     document.getElementById('decisaoMensagemContexto').textContent = msg;
     document.getElementById('decisaoParecerTexto').value = '';
     document.getElementById('modalDecisaoAprovacao').style.display = 'flex';
@@ -1740,7 +1961,7 @@
     var parecer = document.getElementById('decisaoParecerTexto').value.trim();
 
     if (decisao === 'AJUSTES_SOLICITADOS' && !parecer) {
-      mostrarToast('O parecer com os apontamentos e obrigatorio para solicitar ajustes.', 'error');
+      mostrarToast('O parecer com os apontamentos é obrigatório para solicitar ajustes.', 'error');
       return;
     }
 
@@ -1762,7 +1983,7 @@
     }
   }
 
-  // Abertura da Ficha 360
+  // Ficha 360 do Contrato
   function abrirFicha360(idContrato) {
     var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); });
     if (!contrato) {
@@ -1808,7 +2029,7 @@
         '<div class="form-group col-span-4"><span class="form-label">Objeto do Contrato</span><div style="padding:10px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">' + escapeHtml(c.objeto) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Tipo</span><div>' + escapeHtml(c.tipo) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Início</span><div>' + escapeHtml(c.dataInicio || '-') + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Término</span><div>' + escapeHtml(c.dataFim || 'Indeterminada') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Término</span><div>' + (c.prazoIndeterminado ? 'Vigência Indeterminada' : escapeHtml(c.dataFim || 'Indeterminada')) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Centro de Custo</span><div>' + escapeHtml(c.centroCusto || '-') + '</div></div>' +
         '<div class="form-group col-span-2"><span class="form-label">Gestor Técnico</span><div>' + escapeHtml(c.gestor || '-') + '</div></div>' +
         '<div class="form-group col-span-2"><span class="form-label">Observações</span><div>' + escapeHtml(c.observacoes || '-') + '</div></div>' +
@@ -1827,15 +2048,29 @@
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
     } else if (abaNome === 'documentos') {
       body.innerHTML = '<div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">' +
-        '<div><strong>Estrutura de Arquivos no Drive (5 Subpastas Oficiais)</strong></div>' +
+        '<div><strong>Estrutura de Arquivos no Drive (5 Subpastas Padronizadas)</strong></div>' +
         (c.pastaDriveId ? '<a href="https://drive.google.com/drive/folders/' + c.pastaDriveId + '" target="_blank" class="btn btn-secondary" style="height:30px; font-size:11px;">Abrir Pasta no Drive</a>' : '') +
         '</div>' +
         '<div class="drive-folders-grid">' +
         '  <div class="drive-folder-item"><span class="drive-folder-name">01_Contrato_Principal</span><span class="drive-folder-desc">Minuta aprovada e instrumento contratual assinado.</span></div>' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">02_Termos_Aditivos</span><span class="drive-folder-desc">Aditivos de valor, vigencia ou escopo.</span></div>' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">03_Documentos_Tecnicos</span><span class="drive-folder-desc">Propostas, memoriais, topologias e certidoes.</span></div>' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">04_Boletins_Medicao</span><span class="drive-folder-desc">Medicoes mensais e atestes operacionais.</span></div>' +
-        '  <div class="drive-folder-item" style="grid-column: span 2;"><span class="drive-folder-name">05_Aprovacoes_e_Pareceres</span><span class="drive-folder-desc">Evidencias formais de aprovacao e despachos executivos.</span></div>' +
+        '  <div class="drive-folder-item"><span class="drive-folder-name">02_Termos_Aditivos</span><span class="drive-folder-desc">Aditivos de valor, vigência ou escopo.</span></div>' +
+        '  <div class="drive-folder-item"><span class="drive-folder-name">03_Documentos_Tecnicos</span><span class="drive-folder-desc">Propostas, memoriais, topologias e certidões.</span></div>' +
+        '  <div class="drive-folder-item"><span class="drive-folder-name">04_Boletins_Medicao</span><span class="drive-folder-desc">Medições mensais e atestes operacionais.</span></div>' +
+        '  <div class="drive-folder-item" style="grid-column: span 2;"><span class="drive-folder-name">05_Aprovacoes_e_Pareceres</span><span class="drive-folder-desc">Evidências formais de aprovação e despachos executivos.</span></div>' +
+        '</div>' +
+        '<div style="margin-top:20px; padding:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px;">' +
+        '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue); margin-bottom:8px;">Upload Adicional de Documento</div>' +
+        '  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
+        '    <select id="modalUploadSubpasta" class="filter-select" style="font-size:12px; height:32px;">' +
+        '      <option value="01_Contrato_Principal">01_Contrato_Principal</option>' +
+        '      <option value="02_Termos_Aditivos">02_Termos_Aditivos</option>' +
+        '      <option value="03_Documentos_Tecnicos">03_Documentos_Tecnicos</option>' +
+        '      <option value="04_Boletins_Medicao">04_Boletins_Medicao</option>' +
+        '      <option value="05_Aprovacoes_e_Pareceres">05_Aprovacoes_e_Pareceres</option>' +
+        '    </select>' +
+        '    <input type="file" id="modalUploadFileInput" style="font-size:12px;">' +
+        '    <button type="button" class="btn btn-action-primary" onclick="submeterUploadModalFicha()">Fazer Upload para o Drive</button>' +
+        '  </div>' +
         '</div>';
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
     } else if (abaNome === 'aditivos') {
@@ -1853,7 +2088,44 @@
     }
   }
 
-  // Modal Solicitar Aprovacao a partir da Ficha
+  function submeterUploadModalFicha() {
+    var c = appState.contratoSelecionado;
+    if (!c || !c.pastaDriveId) {
+      mostrarToast('Pasta do contrato não localizada no Drive.', 'error');
+      return;
+    }
+    var subpasta = document.getElementById('modalUploadSubpasta').value;
+    var fileInput = document.getElementById('modalUploadFileInput');
+    if (!fileInput.files || !fileInput.files.length) {
+      mostrarToast('Selecione um arquivo para upload.', 'error');
+      return;
+    }
+
+    var file = fileInput.files[0];
+    var reader = new FileReader();
+    reader.onload = function(evt) {
+      var base64 = evt.target.result.split(',')[1];
+      mostrarToast('Enviando arquivo para o Google Drive...', 'info');
+
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run
+          .withSuccessHandler(function(res) {
+            if (res && res.success) {
+              mostrarToast('Arquivo ' + res.fileName + ' salvo no Drive com sucesso!', 'success');
+              fileInput.value = '';
+            } else {
+              mostrarToast('Erro ao enviar arquivo: ' + (res.error || 'Desconhecido'), 'error');
+            }
+          })
+          .uploadArquivoContrato(c.pastaDriveId, subpasta, file.name, base64, file.type);
+      } else {
+        mostrarToast('Simulação: Arquivo ' + file.name + ' salvo no Drive com sucesso!', 'success');
+        fileInput.value = '';
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+
   function abrirModalSolicitarAprovacaoParaContrato() {
     var c = appState.contratoSelecionado;
     if (!c) return;
@@ -1978,12 +2250,14 @@
     window.print();
   }
 
-  // Cadastro de Novo Contrato
+  // Cadastro de Novo Contrato com Upload e Vigencia Indeterminada
   function submeterNovoContrato(e) {
     e.preventDefault();
     var btn = document.getElementById('btnSalvarContrato');
     btn.disabled = true;
-    btn.textContent = 'Gravando Contrato e Criando Pastas...';
+    btn.textContent = 'Gravando Contrato, Anexando Arquivos e Criando Pastas...';
+
+    var isPrazoIndeterminado = document.getElementById('novoContratoPrazoIndeterminado').checked;
 
     var dados = {
       fornecedor: document.getElementById('novoFornecedorNome').value.trim(),
@@ -1992,24 +2266,27 @@
       objeto: document.getElementById('novoContratoObjeto').value.trim(),
       tipo: document.getElementById('novoContratoTipo').value,
       dataInicio: document.getElementById('novoContratoDataInicio').value,
-      dataFim: document.getElementById('novoContratoDataFim').value,
+      dataFim: isPrazoIndeterminado ? '' : document.getElementById('novoContratoDataFim').value,
+      prazoIndeterminado: isPrazoIndeterminado,
       avisoPrevio: parseInt(document.getElementById('novoContratoAvisoPrevio').value, 10) || 30,
       valorMensal: document.getElementById('novoContratoValorMensal').value,
       indiceReajuste: document.getElementById('novoContratoIndice').value,
       mesAniversario: parseInt(document.getElementById('novoContratoMesAniversario').value, 10) || 1,
       centroCusto: document.getElementById('novoContratoCentroCusto').value.trim(),
       gestor: document.getElementById('novoContratoGestorEmail').value.trim(),
-      observacoes: document.getElementById('novoContratoObservacoes').value.trim()
+      observacoes: document.getElementById('novoContratoObservacoes').value.trim(),
+      arquivos: appState.arquivosParaUpload
     };
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(res) {
           btn.disabled = false;
-          btn.textContent = 'Cadastrar Contrato e Criar Pastas no Drive';
+          btn.textContent = 'Cadastrar Contrato, Anexar Arquivos e Criar Pastas no Drive';
           if (res && res.success) {
             mostrarToast('Contrato ' + res.protocolo + ' cadastrado com sucesso!', 'success');
             document.getElementById('formNovoContrato').reset();
+            limparArquivosSelecionados();
             trocarAbaPrincipal('fornecedores');
             carregarDadosServidor(false);
           } else {
@@ -2018,14 +2295,16 @@
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
-          btn.textContent = 'Cadastrar Contrato e Criar Pastas no Drive';
+          btn.textContent = 'Cadastrar Contrato, Anexar Arquivos e Criar Pastas no Drive';
           mostrarToast('Erro de conexão: ' + err.message, 'error');
         })
         .salvarNovoContratoTelefonia(dados);
     } else {
       btn.disabled = false;
-      btn.textContent = 'Cadastrar Contrato e Criar Pastas no Drive';
+      btn.textContent = 'Cadastrar Contrato, Anexar Arquivos e Criar Pastas no Drive';
       mostrarToast('Simulação: Contrato cadastrado com sucesso!', 'success');
+      document.getElementById('formNovoContrato').reset();
+      limparArquivosSelecionados();
       trocarAbaPrincipal('fornecedores');
     }
   }
@@ -2070,6 +2349,8 @@
   function gerarDadosMockTelefonia() {
     return {
       success: true,
+      spreadsheetUrl: '#',
+      driveRootUrl: '#',
       usuarioAtual: { email: 'gestao.telefonia@grupobrisanet.com.br', papel: 'Gestão Telefonia' },
       kpis: {
         totalFornecedores: 3,
@@ -2117,9 +2398,9 @@
               status: 'Vigente',
               statusAlcada: 'Aprovado',
               dataInicio: '15/03/2024',
-              dataFim: '14/03/2027',
-              prazoIndeterminado: false,
-              diasRestantes: 490,
+              dataFim: '',
+              prazoIndeterminado: true,
+              diasRestantes: null,
               valorMensal: 35000.00,
               variacaoMesAMesPercentual: 2.5,
               indiceReajuste: 'IPCA',

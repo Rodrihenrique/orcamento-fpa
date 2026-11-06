@@ -9,7 +9,7 @@
 // Configurações Globais
 var CONFIG = {
   // ID da Planilha Principal
-  SPREADSHEET_ID: '1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I',
+  SPREADSHEET_ID: '',
   // Linha inicial obrigatoria para insercao de novos contratos na aba legado
   MIN_DATA_ROW: 18,
   // GID da aba de Cadastro (padrao)
@@ -73,6 +73,7 @@ function onOpen() {
       .addItem('Abrir Barra Lateral', 'abrirSidebarContratos')
       .addSeparator()
       .addItem('Inicializar / Verificar Base Relacional', 'inicializarEstruturaRelacionalPlanilha')
+      .addItem('Criar Nova Planilha Oficial Dedicada', 'criarNovaPlanilhaOficialTelefonia')
       .addItem('Configurar Pasta Raiz no Drive', 'abrirPastaAnexosDrive')
       .addSeparator()
       .addItem('Verificar Vencimentos e Alertas', 'verificarVencimentosManualmente')
@@ -227,31 +228,71 @@ function configurarPastaDrive() {
 /**
  * Obtém a planilha ativa ou abre pelo ID configurado
  */
-function obterPlanilha_() {
-  try {
-    var activeSs = SpreadsheetApp.getActiveSpreadsheet();
-    if (activeSs) {
-      // Salvar ID da planilha ativa para uso no Web App independente
-      try {
-        PropertiesService.getScriptProperties().setProperty('ACTIVE_SPREADSHEET_ID', activeSs.getId());
-      } catch (pe) {}
-      return activeSs;
-    }
-  } catch (e) {
-    // Caso executado fora do contexto da planilha
-  }
-
-
+/**
+ * Obtem ou cria a nova planilha oficial dedicada para a Gerencia Executiva de Telefonia.
+ * Cria a planilha dentro da pasta raiz dedicada no Google Drive, isolada de qualquer planilha legada.
+ * @return {GoogleAppsScript.Spreadsheet.Spreadsheet} Planilha oficial da Telefonia
+ */
+function obterOuCriarPlanilhaOficialTelefonia_() {
   var props = PropertiesService.getScriptProperties();
-  var savedId = props.getProperty('ACTIVE_SPREADSHEET_ID');
+  var savedId = props.getProperty('SPREADSHEET_ID_TELEFONIA');
   if (savedId) {
     try {
-      return SpreadsheetApp.openById(savedId);
-    } catch (e) {}
+      var existingSs = SpreadsheetApp.openById(savedId);
+      if (existingSs) return existingSs;
+    } catch (eId) {
+      Logger.log('Planilha salva no property nao pode ser aberta: ' + eId.message);
+    }
   }
 
+  // Verificar se ja existe na pasta raiz da Telefonia
+  var rootFolder = obterOuCriarPastaRaizTelefonia_();
+  var files = rootFolder.getFilesByName('Base Oficial de Contratos - Gerência Executiva de Telefonia');
+  if (files.hasNext()) {
+    var file = files.next();
+    var ssFromDrive = SpreadsheetApp.openById(file.getId());
+    props.setProperty('SPREADSHEET_ID_TELEFONIA', ssFromDrive.getId());
+    return ssFromDrive;
+  }
 
-  return SpreadsheetApp.openById(CONFIG.SPREADSHEET_ID);
+  // Criar uma nova planilha oficial dedicada para a Telefonia
+  var newSs = SpreadsheetApp.create('Base Oficial de Contratos - Gerência Executiva de Telefonia');
+  var newFile = DriveApp.getFileById(newSs.getId());
+  rootFolder.addFile(newFile);
+  try {
+    DriveApp.getRootFolder().removeFile(newFile);
+  } catch (eRem) {}
+
+  props.setProperty('SPREADSHEET_ID_TELEFONIA', newSs.getId());
+
+  // Inicializar imediatamente a estrutura de 6 abas oficiais
+  inicializarEstruturaRelacionalPlanilha(newSs);
+
+  return newSs;
+}
+
+/**
+ * Forca a criacao ou reinicializacao de uma nova planilha oficial dedicada.
+ * @return {Object} Metadados da nova planilha criada
+ */
+function criarNovaPlanilhaOficialTelefonia() {
+  var props = PropertiesService.getScriptProperties();
+  props.deleteProperty('SPREADSHEET_ID_TELEFONIA');
+  var ss = obterOuCriarPlanilhaOficialTelefonia_();
+  return {
+    success: true,
+    id: ss.getId(),
+    url: ss.getUrl(),
+    name: ss.getName()
+  };
+}
+
+/**
+ * Obtem a planilha oficial da Telefonia
+ * @return {GoogleAppsScript.Spreadsheet.Spreadsheet}
+ */
+function obterPlanilha_() {
+  return obterOuCriarPlanilhaOficialTelefonia_();
 }
 
 
@@ -3205,7 +3246,7 @@ function obterOuCriarAbaRelacional_(ss, sheetName, headers) {
  * automatica e segura dos dados legados existentes, preservando cada registro.
  * @return {Object} Resultado do provisionamento e contagem de registros migrados
  */
-function inicializarEstruturaRelacionalPlanilha() {
+function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
   var lock = LockService.getScriptLock();
   try {
     lock.waitLock(30000);
@@ -3214,7 +3255,7 @@ function inicializarEstruturaRelacionalPlanilha() {
   }
 
   try {
-    var ss = obterPlanilha_();
+    var ss = planilhaAlvo || obterPlanilha_();
 
     // 1. Cabecalhos Oficiais
     var headersContratos = [
@@ -3263,6 +3304,15 @@ function inicializarEstruturaRelacionalPlanilha() {
     var sheetAditivos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ADITIVOS, headersAditivos);
     var sheetAcessos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ACESSOS, headersAcessos);
     var sheetLogs = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_LOGS, headersLogs);
+
+    // Remover aba padrão em branco se houver outras abas
+    try {
+      var defaultSheet = ss.getSheetByName('Página1') || ss.getSheetByName('Sheet1');
+      if (defaultSheet && ss.getSheets().length > 1) {
+        ss.deleteSheet(defaultSheet);
+      }
+    } catch (eDef) {}
+
 
     // Pre-popular perfis de acesso padrao caso vazia
     if (sheetAcessos.getLastRow() <= 1) {
@@ -3666,6 +3716,9 @@ function obterDadosCompletosTelefonia() {
     // Retorno unificado
     return {
       success: true,
+      spreadsheetUrl: ss.getUrl(),
+      spreadsheetId: ss.getId(),
+      driveRootUrl: obterOuCriarPastaRaizTelefonia_().getUrl(),
       usuarioAtual: {
         email: userEmail,
         papel: userRole
@@ -4050,10 +4103,57 @@ function salvarNovoContratoTelefonia(dados) {
       Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
     );
 
+    
+    // Fazer upload dos arquivos anexados (PDF, PNG, JPEG, etc.) diretamente na pasta do contrato
+    var arquivosSalvos = [];
+    if (dados.arquivos && dados.arquivos.length > 0 && driveStructure.contractFolderId) {
+      var contractFolder = DriveApp.getFolderById(driveStructure.contractFolderId);
+      for (var a = 0; a < dados.arquivos.length; a++) {
+        var arq = dados.arquivos[a];
+        if (arq && arq.base64 && arq.nome) {
+          try {
+            var subpastaNome = arq.subpasta || '01_Contrato_Principal';
+            var targetFolder = contractFolder;
+            var subs = contractFolder.getFoldersByName(subpastaNome);
+            if (subs.hasNext()) {
+              targetFolder = subs.next();
+            } else {
+              targetFolder = contractFolder.createFolder(subpastaNome);
+            }
+
+            var bytes = Utilities.base64Decode(arq.base64);
+            var blob = Utilities.newBlob(bytes, arq.mimeType || 'application/octet-stream', arq.nome);
+            var file = targetFolder.createFile(blob);
+
+            arquivosSalvos.push({
+              id: file.getId(),
+              nome: file.getName(),
+              url: file.getUrl(),
+              subpasta: subpastaNome
+            });
+
+            registrarLogAuditoriaOficial_(
+              'Contrato',
+              nextId,
+              'Upload de Arquivo',
+              subpastaNome,
+              '-',
+              file.getName(),
+              'Arquivo arquivado na subpasta ' + subpastaNome,
+              Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
+            );
+          } catch (eArq) {
+            Logger.log('Erro ao salvar anexo no Drive: ' + eArq.message);
+          }
+        }
+      }
+    }
+
     return {
       success: true,
       id: nextId,
       protocolo: protocolo,
+      arquivosSalvos: arquivosSalvos,
       driveStructure: driveStructure,
       message: 'Contrato cadastrado com sucesso.'
     };
