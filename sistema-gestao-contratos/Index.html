@@ -984,6 +984,13 @@
       overflow-y: auto;
     }
 
+    /* Sub-modais que abrem na frente da Ficha 360 ou de outros modais */
+    #modalAlterarFaixaBaseClientes,
+    #modalDecisaoAprovacao,
+    #modalSolicitarAprovacao {
+      z-index: 1200 !important;
+    }
+
     .modal-content {
       background: var(--bg-surface);
       border-radius: var(--radius-lg);
@@ -2159,6 +2166,7 @@
     appState.fornecedores = res.fornecedores || [];
     appState.contratos = res.contratos || [];
     appState.aprovacoes = res.aprovacoes || [];
+    appState.logs = res.logs || [];
     appState.usuarioAtual = res.usuarioAtual || { email: 'usuario@grupobrisanet.com.br', papel: 'Gestão Telefonia' };
     appState.kpis = res.kpis || {};
 
@@ -2186,8 +2194,10 @@
     var badgeAp = document.getElementById('badgeAprovacoesCount');
     if (badgeAp) badgeAp.textContent = appState.kpis.minhasAprovacoesPendentes || 0;
 
-    // Renderizar Fornecedores
+    // Renderizar Fornecedores e Abas Ativas
     renderizarFornecedoresAcordeao(appState.fornecedores);
+    if (appState.activeTab === 'aprovacoes') renderizarCentralAprovacoes();
+    if (appState.activeTab === 'auditoria') renderizarTrilhaAuditoria();
   }
 
   // Renderizacao do Acordeao de Fornecedores
@@ -3189,13 +3199,68 @@
     window.print();
   }
 
-  // Trilha de Auditoria
-  function renderizarTrilhaAuditoria() {
+  // Trilha Oficial de Auditoria & Logs do Sistema
+  function renderizarTrilhaAuditoria(filtroTexto) {
     var tbody = document.getElementById('tabelaAuditoriaBody');
     if (!tbody) return;
-    if (!appState.logs || appState.logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 30px; color: var(--text-muted);">Trilha de auditoria carregada pela planilha oficial.</td></tr>';
+
+    var logs = appState.logs || [];
+    var inputFiltro = document.getElementById('filtroAuditoriaTexto');
+    var termo = (filtroTexto !== undefined ? filtroTexto : (inputFiltro ? inputFiltro.value : '')).toLowerCase().trim();
+
+    if (termo) {
+      logs = logs.filter(function(l) {
+        return (l.idLog || '').toLowerCase().indexOf(termo) !== -1 ||
+          (l.usuarioEmail || '').toLowerCase().indexOf(termo) !== -1 ||
+          (l.acao || '').toLowerCase().indexOf(termo) !== -1 ||
+          (l.entidade || '').toLowerCase().indexOf(termo) !== -1 ||
+          (l.idRegistro || '').toLowerCase().indexOf(termo) !== -1 ||
+          (l.campoAfetado || '').toLowerCase().indexOf(termo) !== -1 ||
+          (l.justificativa || '').toLowerCase().indexOf(termo) !== -1;
+      });
     }
+
+    if (logs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px;">' +
+        (termo ? 'Nenhum registro de log encontrado com o termo pesquisado.' : 'Nenhum registro de log encontrado na planilha oficial.') +
+        '</td></tr>';
+      return;
+    }
+
+    var html = '';
+    logs.forEach(function(l) {
+      var badgeClass = 'ativo';
+      var acaoLower = (l.acao || '').toLowerCase();
+      if (acaoLower.indexOf('exclus') !== -1 || acaoLower.indexOf('devolv') !== -1 || acaoLower.indexOf('ajuste') !== -1) {
+        badgeClass = 'em-risco';
+      } else if (acaoLower.indexOf('solicit') !== -1 || acaoLower.indexOf('altera') !== -1 || acaoLower.indexOf('atualiz') !== -1) {
+        badgeClass = 'analise';
+      }
+
+      html += '<tr>';
+      html += '  <td><span class="protocol-chip">' + escapeHtml(l.idLog || '-') + '</span></td>';
+      html += '  <td style="font-size: 12px; font-weight: 600; color: var(--brisa-dark-blue); white-space: nowrap;">' + escapeHtml(l.timestamp || '-') + '</td>';
+      html += '  <td><div style="font-weight: 700; color: var(--brisa-blue); font-size: 12px;">' + escapeHtml(l.usuarioEmail || '-') + '</div></td>';
+      html += '  <td><span class="badge-setor">' + escapeHtml(l.papelUsuario || 'Usuário') + '</span></td>';
+      html += '  <td><strong>' + escapeHtml(l.entidade || '') + ' #' + escapeHtml(l.idRegistro || '') + '</strong></td>';
+      html += '  <td><span class="badge-status ' + badgeClass + '">' + escapeHtml(l.acao || '-') + '</span></td>';
+      html += '  <td style="font-size: 11px; color: var(--text-muted);">' + escapeHtml(l.campoAfetado || '-') + '</td>';
+      html += '  <td style="font-size: 11px;">';
+      if (l.valorAnterior && l.valorAnterior !== '-' && l.valorAnterior !== l.novoValor) {
+        html += '<span style="color: #DC2626; text-decoration: line-through;">' + escapeHtml(l.valorAnterior) + '</span> &rarr; ';
+      }
+      html += '<span style="color: #16A34A; font-weight: 700;">' + escapeHtml(l.novoValor || '-') + '</span>';
+      html += '  </td>';
+      html += '  <td style="font-size: 11px; max-width: 250px; color: var(--text-primary);">' + escapeHtml(l.justificativa || '-') + '</td>';
+      html += '</tr>';
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function filtrarAuditoria() {
+    var termo = document.getElementById('filtroAuditoriaTexto') ? document.getElementById('filtroAuditoriaTexto').value : '';
+    renderizarTrilhaAuditoria(termo);
   }
 
   // Utilitarios
@@ -3428,6 +3493,17 @@
           if (res && res.success) {
             fecharModalAlterarFaixa();
             mostrarToast('Faixa vigente atualizada com sucesso.', 'success');
+            if (appState.contratoSelecionado && String(appState.contratoSelecionado.id) === String(idContrato)) {
+              if (appState.contratoSelecionado.tabelaBaseClientes) {
+                appState.contratoSelecionado.tabelaBaseClientes.forEach(function(fx, fIdx) {
+                  fx.atual = (fIdx === indice);
+                });
+              }
+              if (res.novoValor) {
+                appState.contratoSelecionado.valorMensal = res.novoValor;
+              }
+              renderizarAbaFicha360('financeiro');
+            }
             carregarDadosServidor(false);
           } else {
             mostrarToast('Erro ao atualizar faixa: ' + (res.error || 'Desconhecido'), 'error');

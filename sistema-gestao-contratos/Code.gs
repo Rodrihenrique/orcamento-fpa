@@ -3914,6 +3914,48 @@ function obterDadosCompletosTelefonia() {
       fornecedoresArray.push(fornecedoresMap[keys[k]]);
     }
 
+    // 5. Ler Logs de Auditoria
+    var sheetLogs = ss.getSheetByName(CONFIG.SHEET_LOGS);
+    var logsList = [];
+    if (sheetLogs && sheetLogs.getLastRow() > 1) {
+      var numColsL = Math.max(sheetLogs.getLastColumn(), 11);
+      var lHeaders = sheetLogs.getRange(1, 1, 1, numColsL).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
+      var lData = sheetLogs.getRange(2, 1, sheetLogs.getLastRow() - 1, numColsL).getValues();
+
+      var idxLogId = lHeaders.indexOf('id_log');
+      var idxLogTime = lHeaders.indexOf('timestamp');
+      var idxLogEmail = lHeaders.indexOf('usuario_email');
+      var idxLogPapel = lHeaders.indexOf('papel_usuario');
+      var idxLogEntidade = lHeaders.indexOf('entidade');
+      var idxLogReg = lHeaders.indexOf('id_registro');
+      var idxLogAcao = lHeaders.indexOf('acao');
+      var idxLogCampo = lHeaders.indexOf('campo_afetado');
+      var idxLogAntes = lHeaders.indexOf('valor_anterior');
+      var idxLogDepois = lHeaders.indexOf('novo_valor');
+      var idxLogJust = lHeaders.indexOf('justificativa_parecer');
+
+      // Iterar de tras para frente para os logs mais recentes aparecerem primeiro
+      for (var l = lData.length - 1; l >= 0; l--) {
+        var lRow = lData[l];
+        var logId = String((idxLogId !== -1 ? lRow[idxLogId] : lRow[0]) || '').trim();
+        if (!logId) continue;
+
+        logsList.push({
+          idLog: logId,
+          timestamp: String((idxLogTime !== -1 ? lRow[idxLogTime] : lRow[1]) || ''),
+          usuarioEmail: String((idxLogEmail !== -1 ? lRow[idxLogEmail] : lRow[2]) || 'gestao.telefonia@grupobrisanet.com.br'),
+          papelUsuario: String((idxLogPapel !== -1 ? lRow[idxLogPapel] : lRow[3]) || 'Gestão Telefonia'),
+          entidade: String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || 'Contrato'),
+          idRegistro: String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-'),
+          acao: String((idxLogAcao !== -1 ? lRow[idxLogAcao] : lRow[6]) || 'Alteração'),
+          campoAfetado: String((idxLogCampo !== -1 ? lRow[idxLogCampo] : lRow[7]) || '-'),
+          valorAnterior: String((idxLogAntes !== -1 ? lRow[idxLogAntes] : lRow[8]) || '-'),
+          novoValor: String((idxLogDepois !== -1 ? lRow[idxLogDepois] : lRow[9]) || '-'),
+          justificativa: String((idxLogJust !== -1 ? lRow[idxLogJust] : lRow[10]) || '-')
+        });
+      }
+    }
+
     // Retorno unificado
     return {
       success: true,
@@ -3936,6 +3978,7 @@ function obterDadosCompletosTelefonia() {
       fornecedores: fornecedoresArray,
       contratos: contractsList,
       aprovacoes: aprovacoesList,
+      logs: logsList,
       centrosCusto: Object.keys(centrosCustoSet),
       categorias: Object.keys(categoriasSet),
       gerencias: CONFIG.GERENCIAS_TELEFONIA
@@ -4371,15 +4414,18 @@ function salvarNovoContratoTelefonia(dados) {
       }
     }
 
+    var userEmailAtual = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestao.telefonia@grupobrisanet.com.br';
+    var userPapelAtual = obterPapelUsuario_(userEmailAtual);
     registrarLogAuditoriaOficial_(
       'Contrato',
       nextId,
-      'Criacao de Contrato',
-      'Todos',
+      'Criação de Contrato',
+      'Cadastro Inicial',
       '-',
-      protocolo,
+      protocolo + ' | ' + fornNome + ' (' + setorGerencia + ')',
       'Contrato cadastrado no setor ' + setorGerencia + ' com ' + arquivosSalvos.length + ' anexos.',
-      Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
+      userEmailAtual,
+      userPapelAtual
     );
 
     return {
@@ -4612,15 +4658,18 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       nowStr
     ]);
 
+    var userEmailForn = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestao.telefonia@grupobrisanet.com.br';
+    var userPapelForn = obterPapelUsuario_(userEmailForn);
     registrarLogAuditoriaOficial_(
       'Fornecedor',
       fornId,
       'Cadastro de Fornecedor',
-      'Todos',
+      'Cadastro Geral',
       '-',
-      fornNome,
-      'Fornecedor cadastrado com sucesso: ' + fornNome,
-      Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
+      fornNome + ' (' + fornApelido + ') | CNPJ: ' + (dadosFornecedor.cnpj || '-'),
+      dadosFornecedor.observacoes || ('Fornecedor cadastrado com sucesso: ' + fornNome),
+      userEmailForn,
+      userPapelForn
     );
 
     return {
@@ -4728,6 +4777,7 @@ function atualizarFaixaBaseClientes(payload) {
     }
     sheetContratos.getRange(targetRow, idxDataAtualizacao + 1).setValue(nowStr);
 
+    var userPapelFaixa = obterPapelUsuario_(userEmail);
     registrarLogAuditoriaOficial_(
       'Contrato',
       idContrato,
@@ -4736,7 +4786,8 @@ function atualizarFaixaBaseClientes(payload) {
       'R$ ' + valorAnterior.toFixed(2),
       'R$ ' + faixaAtivaValorNum.toFixed(2) + ' (' + faixaAtivaNome + ')',
       'Atualizacao operacional de faixa vigente na base de clientes pelo gestor responsavel.',
-      userEmail
+      userEmail,
+      userPapelFaixa
     );
 
     return {
