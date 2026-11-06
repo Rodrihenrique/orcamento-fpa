@@ -1369,6 +1369,127 @@
       white-space: nowrap;
     }
 
+    /* Linha Clicável e Expansão de Detalhes do Contrato */
+    .clickable-contract-row {
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.15s ease;
+    }
+
+    .clickable-contract-row:hover {
+      background-color: #f1f5f9 !important;
+    }
+
+    .clickable-contract-row.is-expanded {
+      background-color: #f0f7ff !important;
+      border-bottom-color: transparent !important;
+    }
+
+    .clickable-contract-row.is-expanded td {
+      border-bottom-color: transparent !important;
+    }
+
+    .chevron-icon {
+      transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
+    .clickable-contract-row.is-expanded .chevron-icon {
+      transform: rotate(90deg);
+      color: var(--brisa-blue);
+    }
+
+    .contract-expansion-row {
+      background-color: #f8fafc;
+    }
+
+    .contract-expansion-row td {
+      padding: 0 !important;
+      border-top: none !important;
+    }
+
+    .expansion-wrapper {
+      padding: 22px 24px 28px 24px;
+      border-top: 1px dashed #cbd5e1;
+      border-bottom: 2px solid #cbd5e1;
+      background: #fbfcfe;
+    }
+
+    .expansion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .expansion-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .expansion-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--brisa-navy);
+    }
+
+    .expansion-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Variação de Valor Mês a Mês */
+    .variation-container {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+    }
+
+    .variation-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 9999px;
+      white-space: nowrap;
+    }
+
+    .variation-badge-up {
+      background-color: #ecfdf5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+
+    .variation-badge-down {
+      background-color: #fef2f2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+
+    .variation-badge-stable {
+      background-color: #f1f5f9;
+      color: #64748b;
+      border: 1px solid #e2e8f0;
+    }
+
+    .variation-sub {
+      font-size: 10px;
+      font-weight: 600;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
 
     /* ==========================================================================
        TAGS DE VENCIMENTO, RISCO E MODAL AMPLIADO DE DETALHES / EDIÇÃO
@@ -2378,14 +2499,14 @@
         <table class="contracts-table">
           <thead>
             <tr>
-              <th class="id-col">ID</th>
+              <th class="id-col" style="width: 85px;">ID</th>
               <th>FORNECEDOR</th>
               <th>OBJETO DO CONTRATO</th>
               <th>VENCIMENTO</th>
-              <th>VALOR / MÊS</th>
-              <th style="text-align:center;">STATUS</th>
-              <th style="text-align:center;">RISCO</th>
-              <th class="actions-col">AÇÕES</th>
+              <th style="text-align: right;">VALOR / MÊS</th>
+              <th style="text-align: center;">VARIAÇÃO MÊS A MÊS</th>
+              <th style="text-align: center;">STATUS</th>
+              <th style="text-align: center;">RISCO</th>
             </tr>
           </thead>
           <tbody id="contractsTableBody">
@@ -2689,7 +2810,9 @@
     spreadsheetUrl: '',
     activeTab: 'novo',
     activeSubpage: 'contratos',
-    linksContratados: []
+    linksContratados: [],
+    idContratoExpandido: null,
+    detalhesIndexAtual: null
   };
 
 
@@ -2874,27 +2997,134 @@
 
 
   // Renderização da tabela
+  // Formatação do Badge da Coluna Variação Mês a Mês
+  function formatarBadgeVariacao(valor, perc) {
+    var v = typeof valor === 'number' ? valor : parseFloat(valor) || 0;
+    var p = typeof perc === 'number' ? perc : parseFloat(perc) || 0;
+
+    if (Math.abs(v) < 0.01 && Math.abs(p) < 0.01) {
+      return '<span class="variation-badge variation-badge-stable" title="Sem variação de valor entre os meses (0,00%)">0,00%</span>';
+    }
+
+    if (v > 0 || p > 0) {
+      var pStr = '+' + (Math.abs(p) > 0 ? p.toFixed(2) : ((v / 1) * 100).toFixed(2)) + '%';
+      var vStr = '+' + formatarMoedaBRL(v);
+      return '<div class="variation-container" title="Variação de um mês para o outro: ' + vStr + ' (' + pStr + ')">' +
+               '<span class="variation-badge variation-badge-up">' +
+                 '<svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:2px;">' +
+                   '<path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd"/>' +
+                 '</svg>' +
+                 escapeHtml(pStr) +
+               '</span>' +
+               '<span class="variation-sub">' + escapeHtml(vStr) + '</span>' +
+             '</div>';
+    } else {
+      var pStr = (Math.abs(p) > 0 ? p.toFixed(2) : ((v / 1) * 100).toFixed(2)) + '%';
+      var vStr = formatarMoedaBRL(v);
+      return '<div class="variation-container" title="Variação de um mês para o outro: ' + vStr + ' (' + pStr + ')">' +
+               '<span class="variation-badge variation-badge-down">' +
+                 '<svg width="10" height="10" viewBox="0 0 20 20" fill="currentColor" style="display:inline-block;vertical-align:-1px;margin-right:2px;">' +
+                   '<path fill-rule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1v-5a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586 3.707 5.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z" clip-rule="evenodd"/>' +
+                 '</svg>' +
+                 escapeHtml(pStr) +
+               '</span>' +
+               '<span class="variation-sub">' + escapeHtml(vStr) + '</span>' +
+             '</div>';
+    }
+  }
+
+  // Alterna a expansão da linha do contrato na tabela (Accordion)
+  function alternarExpansaoContrato(id, event) {
+    if (event && event.target && event.target.closest('button, input, select, textarea, a')) {
+      return;
+    }
+
+    var idStr = String(id).trim();
+    var expRow = document.getElementById('expansion-row-' + idStr);
+    var rowTr = document.getElementById('row-contract-' + idStr);
+    var chevron = document.getElementById('chevron-' + idStr);
+
+    if (!expRow || !rowTr) return;
+
+    var isAberto = (expRow.style.display !== 'none' && expRow.style.display !== '');
+
+    if (isAberto) {
+      // Recolher
+      expRow.style.display = 'none';
+      rowTr.classList.remove('is-expanded');
+      if (chevron) {
+        chevron.style.transform = 'rotate(0deg)';
+        chevron.style.color = '#64748b';
+      }
+      if (appState.idContratoExpandido === idStr) {
+        appState.idContratoExpandido = null;
+      }
+    } else {
+      // Se houver outra linha aberta, fecha-a para visual limpo
+      if (appState.idContratoExpandido && appState.idContratoExpandido !== idStr) {
+        var oldExp = document.getElementById('expansion-row-' + appState.idContratoExpandido);
+        var oldRow = document.getElementById('row-contract-' + appState.idContratoExpandido);
+        var oldChev = document.getElementById('chevron-' + appState.idContratoExpandido);
+        if (oldExp) oldExp.style.display = 'none';
+        if (oldRow) oldRow.classList.remove('is-expanded');
+        if (oldChev) {
+          oldChev.style.transform = 'rotate(0deg)';
+          oldChev.style.color = '#64748b';
+        }
+      }
+
+      // Expandir nova linha
+      expRow.style.display = 'table-row';
+      rowTr.classList.add('is-expanded');
+      if (chevron) {
+        chevron.style.transform = 'rotate(90deg)';
+        chevron.style.color = '#2242D4';
+      }
+      appState.idContratoExpandido = idStr;
+
+      // Localizar contrato e renderizar conteúdo detalhado
+      var c = null;
+      var indexReal = -1;
+      for (var i = 0; i < appState.contracts.length; i++) {
+        if (String(appState.contracts[i].id).trim() === idStr) {
+          c = appState.contracts[i];
+          indexReal = i;
+          break;
+        }
+      }
+
+      if (c) {
+        appState.detalhesIndexAtual = indexReal;
+        renderizarConteudoExpandido(c);
+      }
+    }
+  }
+
+  // Renderização da tabela com linhas clicáveis e acordeão expansível
   function renderizarTabela(contratos) {
     var tbody = document.getElementById('contractsTableBody');
     tbody.innerHTML = '';
 
-
     if (!contratos || contratos.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:32px;color:#64748b;">Nenhum contrato encontrado.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:32px;color:#64748b;">Nenhum contrato encontrado.</td></tr>';
       return;
     }
 
-
     contratos.forEach(function(c, index) {
-      var tr = document.createElement('tr');
+      var idStr = String(c.id).trim();
+      var isExpanded = (appState.idContratoExpandido && String(appState.idContratoExpandido).trim() === idStr);
 
+      var tr = document.createElement('tr');
+      tr.className = 'clickable-contract-row' + (isExpanded ? ' is-expanded' : '');
+      tr.id = 'row-contract-' + idStr;
+      tr.setAttribute('onclick', 'alternarExpansaoContrato(\'' + escapeHtml(idStr) + '\', event)');
+      tr.title = 'Clique na linha para ' + (isExpanded ? 'recolher' : 'expandir') + ' os detalhes do contrato #' + escapeHtml(idStr);
 
       // Badges de Status
       var statusClass = 'badge-ativo';
       var statusLower = (c.status || '').toLowerCase();
       if (statusLower.indexOf('renov') !== -1) statusClass = 'badge-renovacao';
       else if (statusLower.indexOf('encerr') !== -1 || statusLower.indexOf('susp') !== -1) statusClass = 'badge-encerrado';
-
 
       // Badge / Tag de Prazo de Vencimento
       var expiryTagHtml = '';
@@ -2912,12 +3142,10 @@
         }
       }
 
-
-      // Regra de Risco: Contratos com <= 90 dias de vencimento são automaticamente marcados como risco!
+      // Regra de Risco
       var riscoClass = 'badge-risco-baixo';
       var riscoTexto = c.risco || 'Baixo';
       var riscoLower = riscoTexto.toLowerCase();
-
 
       if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && statusLower.indexOf('encerr') === -1 && statusLower.indexOf('cancel') === -1) {
         riscoClass = 'badge-risco-vencimento';
@@ -2928,27 +3156,381 @@
         riscoClass = 'badge-risco-medio';
       }
 
+      var badgeVariacaoHtml = formatarBadgeVariacao(c.variacaoValor, c.variacaoPercentual);
 
       tr.innerHTML = 
-        '<td class="id-col"><span class="id-badge">#' + escapeHtml(c.id) + '</span></td>' +
+        '<td class="id-col">' +
+          '<div style="display:inline-flex;align-items:center;gap:6px;">' +
+            '<svg class="chevron-icon" id="chevron-' + escapeHtml(idStr) + '" width="14" height="14" viewBox="0 0 20 20" fill="currentColor" style="' + (isExpanded ? 'transform:rotate(90deg);color:#2242D4;' : '') + '">' +
+              '<path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>' +
+            '</svg>' +
+            '<span class="id-badge">#' + escapeHtml(idStr) + '</span>' +
+          '</div>' +
+        '</td>' +
         '<td class="supplier-col" title="' + escapeHtml(c.fornecedor || '') + '">' + escapeHtml(c.fornecedor || '-') + '</td>' +
         '<td class="object-col" title="' + escapeHtml(c.objeto || '') + '">' + escapeHtml(c.objeto || '-') + '</td>' +
         '<td class="date-col">' +
           '<div>' + escapeHtml(c.fimVigencia || '-') + '</div>' +
           expiryTagHtml +
         '</td>' +
-        '<td class="value-col">' + formatarMoedaBRL(c.valorLancamento) + '</td>' +
+        '<td class="value-col" style="text-align:right;font-weight:600;">' + formatarMoedaBRL(c.valorLancamento) + '</td>' +
+        '<td style="text-align:center;">' + badgeVariacaoHtml + '</td>' +
         '<td style="text-align:center;"><span class="badge ' + statusClass + '">' + escapeHtml(c.status || 'Ativo') + '</span></td>' +
-        '<td style="text-align:center;"><span class="badge ' + riscoClass + '" title="' + (c.diasParaVencer !== null && c.diasParaVencer <= 90 ? 'Vence em ' + c.diasParaVencer + ' dias' : escapeHtml(riscoTexto)) + '">' + escapeHtml(riscoTexto) + '</span></td>' +
-        '<td class="actions-col"><button type="button" class="table-action-btn" onclick="abrirModalDetalhes(\'' + escapeHtml(c.id) + '\')">Detalhes</button></td>';
-
+        '<td style="text-align:center;"><span class="badge ' + riscoClass + '" title="' + (c.diasParaVencer !== null && c.diasParaVencer <= 90 ? 'Vence em ' + c.diasParaVencer + ' dias' : escapeHtml(riscoTexto)) + '">' + escapeHtml(riscoTexto) + '</span></td>';
 
       tbody.appendChild(tr);
+
+      // Linha de Expansão (Accordion Subrow)
+      var expTr = document.createElement('tr');
+      expTr.className = 'contract-expansion-row';
+      expTr.id = 'expansion-row-' + idStr;
+      expTr.style.display = isExpanded ? 'table-row' : 'none';
+
+      var expTd = document.createElement('td');
+      expTd.colSpan = 8;
+
+      var wrapper = document.createElement('div');
+      wrapper.className = 'expansion-wrapper';
+      wrapper.id = 'expansion-wrapper-' + idStr;
+      wrapper.setAttribute('onclick', 'event.stopPropagation()');
+
+      expTd.appendChild(wrapper);
+      expTr.appendChild(expTd);
+      tbody.appendChild(expTr);
+
+      if (isExpanded) {
+        renderizarConteudoExpandido(c);
+      }
     });
   }
 
+  // Renderiza todo o conteúdo do card expansível para o contrato selecionado
+  function renderizarConteudoExpandido(c) {
+    var idStr = String(c.id).trim();
+    var wrapper = document.getElementById('expansion-wrapper-' + idStr);
+    if (!wrapper) return;
 
-  // Salvar nota editada diretamente no modal de detalhes
+    var statusClass = 'badge-ativo';
+    var statusLower = (c.status || '').toLowerCase();
+    if (statusLower.indexOf('renov') !== -1) statusClass = 'badge-renovacao';
+    else if (statusLower.indexOf('encerr') !== -1 || statusLower.indexOf('susp') !== -1) statusClass = 'badge-encerrado';
+
+    var riscoClass = 'badge-risco-baixo';
+    var riscoTexto = c.risco || 'Baixo';
+    var riscoLower = riscoTexto.toLowerCase();
+    if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && statusLower.indexOf('encerr') === -1 && statusLower.indexOf('cancel') === -1) {
+      riscoClass = 'badge-risco-vencimento';
+      riscoTexto = c.diasParaVencer <= 7 ? 'Crítico (7d)' : (c.diasParaVencer <= 30 ? 'Alto (30d)' : 'Risco Vencimento');
+    } else if (riscoLower === 'alto') {
+      riscoClass = 'badge-risco-alto';
+    } else if (riscoLower === 'médio' || riscoLower === 'medio') {
+      riscoClass = 'badge-risco-medio';
+    }
+
+    var expiryBannerHtml = '';
+    if (c.diasParaVencer !== null && c.diasParaVencer <= 90 && statusLower.indexOf('encerr') === -1) {
+      var textoPrazo = c.diasParaVencer < 0 ? 'Vigência encerrada há ' + Math.abs(c.diasParaVencer) + ' dia(s)' : 'Faltam ' + c.diasParaVencer + ' dia(s) para o término da vigência';
+      expiryBannerHtml = 
+        '<div class="expiry-alert-callout" style="margin-bottom:16px;">' +
+          '<div class="expiry-alert-callout-text">' +
+            '<strong>Alerta de Vencimento:</strong> ' + textoPrazo + ' (' + escapeHtml(c.fimVigencia || '-') + '). ' +
+            'Notificações são enviadas automaticamente aos contatos da aba Acessos em 90, 60, 30 e 7 dias.' +
+          '</div>' +
+          '<button type="button" class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 12px;" onclick="event.stopPropagation(); abrirModalEditarCampo(\x27fimVigencia\x27, \x27Fim da Vigência\x27)">' +
+            'Alterar Vigência / Renovar' +
+          '</button>' +
+        '</div>';
+    }
+
+    var badgeVar = formatarBadgeVariacao(c.variacaoValor, c.variacaoPercentual);
+
+    // Campos detalhados com botões de lápis para edição individual
+    var campos = [
+      { label: 'ID do Contrato', val: '#' + c.id, chave: null },
+      { label: 'Fornecedor', val: c.fornecedor, chave: 'fornecedor' },
+      { label: 'CNPJ', val: c.cnpj, chave: 'cnpj' },
+      { label: 'Objeto do Contrato', val: c.objeto, chave: 'objeto', fullWidth: true },
+      { label: 'Centro de Custo', val: c.centroCusto, chave: 'centroCusto' },
+      { label: 'Categoria / Pacote', val: c.categoria, chave: 'categoria' },
+      { label: 'Contrato / PO', val: c.contratoPo, chave: 'contratoPo' },
+      { label: 'Conta Contábil', val: c.contaContabil, chave: 'contaContabil' },
+      { label: 'Gerente / Coordenador', val: c.gerente, chave: 'gerente' },
+      { label: 'Apoio Administrativo', val: c.administrativo, chave: 'administrativo' },
+      { label: 'Tipo', val: c.tipo, chave: 'tipo' },
+      { label: 'Status', val: c.status, chave: 'status' },
+      { label: 'Início da Vigência', val: c.inicioVigencia, chave: 'inicioVigencia' },
+      { 
+        label: 'Fim da Vigência', 
+        val: (c.fimVigencia || '-') + (c.diasParaVencer !== null ? ' (' + (c.diasParaVencer < 0 ? 'Expirado' : c.diasParaVencer + ' dias restantes') + ')' : ''), 
+        chave: 'fimVigencia', 
+        destaque: true 
+      },
+      { label: 'Renovação Automática', val: c.renovacaoAutomatica, chave: 'renovacaoAutomatica' },
+      { label: 'Moeda', val: c.moeda || 'BRL', chave: 'moeda' },
+      { label: 'Valor por Lançamento', val: (c.moeda || 'BRL') + ' ' + formatarMoedaBRL(c.valorLancamento), chave: 'valorLancamento' },
+      { label: 'Variação de um Mês para o Outro', val: badgeVar, chave: null, rawHtml: true, info: 'Diferença entre competências mensais' },
+      { label: 'Periodicidade', val: c.periodicidade, chave: 'periodicidade' },
+      { label: '1ª Competência', val: c.primeiraCompetencia, chave: 'primeiraCompetencia' },
+      { label: 'Data do Reajuste', val: c.dataReajuste, chave: 'dataReajuste' },
+      { label: 'Índice de Reajuste', val: c.indice, chave: 'indice' },
+      { label: 'Reajuste Manual (%)', val: c.reajusteManual ? (c.reajusteManual * 100).toFixed(2) + '%' : '-', chave: 'reajusteManual' },
+      { label: 'Reajuste Aplicado (%)', val: c.reajusteAplicado ? (c.reajusteAplicado * 100).toFixed(2) + '%' : '-', chave: null, info: 'Calculado automaticamente' },
+      { label: 'Impostos / Encargos (%)', val: c.impostos ? (c.impostos * 100).toFixed(2) + '%' : '-', chave: 'impostos' },
+      { label: 'Valor Base em BRL', val: formatarMoedaBRL(c.valorBaseBRL), chave: null, info: 'Calculado com base no câmbio' },
+      { label: 'Contingência (%)', val: c.contingencia ? (c.contingencia * 100).toFixed(2) + '%' : '-', chave: 'contingencia' },
+      { label: 'Valor Orçado por Lançamento', val: formatarMoedaBRL(c.valorOrcado), chave: null, info: 'Calculado com base na contingência' },
+      { label: 'Nível de Risco', val: c.risco, chave: 'risco' },
+      { label: 'Descrição do Risco / Contingência', val: c.descricaoRisco, chave: 'descricaoRisco', fullWidth: true },
+      { label: 'Fonte / Memória de Cálculo', val: c.memoriaCalculo, chave: 'memoriaCalculo', fullWidth: true },
+      { label: 'Notas / Observações Gerais', val: c.observacoes, chave: 'observacoes', fullWidth: true }
+    ];
+
+    var gridHtml = '';
+    campos.forEach(function(item) {
+      var classes = 'detail-item';
+      if (item.fullWidth) classes += ' detail-item-full';
+      if (item.destaque) classes += ' detail-item-destaque';
+
+      var editBtnHtml = '';
+      if (item.chave) {
+        editBtnHtml = 
+          '<button type="button" class="btn-edit-field-icon" title="Editar ' + escapeHtml(item.label) + '" ' +
+            'onclick="event.stopPropagation(); abrirModalEditarCampo(\'' + item.chave + '\', \'' + escapeHtml(item.label) + '\')">' +
+            '<svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />' +
+            '</svg>' +
+            '<span>Editar</span>' +
+          '</button>';
+      }
+
+      var valDisplay = item.rawHtml ? item.val : (item.val ? formatarTextoComLinks(item.val) : '-');
+      var infoHtml = item.info ? '<div class="detail-hint">' + escapeHtml(item.info) + '</div>' : '';
+
+      gridHtml += 
+        '<div class="' + classes + '">' +
+          '<div class="detail-label-row">' +
+            '<span class="detail-label">' + escapeHtml(item.label) + '</span>' +
+            editBtnHtml +
+          '</div>' +
+          '<div class="detail-value">' + valDisplay + '</div>' +
+          infoHtml +
+        '</div>';
+    });
+
+    wrapper.innerHTML = 
+      '<div class="expansion-header">' +
+        '<div class="expansion-title-group">' +
+          '<span class="expansion-title">Detalhes do Contrato #' + escapeHtml(c.id) + ' · ' + escapeHtml(c.fornecedor || '') + '</span>' +
+          '<span class="badge ' + statusClass + '">' + escapeHtml(c.status || 'Ativo') + '</span>' +
+          '<span class="badge ' + riscoClass + '">' + escapeHtml(riscoTexto) + '</span>' +
+          (c.protocol ? '<span style="font-size:11px;color:#64748b;font-weight:600;background:#f1f5f9;padding:2px 8px;border-radius:4px;">' + escapeHtml(c.protocol) + '</span>' : '') +
+        '</div>' +
+        '<div class="expansion-actions">' +
+          '<button type="button" class="btn btn-outline" style="height:32px;font-size:12px;padding:0 12px;" onclick="event.stopPropagation(); abrirModalDetalhes(\'' + escapeHtml(idStr) + '\')" title="Visualizar em janela suspensa">' +
+            '<svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right:4px;">' +
+              '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />' +
+            '</svg>' +
+            'Janela Suspensa' +
+          '</button>' +
+          '<button type="button" class="btn btn-secondary" style="height:32px;font-size:12px;padding:0 12px;" onclick="event.stopPropagation(); alternarExpansaoContrato(\'' + escapeHtml(idStr) + '\')">' +
+            'Recolher' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      expiryBannerHtml +
+      '<div class="detail-grid">' + gridHtml + '</div>' +
+      
+      // ANOTAÇÃO RÁPIDA
+      '<div style="margin-top:20px;padding:16px;background:#ffffff;border:1px solid #e2e8f0;border-radius:8px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">' +
+          '<label style="font-weight:700;font-size:13px;color:#1e293b;">Notas e Acordos Rápidos (Histórico Operacional)</label>' +
+          '<span style="font-size:11px;color:#64748b;">Alterações são registradas nos logs de auditoria</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;align-items:center;">' +
+          '<input type="text" id="expanded-note-input-' + escapeHtml(idStr) + '" class="form-control" placeholder="Adicionar nova observação ou nota rápida..." value="' + escapeHtml(c.observacoes || '') + '" style="font-size:13px;" />' +
+          '<button type="button" id="btnSaveNoteExpanded-' + escapeHtml(idStr) + '" class="btn btn-primary" style="height:40px;font-size:12px;padding:0 16px;white-space:nowrap;" onclick="event.stopPropagation(); salvarNotaExpandida(\'' + escapeHtml(idStr) + '\')">' +
+            'Salvar Anotação' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+
+      // HISTÓRICO DE AUDITORIA / LOGS
+      '<div style="margin-top:20px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">' +
+          '<h4 style="font-size:14px;font-weight:700;color:#0B316D;margin:0;">Histórico de Alterações e Auditoria</h4>' +
+          '<span id="expanded-history-badge-' + escapeHtml(idStr) + '" style="font-size:11px;font-weight:600;color:#64748b;">Carregando registros...</span>' +
+        '</div>' +
+        '<div id="expanded-history-' + escapeHtml(idStr) + '" class="history-list">' +
+          '<div class="history-empty-msg">Carregando histórico...</div>' +
+        '</div>' +
+      '</div>';
+
+    // Carregar histórico
+    if (c.history && Array.isArray(c.history) && c.history.length > 0) {
+      renderizarHistoricoExpandido(c.history, idStr);
+    } else {
+      carregarHistoricoParaExpandido(idStr, c.protocol);
+    }
+  }
+
+  // Carrega histórico para o card expandido
+  function carregarHistoricoParaExpandido(contractId, protocol) {
+    var idStr = String(contractId).trim();
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(history) {
+          for (var i = 0; i < appState.contracts.length; i++) {
+            if (String(appState.contracts[i].id).trim() === idStr) {
+              appState.contracts[i].history = history || [];
+              break;
+            }
+          }
+          renderizarHistoricoExpandido(history || [], idStr);
+        })
+        .withFailureHandler(function(err) {
+          var container = document.getElementById('expanded-history-' + idStr);
+          if (container) {
+            container.innerHTML = '<div class="history-empty-msg" style="color:#ef4444;">Erro ao carregar histórico da planilha.</div>';
+          }
+        })
+        .obterHistoricoContrato(contractId, protocol);
+    } else {
+      renderizarHistoricoExpandido([], idStr);
+    }
+  }
+
+  // Renderiza a lista de histórico dentro do card expandido
+  function renderizarHistoricoExpandido(history, contractId) {
+    var idStr = String(contractId).trim();
+    var container = document.getElementById('expanded-history-' + idStr);
+    var badge = document.getElementById('expanded-history-badge-' + idStr);
+    if (!container) return;
+
+    if (!history || !Array.isArray(history) || history.length === 0) {
+      if (badge) badge.textContent = '(0 registros)';
+      container.innerHTML = '<div class="history-empty-msg">Nenhuma alteração registrada até o momento para este contrato.</div>';
+      return;
+    }
+
+    if (badge) {
+      badge.textContent = '(' + history.length + ' registro' + (history.length > 1 ? 's' : '') + ')';
+    }
+
+    container.innerHTML = '';
+    history.forEach(function(item) {
+      var card = document.createElement('div');
+      card.className = 'history-card';
+      var notifInfo = item.notificacao && item.notificacao !== 'Não' ? 
+        '<div style="margin-top:4px;font-size:11px;color:#2242D4;font-weight:600;">Registro / E-mail: ' + escapeHtml(item.notificacao) + '</div>' : '';
+      
+      var diffHtml = '';
+      if (item.valorAnterior && String(item.valorAnterior).trim() !== '') {
+        diffHtml = '<div class="history-card-diff">' +
+          '<div style="color:#64748b;margin-bottom:2px;"><strike>' + escapeHtml(String(item.valorAnterior)) + '</strike></div>' +
+          '<div><strong>Novo Valor:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>' +
+        '</div>';
+      } else {
+        diffHtml = '<div class="history-card-diff"><strong>Registro:</strong> ' + escapeHtml(String(item.novoValor || '-')) + '</div>';
+      }
+
+      card.innerHTML = 
+        '<div class="history-card-header">' +
+          '<span class="history-card-user">' + escapeHtml(item.usuario || 'Sistema') + '</span>' +
+          '<span class="history-card-date">' + escapeHtml(item.dataHora || '-') + '</span>' +
+        '</div>' +
+        '<div class="history-card-body">' +
+          '<strong>' + escapeHtml(item.campo || 'Alteração') + '</strong>' +
+          diffHtml +
+          notifInfo +
+        '</div>';
+      container.appendChild(card);
+    });
+  }
+
+  // Salva anotação rápida a partir da linha expandida
+  function salvarNotaExpandida(id) {
+    var idStr = String(id).trim();
+    var inputEl = document.getElementById('expanded-note-input-' + idStr);
+    var btnSave = document.getElementById('btnSaveNoteExpanded-' + idStr);
+    if (!inputEl) return;
+
+    var novaNota = inputEl.value.trim();
+
+    var c = null;
+    for (var i = 0; i < appState.contracts.length; i++) {
+      if (String(appState.contracts[i].id).trim() === idStr) {
+        c = appState.contracts[i];
+        break;
+      }
+    }
+    if (!c) return;
+
+    if (btnSave) {
+      btnSave.disabled = true;
+      btnSave.textContent = 'Salvando...';
+    }
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(response) {
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Salvo!';
+            setTimeout(function() { btnSave.textContent = 'Salvar Anotação'; }, 2000);
+          }
+          if (response && response.success) {
+            c.observacoes = novaNota;
+            if (!Array.isArray(c.history)) c.history = [];
+            c.history.unshift({
+              dataHora: response.dataHora || formatarDataHoraAgora(),
+              id: c.id,
+              protocol: c.protocol,
+              fornecedor: c.fornecedor,
+              campo: 'Notas / Observações',
+              valorAnterior: response.valorAnterior || '',
+              novoValor: novaNota,
+              usuario: response.usuario || 'Você',
+              notificacao: 'Não'
+            });
+            mostrarToast('Nota do contrato #' + idStr + ' salva com sucesso!', 'success');
+            renderizarHistoricoExpandido(c.history, idStr);
+          } else {
+            mostrarToast('Aviso: ' + (response ? response.error : 'Não foi possível salvar a nota.'), 'warning');
+          }
+        })
+        .withFailureHandler(function(err) {
+          if (btnSave) {
+            btnSave.disabled = false;
+            btnSave.textContent = 'Salvar Anotação';
+          }
+          mostrarToast('Erro ao salvar nota: ' + (err.message || err), 'error');
+        })
+        .atualizarNotasContrato(c.id, c.rowNumber, novaNota, 'Atualização pela linha expandida');
+    } else {
+      c.observacoes = novaNota;
+      if (!Array.isArray(c.history)) c.history = [];
+      c.history.unshift({
+        dataHora: formatarDataHoraAgora(),
+        id: c.id,
+        protocol: c.protocol,
+        fornecedor: c.fornecedor,
+        campo: 'Notas / Observações',
+        valorAnterior: '',
+        novoValor: novaNota,
+        usuario: 'Você',
+        notificacao: 'Não'
+      });
+      if (btnSave) {
+        btnSave.disabled = false;
+        btnSave.textContent = 'Salvo!';
+        setTimeout(function() { btnSave.textContent = 'Salvar Anotação'; }, 2000);
+      }
+      renderizarHistoricoExpandido(c.history, idStr);
+      mostrarToast('Modo demonstração: Nota salva!', 'info');
+    }
+  }
+
+
   function salvarNotaModal() {
     var index = appState.detalhesIndexAtual;
     var c = appState.contracts[index];
@@ -3000,6 +3582,10 @@
             mostrarToast('Nota do contrato #' + c.id + ' salva com sucesso!', 'success');
             atualizarVisualizacaoDetalhes(c);
             renderizarHistoricoModalDetalhes(c.history);
+            if (appState.idContratoExpandido && String(appState.idContratoExpandido).trim() === String(c.id).trim()) {
+              renderizarConteudoExpandido(c);
+            }
+            renderizarPaginaAtual();
           } else {
             mostrarToast('Aviso: ' + (response ? response.error : 'Não foi possível salvar a nota.'), 'warning');
           }
@@ -4569,7 +5155,16 @@
 
 
             // Atualizar tabela de contratos
-            renderizarTabela(appState.contracts);
+            if (res.variacaoValor !== undefined) c.variacaoValor = res.variacaoValor;
+            if (res.variacaoPercentual !== undefined) c.variacaoPercentual = res.variacaoPercentual;
+
+            // Se for o contrato expandido na tabela, atualizar seu card expandido
+            if (appState.idContratoExpandido && String(appState.idContratoExpandido).trim() === String(c.id).trim()) {
+              renderizarConteudoExpandido(c);
+            }
+
+            // Atualizar tabela mantendo a página atual e linha expandida
+            renderizarPaginaAtual();
           } else {
             mostrarToast('Erro ao atualizar: ' + (res ? res.error : 'Falha desconhecida'), 'error');
           }

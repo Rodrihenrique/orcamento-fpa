@@ -407,6 +407,32 @@ function getInitialData() {
     var somaValorMensal = 0;
 
 
+    // Mapeamento opcional da aba Orçamento Mensal para cálculo de variação mês a mês
+    var orcamentoMap = {};
+    try {
+      var ssParent = sheet.getParent();
+      var orcamentoSheet = ssParent.getSheetByName('Orçamento Mensal');
+      if (orcamentoSheet) {
+        var orcLastRow = orcamentoSheet.getLastRow();
+        if (orcLastRow >= 6) {
+          var orcValues = orcamentoSheet.getRange(6, 1, orcLastRow - 5, Math.min(orcamentoSheet.getLastColumn(), 22)).getValues();
+          for (var o = 0; o < orcValues.length; o++) {
+            var oRow = orcValues[o];
+            var oId = String(oRow[0] || '').trim();
+            if (oId) {
+              var oMeses = [];
+              for (var cCol = 7; cCol <= 18; cCol++) {
+                oMeses.push(normalizarNumero_(oRow[cCol]));
+              }
+              orcamentoMap[oId] = oMeses;
+            }
+          }
+        }
+      }
+    } catch (eOrc) {
+      Logger.log('Aba Orçamento Mensal não processada: ' + eOrc.message);
+    }
+
     if (lastRow > headerRow) {
       var numRows = lastRow - headerRow;
       // Ler colunas de A (1) a AF (32)
@@ -466,10 +492,56 @@ function getInitialData() {
         var protocol = formatarProtocolo_(rawId);
 
 
+        // Cálculo de variação de valor de um mês para o outro
+        var diffMensal = 0;
+        var percMensal = 0;
+        var rawIdStr = String(rawId).trim();
+
+        // 1. Tentar obter do Orçamento Mensal se mapeado
+        if (orcamentoMap[rawIdStr] && orcamentoMap[rawIdStr].length === 12) {
+          var mValores = orcamentoMap[rawIdStr];
+          var hojeMes = new Date().getMonth(); // 0 a 11
+          var mesAtual = mValores[hojeMes];
+          var mesAnterior = hojeMes > 0 ? mValores[hojeMes - 1] : mValores[11];
+
+          if (mesAtual > 0 && mesAnterior > 0 && Math.abs(mesAtual - mesAnterior) > 0.01) {
+            diffMensal = mesAtual - mesAnterior;
+            percMensal = ((diffMensal / mesAnterior) * 100);
+          } else {
+            // Verificar qualquer variação de mês consecutivo
+            for (var mIdx = 1; mIdx < mValores.length; mIdx++) {
+              if (mValores[mIdx] > 0 && mValores[mIdx - 1] > 0 && Math.abs(mValores[mIdx] - mValores[mIdx - 1]) > 0.01) {
+                diffMensal = mValores[mIdx] - mValores[mIdx - 1];
+                percMensal = ((diffMensal / mValores[mIdx - 1]) * 100);
+                break;
+              }
+            }
+          }
+        }
+
+        // 2. Se não encontrou no orçamento ou deu 0, calcular via modelo financeiro (reajuste e contingência)
+        if (Math.abs(diffMensal) < 0.01) {
+          if (Math.abs(valorOrçado - valorLancamento) > 0.01) {
+            diffMensal = valorOrçado - valorLancamento;
+            percMensal = valorLancamento > 0 ? ((diffMensal / valorLancamento) * 100) : 0;
+          } else if (row[20] !== '' && row[20] !== null && row[20] !== undefined) {
+            var rAplic = normalizarPorcentagem_(row[20]);
+            if (typeof rAplic === 'number' && rAplic > 0) {
+              percMensal = rAplic * 100;
+              diffMensal = valorLancamento * rAplic;
+            }
+          }
+        }
+
+        diffMensal = Math.round(diffMensal * 100) / 100;
+        percMensal = Math.round(percMensal * 100) / 100;
+
         contracts.push({
           rowNumber: headerRow + 1 + i,
           id: rawId,
           protocol: protocol,
+          variacaoValor: diffMensal,
+          variacaoPercentual: percMensal,
           centroCusto: row[1] || '',
           categoria: row[2] || '',
           fornecedor: row[3] || '',
@@ -2357,6 +2429,19 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
     var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
 
 
+    // Calcular variação atualizada de um mês para o outro
+    var diffAtual = 0;
+    var percAtual = 0;
+    if (Math.abs(valorOrcado - valorLanc) > 0.01) {
+      diffAtual = valorOrcado - valorLanc;
+      percAtual = valorLanc > 0 ? ((diffAtual / valorLanc) * 100) : 0;
+    } else if (typeof reajusteAplicado === 'number' && reajusteAplicado > 0) {
+      percAtual = reajusteAplicado * 100;
+      diffAtual = valorLanc * reajusteAplicado;
+    }
+    diffAtual = Math.round(diffAtual * 100) / 100;
+    percAtual = Math.round(percAtual * 100) / 100;
+
     return {
       success: true,
       contractId: contractId,
@@ -2372,6 +2457,8 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
       valorBaseBRL: valorBaseBRL,
       valorOrcado: valorOrcado,
       reajusteAplicado: reajusteAplicado,
+      variacaoValor: diffAtual,
+      variacaoPercentual: percAtual,
       usuario: usuario,
       dataHora: nowStr
     };
