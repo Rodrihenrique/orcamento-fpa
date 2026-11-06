@@ -28,16 +28,21 @@ O sistema estrutura a gestao de telecomunicacoes por fornecedor, automatiza o ar
         *   `OPERACOES DE REDES`
         *   `PROJETOS DE IMPLANTACAO`
         *   `TELEFONIA`
-    *   Gerenciamento das abas relacionais (`Contratos`, `Fornecedores`, `Aprovacoes_Workflow`, `Aditivos`, `Acessos_Alcadas`, `Auditoria_Logs`).
-    *   Fluxo de cadastro centrado em Fornecedores com suporte a anexacao de contratos setoriais e tabela de reajuste por base de clientes.
+    *   Gerenciamento das abas relacionais com 45 colunas estruturadas para contratos e suporte a fornecedores com Razao Social, Nome Fantasia e Apelido usual.
+    *   Fluxo de cadastro centrado em Fornecedores com suporte a anexacao de contratos com 29 campos tecnicos, orcamentarios e de governanca.
     *   Esteira de alcadas com travas de concorrencia (`LockService`).
     *   Motor de auditoria imutavel em Horario de Brasilia (UTC-3).
     *   Geracao de certificados com assinatura digital (SHA-256).
 *   **`Index.html`**: Interface moderna baseada no Design System oficial da **brisanet** (fontes `Figtree` e `Rubik`, paleta `#FF5022`, `#2242D4`, `#0B316D`, estritamente **zero emojis**):
-    *   Aba **Novo Fornecedor** com acao direta "Salvar Fornecedor".
-    *   Cartoes expansíveis de fornecedores com botao "+ Novo Contrato" e acao direta "Salvar Contrato".
-    *   Mascaras em tempo real para CNPJ, Moeda (R$), Porcentagem (%) e Telefone.
-    *   Tabela dinamica de faixas para reajuste baseado em Base de Clientes.
+    *   Aba **Novo Fornecedor** com Razao Social, Nome Fantasia e **Apelido** (nome mais conhecido pelos colaboradores).
+    *   Modal de **Novo Contrato** com rolagem lateral e 29 campos estruturados em 6 secoes:
+        1. Setor Responsavel, Identificacao & Objeto
+        2. Vigencia, Prazos & Periodicidade
+        3. Valores Financeiros, Moeda & Orcamento
+        4. Regras de Reajuste & Base de Clientes
+        5. Governanca, Risco & Memoria de Calculo
+        6. Arquivos do Contrato (Upload no Drive)
+    *   Mascaras em tempo real: CNPJ, Moeda (R$), Porcentagem (%), Data (DD/MM/AAAA) e Taxa de Cambio.
     *   Animacao de carregamento (Loading State) com overlay de bloqueio visual durante requisicoes.
     *   Ficha 360° do contrato e Central de Aprovacoes.
 *   **`appsscript.json`**: Manifesto de configuracao com fuso horario `America/Fortaleza` e escopos de seguranca.

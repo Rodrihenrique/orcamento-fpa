@@ -1021,6 +1021,18 @@
       background: var(--brisa-orange);
     }
 
+    .form-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--brisa-dark-blue);
+      text-transform: uppercase;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #E2E8F0;
+      letter-spacing: 0.5px;
+    }
+
     /* Rolagem e fixacao de cabecalho e rodape do Modal Novo Contrato */
     #modalNovoContratoParaFornecedor .modal-content {
       max-width: 960px;
@@ -1348,9 +1360,14 @@
             <label class="form-label required">Razão Social</label>
             <input type="text" id="novoFornecedorRazaoSocial" class="form-control" placeholder="Ex: American Tower do Brasil Ltda" required>
           </div>
-          <div class="form-group col-span-2">
+          <div class="form-group col-span-1">
             <label class="form-label">Nome Fantasia</label>
             <input type="text" id="novoFornecedorNomeFantasia" class="form-control" placeholder="Ex: American Tower">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label required">Apelido (Nome Usual)</label>
+            <input type="text" id="novoFornecedorApelido" class="form-control" placeholder="Ex: Huawei, Cirion, Vogel..." required>
+            <small style="font-size: 11px; color: var(--text-muted);">Como a empresa é mais conhecida pelos colaboradores.</small>
           </div>
           <div class="form-group">
             <label class="form-label required">CNPJ</label>
@@ -1481,9 +1498,9 @@
         <input type="hidden" id="contratoModalFornecedorId">
         <input type="hidden" id="contratoModalFornecedorNome">
 
-        <!-- Secao 1: Identificacao e Setor da Gerencia -->
-        <div style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue); text-transform: uppercase; margin-bottom: 12px;">
-          1. Setor Responsável & Objeto do Contrato
+        <!-- Secao 1: Identificacao, Setor & Objeto -->
+        <div class="form-section-title">
+          1. Setor Responsável, Identificação & Objeto
         </div>
         <div class="form-grid" style="margin-bottom: 20px;">
           <div class="form-group col-span-2">
@@ -1495,9 +1512,7 @@
               <option value="OPERACOES DE REDES">OPERACOES DE REDES</option>
               <option value="PROJETOS DE IMPLANTACAO">PROJETOS DE IMPLANTACAO</option>
             </select>
-            <small style="font-size: 11px; color: var(--text-muted);">
-              O contrato e seus arquivos serão arquivados na pasta deste setor no Google Drive.
-            </small>
+            <small style="font-size: 11px; color: var(--text-muted);">Arquivamento automático na pasta desta gerência no Google Drive.</small>
           </div>
           <div class="form-group col-span-2">
             <label class="form-label required">Tipo de Contrato</label>
@@ -1508,7 +1523,21 @@
               <option value="Infraestrutura e Redes">Infraestrutura e Redes</option>
               <option value="Licenciamento de Software">Licenciamento de Software</option>
               <option value="Manutenção Operacional">Manutenção Operacional</option>
+              <option value="Serviços Técnicos">Serviços Técnicos</option>
+              <option value="Outros">Outros</option>
             </select>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label required">CNPJ</label>
+            <input type="text" id="contratoModalCnpj" class="form-control" placeholder="00.000.000/0000-00" maxlength="18" required oninput="mascaraCnpj(this)">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Contrato / PO</label>
+            <input type="text" id="contratoModalContratoPo" class="form-control" placeholder="Ex: CT-2026-4412 / PO-9821">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Centro de Custo</label>
+            <input type="text" id="contratoModalCentroCusto" class="form-control" placeholder="Ex: 104010">
           </div>
           <div class="form-group col-span-4">
             <label class="form-label required">Objeto do Contrato</label>
@@ -1516,16 +1545,16 @@
           </div>
         </div>
 
-        <!-- Secao 2: Vigencia -->
-        <div style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue); text-transform: uppercase; margin-bottom: 12px;">
-          2. Vigência e Prazos
+        <!-- Secao 2: Vigencia e Prazos -->
+        <div class="form-section-title">
+          2. Vigência, Prazos & Periodicidade
         </div>
         <div class="form-grid" style="margin-bottom: 20px;">
-          <div class="form-group">
+          <div class="form-group col-span-1">
             <label class="form-label required">Início da Vigência</label>
             <input type="date" id="contratoModalDataInicio" class="form-control" required>
           </div>
-          <div class="form-group">
+          <div class="form-group col-span-1">
             <label class="form-label">Término da Vigência</label>
             <input type="date" id="contratoModalDataFim" class="form-control">
             <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; cursor: pointer;">
@@ -1533,19 +1562,81 @@
               <span style="font-weight: 600; color: var(--brisa-dark-blue);">Vigência Indeterminada</span>
             </label>
           </div>
-          <div class="form-group">
+          <div class="form-group col-span-1">
             <label class="form-label">Aviso Prévio (Dias)</label>
             <input type="number" id="contratoModalAvisoPrevio" class="form-control" value="30">
           </div>
-          <div class="form-group">
-            <label class="form-label required">Valor Mensal (R$)</label>
-            <input type="text" id="contratoModalValorMensal" class="form-control" placeholder="R$ 0,00" required oninput="mascaraMoeda(this)">
+          <div class="form-group col-span-1">
+            <label class="form-label required">Renovação Automática</label>
+            <select id="contratoModalRenovacaoAutomatica" class="form-control" required>
+              <option value="Não">Não</option>
+              <option value="Sim">Sim</option>
+            </select>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label required">Periodicidade</label>
+            <select id="contratoModalPeriodicidade" class="form-control" required>
+              <option value="Mensal">Mensal</option>
+              <option value="Bimestral">Bimestral</option>
+              <option value="Trimestral">Trimestral</option>
+              <option value="Semestral">Semestral</option>
+              <option value="Anual">Anual</option>
+              <option value="Único">Único</option>
+            </select>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">1ª Competência (DD/MM/AAAA)</label>
+            <input type="text" id="contratoModalPrimeiraCompetencia" class="form-control" placeholder="DD/MM/AAAA" maxlength="10" oninput="mascaraData(this)">
           </div>
         </div>
 
-        <!-- Secao 3: Criterio de Reajuste e Base de Clientes -->
-        <div style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue); text-transform: uppercase; margin-bottom: 12px;">
-          3. Reajuste, Índice & Tabela por Base de Clientes
+        <!-- Secao 3: Valores Financeiros, Moeda & Orcamento -->
+        <div class="form-section-title">
+          3. Valores Financeiros, Moeda & Orçamento
+        </div>
+        <div class="form-grid" style="margin-bottom: 20px;">
+          <div class="form-group col-span-1">
+            <label class="form-label required">Moeda</label>
+            <select id="contratoModalMoeda" class="form-control" onchange="alternarMoedaModal(this.value)" required>
+              <option value="BRL">BRL - Real</option>
+              <option value="USD">USD - Dólar Americano</option>
+              <option value="EUR">EUR - Euro</option>
+              <option value="Outra">Outra Moeda</option>
+            </select>
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Taxa de Câmbio</label>
+            <input type="text" id="contratoModalTaxaCambio" class="form-control" placeholder="1,0000" value="1,0000" oninput="mascaraTaxaCambio(this)">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label required">Valor Mensal (R$)</label>
+            <input type="text" id="contratoModalValorMensal" class="form-control" placeholder="R$ 0,00" required oninput="mascaraMoeda(this); atualizarCalculoValorBaseBrl();">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Valor Base em BRL</label>
+            <input type="text" id="contratoModalValorBaseBrl" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Valor Orçado por Lançamento</label>
+            <input type="text" id="contratoModalValorOrcado" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Impostos / Encargos (%)</label>
+            <input type="text" id="contratoModalImpostosEncargos" class="form-control" placeholder="0,00%" oninput="mascaraPercentual(this)">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Contingência (%)</label>
+            <input type="text" id="contratoModalContingencia" class="form-control" placeholder="0,00%" oninput="mascaraPercentual(this)">
+          </div>
+          <div class="form-group col-span-1">
+            <label class="form-label">Conta Contábil</label>
+            <input type="text" id="contratoModalContaContabil" class="form-control" placeholder="Ex: 4.1.1.01.002">
+          </div>
+        </div>
+
+        <!-- Secao 4: Regras de Reajuste e Base de Clientes -->
+        <div class="form-section-title">
+          4. Regras de Reajuste & Base de Clientes
         </div>
         <div class="form-grid" style="margin-bottom: 16px;">
           <div class="form-group col-span-2">
@@ -1554,18 +1645,26 @@
               <option value="IPCA">IPCA</option>
               <option value="IGP-M">IGP-M</option>
               <option value="INPC">INPC</option>
-              <option value="Fixo">Fixo / Sem Reajuste</option>
+              <option value="Fixo / Sem Reajuste">Fixo / Sem Reajuste</option>
               <option value="Base de Clientes">Base de Clientes (Tabela de Faixas)</option>
               <option value="Personalizado">Outro Índice Contratual</option>
             </select>
           </div>
-          <div class="form-group">
+          <div class="form-group col-span-1">
+            <label class="form-label">Data do Reajuste</label>
+            <input type="date" id="contratoModalDataReajuste" class="form-control">
+            <label style="display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; cursor: pointer;">
+              <input type="checkbox" id="contratoModalSemReajuste" onchange="alternarSemReajusteModal(this.checked)">
+              <span style="font-weight: 600; color: var(--brisa-dark-blue);">Sem Reajuste</span>
+            </label>
+          </div>
+          <div class="form-group col-span-1">
             <label class="form-label">Mês Aniversário (1 a 12)</label>
             <input type="number" id="contratoModalMesAniversario" class="form-control" min="1" max="12" value="1">
           </div>
-          <div class="form-group">
-            <label class="form-label">Centro de Custo</label>
-            <input type="text" id="contratoModalCentroCusto" class="form-control" placeholder="Ex: 104010">
+          <div class="form-group col-span-1">
+            <label class="form-label">Reajuste Aplicado (%)</label>
+            <input type="text" id="contratoModalReajusteAplicado" class="form-control" placeholder="0,00%" oninput="mascaraPercentual(this)">
           </div>
         </div>
 
@@ -1601,9 +1700,36 @@
           </table>
         </div>
 
-        <!-- Secao 4: Upload de Arquivos -->
-        <div style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue); text-transform: uppercase; margin-bottom: 12px;">
-          4. Arquivos do Contrato (Upload no Drive)
+        <!-- Secao 5: Risco, Contingencia & Memoria de Calculo -->
+        <div class="form-section-title">
+          5. Governança, Risco & Memória de Cálculo
+        </div>
+        <div class="form-grid" style="margin-bottom: 20px;">
+          <div class="form-group col-span-1">
+            <label class="form-label required">Risco</label>
+            <select id="contratoModalRisco" class="form-control" required>
+              <option value="Baixo">Baixo</option>
+              <option value="Médio">Médio</option>
+              <option value="Alto">Alto</option>
+            </select>
+          </div>
+          <div class="form-group col-span-3">
+            <label class="form-label">Descrição do Risco / Contingência</label>
+            <textarea id="contratoModalDescricaoRisco" class="form-control" rows="2" placeholder="Fatores de risco técnico, operacional ou contingências previstas..."></textarea>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">Fonte / Memória de Cálculo</label>
+            <textarea id="contratoModalMemoriaCalculo" class="form-control" rows="2" placeholder="Metodologia, volumetria estimada ou fórmulas de cálculo..."></textarea>
+          </div>
+          <div class="form-group col-span-2">
+            <label class="form-label">Observações</label>
+            <textarea id="contratoModalObservacoes" class="form-control" rows="2" placeholder="Observações complementares..."></textarea>
+          </div>
+        </div>
+
+        <!-- Secao 6: Upload de Arquivos -->
+        <div class="form-section-title">
+          6. Arquivos do Contrato (Upload no Drive)
         </div>
         <div class="file-dropzone" id="dropzoneModalContrato" onclick="document.getElementById('inputArquivoContratoModal').click()">
           <input type="file" id="inputArquivoContratoModal" style="display: none;" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.zip" onchange="manipularSelecaoArquivosModal(this.files)">
@@ -1615,7 +1741,7 @@
         </div>
         <div class="files-list-container" id="listaArquivosModalContrato"></div>
 
-      </div>
+      </div></div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="fecharModalNovoContrato()">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btnSalvarContratoModal">
@@ -1806,6 +1932,105 @@
     input.value = num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   }
 
+  function mascaraPercentual(input) {
+    var v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = ''; return; }
+    var num = parseFloat(v) / 100;
+    input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+  }
+
+  function mascaraData(input) {
+    var v = input.value.replace(/\D/g, '');
+    if (v.length > 8) v = v.substring(0, 8);
+    if (v.length > 4) {
+      v = v.replace(/^(\d{2})(\d{2})(\d{1,4})$/, '$1/$2/$3');
+    } else if (v.length > 2) {
+      v = v.replace(/^(\d{2})(\d{1,2})$/, '$1/$2');
+    }
+    input.value = v;
+  }
+
+  function mascaraTaxaCambio(input) {
+    var v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = '1,0000'; atualizarCalculoValorBaseBrl(); return; }
+    var num = parseFloat(v) / 10000;
+    input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    atualizarCalculoValorBaseBrl();
+  }
+
+  function atualizarCalculoValorBaseBrl() {
+    var inputValorMensal = document.getElementById('contratoModalValorMensal');
+    var inputTaxa = document.getElementById('contratoModalTaxaCambio');
+    var inputBaseBrl = document.getElementById('contratoModalValorBaseBrl');
+    var selectMoeda = document.getElementById('contratoModalMoeda');
+    if (!inputValorMensal || !inputBaseBrl) return;
+
+    var vmRaw = inputValorMensal.value.replace(/\D/g, '');
+    if (!vmRaw) {
+      inputBaseBrl.value = '';
+      return;
+    }
+    var vm = parseFloat(vmRaw) / 100;
+
+    var moeda = selectMoeda ? selectMoeda.value : 'BRL';
+    if (moeda === 'BRL') {
+      if (inputTaxa) inputTaxa.value = '1,0000';
+      inputBaseBrl.value = vm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    } else {
+      var taxaRaw = inputTaxa ? inputTaxa.value.replace(/\D/g, '') : '10000';
+      var taxa = taxaRaw ? (parseFloat(taxaRaw) / 10000) : 1;
+      var totalBrl = vm * taxa;
+      inputBaseBrl.value = totalBrl.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+  }
+
+  function alternarMoedaModal(moeda) {
+    var inputTaxa = document.getElementById('contratoModalTaxaCambio');
+    if (!inputTaxa) return;
+    if (moeda === 'BRL') {
+      inputTaxa.value = '1,0000';
+      inputTaxa.disabled = true;
+      inputTaxa.style.backgroundColor = '#F1F5F9';
+    } else {
+      inputTaxa.disabled = false;
+      inputTaxa.style.backgroundColor = '#FFFFFF';
+    }
+    atualizarCalculoValorBaseBrl();
+  }
+
+  function alternarSemReajusteModal(isSemReajuste) {
+    var inputData = document.getElementById('contratoModalDataReajuste');
+    var inputMes = document.getElementById('contratoModalMesAniversario');
+    var inputReajustePct = document.getElementById('contratoModalReajusteAplicado');
+    if (isSemReajuste) {
+      if (inputData) {
+        inputData.value = '';
+        inputData.disabled = true;
+        inputData.style.backgroundColor = '#F1F5F9';
+        inputData.style.cursor = 'not-allowed';
+      }
+      if (inputMes) {
+        inputMes.disabled = true;
+        inputMes.style.backgroundColor = '#F1F5F9';
+        inputMes.style.cursor = 'not-allowed';
+      }
+      if (inputReajustePct) {
+        inputReajustePct.value = '0,00%';
+      }
+    } else {
+      if (inputData) {
+        inputData.disabled = false;
+        inputData.style.backgroundColor = '#FFFFFF';
+        inputData.style.cursor = 'text';
+      }
+      if (inputMes) {
+        inputMes.disabled = false;
+        inputMes.style.backgroundColor = '#FFFFFF';
+        inputMes.style.cursor = 'text';
+      }
+    }
+  }
+
   // Alternancia de Abas Principais
   function trocarAbaPrincipal(aba) {
     appState.activeTab = aba;
@@ -1917,7 +2142,11 @@
       html += '<div class="supplier-accordion-card ' + (isExpanded ? 'expanded' : '') + '" id="' + fId + '">';
       html += '  <div class="supplier-header" onclick="alternarFornecedor(\'' + fId + '\')">';
       html += '    <div class="supplier-identity">';
-      html += '      <div class="supplier-name">' + escapeHtml(f.razaoSocial) + '</div>';
+      var tituloForn = escapeHtml(f.razaoSocial);
+      if (f.apelido && f.apelido.toLowerCase() !== f.razaoSocial.toLowerCase()) {
+        tituloForn += ' <span style="font-weight: 500; color: var(--brisa-blue); font-size: 13px;">(' + escapeHtml(f.apelido) + ')</span>';
+      }
+      html += '      <div class="supplier-name">' + tituloForn + '</div>';
       if (f.cnpj) {
         html += '      <span class="badge-cnpj">' + escapeHtml(f.cnpj) + '</span>';
       }
@@ -2097,6 +2326,7 @@
     var dadosFornecedor = {
       razaoSocial: document.getElementById('novoFornecedorRazaoSocial').value.trim(),
       nomeFantasia: document.getElementById('novoFornecedorNomeFantasia').value.trim(),
+      apelido: document.getElementById('novoFornecedorApelido').value.trim(),
       cnpj: document.getElementById('novoFornecedorCnpjInput').value.trim(),
       contatoComercial: document.getElementById('novoFornecedorTelefone').value.trim(),
       emailComercial: document.getElementById('novoFornecedorEmailComercial').value.trim(),
@@ -2141,10 +2371,48 @@
   function abrirModalNovoContrato(fornId, fornNome) {
     document.getElementById('contratoModalFornecedorId').value = fornId;
     document.getElementById('contratoModalFornecedorNome').value = fornNome;
-    document.getElementById('modalNovoContratoFornecedorBadge').textContent = fornNome;
+
+    // Buscar fornecedor no estado global para pre-preencher dados
+    var fornObj = null;
+    if (appState.fornecedores && appState.fornecedores.length) {
+      for (var f = 0; f < appState.fornecedores.length; f++) {
+        if (appState.fornecedores[f].id === fornId || appState.fornecedores[f].razaoSocial === fornNome) {
+          fornObj = appState.fornecedores[f];
+          break;
+        }
+      }
+    }
+
+    var badgeText = fornNome;
+    if (fornObj && fornObj.apelido && fornObj.apelido !== fornNome) {
+      badgeText += ' (' + fornObj.apelido + ')';
+    }
+    document.getElementById('modalNovoContratoFornecedorBadge').textContent = badgeText;
     document.getElementById('formNovoContratoModal').reset();
-    limparArquivosModalContrato();
+
+    // Pre-preencher CNPJ se disponivel
+    var cnpjInput = document.getElementById('contratoModalCnpj');
+    if (cnpjInput && fornObj && fornObj.cnpj) {
+      cnpjInput.value = fornObj.cnpj;
+    }
+
+    // Aplicar valores padrao
+    document.getElementById('contratoModalSetor').value = 'TELEFONIA';
+    document.getElementById('contratoModalTipo').value = 'Voz / Telefonia';
+    document.getElementById('contratoModalAvisoPrevio').value = '30';
+    document.getElementById('contratoModalRenovacaoAutomatica').value = 'Não';
+    document.getElementById('contratoModalMoeda').value = 'BRL';
+    document.getElementById('contratoModalPeriodicidade').value = 'Mensal';
+    document.getElementById('contratoModalTaxaCambio').value = '1,0000';
+    document.getElementById('contratoModalRisco').value = 'Baixo';
+    document.getElementById('contratoModalMesAniversario').value = '1';
+
+    alternarMoedaModal('BRL');
+    alternarPrazoIndeterminadoModal(false);
+    alternarSemReajusteModal(false);
     alternarCriterioReajuste('IPCA');
+    limparArquivosModalContrato();
+
     document.getElementById('modalNovoContratoParaFornecedor').style.display = 'flex';
   }
 
@@ -2169,11 +2437,20 @@
 
   function alternarCriterioReajuste(valor) {
     var container = document.getElementById('containerTabelaBaseClientes');
-    if (!container) return;
-    if (valor === 'Base de Clientes') {
-      container.style.display = 'block';
-    } else {
-      container.style.display = 'none';
+    var chkSemReajuste = document.getElementById('contratoModalSemReajuste');
+    if (container) {
+      container.style.display = (valor === 'Base de Clientes') ? 'block' : 'none';
+    }
+    if (valor === 'Fixo / Sem Reajuste') {
+      if (chkSemReajuste) {
+        chkSemReajuste.checked = true;
+        alternarSemReajusteModal(true);
+      }
+    } else if (valor !== 'Base de Clientes') {
+      if (chkSemReajuste && chkSemReajuste.checked) {
+        chkSemReajuste.checked = false;
+        alternarSemReajusteModal(false);
+      }
     }
   }
 
@@ -2300,6 +2577,7 @@
     btn.disabled = true;
 
     var isPrazoIndeterminado = document.getElementById('contratoModalPrazoIndeterminado').checked;
+    var isSemReajuste = document.getElementById('contratoModalSemReajuste').checked;
     var indice = document.getElementById('contratoModalIndice').value;
     var tabelaFaixas = (indice === 'Base de Clientes') ? coletarTabelaFaixasClientes() : [];
 
@@ -2307,17 +2585,36 @@
       idFornecedor: document.getElementById('contratoModalFornecedorId').value,
       fornecedor: document.getElementById('contratoModalFornecedorNome').value,
       setorGerencia: document.getElementById('contratoModalSetor').value,
-      objeto: document.getElementById('contratoModalObjeto').value.trim(),
+      centroCusto: document.getElementById('contratoModalCentroCusto').value.trim(),
       tipo: document.getElementById('contratoModalTipo').value,
+      objeto: document.getElementById('contratoModalObjeto').value.trim(),
+      cnpj: document.getElementById('contratoModalCnpj').value.trim(),
+      contratoPo: document.getElementById('contratoModalContratoPo').value.trim(),
       dataInicio: document.getElementById('contratoModalDataInicio').value,
       dataFim: isPrazoIndeterminado ? '' : document.getElementById('contratoModalDataFim').value,
       prazoIndeterminado: isPrazoIndeterminado,
       avisoPrevio: parseInt(document.getElementById('contratoModalAvisoPrevio').value, 10) || 30,
-      valorMensal: document.getElementById('contratoModalValorMensal').value,
+      renovacaoAutomatica: document.getElementById('contratoModalRenovacaoAutomatica').value,
+      moeda: document.getElementById('contratoModalMoeda').value,
+      periodicidade: document.getElementById('contratoModalPeriodicidade').value,
+      primeiraCompetencia: document.getElementById('contratoModalPrimeiraCompetencia').value.trim(),
+      valorMensal: document.getElementById('contratoModalValorMensal').value.trim(),
+      taxaCambio: document.getElementById('contratoModalTaxaCambio').value.trim(),
+      valorBaseBrl: document.getElementById('contratoModalValorBaseBrl').value.trim(),
+      valorOrcado: document.getElementById('contratoModalValorOrcado').value.trim(),
+      impostosEncargos: document.getElementById('contratoModalImpostosEncargos').value.trim(),
+      contingencia: document.getElementById('contratoModalContingencia').value.trim(),
+      contaContabil: document.getElementById('contratoModalContaContabil').value.trim(),
       indiceReajuste: indice,
-      tabelaBaseClientes: tabelaFaixas,
+      dataReajuste: isSemReajuste ? '' : document.getElementById('contratoModalDataReajuste').value,
+      semReajuste: isSemReajuste,
       mesAniversario: parseInt(document.getElementById('contratoModalMesAniversario').value, 10) || 1,
-      centroCusto: document.getElementById('contratoModalCentroCusto').value.trim(),
+      reajusteAplicado: document.getElementById('contratoModalReajusteAplicado').value.trim(),
+      tabelaBaseClientes: tabelaFaixas,
+      risco: document.getElementById('contratoModalRisco').value,
+      descricaoRisco: document.getElementById('contratoModalDescricaoRisco').value.trim(),
+      memoriaCalculo: document.getElementById('contratoModalMemoriaCalculo').value.trim(),
+      observacoes: document.getElementById('contratoModalObservacoes').value.trim(),
       arquivos: appState.arquivosModalContrato
     };
 
@@ -2486,12 +2783,18 @@
         '<div class="form-group"><span class="form-label">Protocolo Oficial</span><div style="font-family:monospace; font-weight:700;">' + escapeHtml(c.protocolo) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Setor / Gerência</span><div><span class="badge-setor">' + escapeHtml(c.setorGerencia || 'TELEFONIA') + '</span></div></div>' +
         '<div class="form-group col-span-4"><span class="form-label">Objeto do Contrato</span><div style="padding:10px; background:#F8FAFC; border-radius:6px; border:1px solid #E2E8F0;">' + escapeHtml(c.objeto) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">CNPJ</span><div>' + escapeHtml(c.cnpj || '-') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Contrato / PO</span><div>' + escapeHtml(c.contratoPo || '-') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Tipo</span><div>' + escapeHtml(c.tipo) + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Início</span><div>' + escapeHtml(c.dataInicio || '-') + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Término</span><div>' + (c.prazoIndeterminado ? 'Vigência Indeterminada' : escapeHtml(c.dataFim || 'Indeterminada')) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Periodicidade</span><div>' + escapeHtml(c.periodicidade || 'Mensal') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Início da Vigência</span><div>' + escapeHtml(c.dataInicio || '-') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Término da Vigência</span><div>' + (c.prazoIndeterminado ? 'Vigência Indeterminada' : escapeHtml(c.dataFim || 'Indeterminada')) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Aviso Prévio</span><div>' + (c.avisoPrevio || 30) + ' dias</div></div>' +
+        '<div class="form-group"><span class="form-label">Renovação Automática</span><div>' + escapeHtml(c.renovacaoAutomatica || 'Não') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">1ª Competência</span><div>' + escapeHtml(c.primeiraCompetencia || '-') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Centro de Custo</span><div>' + escapeHtml(c.centroCusto || '-') + '</div></div>' +
-        '<div class="form-group col-span-2"><span class="form-label">Gestor Técnico</span><div>' + escapeHtml(c.gestor || '-') + '</div></div>' +
-        '<div class="form-group col-span-2"><span class="form-label">Observações</span><div>' + escapeHtml(c.observacoes || '-') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Conta Contábil</span><div>' + escapeHtml(c.contaContabil || '-') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Gestor Técnico</span><div>' + escapeHtml(c.gestor || '-') + '</div></div>' +
         '</div>';
 
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
@@ -2509,12 +2812,23 @@
         faixasHtml += '</tbody></table></div>';
       }
 
+      var riscoBadgeClass = (c.risco === 'Alto') ? 'em-risco' : ((c.risco === 'Médio') ? 'analise' : 'ativo');
+
       body.innerHTML = '<div class="form-grid">' +
-        '<div class="form-group"><span class="form-label">Valor Mensal Atual</span><div style="font-size:18px; font-weight:800; color:var(--brisa-dark-blue);">' + formatarMoedaBRL(c.valorMensal) + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Variação Mês a Mês</span><div><span class="badge-mom flat">' + (c.variacaoMesAMesPercentual || 0).toFixed(1) + '%</span></div></div>' +
-        '<div class="form-group"><span class="form-label">Índice Contratual</span><div>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Mensal</span><div style="font-size:18px; font-weight:800; color:var(--brisa-dark-blue);">' + formatarMoedaBRL(c.valorMensal) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Moeda</span><div>' + escapeHtml(c.moeda || 'BRL') + ' (Câmbio: ' + escapeHtml(c.taxaCambio || '1,0000') + ')</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + (c.valorBaseBrl || formatarMoedaBRL(c.valorMensal)) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + (c.valorOrcado || formatarMoedaBRL(c.valorMensal)) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Impostos / Encargos</span><div>' + (c.impostosEncargos || '0,00%') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Contingência</span><div>' + (c.contingencia || '0,00%') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Critério de Reajuste</span><div>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Data do Reajuste</span><div>' + (c.semReajuste ? 'Sem Reajuste' : escapeHtml(c.dataReajuste || '-')) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Mês Aniversário</span><div>Mês ' + (c.mesAniversario || 1) + '</div></div>' +
-        '<div class="form-group col-span-4" style="margin-top:10px;"><span class="form-label">Comprometimento Financeiro Anual</span><div style="font-size:16px; font-weight:700; color:var(--brisa-blue);">' + formatarMoedaBRL(c.valorMensal * 12) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Reajuste Aplicado</span><div>' + (c.reajusteAplicado || '0,00%') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Nível de Risco</span><div><span class="badge-status ' + riscoBadgeClass + '">' + escapeHtml(c.risco || 'Baixo') + '</span></div></div>' +
+        '<div class="form-group col-span-3"><span class="form-label">Descrição do Risco / Contingência</span><div>' + escapeHtml(c.descricaoRisco || '-') + '</div></div>' +
+        '<div class="form-group col-span-2"><span class="form-label">Fonte / Memória de Cálculo</span><div>' + escapeHtml(c.memoriaCalculo || '-') + '</div></div>' +
+        '<div class="form-group col-span-2"><span class="form-label">Observações Gerais</span><div>' + escapeHtml(c.observacoes || '-') + '</div></div>' +
         '</div>' + faixasHtml;
 
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';

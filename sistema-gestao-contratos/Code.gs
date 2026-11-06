@@ -3321,11 +3321,17 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
       'variacao_mes_a_mes_valor', 'variacao_mes_a_mes_percentual',
       'indice_reajuste', 'mes_aniversario_reajuste', 'centro_custo',
       'conta_contabil', 'gestor_tecnico_email', 'id_pasta_drive',
-      'id_pasta_fornecedor_drive', 'observacoes', 'data_criacao', 'data_atualizacao'
+      'id_pasta_fornecedor_drive', 'observacoes', 'data_criacao', 'data_atualizacao',
+      'setor_gerencia', 'tabela_base_clientes_json',
+      'cnpj', 'renovacao_automatica', 'moeda', 'periodicidade',
+      'primeira_competencia', 'data_reajuste', 'sem_reajuste',
+      'reajuste_aplicado_pct', 'impostos_encargos_pct', 'taxa_cambio',
+      'valor_base_brl', 'contingencia_pct', 'valor_orcado_lancamento',
+      'contrato_po', 'risco', 'descricao_risco', 'memoria_calculo'
     ];
 
     var headersFornecedores = [
-      'id_fornecedor', 'razao_social', 'nome_fantasia', 'cnpj',
+      'id_fornecedor', 'razao_social', 'nome_fantasia', 'apelido', 'cnpj',
       'contato_comercial', 'email_comercial', 'id_pasta_drive_fornecedor',
       'status', 'data_cadastro'
     ];
@@ -3355,6 +3361,14 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
 
     var sheetContratos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_CONTRATOS, headersContratos);
     var sheetFornecedores = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_FORNECEDORES, headersFornecedores);
+
+    // Sincronizar cabecalhos com todas as colunas oficiais
+    if (sheetContratos) {
+      sheetContratos.getRange(1, 1, 1, headersContratos.length).setValues([headersContratos]);
+    }
+    if (sheetFornecedores) {
+      sheetFornecedores.getRange(1, 1, 1, headersFornecedores.length).setValues([headersFornecedores]);
+    }
     var sheetAprovacoes = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_APROVACOES, headersAprovacoes);
     var sheetAditivos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ADITIVOS, headersAditivos);
     var sheetAcessos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ACESSOS, headersAcessos);
@@ -3607,21 +3621,39 @@ function obterDadosCompletosTelefonia() {
     // 1. Ler Fornecedores
     var fornecedoresMap = {};
     if (sheetFornecedores && sheetFornecedores.getLastRow() > 1) {
-      var fornData = sheetFornecedores.getRange(2, 1, sheetFornecedores.getLastRow() - 1, 9).getValues();
+      var numColsF = sheetFornecedores.getLastColumn();
+      var fHeaders = sheetFornecedores.getRange(1, 1, 1, numColsF).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
+      var fornData = sheetFornecedores.getRange(2, 1, sheetFornecedores.getLastRow() - 1, numColsF).getValues();
+
+      var idxFId = fHeaders.indexOf('id_fornecedor');
+      var idxFRazao = fHeaders.indexOf('razao_social');
+      var idxFFantasia = fHeaders.indexOf('nome_fantasia');
+      var idxFApelido = fHeaders.indexOf('apelido');
+      var idxFCnpj = fHeaders.indexOf('cnpj');
+      var idxFContato = fHeaders.indexOf('contato_comercial');
+      var idxFEmail = fHeaders.indexOf('email_comercial');
+      var idxFDrive = fHeaders.indexOf('id_pasta_drive_fornecedor');
+      var idxFStatus = fHeaders.indexOf('status');
+
       for (var f = 0; f < fornData.length; f++) {
         var fRow = fornData[f];
-        var idForn = String(fRow[0] || '').trim();
-        var nomeForn = String(fRow[1] || '').trim();
+        var idForn = String((idxFId !== -1 ? fRow[idxFId] : fRow[0]) || '').trim();
+        var nomeForn = String((idxFRazao !== -1 ? fRow[idxFRazao] : fRow[1]) || '').trim();
         if (nomeForn) {
+          var fantasiaForn = String((idxFFantasia !== -1 ? fRow[idxFFantasia] : fRow[2]) || nomeForn);
+          var apelidoForn = String((idxFApelido !== -1 ? fRow[idxFApelido] : '') || fantasiaForn || nomeForn);
+          var cnpjForn = String((idxFCnpj !== -1 ? fRow[idxFCnpj] : (fRow[3] || '')) || '');
+
           fornecedoresMap[nomeForn.toLowerCase()] = {
             id: idForn,
             razaoSocial: nomeForn,
-            nomeFantasia: String(fRow[2] || nomeForn),
-            cnpj: String(fRow[3] || ''),
-            contato: String(fRow[4] || ''),
-            email: String(fRow[5] || ''),
-            pastaDriveId: String(fRow[6] || ''),
-            status: String(fRow[7] || 'Ativo'),
+            nomeFantasia: fantasiaForn,
+            apelido: apelidoForn,
+            cnpj: cnpjForn,
+            contato: String((idxFContato !== -1 ? fRow[idxFContato] : (fRow[4] || '')) || ''),
+            email: String((idxFEmail !== -1 ? fRow[idxFEmail] : (fRow[5] || '')) || ''),
+            pastaDriveId: String((idxFDrive !== -1 ? fRow[idxFDrive] : (fRow[6] || '')) || ''),
+            status: String((idxFStatus !== -1 ? fRow[idxFStatus] : (fRow[7] || 'Ativo')) || 'Ativo'),
             contratos: [],
             totalContratos: 0,
             contratosAtivos: 0,
@@ -3641,7 +3673,21 @@ function obterDadosCompletosTelefonia() {
     var categoriasSet = {};
 
     if (sheetContratos && sheetContratos.getLastRow() > 1) {
-      var cRows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, 26).getValues();
+      var numColsC = sheetContratos.getLastColumn();
+      var cHeaders = sheetContratos.getRange(1, 1, 1, numColsC).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
+      var cRows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, numColsC).getValues();
+
+      function getCol(row, colName, fallbackIdx, defVal) {
+        var idx = cHeaders.indexOf(colName);
+        if (idx !== -1 && row[idx] !== undefined && row[idx] !== null && String(row[idx]).trim() !== '') {
+          return row[idx];
+        }
+        if (fallbackIdx !== undefined && fallbackIdx < row.length && row[fallbackIdx] !== undefined && row[fallbackIdx] !== null && String(row[fallbackIdx]).trim() !== '') {
+          return row[fallbackIdx];
+        }
+        return defVal;
+      }
+
       for (var c = 0; c < cRows.length; c++) {
         var row = cRows[c];
         var rawId = row[0];
@@ -3649,10 +3695,10 @@ function obterDadosCompletosTelefonia() {
         if (!rawId && !fornNome) continue;
 
         var idNum = parseInt(rawId, 10) || (c + 1);
-        var valorMensalAtual = normalizarNumero_(row[13] || row[12]);
-        var diasRestantes = calcularDiasParaVencer_(row[9]);
-        var status = String(row[6] || 'Vigente').trim();
-        var statusAlcada = String(row[7] || 'Aprovado').trim();
+        var valorMensalAtual = normalizarNumero_(getCol(row, 'valor_mensal_atual', 13, getCol(row, 'valor_mensal_base', 12, 0)));
+        var diasRestantes = calcularDiasParaVencer_(getCol(row, 'data_fim_vigencia', 9, null));
+        var status = String(getCol(row, 'status', 6, 'Vigente')).trim();
+        var statusAlcada = String(getCol(row, 'status_alcada', 7, 'Aprovado')).trim();
 
         totalContratos++;
         if (status.toLowerCase().indexOf('vigente') !== -1 || status.toLowerCase().indexOf('ativo') !== -1) {
@@ -3664,13 +3710,13 @@ function obterDadosCompletosTelefonia() {
           contratosRisco60Dias++;
         }
 
-        var cc = String(row[18] || '').trim();
+        var cc = String(getCol(row, 'centro_custo', 18, '')).trim();
         if (cc) centrosCustoSet[cc] = true;
-        var cat = String(row[5] || '').trim();
+        var cat = String(getCol(row, 'tipo_contrato', 5, 'Voz / Telefonia')).trim();
         if (cat) categoriasSet[cat] = true;
 
-        var setorGerencia = String(row[26] || 'TELEFONIA').trim();
-        var tabelaBaseClientesJson = String(row[27] || '');
+        var setorGerencia = String(getCol(row, 'setor_gerencia', 26, 'TELEFONIA')).trim();
+        var tabelaBaseClientesJson = String(getCol(row, 'tabela_base_clientes_json', 27, ''));
         var tabelaBaseClientes = [];
         try {
           if (tabelaBaseClientesJson) tabelaBaseClientes = JSON.parse(tabelaBaseClientesJson);
@@ -3678,32 +3724,50 @@ function obterDadosCompletosTelefonia() {
 
         var contractItem = {
           id: idNum,
-          protocolo: String(row[1] || ('BRISA-TEL-' + new Date().getFullYear() + '-' + String(idNum).padStart(4, '0'))),
-          idFornecedor: String(row[2] || ''),
+          protocolo: String(getCol(row, 'protocolo_oficial', 1, ('BRISA-TEL-' + new Date().getFullYear() + '-' + String(idNum).padStart(4, '0')))),
+          idFornecedor: String(getCol(row, 'id_fornecedor', 2, '')),
           fornecedor: fornNome,
           setorGerencia: setorGerencia,
-          objeto: String(row[4] || ''),
-          tipo: String(row[5] || 'Voz / Telefonia'),
+          objeto: String(getCol(row, 'objeto_contrato', 4, '')),
+          tipo: cat,
           status: status,
           statusAlcada: statusAlcada,
-          dataInicio: formatarDataExibicao_(row[8]),
-          dataFim: formatarDataExibicao_(row[9]),
-          prazoIndeterminado: String(row[10]).toLowerCase() === 'sim',
-          avisoPrevio: row[11] || 30,
-          valorMensalBase: normalizarNumero_(row[12]),
+          dataInicio: formatarDataExibicao_(getCol(row, 'data_inicio_vigencia', 8, '')),
+          dataFim: formatarDataExibicao_(getCol(row, 'data_fim_vigencia', 9, '')),
+          prazoIndeterminado: String(getCol(row, 'vigencia_indeterminada', 10, 'Não')).toLowerCase() === 'sim',
+          avisoPrevio: getCol(row, 'aviso_previo_dias', 11, 30),
+          valorMensalBase: normalizarNumero_(getCol(row, 'valor_mensal_base', 12, 0)),
           valorMensal: valorMensalAtual,
-          variacaoMesAMesValor: normalizarNumero_(row[14]),
-          variacaoMesAMesPercentual: normalizarPorcentagem_(row[15]),
-          indiceReajuste: String(row[16] || 'IPCA'),
+          variacaoMesAMesValor: normalizarNumero_(getCol(row, 'variacao_mes_a_mes_valor', 14, 0)),
+          variacaoMesAMesPercentual: normalizarPorcentagem_(getCol(row, 'variacao_mes_a_mes_percentual', 15, 0)),
+          indiceReajuste: String(getCol(row, 'indice_reajuste', 16, 'IPCA')),
           tabelaBaseClientes: tabelaBaseClientes,
-          mesAniversario: row[17] || 1,
+          mesAniversario: getCol(row, 'mes_aniversario_reajuste', 17, 1),
           centroCusto: cc,
-          contaContabil: String(row[19] || ''),
-          gestor: String(row[20] || ''),
-          pastaDriveId: String(row[21] || ''),
-          pastaFornecedorDriveId: String(row[22] || ''),
-          observacoes: String(row[23] || ''),
-          diasRestantes: diasRestantes
+          contaContabil: String(getCol(row, 'conta_contabil', 19, '')),
+          gestor: String(getCol(row, 'gestor_tecnico_email', 20, '')),
+          pastaDriveId: String(getCol(row, 'id_pasta_drive', 21, '')),
+          pastaFornecedorDriveId: String(getCol(row, 'id_pasta_fornecedor_drive', 22, '')),
+          observacoes: String(getCol(row, 'observacoes', 23, '')),
+          diasRestantes: diasRestantes,
+          // Novos Campos Oficiais Definidos pelo Usuario:
+          cnpj: String(getCol(row, 'cnpj', 28, '')),
+          renovacaoAutomatica: String(getCol(row, 'renovacao_automatica', 29, 'Não')),
+          moeda: String(getCol(row, 'moeda', 30, 'BRL')),
+          periodicidade: String(getCol(row, 'periodicidade', 31, 'Mensal')),
+          primeiraCompetencia: String(getCol(row, 'primeira_competencia', 32, '')),
+          dataReajuste: formatarDataExibicao_(getCol(row, 'data_reajuste', 33, '')),
+          semReajuste: String(getCol(row, 'sem_reajuste', 34, 'Não')).toLowerCase() === 'sim',
+          reajusteAplicado: String(getCol(row, 'reajuste_aplicado_pct', 35, '0,00%')),
+          impostosEncargos: String(getCol(row, 'impostos_encargos_pct', 36, '0,00%')),
+          taxaCambio: String(getCol(row, 'taxa_cambio', 37, '1,0000')),
+          valorBaseBrl: String(getCol(row, 'valor_base_brl', 38, '')),
+          contingencia: String(getCol(row, 'contingencia_pct', 39, '0,00%')),
+          valorOrcado: String(getCol(row, 'valor_orcado_lancamento', 40, '')),
+          contratoPo: String(getCol(row, 'contrato_po', 41, '')),
+          risco: String(getCol(row, 'risco', 42, 'Baixo')),
+          descricaoRisco: String(getCol(row, 'descricao_risco', 43, '')),
+          memoriaCalculo: String(getCol(row, 'memoria_calculo', 44, ''))
         };
 
         contractsList.push(contractItem);
@@ -4159,7 +4223,24 @@ function salvarNovoContratoTelefonia(dados) {
       nowStr,
       nowStr,
       setorGerencia,
-      tabelaBaseClientesJson
+      tabelaBaseClientesJson,
+      dados.cnpj || '',
+      dados.renovacaoAutomatica || 'Não',
+      dados.moeda || 'BRL',
+      dados.periodicidade || 'Mensal',
+      dados.primeiraCompetencia || '',
+      dados.semReajuste ? '' : (dados.dataReajuste || ''),
+      dados.semReajuste ? 'Sim' : 'Não',
+      dados.reajusteAplicado || '0,00%',
+      dados.impostosEncargos || '0,00%',
+      dados.taxaCambio || '1,0000',
+      dados.valorBaseBrl || valorBase,
+      dados.contingencia || '0,00%',
+      dados.valorOrcado || 'R$ 0,00',
+      dados.contratoPo || '',
+      dados.risco || 'Baixo',
+      dados.descricaoRisco || '',
+      dados.memoriaCalculo || ''
     ]);
 
     // Fazer upload dos arquivos anexados (PDF, PNG, JPEG, etc.) diretamente na subpasta 01_Contrato_Principal
@@ -4433,10 +4514,12 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
     var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
 
+    var fornApelido = String(dadosFornecedor.apelido || dadosFornecedor.nomeFantasia || fornNome).trim();
     sheetFornecedores.appendRow([
       fornId,
       fornNome,
       dadosFornecedor.nomeFantasia || fornNome,
+      fornApelido,
       dadosFornecedor.cnpj || '',
       dadosFornecedor.contatoComercial || '',
       dadosFornecedor.emailComercial || '',
