@@ -1,109 +1,59 @@
-# Sistema de Gestão e Acompanhamento de Contratos
-
-Sistema profissional em **Google Apps Script** para controle, acompanhamento e registro de contratos com fornecedores, integrado diretamente à planilha corporativa do Google Sheets e com armazenamento automático de documentos no Google Drive.
-
----
-
-## 1. Visão Geral e Estrutura dos Arquivos
-
-O projeto é composto por:
-* **`Code.gs`**: Backend em Google Apps Script responsável pela comunicação com o Google Sheets, criação automática de pastas no Google Drive, upload e decodificação dos arquivos anexados, preservação de fórmulas e fornecimento de dados para o painel.
-* **`Index.html`**: Interface moderna, responsiva e corporativa (sem emojis), contendo o formulário de cadastro em seções lógicas, área de anexo de arquivos por **arrastar e soltar (Drag & Drop)** e o painel de listagem e consulta com busca dinâmica.
-* **`appsscript.json`**: Manifesto de configuração com fuso horário e escopos de permissão necessários (Planilhas, Drive e Identidade).
+# Sistema de Gestão de Contratos: Gerência Executiva de Telefonia
+**Grupo Brisanet**
 
 ---
 
-## 2. Mapeamento Completo dos Campos (Colunas A até AF)
+## 1. Visão Geral
 
-O formulário preenche rigorosamente as 32 colunas da aba de contratos da planilha:
+Plataforma corporativa em **Google Apps Script** e **Web App** para governança, ciclo de vida e controle documental de contratos da **Gerência Executiva de Telefonia** d'**a brisanet**.
 
-| Coluna | Campo na Planilha | Origem no Formulário / Sistema |
-| :---: | :--- | :--- |
-| **A** | **ID** | Automático (calcula o próximo ID sequencial) ou manual se informado |
-| **B** | **Centro de custo** | Campo de texto com autocompletar de centros existentes |
-| **C** | **Categoria/Pacote** | Campo de texto com autocompletar (Ex: Compras, Serviços de Terceiros) |
-| **D** | **Fornecedor** | Razão Social com lista de sugestões existentes |
-| **E** | **CNPJ** | Entrada com máscara automática `00.000.000/0000-00` |
-| **F** | **Objeto do contrato** | Descrição do serviço / fornecimento |
-| **G** | **Gerente/Coordenador** | Responsável pela gestão do contrato |
-| **H** | **Administrativo** | Apoio administrativo |
-| **I** | **Tipo** | Vigente, Em Renovação, Novo, Aditivo, Spot |
-| **J** | **Status** | Ativo, Em Renovação, Suspenso, Encerrado, Em Negociação |
-| **K** | **Início da vigência** | Seletor de data (`AAAA-MM-DD` / `DD/MM/AAAA`) |
-| **L** | **Fim da vigência** | Seletor de data (`AAAA-MM-DD` / `DD/MM/AAAA`) |
-| **M** | **Renovação automática** | Não / Sim |
-| **N** | **Moeda** | BRL, USD, EUR, GBP |
-| **O** | **Valor por lançamento** | Entrada formatada em moeda |
-| **P** | **Periodicidade** | Mensal, Bimestral, Trimestral, Semestral, Anual, Único |
-| **Q** | **1ª competência** | Seletor de data de início contábil |
-| **R** | **Data do reajuste** | Seletor de data de aniversário/reajuste |
-| **S** | **Índice** | IPCA, IGP-M, INPC, Sem reajuste, Personalizado |
-| **T** | **Reajuste manual (%)** | Percentual manual (prevalece sobre o índice) |
-| **U** | **Reajuste aplicado (%)** | Cálculo automático ou fórmula herdada da linha anterior |
-| **V** | **Impostos/encargos (%)** | Percentual de tributos e encargos aplicados |
-| **W** | **Taxa de câmbio** | Câmbio automático (BRL: 1.0, USD: 5.3, EUR: 5.9) ou manual |
-| **X** | **Valor base em BRL** | Calculado: `Valor por lançamento * Câmbio * (1 + Impostos)` |
-| **Y** | **Contingência (%)** | Percentual de contingência/reserva orçamentária |
-| **Z** | **Valor orçado por lançamento** | Calculado: `Valor base em BRL * (1 + Contingência)` |
-| **AA** | **Conta contábil** | Ex: Suporte Técnico |
-| **AB** | **Contrato/PO** | Número do PO, pedido ou contrato formal |
-| **AC** | **Risco** | Baixo, Médio ou Alto |
-| **AD** | **Descrição do risco/contingência** | Justificativa do risco ou plano de ação |
-| **AE** | **Fonte/Memória de cálculo** | Justificativa + **Links dos arquivos e pasta no Google Drive** |
-| **AF** | **Observações** | Anotações adicionais e notas de acompanhamento |
+O sistema estrutura a gestão de telecomunicações por fornecedor, automatiza o armazenamento em pastas dedicadas no Google Drive com 5 subpastas padronizadas, implementa esteira de aprovações em 3 níveis formais (Coordenador, Gerente e Gerente Executivo) e mantém uma trilha oficial de auditoria imutável com emissão de Certificados de Conformidade.
 
 ---
 
-## 3. Gestão de Arquivos e Google Drive
+## 2. Documentação Oficial do Projeto
 
-* **Pasta Raiz Automática**: O sistema verifica e cria automaticamente no Google Drive a pasta **`Contratos - Anexos`**.
-* **Organização por Contrato**: Para cada lançamento com arquivos anexados, é criada uma subpasta identificada pelo protocolo e fornecedor (Ex: `BRISA-CON-2026-0015 - FORNECEDOR`).
-* **Arrastar e Soltar (Drag & Drop)**: Permite soltar múltiplos arquivos ou clicar para navegar.
-* **Rastreabilidade**: Os links públicos e diretos para cada arquivo e para a pasta do Drive são gravados na coluna **Fonte/Memória de cálculo** da linha cadastrada.
-
----
-
-## 4. Passo a Passo de Implantação no Google Sheets
-
-### Passo 1: Abrir o Editor de Scripts
-1. Acesse a planilha oficial: [Google Sheets - Contratos](https://docs.google.com/spreadsheets/d/1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I/edit?gid=531593901#gid=531593901).
-2. No menu superior da planilha, clique em **Extensões** > **Apps Script**.
-
-### Passo 2: Inserir os Arquivos do Projeto
-1. No painel esquerdo do Apps Script, selecione o arquivo existente `Código.gs` (ou `Code.gs`) e substitua todo o seu conteúdo pelo código do arquivo [`Code.gs`](file:///C:/Users/Usuário/.gemini/antigravity/scratch/sistema-gestao-contratos/Code.gs).
-2. Clique no ícone de adição (**+**) ao lado de *Arquivos* e escolha **HTML**.
-3. Nomeie o arquivo como **`Index`** (o Apps Script criará `Index.html`).
-4. Cole todo o conteúdo do arquivo [`Index.html`](file:///C:/Users/Usuário/.gemini/antigravity/scratch/sistema-gestao-contratos/Index.html).
-5. Clique no ícone de salvar (ou pressione `Ctrl + S`).
-
-### Passo 3: Publicar como Web App
-1. No canto superior direito do Apps Script, clique no botão azul **Implantar** > **Nova implantação**.
-2. Clique no ícone de engrenagem ao lado de *Selecione o tipo* e escolha **App da Web**.
-3. Preencha os campos:
-   * **Descrição**: `Painel de Gestão de Contratos v1.0`
-   * **Executar como**: `Eu (seu e-mail)`
-   * **Quem pode acessar**: `Qualquer pessoa com uma Conta do Google` (ou `Qualquer pessoa dentro do seu domínio corporativo`).
-4. Clique em **Implantar**.
-5. Conceda as permissões de acesso solicitadas pelo Google (autorizando acesso ao Google Drive e Sheets).
-6. Copie a **URL do App da Web** gerada. Esse link pode ser salvo nos favoritos ou compartilhado com a equipe.
-
-### Passo 4: Menu Integrado na Planilha
-* Ao recarregar a planilha no navegador, aparecerá automaticamente o menu superior **Gestão de Contratos**, contendo:
-  * **Abrir Painel no Navegador (Web)**
-  * **Abrir Formulário (Modal)**: Permite preencher o formulário em janela flutuante sem sair da planilha.
-  * **Abrir Painel Lateral (Sidebar)**: Abre o formulário na lateral da planilha.
-  * **Abrir Pasta de Anexos no Drive**: Acesso imediato à pasta dos documentos.
+*   **[Manual do Usuário (Passo a Passo)](file:///C:/Users/Usuário/.gemini/antigravity/scratch/orcamento-fpa/sistema-gestao-contratos/MANUAL_DO_USUARIO.md):** Guia prático de utilização para o setor administrativo (**Gestão Telefonia**) e para os **Aprovadores**.
+*   **[Plano de Execução Passo a Passo](file:///C:/Users/Usuário/.gemini/antigravity/scratch/orcamento-fpa/sistema-gestao-contratos/docs/PLANO_EXECUCAO_PASSO_A_PASSO.md):** Roteiro detalhado das fases e entregáveis técnicos.
+*   **[Desenho de Arquitetura Técnica](file:///C:/Users/Usuário/.gemini/antigravity/scratch/orcamento-fpa/sistema-gestao-contratos/docs/DESENHO_ARQUITETURA.md):** Especificação completa do modelo relacional, RBAC, máquina de estados e taxonomia no Drive.
 
 ---
 
-## 5. Recursos Adicionais e Novas Funcionalidades
+## 3. Estrutura dos Arquivos de Código
 
-1. **Inserção Obrigatória a partir da Linha 18**: O sistema respeita as linhas históricas 1 a 17 e começa o preenchimento de novos contratos a partir da linha 18 da aba `Cadastro Contratos`.
-2. **Coluna de Notas Editável na Tabela**: Na página "Lista de Contratos", o campo de notas pode ser alterado diretamente na linha e salvo com o botão "Salvar", atualizando em tempo real a coluna 32 (AF) da planilha.
-3. **Log de Alterações e Histórico Completo**: Todas as alterações de notas ou notificações geram registros automáticos na aba `Histórico de Alterações` da planilha (com data/hora, ID, protocolo, fornecedor, campo, valores anterior/novo e e-mail do usuário). O histórico é consultado e exibido diretamente no modal de detalhes do contrato.
-4. **Envio de E-mail de Registro Corporativo**: Botão dedicado para disparar comunicados formais por e-mail para destinatários específicos (com atalhos rápidos para compras, controladoria, financeiro e jurídico), formatado no padrão corporativo a brisanet.
-5. **Identidade Visual Oficial Brisanet**: Tipografia Figtree e Rubik, paleta de cores oficial (`#FF5022`, `#2242D4`, `#0B316D`, `#D0FF60`), grafia em minúsculas e estritamente **sem emojis**.
-6. **Protocolo Automático Padronizado**: Exibição no formato corporativo `BRISA-CON-AAAA-XXXX` (ex: `BRISA-CON-2026-0015`).
-7. **Preservação de Fórmulas**: Herda automaticamente as fórmulas de colunas calculadas (taxas, conversões e percentuais) da linha anterior.
-8. **Filtros e Busca Instantânea**: Na aba *Lista de Contratos*, filtre por fornecedor, objeto, ID, status ou nível de risco em tempo real.
+*   **`Code.gs`**: Backend corporativo contendo:
+    *   Motor de provisionamento da pasta raiz `Contratos - Gerência Executiva de Telefonia` e subpastas no Drive.
+    *   Gerenciamento das 6 abas relacionais (`Contratos`, `Fornecedores`, `Aprovacoes_Workflow`, `Aditivos`, `Acessos_Alcadas`, `Auditoria_Logs`).
+    *   Esteira de alçadas com travas de concorrência (`LockService`).
+    *   Motor de auditoria imutável em Horário de Brasília (UTC-3).
+    *   Geração de certificados com assinatura digital (SHA-256).
+*   **`Index.html`**: Interface moderna baseada no Design System oficial da **brisanet** (fontes `Figtree` e `Rubik`, paleta `#FF5022`, `#2242D4`, `#0B316D`, estritamente **zero emojis**), navegação centrada no fornecedor em cartões acordeão, Ficha 360° do contrato e Central de Aprovações.
+*   **`appsscript.json`**: Manifesto de configuração com fuso horário `America/Fortaleza` e escopos de segurança.
 
+---
+
+## 4. Modelo de Pastas no Google Drive
+
+```
+Contratos - Gerência Executiva de Telefonia/
+│
+├── 00_Configuracoes_e_Modelos/
+│
+├── {NOME_FORNECEDOR}/
+│   └── CT-{ANO}-{ID} - {Objeto}/
+│       ├── 01_Contrato_Principal/
+│       ├── 02_Termos_Aditivos/
+│       ├── 03_Documentos_Tecnicos/
+│       ├── 04_Boletins_Medicao/
+│       └── 05_Aprovacoes_e_Pareceres/
+```
+
+---
+
+## 5. Como Implantar no Google Apps Script
+
+1.  Acesse o projeto do Apps Script vinculado à planilha corporativa.
+2.  Copie o conteúdo de `Code.gs` para o arquivo backend correspondente.
+3.  Copie o conteúdo de `Index.html` para o arquivo frontend correspondente.
+4.  Clique em **Implantar** &rarr; **Gerenciar Implantações** &rarr; **Editar** e selecione a nova versão do Web App.
+5.  Recarregue a planilha para ter acesso imediato ao menu superior **Gestão Telefonia**.

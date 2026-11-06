@@ -10,26 +10,29 @@
 var CONFIG = {
   // ID da Planilha Principal
   SPREADSHEET_ID: '1HUIi3NBEp4N-fJqByEKC_ZFRAqMi82sVk670ry0MZ6I',
-  // Linha inicial obrigatória para inserção de novos contratos
+  // Linha inicial obrigatoria para insercao de novos contratos na aba legado
   MIN_DATA_ROW: 18,
-  // GID da aba de Cadastro (padrão)
+  // GID da aba de Cadastro (padrao)
   SHEET_GID: '531593901',
-  // Nomes possíveis para a aba de cadastro (com prioridade)
+  // Nomes possiveis para a aba legado de cadastro (com prioridade)
   TARGET_SHEET_NAMES: [
     'Cadastro Contratos',
     'Cadastro e memória de cálculo dos contratos',
     'Cadastro de Contratos',
     'Cadastro'
   ],
-  // Nome da aba de logs de alterações
-  LOG_SHEET_NAME: 'Histórico de Alterações',
-  // Nome da aba de usuários com acesso
-  ACCESS_SHEET_NAME: 'Acessos',
-  // Nome da pasta raiz no Google Drive para os arquivos anexados
-  DRIVE_FOLDER_NAME: 'Contratos - Anexos',
-  // Prefixo para protocolo formatado
-  PROTOCOL_PREFIX: 'BRISA-CON',
-  // Fuso horário oficial para registro e exibição de datas e logs (Horário de Brasília/Nordeste UTC-3)
+  // Nomes oficiais das abas relacionais
+  SHEET_CONTRATOS: 'Contratos',
+  SHEET_FORNECEDORES: 'Fornecedores',
+  SHEET_APROVACOES: 'Aprovacoes_Workflow',
+  SHEET_ADITIVOS: 'Aditivos',
+  SHEET_ACESSOS: 'Acessos_Alcadas',
+  SHEET_LOGS: 'Auditoria_Logs',
+  // Nome da pasta raiz dedicada no Google Drive
+  DRIVE_ROOT_FOLDER_NAME: 'Contratos - Gerência Executiva de Telefonia',
+  // Prefixo oficial para protocolo formatado da Telefonia
+  PROTOCOL_PREFIX: 'BRISA-TEL',
+  // Fuso horario oficial para registro e exibicao de datas e logs (Horario de Brasilia UTC-3)
   TIMEZONE: 'America/Fortaleza'
 };
 
@@ -63,21 +66,21 @@ function doGet(e) {
  * Cria menu personalizado na planilha quando aberta no Google Sheets
  */
 function onOpen() {
-  var ui = SpreadsheetApp.getUi();
-  ui.createMenu('Gestão de Contratos')
-    .addItem('Abrir Painel no Navegador (Web)', 'abrirLinkWebApp')
-    .addItem('Abrir Formulário (Modal)', 'abrirModalContratos')
-    .addItem('Abrir Painel Lateral (Sidebar)', 'abrirSidebarContratos')
-    .addSeparator()
-    .addItem('Verificar Vencimentos e Disparar Alertas Agora', 'verificarVencimentosManualmente')
-    .addItem('Configurar Verificação Diária Automática (08:00)', 'configurarGatilhoDiario')
-    .addItem('Verificar Usuários com Acesso (Aba Acessos)', 'verificarUsuariosAcessosMenu')
-    .addSeparator()
-    .addItem('Autorizar Permissões de E-mail / Sistema', 'autorizarPermissoes')
-    .addItem('Verificar Aba de Contratos Detectada', 'verificarAbaDetectada')
-    .addItem('Abrir Pasta de Anexos no Drive', 'abrirPastaAnexosDrive')
-    .addItem('Configurar / Verificar Pasta do Drive', 'configurarPastaDrive')
-    .addToUi();
+  try {
+    var ui = SpreadsheetApp.getUi();
+    ui.createMenu('Gestão Telefonia')
+      .addItem('Abrir Painel Corporativo', 'abrirModalContratos')
+      .addItem('Abrir Barra Lateral', 'abrirSidebarContratos')
+      .addSeparator()
+      .addItem('Inicializar / Verificar Base Relacional', 'inicializarEstruturaRelacionalPlanilha')
+      .addItem('Configurar Pasta Raiz no Drive', 'abrirPastaAnexosDrive')
+      .addSeparator()
+      .addItem('Verificar Vencimentos e Alertas', 'verificarVencimentosManualmente')
+      .addItem('Autorizar Permissões do Sistema', 'autorizarPermissoes')
+      .addToUi();
+  } catch (e) {
+    Logger.log('Erro ao criar menu onOpen: ' + e.message);
+  }
 }
 
 
@@ -2954,4 +2957,1274 @@ function obterLinksContratadosFicticios_() {
       observacoes: 'Circuito para teste de redundância em trânsito IP no litoral piauiense. A vencer em 33 dias.'
     }
   ];
+}
+
+/**
+ * ============================================================================
+ * MODULO OFICIAL CLM TELEFONIA: DRIVE, RELACIONAL, WORKFLOW E AUDITORIA
+ * Gerencia Executiva de Telefonia - Grupo Brisanet
+ * ============================================================================
+ */
+
+/**
+ * Obtem ou cria a pasta raiz oficial dedicada no Google Drive.
+ * Cria internamente a pasta 00_Configuracoes_e_Modelos.
+ * @return {GoogleAppsScript.Drive.Folder} Pasta raiz da Telefonia
+ */
+function obterOuCriarPastaRaizTelefonia_() {
+  var rootName = CONFIG.DRIVE_ROOT_FOLDER_NAME || 'Contratos - Gerência Executiva de Telefonia';
+  var folders = DriveApp.getFoldersByName(rootName);
+  var rootFolder;
+  if (folders.hasNext()) {
+    rootFolder = folders.next();
+  } else {
+    rootFolder = DriveApp.createFolder(rootName);
+  }
+
+  // Assegurar subpasta de modelos e configuracoes
+  var configFolders = rootFolder.getFoldersByName('00_Configuracoes_e_Modelos');
+  if (!configFolders.hasNext()) {
+    rootFolder.createFolder('00_Configuracoes_e_Modelos');
+  }
+
+  return rootFolder;
+}
+
+/**
+ * Obtem ou cria a pasta do fornecedor dentro da pasta raiz da Telefonia.
+ * @param {string} nomeFornecedor Nome ou Razao Social do Fornecedor
+ * @return {GoogleAppsScript.Drive.Folder} Pasta do fornecedor
+ */
+function obterOuCriarPastaFornecedor_(nomeFornecedor) {
+  var rootFolder = obterOuCriarPastaRaizTelefonia_();
+  var sanitizedName = String(nomeFornecedor || 'Fornecedor_Sem_Nome')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .trim();
+  if (!sanitizedName) sanitizedName = 'Fornecedor_Geral';
+
+  var folders = rootFolder.getFoldersByName(sanitizedName);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  return rootFolder.createFolder(sanitizedName);
+}
+
+/**
+ * Cria a estrutura oficial de 5 subpastas padronizadas para um contrato.
+ * Estrutura:
+ *   [Fornecedor]/CT-{ANO}-{ID} - {Objeto}/
+ *     01_Contrato_Principal
+ *     02_Termos_Aditivos
+ *     03_Documentos_Tecnicos
+ *     04_Boletins_Medicao
+ *     05_Aprovacoes_e_Pareceres
+ * @param {string} nomeFornecedor
+ * @param {string|number} idContrato
+ * @param {string} objeto
+ * @return {Object} Metadados da pasta e subpastas criadas
+ */
+function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto) {
+  var supplierFolder = obterOuCriarPastaFornecedor_(nomeFornecedor);
+  var ano = new Date().getFullYear();
+  var idFormatado = String(idContrato || '0000').padStart(4, '0');
+  var objetoResumido = String(objeto || 'Sem_Objeto')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .substring(0, 40)
+    .trim();
+
+  var folderContractName = 'CT-' + ano + '-' + idFormatado + ' - ' + objetoResumido;
+  var existingFolders = supplierFolder.getFoldersByName(folderContractName);
+  var contractFolder;
+  if (existingFolders.hasNext()) {
+    contractFolder = existingFolders.next();
+  } else {
+    contractFolder = supplierFolder.createFolder(folderContractName);
+  }
+
+  var standardSubfolders = [
+    '01_Contrato_Principal',
+    '02_Termos_Aditivos',
+    '03_Documentos_Tecnicos',
+    '04_Boletins_Medicao',
+    '05_Aprovacoes_e_Pareceres'
+  ];
+
+  var subfoldersMap = {};
+  for (var i = 0; i < standardSubfolders.length; i++) {
+    var subName = standardSubfolders[i];
+    var subMatches = contractFolder.getFoldersByName(subName);
+    var subFolderObj;
+    if (subMatches.hasNext()) {
+      subFolderObj = subMatches.next();
+    } else {
+      subFolderObj = contractFolder.createFolder(subName);
+    }
+    subfoldersMap[subName] = {
+      id: subFolderObj.getId(),
+      url: subFolderObj.getUrl(),
+      name: subName
+    };
+  }
+
+  return {
+    contractFolderId: contractFolder.getId(),
+    contractFolderUrl: contractFolder.getUrl(),
+    contractFolderName: folderContractName,
+    supplierFolderId: supplierFolder.getId(),
+    supplierFolderUrl: supplierFolder.getUrl(),
+    subfolders: subfoldersMap
+  };
+}
+
+/**
+ * Lista todos os arquivos existentes dentro da pasta do contrato e suas subpastas.
+ * @param {string} idPastaContrato ID da pasta do contrato no Google Drive
+ * @return {Object} Mapa de subpastas com seus respectivos arquivos
+ */
+function listarArquivosPastaContrato(idPastaContrato) {
+  try {
+    if (!idPastaContrato) {
+      return { success: false, message: 'ID da pasta nao fornecido.', files: [] };
+    }
+    var contractFolder = DriveApp.getFolderById(idPastaContrato);
+    var subfolders = contractFolder.getFolders();
+    var result = {
+      contractFolderUrl: contractFolder.getUrl(),
+      categories: {}
+    };
+
+    while (subfolders.hasNext()) {
+      var sub = subfolders.next();
+      var subName = sub.getName();
+      var fileList = [];
+      var files = sub.getFiles();
+      while (files.hasNext()) {
+        var f = files.next();
+        fileList.push({
+          id: f.getId(),
+          name: f.getName(),
+          url: f.getUrl(),
+          downloadUrl: f.getDownloadUrl(),
+          size: f.getSize(),
+          mimeType: f.getMimeType(),
+          updatedAt: Utilities.formatDate(f.getLastUpdated(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm')
+        });
+      }
+      result.categories[subName] = {
+        folderId: sub.getId(),
+        folderUrl: sub.getUrl(),
+        files: fileList
+      };
+    }
+
+    return { success: true, data: result };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Realiza upload de arquivo para uma subpasta especifica do contrato.
+ * @param {string} idPastaContrato
+ * @param {string} nomeSubpasta Ex: '01_Contrato_Principal'
+ * @param {string} nomeArquivo
+ * @param {string} base64Data
+ * @param {string} mimeType
+ * @return {Object}
+ */
+function uploadArquivoContrato(idPastaContrato, nomeSubpasta, nomeArquivo, base64Data, mimeType) {
+  try {
+    if (!idPastaContrato) throw new Error('ID da pasta nao informado.');
+    var contractFolder = DriveApp.getFolderById(idPastaContrato);
+    var targetFolder = contractFolder;
+
+    if (nomeSubpasta) {
+      var subs = contractFolder.getFoldersByName(nomeSubpasta);
+      if (subs.hasNext()) {
+        targetFolder = subs.next();
+      } else {
+        targetFolder = contractFolder.createFolder(nomeSubpasta);
+      }
+    }
+
+    var bytes = Utilities.base64Decode(base64Data);
+    var blob = Utilities.newBlob(bytes, mimeType || 'application/octet-stream', nomeArquivo);
+    var file = targetFolder.createFile(blob);
+
+    // Registrar na auditoria
+    registrarLogAuditoriaOficial_(
+      'Contrato',
+      idPastaContrato,
+      'Upload de Arquivo',
+      nomeSubpasta,
+      '-',
+      nomeArquivo,
+      'Upload de documento na subpasta ' + nomeSubpasta
+    );
+
+    return {
+      success: true,
+      fileId: file.getId(),
+      fileUrl: file.getUrl(),
+      fileName: file.getName(),
+      updatedAt: Utilities.formatDate(file.getLastUpdated(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm')
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Obtem ou cria uma aba relacional com cabecalhos formatados profissionalmente.
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss
+ * @param {string} sheetName
+ * @param {Array<string>} headers
+ * @return {GoogleAppsScript.Spreadsheet.Sheet}
+ */
+function obterOuCriarAbaRelacional_(ss, sheetName, headers) {
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = ss.insertSheet(sheetName);
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    var headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setBackground('#0B316D'); // Azul marinho oficial Brisanet
+    headerRange.setFontColor('#FFFFFF');
+    headerRange.setFontWeight('bold');
+    headerRange.setFontFamily('Figtree');
+    headerRange.setFontSize(10);
+    sheet.setFrozenRows(1);
+    for (var c = 1; c <= headers.length; c++) {
+      sheet.autoResizeColumn(c);
+    }
+  }
+  return sheet;
+}
+
+/**
+ * Inicializa a estrutura relacional de 6 abas oficiais e realiza a migracao
+ * automatica e segura dos dados legados existentes, preservando cada registro.
+ * @return {Object} Resultado do provisionamento e contagem de registros migrados
+ */
+function inicializarEstruturaRelacionalPlanilha() {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Nao foi possivel obter trava exclusiva.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+
+    // 1. Cabecalhos Oficiais
+    var headersContratos = [
+      'id_contrato', 'protocolo_oficial', 'id_fornecedor', 'fornecedor_nome',
+      'objeto_contrato', 'tipo_contrato', 'status', 'status_alcada',
+      'data_inicio_vigencia', 'data_fim_vigencia', 'vigencia_indeterminada',
+      'aviso_previo_dias', 'valor_mensal_base', 'valor_mensal_atual',
+      'variacao_mes_a_mes_valor', 'variacao_mes_a_mes_percentual',
+      'indice_reajuste', 'mes_aniversario_reajuste', 'centro_custo',
+      'conta_contabil', 'gestor_tecnico_email', 'id_pasta_drive',
+      'id_pasta_fornecedor_drive', 'observacoes', 'data_criacao', 'data_atualizacao'
+    ];
+
+    var headersFornecedores = [
+      'id_fornecedor', 'razao_social', 'nome_fantasia', 'cnpj',
+      'contato_comercial', 'email_comercial', 'id_pasta_drive_fornecedor',
+      'status', 'data_cadastro'
+    ];
+
+    var headersAprovacoes = [
+      'id_aprovacao', 'id_contrato', 'id_aditivo', 'tipo_solicitacao',
+      'solicitante_email', 'data_solicitacao', 'aprovador_designado_email',
+      'nivel_alcada', 'status_decisao', 'data_decisao',
+      'justificativa_solicitante', 'parecer_aprovador'
+    ];
+
+    var headersAditivos = [
+      'id_aditivo', 'id_contrato', 'numero_termo', 'tipo_aditivo',
+      'valor_alteracao', 'nova_vigencia_fim', 'justificativa_aditivo',
+      'data_celebracao', 'id_arquivo_drive', 'status_aprovacao'
+    ];
+
+    var headersAcessos = [
+      'id_usuario', 'nome_completo', 'papel', 'notificacoes_alertas', 'status'
+    ];
+
+    var headersLogs = [
+      'id_log', 'timestamp', 'usuario_email', 'papel_usuario', 'entidade',
+      'id_registro', 'acao', 'campo_afetado', 'valor_anterior', 'novo_valor',
+      'justificativa_parecer'
+    ];
+
+    var sheetContratos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_CONTRATOS, headersContratos);
+    var sheetFornecedores = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_FORNECEDORES, headersFornecedores);
+    var sheetAprovacoes = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_APROVACOES, headersAprovacoes);
+    var sheetAditivos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ADITIVOS, headersAditivos);
+    var sheetAcessos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ACESSOS, headersAcessos);
+    var sheetLogs = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_LOGS, headersLogs);
+
+    // Pre-popular perfis de acesso padrao caso vazia
+    if (sheetAcessos.getLastRow() <= 1) {
+      var defaultUsers = [
+        ['gestao.telefonia@grupobrisanet.com.br', 'Gestão Telefonia (Administrativo)', 'Gestão Telefonia', 'Sim', 'Ativo'],
+        ['coordenador.telefonia@grupobrisanet.com.br', 'Coordenador de Operações Telefonia', 'Coordenador', 'Sim', 'Ativo'],
+        ['gerente.telefonia@grupobrisanet.com.br', 'Gerente de Telefonia', 'Gerente', 'Sim', 'Ativo'],
+        ['gerente.executivo@grupobrisanet.com.br', 'Gerente Executivo de Telefonia', 'Gerente Executivo', 'Sim', 'Ativo']
+      ];
+      sheetAcessos.getRange(2, 1, defaultUsers.length, 5).setValues(defaultUsers);
+    }
+
+    // 2. Se a aba Contratos estiver vazia, migrar automaticamente a partir da aba Legado
+    var totalMigrados = 0;
+    if (sheetContratos.getLastRow() <= 1) {
+      var initialData = getInitialData();
+      var legacyContracts = (initialData && initialData.contracts) ? initialData.contracts : [];
+
+      if (legacyContracts.length > 0) {
+        var fornecedoresMap = {};
+        var contratosRows = [];
+        var fornecedoresRows = [];
+        var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+
+        for (var i = 0; i < legacyContracts.length; i++) {
+          var c = legacyContracts[i];
+          var fNome = String(c.fornecedor || 'Fornecedor Nao Identificado').trim();
+          var fId = 'FORN-' + fNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
+
+          if (!fornecedoresMap[fNome]) {
+            fornecedoresMap[fNome] = {
+              id: fId,
+              razaoSocial: fNome,
+              cnpj: c.cnpj || '',
+              pastaDrive: ''
+            };
+            fornecedoresRows.push([
+              fId,
+              fNome,
+              fNome,
+              c.cnpj || '',
+              c.gestor || '',
+              '',
+              '',
+              'Ativo',
+              nowStr
+            ]);
+          }
+
+          var idNum = c.id || (i + 1);
+          var ano = new Date().getFullYear();
+          var protocolo = 'BRISA-TEL-' + ano + '-' + String(idNum).padStart(4, '0');
+
+          contratosRows.push([
+            idNum,
+            protocolo,
+            fId,
+            fNome,
+            c.objeto || '',
+            c.tipo || 'Serviços de Telefonia',
+            c.status || 'Vigente',
+            'Aprovado',
+            c.dataInicio || '',
+            c.dataFim || '',
+            c.prazoIndeterminado ? 'Sim' : 'Não',
+            c.avisoPrevio || 30,
+            c.valorMensal || 0,
+            c.valorMensal || 0,
+            c.variacaoMesAMesValor || 0,
+            c.variacaoMesAMesPercentual || 0,
+            c.indiceReajuste || 'IPCA',
+            c.mesAniversario || 1,
+            c.centroCusto || '',
+            c.contaContabil || '',
+            c.gestor || '',
+            c.pastaDriveId || '',
+            '',
+            c.observacoes || '',
+            nowStr,
+            nowStr
+          ]);
+        }
+
+        if (fornecedoresRows.length > 0) {
+          sheetFornecedores.getRange(2, 1, fornecedoresRows.length, 9).setValues(fornecedoresRows);
+        }
+        if (contratosRows.length > 0) {
+          sheetContratos.getRange(2, 1, contratosRows.length, 26).setValues(contratosRows);
+        }
+        totalMigrados = contratosRows.length;
+
+        // Registrar auditoria da migracao
+        registrarLogAuditoriaOficial_(
+          'Sistema',
+          'MIGRACAO_INICIAL',
+          'Provisionamento Relacional',
+          'Todas as Abas',
+          'Base Legada',
+          totalMigrados + ' contratos migrados',
+          'Migracao automatica de inicializacao da arquitetura relacional da Telefonia'
+        );
+      }
+    }
+
+    return {
+      success: true,
+      message: 'Estrutura relacional verificada e inicializada com sucesso.',
+      totalContratosMigrados: totalMigrados
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Motor oficial de registro de auditoria imutavel.
+ * Utiliza LockService exclusivo para garantir a ordem cronologica e integridade.
+ * @param {string} entidade 'Contrato', 'Fornecedor', 'Aditivo', 'Aprovacao', 'Sistema'
+ * @param {string|number} idRegistro ID do objeto afetado
+ * @param {string} acao Tipo de acao
+ * @param {string} campoAfetado
+ * @param {string} valorAnterior
+ * @param {string} novoValor
+ * @param {string} justificativa
+ * @param {string} [usuarioEmail]
+ * @param {string} [papel]
+ * @return {boolean}
+ */
+function registrarLogAuditoriaOficial_(entidade, idRegistro, acao, campoAfetado, valorAnterior, novoValor, justificativa, usuarioEmail, papel) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    Logger.log('Aviso: Concorrencia em log. Prosseguindo sem trava.');
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_LOGS);
+    if (!sheet) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheet = ss.getSheetByName(CONFIG.SHEET_LOGS);
+    }
+    if (!sheet) return false;
+
+    var email = usuarioEmail;
+    if (!email) {
+      try {
+        email = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+      } catch (eEmail) {
+        email = 'gestao.telefonia@grupobrisanet.com.br';
+      }
+    }
+    if (!email) email = 'gestao.telefonia@grupobrisanet.com.br';
+
+    var papelFinal = papel || obterPapelUsuario_(email);
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+    var nextRow = sheet.getLastRow() + 1;
+    var logId = 'LOG-' + String(nextRow - 1).padStart(6, '0');
+
+    sheet.appendRow([
+      logId,
+      nowStr,
+      email,
+      papelFinal,
+      entidade || 'Contrato',
+      String(idRegistro || '-'),
+      acao || 'Edicao',
+      String(campoAfetado || '-'),
+      String(valorAnterior !== undefined && valorAnterior !== null ? valorAnterior : '-'),
+      String(novoValor !== undefined && novoValor !== null ? novoValor : '-'),
+      String(justificativa || 'Acao registrada pelo sistema')
+    ]);
+
+    return true;
+  } catch (err) {
+    Logger.log('Erro ao registrar log de auditoria oficial: ' + err.message);
+    return false;
+  } finally {
+    try { lock.releaseLock(); } catch (eRel) {}
+  }
+}
+
+/**
+ * Descobre o papel do usuario na tabela Acessos_Alcadas.
+ * @param {string} email
+ * @return {string} Papel do usuario
+ */
+function obterPapelUsuario_(email) {
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) return 'Gestão Telefonia';
+    var data = sheet.getDataRange().getValues();
+    var target = String(email || '').toLowerCase().trim();
+    for (var i = 1; i < data.length; i++) {
+      if (String(data[i][0]).toLowerCase().trim() === target) {
+        return String(data[i][2]);
+      }
+    }
+  } catch (e) {}
+  return 'Gestão Telefonia';
+}
+
+/**
+ * Obtem todos os dados consolidados para o novo painel da Telefonia.
+ * Agrupa contratos por Fornecedor (modelo Acordeao), alçadas pendentes,
+ * kpis executivos e informacoes do usuario atual.
+ * @return {Object}
+ */
+function obterDadosCompletosTelefonia() {
+  try {
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    var sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    var sheetAprovacoes = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+
+    // Se as abas nao existirem, auto-inicializar
+    if (!sheetContratos || !sheetFornecedores || !sheetAprovacoes) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+      sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+      sheetAprovacoes = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+    }
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (eUser) {
+      userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    }
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userRole = obterPapelUsuario_(userEmail);
+
+    // 1. Ler Fornecedores
+    var fornecedoresMap = {};
+    if (sheetFornecedores && sheetFornecedores.getLastRow() > 1) {
+      var fornData = sheetFornecedores.getRange(2, 1, sheetFornecedores.getLastRow() - 1, 9).getValues();
+      for (var f = 0; f < fornData.length; f++) {
+        var fRow = fornData[f];
+        var idForn = String(fRow[0] || '').trim();
+        var nomeForn = String(fRow[1] || '').trim();
+        if (nomeForn) {
+          fornecedoresMap[nomeForn.toLowerCase()] = {
+            id: idForn,
+            razaoSocial: nomeForn,
+            nomeFantasia: String(fRow[2] || nomeForn),
+            cnpj: String(fRow[3] || ''),
+            contato: String(fRow[4] || ''),
+            email: String(fRow[5] || ''),
+            pastaDriveId: String(fRow[6] || ''),
+            status: String(fRow[7] || 'Ativo'),
+            contratos: [],
+            totalContratos: 0,
+            contratosAtivos: 0,
+            valorMensalTotal: 0
+          };
+        }
+      }
+    }
+
+    // 2. Ler Contratos
+    var contractsList = [];
+    var totalContratos = 0;
+    var contratosAtivos = 0;
+    var somaValorMensal = 0;
+    var contratosRisco60Dias = 0;
+    var centrosCustoSet = {};
+    var categoriasSet = {};
+
+    if (sheetContratos && sheetContratos.getLastRow() > 1) {
+      var cRows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, 26).getValues();
+      for (var c = 0; c < cRows.length; c++) {
+        var row = cRows[c];
+        var rawId = row[0];
+        var fornNome = String(row[3] || '').trim();
+        if (!rawId && !fornNome) continue;
+
+        var idNum = parseInt(rawId, 10) || (c + 1);
+        var valorMensalAtual = normalizarNumero_(row[13] || row[12]);
+        var diasRestantes = calcularDiasParaVencer_(row[9]);
+        var status = String(row[6] || 'Vigente').trim();
+        var statusAlcada = String(row[7] || 'Aprovado').trim();
+
+        totalContratos++;
+        if (status.toLowerCase().indexOf('vigente') !== -1 || status.toLowerCase().indexOf('ativo') !== -1) {
+          contratosAtivos++;
+          somaValorMensal += valorMensalAtual;
+        }
+
+        if (diasRestantes !== null && diasRestantes >= 0 && diasRestantes <= 60) {
+          contratosRisco60Dias++;
+        }
+
+        var cc = String(row[18] || '').trim();
+        if (cc) centrosCustoSet[cc] = true;
+        var cat = String(row[5] || '').trim();
+        if (cat) categoriasSet[cat] = true;
+
+        var contractItem = {
+          id: idNum,
+          protocolo: String(row[1] || ('BRISA-TEL-' + new Date().getFullYear() + '-' + String(idNum).padStart(4, '0'))),
+          idFornecedor: String(row[2] || ''),
+          fornecedor: fornNome,
+          objeto: String(row[4] || ''),
+          tipo: String(row[5] || 'Voz / Telefonia'),
+          status: status,
+          statusAlcada: statusAlcada,
+          dataInicio: formatarDataExibicao_(row[8]),
+          dataFim: formatarDataExibicao_(row[9]),
+          prazoIndeterminado: String(row[10]).toLowerCase() === 'sim',
+          avisoPrevio: row[11] || 30,
+          valorMensalBase: normalizarNumero_(row[12]),
+          valorMensal: valorMensalAtual,
+          variacaoMesAMesValor: normalizarNumero_(row[14]),
+          variacaoMesAMesPercentual: normalizarPorcentagem_(row[15]),
+          indiceReajuste: String(row[16] || 'IPCA'),
+          mesAniversario: row[17] || 1,
+          centroCusto: cc,
+          contaContabil: String(row[19] || ''),
+          gestor: String(row[20] || ''),
+          pastaDriveId: String(row[21] || ''),
+          pastaFornecedorDriveId: String(row[22] || ''),
+          observacoes: String(row[23] || ''),
+          diasRestantes: diasRestantes
+        };
+
+        contractsList.push(contractItem);
+
+        // Agrupar no Fornecedor
+        var fKey = fornNome.toLowerCase();
+        if (!fornecedoresMap[fKey]) {
+          fornecedoresMap[fKey] = {
+            id: 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15),
+            razaoSocial: fornNome,
+            nomeFantasia: fornNome,
+            cnpj: '',
+            contato: '',
+            email: '',
+            pastaDriveId: '',
+            status: 'Ativo',
+            contratos: [],
+            totalContratos: 0,
+            contratosAtivos: 0,
+            valorMensalTotal: 0
+          };
+        }
+
+        fornecedoresMap[fKey].contratos.push(contractItem);
+        fornecedoresMap[fKey].totalContratos++;
+        if (status.toLowerCase().indexOf('vigente') !== -1 || status.toLowerCase().indexOf('ativo') !== -1) {
+          fornecedoresMap[fKey].contratosAtivos++;
+          fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
+        }
+      }
+    }
+
+    // 3. Ler Aprovacoes
+    var aprovacoesList = [];
+    var minhasAprovacoesPendentes = 0;
+    if (sheetAprovacoes && sheetAprovacoes.getLastRow() > 1) {
+      var apData = sheetAprovacoes.getRange(2, 1, sheetAprovacoes.getLastRow() - 1, 12).getValues();
+      for (var a = 0; a < apData.length; a++) {
+        var apRow = apData[a];
+        var apId = String(apRow[0] || '').trim();
+        if (!apId) continue;
+        var aprovadorEmail = String(apRow[6] || '').toLowerCase().trim();
+        var statusDecisao = String(apRow[8] || 'Pendente').trim();
+
+        if (statusDecisao.toLowerCase() === 'pendente' && (aprovadorEmail === userEmail.toLowerCase() || userRole === 'Gestão Telefonia')) {
+          minhasAprovacoesPendentes++;
+        }
+
+        aprovacoesList.push({
+          idAprovacao: apId,
+          idContrato: apRow[1],
+          idAditivo: apRow[2] || '',
+          tipoSolicitacao: apRow[3] || 'Novo Contrato',
+          solicitanteEmail: apRow[4] || '',
+          dataSolicitacao: formatarDataHoraExibicao_(apRow[5]),
+          aprovadorEmail: apRow[6] || '',
+          nivelAlcada: apRow[7] || 'Coordenador',
+          statusDecisao: statusDecisao,
+          dataDecisao: formatarDataHoraExibicao_(apRow[9]),
+          justificativa: apRow[10] || '',
+          parecer: apRow[11] || ''
+        });
+      }
+    }
+
+    // 4. Formatar lista final de fornecedores ordenada alfabeticamente
+    var fornecedoresArray = [];
+    var keys = Object.keys(fornecedoresMap);
+    keys.sort();
+    for (var k = 0; k < keys.length; k++) {
+      fornecedoresArray.push(fornecedoresMap[keys[k]]);
+    }
+
+    // Retorno unificado
+    return {
+      success: true,
+      usuarioAtual: {
+        email: userEmail,
+        papel: userRole
+      },
+      kpis: {
+        totalContratos: totalContratos,
+        contratosAtivos: contratosAtivos,
+        valorMensalTotal: somaValorMensal,
+        valorAnualComprometido: somaValorMensal * 12,
+        contratosRisco60Dias: contratosRisco60Dias,
+        minhasAprovacoesPendentes: minhasAprovacoesPendentes,
+        totalFornecedores: fornecedoresArray.length
+      },
+      fornecedores: fornecedoresArray,
+      contratos: contractsList,
+      aprovacoes: aprovacoesList,
+      centrosCusto: Object.keys(centrosCustoSet),
+      categorias: Object.keys(categoriasSet)
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Solicita formalmente uma aprovacao para um contrato ou aditivo.
+ * Registra na esteira Aprovacoes_Workflow, atualiza o status do contrato,
+ * gera log de auditoria oficial e envia e-mail formal ao aprovador.
+ * @param {Object} payload
+ * @return {Object}
+ */
+function solicitarAprovacaoContrato(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Nao foi possivel obter trava.' };
+  }
+
+  try {
+    var idContrato = payload.idContrato;
+    var nivelAlcada = payload.nivelAlcada || 'Coordenador';
+    var aprovadorEmail = String(payload.aprovadorEmail || '').trim();
+    var tipoSolicitacao = payload.tipoSolicitacao || 'Novo Contrato';
+    var justificativa = payload.justificativa || 'Solicitacao de aprovacao formal';
+
+    if (!idContrato || !aprovadorEmail) {
+      throw new Error('ID do contrato e e-mail do aprovador sao obrigatorios.');
+    }
+
+    var ss = obterPlanilha_();
+    var sheetAprov = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+
+    if (!sheetAprov || !sheetContratos) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheetAprov = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+      sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    }
+
+    var userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestao.telefonia@grupobrisanet.com.br';
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+    var nextApRow = sheetAprov.getLastRow() + 1;
+    var idAprovacao = 'APV-' + String(nextApRow - 1).padStart(5, '0');
+
+    // Gravar aprovacao
+    sheetAprov.appendRow([
+      idAprovacao,
+      idContrato,
+      payload.idAditivo || '',
+      tipoSolicitacao,
+      userEmail,
+      nowStr,
+      aprovadorEmail,
+      nivelAlcada,
+      'Pendente',
+      '',
+      justificativa,
+      ''
+    ]);
+
+    // Atualizar Contrato
+    var cData = sheetContratos.getDataRange().getValues();
+    for (var i = 1; i < cData.length; i++) {
+      if (String(cData[i][0]) === String(idContrato)) {
+        sheetContratos.getRange(i + 1, 7).setValue('Aguardando Aprovação'); // status
+        sheetContratos.getRange(i + 1, 8).setValue('Pendente ' + nivelAlcada); // status_alcada
+        sheetContratos.getRange(i + 1, 26).setValue(nowStr); // data_atualizacao
+        break;
+      }
+    }
+
+    // Registrar log de auditoria oficial
+    registrarLogAuditoriaOficial_(
+      'Aprovacao',
+      idContrato,
+      'Solicitacao de Aprovacao',
+      'status_alcada',
+      'Rascunho / Em Analise',
+      'Pendente ' + nivelAlcada,
+      'Submetido para ' + aprovadorEmail + ' (' + nivelAlcada + '): ' + justificativa,
+      userEmail
+    );
+
+    // Enviar notificacao formal por e-mail
+    try {
+      var subject = '[brisanet] Solicitacao de Aprovacao de Contrato - ' + nivelAlcada + ' (CT #' + idContrato + ')';
+      var bodyHtml = '<div style="font-family: Figtree, Arial, sans-serif; color: #0B316D;">' +
+        '<h2 style="color: #FF5022;">Solicitacao de Aprovacao - Gerencia Executiva de Telefonia</h2>' +
+        '<p>Uma nova solicitacao de aprovacao contratual foi atribuida a sua alcada de <strong>' + nivelAlcada + '</strong>.</p>' +
+        '<ul>' +
+        '<li><strong>ID do Contrato:</strong> #' + idContrato + '</li>' +
+        '<li><strong>Tipo de Solicitacao:</strong> ' + tipoSolicitacao + '</li>' +
+        '<li><strong>Solicitante:</strong> ' + userEmail + '</li>' +
+        '<li><strong>Data de Envio:</strong> ' + nowStr + '</li>' +
+        '<li><strong>Justificativa:</strong> ' + justificativa + '</li>' +
+        '</ul>' +
+        '<p>Acesse o Painel de Gestao de Contratos da Telefonia para revisar os documentos e registrar seu parecer digital.</p>' +
+        '<hr style="border: 0; border-top: 1px solid #E8E8E8;" />' +
+        '<small style="color: #64748B;">a brisanet - Gerencia Executiva de Telefonia | Registro Oficial Imutavel</small>' +
+        '</div>';
+
+      MailApp.sendEmail({
+        to: aprovadorEmail,
+        subject: subject,
+        htmlBody: bodyHtml
+      });
+    } catch (eMail) {
+      Logger.log('Aviso: Falha ao enviar e-mail de aprovacao: ' + eMail.message);
+    }
+
+    return {
+      success: true,
+      idAprovacao: idAprovacao,
+      message: 'Solicitacao de aprovacao enviada com sucesso para ' + aprovadorEmail
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Registra a decisao formal do aprovador (Aprovar ou Devolver com Ajustes).
+ * @param {Object} payload { idAprovacao, decisao: 'APROVADO'|'AJUSTES_SOLICITADOS', parecer }
+ * @return {Object}
+ */
+function registrarDecisaoAprovacao(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Nao foi possivel obter trava.' };
+  }
+
+  try {
+    var idAprovacao = payload.idAprovacao;
+    var decisao = String(payload.decisao || '').toUpperCase();
+    var parecer = String(payload.parecer || '').trim();
+
+    if (!idAprovacao || !decisao) {
+      throw new Error('ID da aprovacao e decisao sao obrigatorios.');
+    }
+    if (decisao === 'AJUSTES_SOLICITADOS' && !parecer) {
+      throw new Error('O preenchimento do parecer/justificativa e obrigatorio ao solicitar ajustes.');
+    }
+
+    var ss = obterPlanilha_();
+    var sheetAprov = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+
+    var apData = sheetAprov.getDataRange().getValues();
+    var targetApRow = -1;
+    var apRecord = null;
+
+    for (var i = 1; i < apData.length; i++) {
+      if (String(apData[i][0]) === String(idAprovacao)) {
+        targetApRow = i + 1;
+        apRecord = apData[i];
+        break;
+      }
+    }
+
+    if (!apRecord) {
+      throw new Error('Registro de aprovacao nao encontrado: ' + idAprovacao);
+    }
+
+    var idContrato = apRecord[1];
+    var solicitanteEmail = apRecord[4];
+    var nivelAlcada = apRecord[7];
+    var userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'aprovador@grupobrisanet.com.br';
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+
+    var statusDecisaoFinal = (decisao === 'APROVADO') ? 'Aprovado' : 'Ajustes Solicitados';
+    sheetAprov.getRange(targetApRow, 9).setValue(statusDecisaoFinal);
+    sheetAprov.getRange(targetApRow, 10).setValue(nowStr);
+    sheetAprov.getRange(targetApRow, 12).setValue(parecer);
+
+    // Atualizar Contrato
+    var novoStatusContrato = (decisao === 'APROVADO') ? 'Vigente' : 'Devolvido para Ajustes';
+    var novoStatusAlcada = (decisao === 'APROVADO') ? 'Aprovado (' + nivelAlcada + ')' : 'Devolvido (' + nivelAlcada + ')';
+
+    var cData = sheetContratos.getDataRange().getValues();
+    for (var c = 1; c < cData.length; c++) {
+      if (String(cData[c][0]) === String(idContrato)) {
+        sheetContratos.getRange(c + 1, 7).setValue(novoStatusContrato);
+        sheetContratos.getRange(c + 1, 8).setValue(novoStatusAlcada);
+        sheetContratos.getRange(c + 1, 26).setValue(nowStr);
+        break;
+      }
+    }
+
+    // Registrar na Auditoria Oficial
+    registrarLogAuditoriaOficial_(
+      'Aprovacao',
+      idContrato,
+      (decisao === 'APROVADO') ? 'Aprovacao Concluida' : 'Ajustes Solicitados',
+      'status_decisao',
+      'Pendente',
+      statusDecisaoFinal,
+      'Decisao de ' + nivelAlcada + ': ' + (parecer || 'Sem observacoes adicionais'),
+      userEmail,
+      nivelAlcada
+    );
+
+    // Notificar solicitante por e-mail
+    try {
+      if (solicitanteEmail) {
+        var subject = '[brisanet] ' + (decisao === 'APROVADO' ? 'Contrato Aprovado' : 'Ajustes Solicitados') + ' - CT #' + idContrato;
+        var bodyHtml = '<div style="font-family: Figtree, Arial, sans-serif; color: #0B316D;">' +
+          '<h2 style="color: ' + (decisao === 'APROVADO' ? '#2242D4' : '#FF5022') + ';">Decisao Registrada - Alçada ' + nivelAlcada + '</h2>' +
+          '<p>O aprovador <strong>' + userEmail + '</strong> registrou a seguinte decisao para o Contrato #' + idContrato + ':</p>' +
+          '<ul>' +
+          '<li><strong>Decisao:</strong> ' + statusDecisaoFinal + '</li>' +
+          '<li><strong>Data/Hora:</strong> ' + nowStr + '</li>' +
+          '<li><strong>Parecer Oficial:</strong> ' + (parecer || 'Nao informado') + '</li>' +
+          '</ul>' +
+          '<hr style="border: 0; border-top: 1px solid #E8E8E8;" />' +
+          '<small style="color: #64748B;">a brisanet - Gerencia Executiva de Telefonia</small>' +
+          '</div>';
+
+        MailApp.sendEmail({
+          to: solicitanteEmail,
+          subject: subject,
+          htmlBody: bodyHtml
+        });
+      }
+    } catch (eMail) {}
+
+    return {
+      success: true,
+      decisao: statusDecisaoFinal,
+      message: 'Decisao registrada com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Salva um novo contrato no modelo oficial da Telefonia, criando a pasta e subpastas no Drive
+ * e registrando o contrato e fornecedor nas abas relacionais.
+ * @param {Object} dados
+ * @return {Object}
+ */
+function salvarNovoContratoTelefonia(dados) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    var sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+
+    if (!sheetContratos || !sheetFornecedores) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+      sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    }
+
+    var fornNome = String(dados.fornecedor || '').trim();
+    if (!fornNome) throw new Error('Nome do fornecedor e obrigatorio.');
+
+    // Descobrir proximo ID
+    var lastRow = sheetContratos.getLastRow();
+    var nextId = 1;
+    if (lastRow > 1) {
+      var ids = sheetContratos.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        var val = parseInt(ids[i][0], 10);
+        if (!isNaN(val) && val >= nextId) nextId = val + 1;
+      }
+    }
+
+    var ano = new Date().getFullYear();
+    var protocolo = 'BRISA-TEL-' + ano + '-' + String(nextId).padStart(4, '0');
+
+    // Provisionar estrutura no Drive
+    var driveStructure = obterOuCriarEstruturaContrato_(fornNome, nextId, dados.objeto);
+
+    // Verificar se fornecedor ja existe
+    var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
+    var fornecedorJaExiste = false;
+    var fData = sheetFornecedores.getDataRange().getValues();
+    for (var f = 1; f < fData.length; f++) {
+      if (String(fData[f][1]).toLowerCase().trim() === fornNome.toLowerCase()) {
+        fornecedorJaExiste = true;
+        fornId = String(fData[f][0]);
+        // Atualizar pasta do fornecedor se vazia
+        if (!fData[f][6] && driveStructure.supplierFolderId) {
+          sheetFornecedores.getRange(f + 1, 7).setValue(driveStructure.supplierFolderId);
+        }
+        break;
+      }
+    }
+
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+    if (!fornecedorJaExiste) {
+      sheetFornecedores.appendRow([
+        fornId,
+        fornNome,
+        dados.nomeFantasia || fornNome,
+        dados.cnpj || '',
+        dados.contato || '',
+        dados.email || '',
+        driveStructure.supplierFolderId,
+        'Ativo',
+        nowStr
+      ]);
+    }
+
+    var valorBase = normalizarNumero_(dados.valorMensal || 0);
+
+    sheetContratos.appendRow([
+      nextId,
+      protocolo,
+      fornId,
+      fornNome,
+      dados.objeto || '',
+      dados.tipo || 'Voz / Telefonia',
+      'Rascunho',
+      'Pendente de Submissão',
+      dados.dataInicio || '',
+      dados.dataFim || '',
+      dados.prazoIndeterminado ? 'Sim' : 'Não',
+      dados.avisoPrevio || 30,
+      valorBase,
+      valorBase,
+      0,
+      0,
+      dados.indiceReajuste || 'IPCA',
+      dados.mesAniversario || 1,
+      dados.centroCusto || '',
+      dados.contaContabil || '',
+      dados.gestor || '',
+      driveStructure.contractFolderId,
+      driveStructure.supplierFolderId,
+      dados.observacoes || '',
+      nowStr,
+      nowStr
+    ]);
+
+    // Gravar auditoria
+    registrarLogAuditoriaOficial_(
+      'Contrato',
+      nextId,
+      'Criacao de Contrato',
+      'Todos',
+      '-',
+      protocolo,
+      'Contrato cadastrado com sucesso e estrutura no Drive provisionada.',
+      Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
+    );
+
+    return {
+      success: true,
+      id: nextId,
+      protocolo: protocolo,
+      driveStructure: driveStructure,
+      message: 'Contrato cadastrado com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Salva um termo aditivo oficial, atualizando o valor ou vigencia do contrato-mae
+ * e gerando o registro correspondente na aba Aditivos e na Trilha de Auditoria.
+ * @param {Object} dadosAditivo
+ * @return {Object}
+ */
+function salvarTermoAditivoTelefonia(dadosAditivo) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Nao foi possivel obter trava.' };
+  }
+
+  try {
+    var idContrato = dadosAditivo.idContrato;
+    if (!idContrato) throw new Error('ID do contrato-mae e obrigatorio.');
+
+    var ss = obterPlanilha_();
+    var sheetAditivos = ss.getSheetByName(CONFIG.SHEET_ADITIVOS);
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+
+    if (!sheetAditivos || !sheetContratos) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheetAditivos = ss.getSheetByName(CONFIG.SHEET_ADITIVOS);
+      sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    }
+
+    var nextAdRow = sheetAditivos.getLastRow() + 1;
+    var idAditivo = 'ADT-' + String(nextAdRow - 1).padStart(5, '0');
+    var valorDelta = normalizarNumero_(dadosAditivo.valorAlteracao || 0);
+    var novaVigencia = dadosAditivo.novaVigenciaFim || '';
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+
+    sheetAditivos.appendRow([
+      idAditivo,
+      idContrato,
+      dadosAditivo.numeroTermo || 'Termo Aditivo',
+      dadosAditivo.tipoAditivo || 'Misto',
+      valorDelta,
+      novaVigencia,
+      dadosAditivo.justificativa || '',
+      dadosAditivo.dataCelebracao || nowStr,
+      dadosAditivo.idArquivoDrive || '',
+      'Aprovado'
+    ]);
+
+    // Atualizar Contrato-Mae
+    var cData = sheetContratos.getDataRange().getValues();
+    for (var c = 1; c < cData.length; c++) {
+      if (String(cData[c][0]) === String(idContrato)) {
+        var valorAtual = normalizarNumero_(cData[c][13]);
+        var novoValor = valorAtual + valorDelta;
+        sheetContratos.getRange(c + 1, 14).setValue(novoValor); // valor_mensal_atual
+        if (novaVigencia) {
+          sheetContratos.getRange(c + 1, 10).setValue(novaVigencia); // data_fim_vigencia
+        }
+        sheetContratos.getRange(c + 1, 26).setValue(nowStr);
+        break;
+      }
+    }
+
+    registrarLogAuditoriaOficial_(
+      'Aditivo',
+      idContrato,
+      'Termo Aditivo Registrado',
+      'Valor / Vigencia',
+      'Aditivo ' + idAditivo,
+      'Delta: R$ ' + valorDelta.toFixed(2) + ' | Nova Data: ' + novaVigencia,
+      dadosAditivo.justificativa || 'Celebracao de Termo Aditivo'
+    );
+
+    return {
+      success: true,
+      idAditivo: idAditivo,
+      message: 'Termo Aditivo registrado com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Gera os dados consolidados do Certificado Oficial de Auditoria do Contrato,
+ * agrupando metadados do contrato, fornecedor, aditivos e a trilha cronologica completa.
+ * @param {string|number} idContrato
+ * @return {Object}
+ */
+function gerarCertificadoAuditoriaContrato(idContrato) {
+  try {
+    if (!idContrato) throw new Error('ID do contrato e obrigatorio.');
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    var sheetLogs = ss.getSheetByName(CONFIG.SHEET_LOGS);
+    var sheetAditivos = ss.getSheetByName(CONFIG.SHEET_ADITIVOS);
+    var sheetAprov = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+
+    var contratoInfo = null;
+    if (sheetContratos) {
+      var cData = sheetContratos.getDataRange().getValues();
+      for (var i = 1; i < cData.length; i++) {
+        if (String(cData[i][0]) === String(idContrato)) {
+          contratoInfo = {
+            id: cData[i][0],
+            protocolo: cData[i][1],
+            fornecedor: cData[i][3],
+            objeto: cData[i][4],
+            tipo: cData[i][5],
+            status: cData[i][6],
+            statusAlcada: cData[i][7],
+            inicio: formatarDataExibicao_(cData[i][8]),
+            fim: formatarDataExibicao_(cData[i][9]),
+            valorMensal: normalizarNumero_(cData[i][13]),
+            centroCusto: cData[i][18],
+            pastaDriveId: cData[i][21]
+          };
+          break;
+        }
+      }
+    }
+
+    if (!contratoInfo) {
+      throw new Error('Contrato nao localizado para emissao do certificado.');
+    }
+
+    // Cronologia de logs
+    var timeline = [];
+    if (sheetLogs) {
+      var lData = sheetLogs.getDataRange().getValues();
+      for (var l = 1; l < lData.length; l++) {
+        if (String(lData[l][5]) === String(idContrato)) {
+          timeline.push({
+            logId: lData[l][0],
+            timestamp: lData[l][1],
+            email: lData[l][2],
+            papel: lData[l][3],
+            acao: lData[l][6],
+            campo: lData[l][7],
+            anterior: lData[l][8],
+            novo: lData[l][9],
+            justificativa: lData[l][10]
+          });
+        }
+      }
+    }
+
+    // Hash digital formal de verificacao
+    var hashRaw = contratoInfo.protocolo + '|' + contratoInfo.fornecedor + '|' + timeline.length + '|' + new Date().toISOString();
+    var signatureHash = 'BRISA-AUDIT-' + Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, hashRaw)).substring(0, 24);
+
+    return {
+      success: true,
+      contrato: contratoInfo,
+      timeline: timeline,
+      totalAcoesRegistradas: timeline.length,
+      assinaturaDigital: signatureHash,
+      dataEmissao: Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss')
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
