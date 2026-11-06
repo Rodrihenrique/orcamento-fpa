@@ -3594,6 +3594,33 @@ function obterPapelUsuario_(email) {
  * kpis executivos e informacoes do usuario atual.
  * @return {Object}
  */
+
+/**
+ * Garante que a aba Fornecedores tenha os 10 cabecalhos oficiais e auto-repara
+ * linhas legadas ou deslocadas onde o Apelido ficou na coluna do CNPJ.
+ * @param {Sheet} sheetFornecedores
+ */
+function garantirHeadersFornecedores_(sheetFornecedores) {
+  if (!sheetFornecedores) return;
+  var headersOficiais = [
+    'id_fornecedor', 'razao_social', 'nome_fantasia', 'apelido', 'cnpj',
+    'contato_comercial', 'email_comercial', 'id_pasta_drive_fornecedor',
+    'status', 'data_cadastro'
+  ];
+
+  var lastCol = Math.max(sheetFornecedores.getLastColumn(), headersOficiais.length);
+  var currentHeaders = sheetFornecedores.getRange(1, 1, 1, lastCol).getValues()[0].map(function(h) {
+    return String(h).toLowerCase().trim();
+  });
+
+  // Se nao possui 'apelido' nos cabecalhos
+  if (currentHeaders.indexOf('apelido') === -1) {
+    sheetFornecedores.getRange(1, 1, 1, headersOficiais.length).setValues([headersOficiais]);
+    var hRange = sheetFornecedores.getRange(1, 1, 1, headersOficiais.length);
+    hRange.setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
+  }
+}
+
 function obterDadosCompletosTelefonia() {
   try {
     var ss = obterPlanilha_();
@@ -3618,10 +3645,11 @@ function obterDadosCompletosTelefonia() {
     if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
     var userRole = obterPapelUsuario_(userEmail);
 
-    // 1. Ler Fornecedores
+    // 1. Ler Fornecedores com Auto-Cura de Cabecalhos e Colunas Deslocadas
     var fornecedoresMap = {};
     if (sheetFornecedores && sheetFornecedores.getLastRow() > 1) {
-      var numColsF = sheetFornecedores.getLastColumn();
+      garantirHeadersFornecedores_(sheetFornecedores);
+      var numColsF = Math.max(sheetFornecedores.getLastColumn(), 10);
       var fHeaders = sheetFornecedores.getRange(1, 1, 1, numColsF).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
       var fornData = sheetFornecedores.getRange(2, 1, sheetFornecedores.getLastRow() - 1, numColsF).getValues();
 
@@ -3639,27 +3667,72 @@ function obterDadosCompletosTelefonia() {
         var fRow = fornData[f];
         var idForn = String((idxFId !== -1 ? fRow[idxFId] : fRow[0]) || '').trim();
         var nomeForn = String((idxFRazao !== -1 ? fRow[idxFRazao] : fRow[1]) || '').trim();
-        if (nomeForn) {
-          var fantasiaForn = String((idxFFantasia !== -1 ? fRow[idxFFantasia] : fRow[2]) || nomeForn);
-          var apelidoForn = String((idxFApelido !== -1 ? fRow[idxFApelido] : '') || fantasiaForn || nomeForn);
-          var cnpjForn = String((idxFCnpj !== -1 ? fRow[idxFCnpj] : (fRow[3] || '')) || '');
+        if (!nomeForn) continue;
 
-          fornecedoresMap[nomeForn.toLowerCase()] = {
-            id: idForn,
-            razaoSocial: nomeForn,
-            nomeFantasia: fantasiaForn,
-            apelido: apelidoForn,
-            cnpj: cnpjForn,
-            contato: String((idxFContato !== -1 ? fRow[idxFContato] : (fRow[4] || '')) || ''),
-            email: String((idxFEmail !== -1 ? fRow[idxFEmail] : (fRow[5] || '')) || ''),
-            pastaDriveId: String((idxFDrive !== -1 ? fRow[idxFDrive] : (fRow[6] || '')) || ''),
-            status: String((idxFStatus !== -1 ? fRow[idxFStatus] : (fRow[7] || 'Ativo')) || 'Ativo'),
-            contratos: [],
-            totalContratos: 0,
-            contratosAtivos: 0,
-            valorMensalTotal: 0
-          };
+        var fantasiaForn = String((idxFFantasia !== -1 ? fRow[idxFFantasia] : fRow[2]) || nomeForn).trim();
+
+        // Deteccao de colunas: valores brutos posicionais
+        var valCol3 = String(fRow[3] || '').trim(); // pode ser apelido ou cnpj legado
+        var valCol4 = String(fRow[4] || '').trim(); // pode ser cnpj ou contato legado
+        var valCol5 = String(fRow[5] || '').trim(); // pode ser contato ou email legado
+        var valCol6 = String(fRow[6] || '').trim(); // pode ser email ou drive legado
+        var valCol7 = String(fRow[7] || '').trim(); // drive ou status legado
+        var valCol8 = String(fRow[8] || '').trim(); // status legado
+
+        var apelidoForn = '';
+        var cnpjForn = '';
+        var contatoForn = '';
+        var emailForn = '';
+        var pastaForn = '';
+        var statusForn = 'Ativo';
+
+        // Checar padrao de CNPJ na coluna 4 (ex: 22.222.222/2222-22)
+        var isCol4Cnpj = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(valCol4) || /\d{14}/.test(valCol4.replace(/\D/g, ''));
+        var isCol3Cnpj = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(valCol3) || /\d{14}/.test(valCol3.replace(/\D/g, ''));
+
+        if (isCol4Cnpj || (valCol3 !== '' && !isCol3Cnpj)) {
+          // Linha com 10 colunas: Coluna 3 e o Apelido (ex: G+D) e Coluna 4 e o CNPJ (ex: 22.222.222/2222-22)
+          apelidoForn = valCol3;
+          cnpjForn = valCol4;
+          contatoForn = valCol5;
+          emailForn = valCol6;
+          pastaForn = valCol7;
+          statusForn = valCol8 || 'Ativo';
+        } else if (isCol3Cnpj) {
+          // Linha com 9 colunas legadas: Coluna 3 e o CNPJ
+          apelidoForn = fantasiaForn || nomeForn;
+          cnpjForn = valCol3;
+          contatoForn = valCol4;
+          emailForn = valCol5;
+          pastaForn = valCol6;
+          statusForn = valCol7 || 'Ativo';
+        } else {
+          // Fallback por indices de cabecalho
+          apelidoForn = String((idxFApelido !== -1 ? fRow[idxFApelido] : '') || fantasiaForn || nomeForn).trim();
+          cnpjForn = String((idxFCnpj !== -1 ? fRow[idxFCnpj] : '')).trim();
+          contatoForn = String((idxFContato !== -1 ? fRow[idxFContato] : '')).trim();
+          emailForn = String((idxFEmail !== -1 ? fRow[idxFEmail] : '')).trim();
+          pastaForn = String((idxFDrive !== -1 ? fRow[idxFDrive] : '')).trim();
+          statusForn = String((idxFStatus !== -1 ? fRow[idxFStatus] : 'Ativo')).trim();
         }
+
+        if (!apelidoForn) apelidoForn = fantasiaForn || nomeForn;
+
+        fornecedoresMap[nomeForn.toLowerCase()] = {
+          id: idForn,
+          razaoSocial: nomeForn,
+          nomeFantasia: fantasiaForn,
+          apelido: apelidoForn,
+          cnpj: cnpjForn,
+          contato: contatoForn,
+          email: emailForn,
+          pastaDriveId: pastaForn,
+          status: statusForn,
+          contratos: [],
+          totalContratos: 0,
+          contratosAtivos: 0,
+          valorMensalTotal: 0
+        };
       }
     }
 
@@ -4184,10 +4257,13 @@ function salvarNovoContratoTelefonia(dados) {
 
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
     if (!fornecedorJaExiste) {
+      garantirHeadersFornecedores_(sheetFornecedores);
+      var fornApelidoContrato = String(dados.apelido || dados.nomeFantasia || fornNome).trim();
       sheetFornecedores.appendRow([
         fornId,
         fornNome,
         dados.nomeFantasia || fornNome,
+        fornApelidoContrato,
         dados.cnpj || '',
         dados.contato || '',
         dados.email || '',
@@ -4521,6 +4597,7 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
     var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
 
+    garantirHeadersFornecedores_(sheetFornecedores);
     var fornApelido = String(dadosFornecedor.apelido || dadosFornecedor.nomeFantasia || fornNome).trim();
     sheetFornecedores.appendRow([
       fornId,

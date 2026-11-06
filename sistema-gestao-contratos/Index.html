@@ -1658,7 +1658,7 @@
           4. Regras de Reajuste & Base de Clientes
         </div>
         <div class="form-grid" style="margin-bottom: 16px;">
-          <div class="form-group col-span-2">
+          <div class="form-group col-span-1">
             <label class="form-label required">Critério / Índice de Reajuste</label>
             <select id="contratoModalIndice" class="form-control" onchange="alternarCriterioReajuste(this.value)">
               <option value="IPCA">IPCA</option>
@@ -2252,6 +2252,7 @@
       html += '    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; font-size: 12px;">';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Razão Social</span><div style="font-weight: 700; color: var(--brisa-dark-blue); margin-top: 2px;">' + escapeHtml(f.razaoSocial) + '</div></div>';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Nome Fantasia</span><div style="font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.nomeFantasia || '-') + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Apelido (Nome Usual)</span><div style="font-weight: 700; color: var(--brisa-blue); margin-top: 2px;">' + escapeHtml(f.apelido || '-') + '</div></div>';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">CNPJ</span><div style="font-family: monospace; font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.cnpj || '-') + '</div></div>';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Contato Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.contato || '-') + '</div></div>';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">E-mail Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.email || '-') + '</div></div>';
@@ -2460,10 +2461,7 @@
       }
     }
 
-    var badgeText = fornNome;
-    if (fornObj && fornObj.apelido && fornObj.apelido !== fornNome) {
-      badgeText += ' (' + fornObj.apelido + ')';
-    }
+    var badgeText = (fornObj && fornObj.apelido) ? fornObj.apelido : fornNome;
     document.getElementById('modalNovoContratoFornecedorBadge').textContent = badgeText;
     document.getElementById('formNovoContratoModal').reset();
 
