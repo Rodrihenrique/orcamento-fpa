@@ -1033,47 +1033,54 @@
       letter-spacing: 0.5px;
     }
 
-    /* Rolagem e fixacao de cabecalho e rodape do Modal Novo Contrato */
+    /* Estrutura com cantos 100% arredondados e rolagem exclusivamente interna */
     #modalNovoContratoParaFornecedor .modal-content {
       max-width: 960px;
       max-height: 90vh;
-      overflow-y: auto;
-      overflow-x: hidden;
+      overflow: hidden;
+      border-radius: 16px;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 25px 50px -12px rgba(11, 49, 109, 0.35);
       position: relative;
     }
 
     #modalNovoContratoParaFornecedor .modal-header {
-      position: sticky;
-      top: 0;
-      z-index: 20;
       flex-shrink: 0;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
     }
 
     #modalNovoContratoParaFornecedor #formNovoContratoModal {
       display: flex;
       flex-direction: column;
       flex: 1;
-      min-height: min-content;
+      min-height: 0;
+      overflow: hidden;
+      margin: 0;
     }
 
     #modalNovoContratoParaFornecedor .modal-body {
-      overflow-y: visible;
-      flex: none;
-      padding: 24px;
-      padding-bottom: 24px;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 24px 28px 24px 24px;
+      scrollbar-width: thin;
+      scrollbar-color: #CBD5E1 #F1F5F9;
     }
 
     #modalNovoContratoParaFornecedor .modal-footer {
-      position: sticky;
-      bottom: 0;
-      z-index: 20;
+      flex-shrink: 0;
       background: #F8FAFC;
       border-top: 1px solid var(--border-subtle);
-      box-shadow: 0 -3px 10px rgba(0, 0, 0, 0.05);
-      flex-shrink: 0;
-      padding: 14px 24px;
+      border-bottom-left-radius: 16px;
+      border-bottom-right-radius: 16px;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
     }
 
     .modal-header {
@@ -1367,7 +1374,7 @@
           <div class="form-group col-span-1">
             <label class="form-label required">Apelido (Nome Usual)</label>
             <input type="text" id="novoFornecedorApelido" class="form-control" placeholder="Ex: Huawei, Cirion, Vogel..." required>
-            <small style="font-size: 11px; color: var(--text-muted);">Como a empresa é mais conhecida pelos colaboradores.</small>
+            
           </div>
           <div class="form-group">
             <label class="form-label required">CNPJ</label>
@@ -1405,9 +1412,21 @@
   </div>
 
   <!-- ========================================================================
-       ABA 3: CENTRAL DE APROVACOES (WORKFLOW)
+       ABA 3: CENTRAL DE APROVACOES & GOVERNANCA DE MUDANCAS (WORKFLOW)
        ======================================================================== -->
   <div id="viewAprovacoes" style="display: none;">
+    <div style="background: #F8FAFC; border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+      <div>
+        <div style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue);">Governança Formal de Mudanças & Aprovações</div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+          Contratos e fornecedores recém-cadastrados já nascem validados e ativos. Utilize esta central para solicitar ou formalizar aprovação de alterações, prorrogações de vigência, reajustes não programados e migração de faixas.
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="abrirModalNovaSolicitacaoAprovacao()">
+        + Nova Solicitação de Alteração
+      </button>
+    </div>
+
     <div class="search-filter-card">
       <select id="filtroAlcadaDecisao" class="filter-select" onchange="renderizarCentralAprovacoes()">
         <option value="">Todas as Alçadas</option>
@@ -1681,15 +1700,17 @@
           <table class="tier-table">
             <thead>
               <tr>
-                <th style="width: 140px;">Faixa De (Qtd)</th>
-                <th style="width: 140px;">Faixa Até (Qtd)</th>
-                <th style="width: 160px;">Valor (R$) / Cliente</th>
+                <th style="width: 70px; text-align: center;">Faixa Atual</th>
+                <th style="width: 130px;">Faixa De (Qtd)</th>
+                <th style="width: 130px;">Faixa Até (Qtd)</th>
+                <th style="width: 150px;">Valor (R$) / Cliente</th>
                 <th>Descrição / Regra</th>
                 <th style="width: 40px;"></th>
               </tr>
             </thead>
             <tbody id="corpoTabelaFaixasClientes">
               <tr>
+                <td style="text-align: center;"><input type="radio" name="radioFaixaAtualModal" class="faixa-atual-radio" title="Marcar como faixa em vigor atual" checked onchange="aoSelecionarFaixaAtual(this)"></td>
                 <td><input type="number" class="tier-input faixa-de" placeholder="0" value="0"></td>
                 <td><input type="number" class="tier-input faixa-ate" placeholder="50000" value="50000"></td>
                 <td><input type="text" class="tier-input faixa-valor" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></td>
@@ -1741,7 +1762,7 @@
         </div>
         <div class="files-list-container" id="listaArquivosModalContrato"></div>
 
-      </div></div>
+      </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" onclick="fecharModalNovoContrato()">Cancelar</button>
         <button type="submit" class="btn btn-primary" id="btnSalvarContratoModal">
@@ -1749,6 +1770,30 @@
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+
+<!-- ==========================================================================
+     MODAL ALTERAR FAIXA VIGENTE (BASE DE CLIENTES)
+     ========================================================================== -->
+<div class="modal-overlay" id="modalAlterarFaixaBaseClientes">
+  <div class="modal-content" style="max-width: 550px; border-radius: 16px; overflow: hidden;">
+    <div class="modal-header" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+      <div class="modal-header-title">Alterar Faixa Vigente (Base de Clientes)</div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalAlterarFaixa()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px;">
+      <input type="hidden" id="alterarFaixaContratoId">
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+        Selecione abaixo a faixa em que a base de clientes do contrato se encontra atualmente para atualizar o valor faturado e registrar na trilha de auditoria:
+      </p>
+      <div id="listaFaixasParaSelecao" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </div>
+    <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" class="btn btn-secondary" onclick="fecharModalAlterarFaixa()">Cancelar</button>
+      <button type="button" class="btn btn-primary" onclick="salvarNovaFaixaVigente()">Confirmar Alteração de Faixa</button>
+    </div>
   </div>
 </div>
 
@@ -1786,30 +1831,54 @@
      MODAL SOLICITAR APROVACAO
      ========================================================================== -->
 <div class="modal-overlay" id="modalSolicitarAprovacao">
-  <div class="modal-content" style="max-width: 550px;">
-    <div class="modal-header">
-      <div class="modal-header-title">Submeter para Aprovação Formal</div>
+  <div class="modal-content" style="max-width: 600px; border-radius: 16px; overflow: hidden;">
+    <div class="modal-header" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+      <div class="modal-header-title">
+        <span>Solicitação de Alteração & Governança</span>
+      </div>
       <button type="button" class="modal-close-btn" onclick="fecharModalSolicitarAprovacao()">&times;</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body" style="padding: 20px 24px;">
       <div class="form-group" style="margin-bottom: 14px;">
-        <label class="form-label required">Nível de Alçada Requerido</label>
-        <select id="solicitacaoNivelAlcada" class="form-control" required>
-          <option value="Coordenador">Coordenador Técnico / Operacional</option>
-          <option value="Gerente">Gerente de Área / Orçamento</option>
-          <option value="Gerente Executivo">Gerente Executivo de Telefonia</option>
+        <label class="form-label required">Contrato Alvo</label>
+        <select id="solicitacaoContratoSelect" class="form-control" required>
+          <option value="">Selecione o Contrato...</option>
         </select>
       </div>
       <div class="form-group" style="margin-bottom: 14px;">
-        <label class="form-label required">E-mail do Aprovador Designado</label>
-        <input type="email" id="solicitacaoAprovadorEmail" class="form-control" placeholder="aprovador@grupobrisanet.com.br" required>
+        <label class="form-label required">Tipo de Alteração / Mudança</label>
+        <select id="solicitacaoTipoMudanca" class="form-control" required>
+          <option value="Alteração Contratual / Escopo">Alteração Contratual / Escopo</option>
+          <option value="Renovação de Vigência">Renovação de Vigência</option>
+          <option value="Reajuste Não Programado">Reajuste Não Programado</option>
+          <option value="Alteração de Faixa (Base de Clientes)">Alteração de Faixa (Base de Clientes)</option>
+          <option value="Outras Modificações">Outras Modificações</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label required">Detalhamento da Alteração Proposta</label>
+        <input type="text" id="solicitacaoDescricaoMudanca" class="form-control" placeholder="Ex: Prorrogação de vigência para 31/12/2026 com acréscimo de R$ 5.000,00" required>
+      </div>
+      <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+        <div class="form-group">
+          <label class="form-label required">Nível de Alçada Requerido</label>
+          <select id="solicitacaoNivelAlcada" class="form-control" required>
+            <option value="Coordenador">Coordenador Técnico / Operacional</option>
+            <option value="Gerente">Gerente de Área / Orçamento</option>
+            <option value="Gerente Executivo">Gerente Executivo de Telefonia</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label required">E-mail do Responsável / Aprovador</label>
+          <input type="email" id="solicitacaoAprovadorEmail" class="form-control" placeholder="aprovador@grupobrisanet.com.br" required>
+        </div>
       </div>
       <div class="form-group">
-        <label class="form-label required">Justificativa Operacional / Parecer Técnico</label>
-        <textarea id="solicitacaoJustificativa" class="form-control" rows="4" placeholder="Descreva a finalidade, impactos e conformidade documental..." required></textarea>
+        <label class="form-label required">Justificativa Operacional & Motivação</label>
+        <textarea id="solicitacaoJustificativa" class="form-control" rows="3" placeholder="Descreva os motivos da mudança, memorial de cálculo e impacto financeiro..." required></textarea>
       </div>
     </div>
-    <div class="modal-footer">
+    <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: flex-end; gap: 12px;">
       <button type="button" class="btn btn-secondary" onclick="fecharModalSolicitarAprovacao()">Cancelar</button>
       <button type="button" class="btn btn-primary" onclick="submeterSolicitacaoAprovacao()">Enviar para Aprovação</button>
     </div>
@@ -2142,11 +2211,8 @@
       html += '<div class="supplier-accordion-card ' + (isExpanded ? 'expanded' : '') + '" id="' + fId + '">';
       html += '  <div class="supplier-header" onclick="alternarFornecedor(\'' + fId + '\')">';
       html += '    <div class="supplier-identity">';
-      var tituloForn = escapeHtml(f.razaoSocial);
-      if (f.apelido && f.apelido.toLowerCase() !== f.razaoSocial.toLowerCase()) {
-        tituloForn += ' <span style="font-weight: 500; color: var(--brisa-blue); font-size: 13px;">(' + escapeHtml(f.apelido) + ')</span>';
-      }
-      html += '      <div class="supplier-name">' + tituloForn + '</div>';
+      var nomeTituloPrincipal = escapeHtml(f.apelido || f.nomeFantasia || f.razaoSocial);
+      html += '      <div class="supplier-name" style="font-size: 16px; font-weight: 800; color: var(--brisa-dark-blue);">' + nomeTituloPrincipal + '</div>';
       if (f.cnpj) {
         html += '      <span class="badge-cnpj">' + escapeHtml(f.cnpj) + '</span>';
       }
@@ -2181,6 +2247,17 @@
 
       // Corpo com contratos do fornecedor
       html += '  <div class="supplier-body">';
+
+      // Bloco Perfil Formal do Fornecedor
+      html += '    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; font-size: 12px;">';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Razão Social</span><div style="font-weight: 700; color: var(--brisa-dark-blue); margin-top: 2px;">' + escapeHtml(f.razaoSocial) + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Nome Fantasia</span><div style="font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.nomeFantasia || '-') + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">CNPJ</span><div style="font-family: monospace; font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.cnpj || '-') + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Contato Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.contato || '-') + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">E-mail Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.email || '-') + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Pasta no Google Drive</span><div style="margin-top: 2px;">' + (f.pastaDriveId ? '<a href="https://drive.google.com/drive/folders/' + f.pastaDriveId + '" target="_blank" style="color: var(--brisa-blue); font-weight: 600; text-decoration: none;">Abrir Pasta &rarr;</a>' : '<span style="color: var(--text-muted);">Não provisionada</span>') + '</div></div>';
+      html += '    </div>';
+
       html += '    <div class="supplier-body-top">';
       html += '      <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">CONTRATOS REGISTRADOS PARA ESTE FORNECEDOR</div>';
       html += '      <button type="button" class="btn btn-add-contract" onclick="abrirModalNovoContrato(\'' + escapeHtml(f.id) + '\', \'' + escapeHtml(f.razaoSocial) + '\')">';
@@ -2454,10 +2531,25 @@
     }
   }
 
+  function aoSelecionarFaixaAtual(radio) {
+    var tr = radio.closest('tr');
+    if (tr) {
+      var valorInput = tr.querySelector('.faixa-valor');
+      if (valorInput && valorInput.value.trim()) {
+        var campoValorMensal = document.getElementById('contratoModalValorMensal');
+        if (campoValorMensal) {
+          campoValorMensal.value = valorInput.value.trim();
+          atualizarCalculoValorBaseBrl();
+        }
+      }
+    }
+  }
+
   function adicionarLinhaFaixaCliente() {
     var tbody = document.getElementById('corpoTabelaFaixasClientes');
     var tr = document.createElement('tr');
-    tr.innerHTML = '<td><input type="number" class="tier-input faixa-de" placeholder="0"></td>' +
+    tr.innerHTML = '<td style="text-align: center;"><input type="radio" name="radioFaixaAtualModal" class="faixa-atual-radio" title="Marcar como faixa em vigor atual" onchange="aoSelecionarFaixaAtual(this)"></td>' +
+      '<td><input type="number" class="tier-input faixa-de" placeholder="0"></td>' +
       '<td><input type="number" class="tier-input faixa-ate" placeholder="100000"></td>' +
       '<td><input type="text" class="tier-input faixa-valor" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></td>' +
       '<td><input type="text" class="tier-input faixa-desc" placeholder="Descrição"></td>' +
@@ -2468,7 +2560,15 @@
   function removerLinhaFaixaCliente(btn) {
     var tr = btn.closest('tr');
     if (tr && tr.parentNode.children.length > 1) {
+      var hadChecked = tr.querySelector('.faixa-atual-radio') && tr.querySelector('.faixa-atual-radio').checked;
       tr.parentNode.removeChild(tr);
+      if (hadChecked) {
+        var firstRadio = document.querySelector('#corpoTabelaFaixasClientes .faixa-atual-radio');
+        if (firstRadio) {
+          firstRadio.checked = true;
+          aoSelecionarFaixaAtual(firstRadio);
+        }
+      }
     }
   }
 
@@ -2476,12 +2576,14 @@
     var linhas = document.querySelectorAll('#corpoTabelaFaixasClientes tr');
     var faixas = [];
     linhas.forEach(function(tr) {
+      var radio = tr.querySelector('.faixa-atual-radio');
+      var isAtual = radio ? radio.checked : false;
       var de = parseInt(tr.querySelector('.faixa-de').value, 10) || 0;
       var ate = parseInt(tr.querySelector('.faixa-ate').value, 10) || 0;
       var valor = tr.querySelector('.faixa-valor').value.trim();
       var desc = tr.querySelector('.faixa-desc').value.trim();
       if (ate > 0 || valor) {
-        faixas.push({ de: de, ate: ate, valor: valor, descricao: desc });
+        faixas.push({ de: de, ate: ate, valor: valor, descricao: desc, atual: isAtual });
       }
     });
     return faixas;
@@ -2798,16 +2900,22 @@
         '</div>';
 
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
-        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Submeter para Aprovação</button>';
+        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Solicitar Alteração / Aprovação</button>';
     } else if (abaNome === 'financeiro') {
       var faixasHtml = '';
       if (c.tabelaBaseClientes && c.tabelaBaseClientes.length > 0) {
         faixasHtml = '<div style="margin-top:16px; border-top:1px solid #E2E8F0; padding-top:12px;">' +
-          '<div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue); margin-bottom:8px;">Tabela de Reajuste por Base de Clientes (Assinantes)</div>' +
+          '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
+          '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">Tabela de Reajuste por Base de Clientes (Assinantes)</div>' +
+          '  <button type="button" class="btn btn-secondary" style="height: 28px; font-size: 11px;" onclick="abrirModalAlterarFaixaBaseClientes(\'' + c.id + '\')">Alterar Faixa Vigente</button>' +
+          '</div>' +
           '<table class="tier-table">' +
-          '<thead><tr><th>Faixa De</th><th>Faixa Até</th><th>Valor Unitário / Fixo</th><th>Regra</th></tr></thead><tbody>';
-        c.tabelaBaseClientes.forEach(function(fx) {
-          faixasHtml += '<tr><td>' + fx.de.toLocaleString('pt-BR') + '</td><td>' + fx.ate.toLocaleString('pt-BR') + '</td><td style="font-weight:700;">' + escapeHtml(fx.valor) + '</td><td>' + escapeHtml(fx.descricao || '-') + '</td></tr>';
+          '<thead><tr><th style="width:100px; text-align:center;">Situação</th><th>Faixa De</th><th>Faixa Até</th><th>Valor (R$) / Cliente</th><th>Regra</th></tr></thead><tbody>';
+        c.tabelaBaseClientes.forEach(function(fx, fIdx) {
+          var isAtiva = fx.atual === true || fx.atual === 'true' || fx.ativa === true;
+          var rowBg = isAtiva ? ' style="background: #F0FDF4; font-weight: 700;"' : '';
+          var badgeAtiva = isAtiva ? '<span class="badge-status ativo" style="font-size:10px;">Faixa Vigente</span>' : '<span style="color:var(--text-muted); font-size:11px;">-</span>';
+          faixasHtml += '<tr' + rowBg + '><td style="text-align:center;">' + badgeAtiva + '</td><td>' + fx.de.toLocaleString('pt-BR') + '</td><td>' + fx.ate.toLocaleString('pt-BR') + '</td><td style="font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(fx.valor) + '</td><td>' + escapeHtml(fx.descricao || '-') + '</td></tr>';
         });
         faixasHtml += '</tbody></table></div>';
       }
@@ -2916,9 +3024,33 @@
     reader.readAsDataURL(file);
   }
 
+  function popularSelectContratosSolicitacao(idPreSelecionado) {
+    var select = document.getElementById('solicitacaoContratoSelect');
+    if (!select) return;
+    select.innerHTML = '<option value="">Selecione o Contrato...</option>';
+    appState.contratos.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = '#' + c.id + ' - ' + c.fornecedor + ' (' + c.protocolo + ')';
+      if (String(c.id) === String(idPreSelecionado)) opt.selected = true;
+      select.appendChild(opt);
+    });
+  }
+
+  function abrirModalNovaSolicitacaoAprovacao() {
+    popularSelectContratosSolicitacao();
+    document.getElementById('solicitacaoDescricaoMudanca').value = '';
+    document.getElementById('solicitacaoJustificativa').value = '';
+    document.getElementById('solicitacaoAprovadorEmail').value = '';
+    document.getElementById('modalSolicitarAprovacao').style.display = 'flex';
+  }
+
   function abrirModalSolicitarAprovacaoParaContrato() {
     var c = appState.contratoSelecionado;
     if (!c) return;
+    popularSelectContratosSolicitacao(c.id);
+    document.getElementById('solicitacaoAprovadorEmail').value = c.gestor || '';
+    document.getElementById('solicitacaoDescricaoMudanca').value = '';
     document.getElementById('solicitacaoJustificativa').value = '';
     document.getElementById('modalSolicitarAprovacao').style.display = 'flex';
   }
@@ -2928,18 +3060,27 @@
   }
 
   function submeterSolicitacaoAprovacao() {
-    var c = appState.contratoSelecionado;
-    if (!c) return;
-    var nivelAlcada = document.getElementById('solicitacaoNivelAlcada').value;
+    var idContrato = document.getElementById('solicitacaoContratoSelect').value;
+    var tipoMudanca = document.getElementById('solicitacaoTipoMudanca').value;
+    var descMudanca = document.getElementById('solicitacaoDescricaoMudanca').value.trim();
+    var nivel = document.getElementById('solicitacaoNivelAlcada').value;
     var email = document.getElementById('solicitacaoAprovadorEmail').value.trim();
-    var justificativa = document.getElementById('solicitacaoJustificativa').value.trim();
+    var just = document.getElementById('solicitacaoJustificativa').value.trim();
 
-    if (!email) {
-      mostrarToast('Informe o e-mail do aprovador.', 'error');
+    if (!idContrato) {
+      mostrarToast('Selecione o contrato para a solicitação de alteração.', 'error');
+      return;
+    }
+    if (!descMudanca) {
+      mostrarToast('Descreva o detalhamento da alteração proposta.', 'error');
+      return;
+    }
+    if (!email || !just) {
+      mostrarToast('Preencha o e-mail do aprovador e a justificativa técnica.', 'error');
       return;
     }
 
-    mostrarLoading('Submetendo Aprovação', 'Enviando notificação formal para ' + email + '...');
+    mostrarLoading('Registrando Solicitação', 'Gravando na esteira oficial e notificando o responsável...');
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -2947,23 +3088,24 @@
           esconderLoading();
           if (res && res.success) {
             fecharModalSolicitarAprovacao();
-            mostrarToast('Solicitação de aprovação enviada com sucesso.', 'success');
+            mostrarToast('Solicitação de alteração enviada com sucesso.', 'success');
             carregarDadosServidor(false);
           } else {
             mostrarToast('Erro ao submeter: ' + (res.error || 'Desconhecido'), 'error');
           }
         })
         .solicitarAprovacaoContrato({
-          idContrato: c.id,
-          nivelAlcada: nivelAlcada,
+          idContrato: idContrato,
+          tipoSolicitacao: tipoMudanca,
+          descricaoAlteracao: descMudanca,
+          nivelAlcada: nivel,
           aprovadorEmail: email,
-          justificativa: justificativa,
-          tipoSolicitacao: 'Novo Contrato'
+          justificativa: just
         });
     } else {
       esconderLoading();
       fecharModalSolicitarAprovacao();
-      mostrarToast('Solicitação simulada com sucesso.', 'success');
+      mostrarToast('Solicitação de alteração registrada em demonstração.', 'success');
     }
   }
 
@@ -3235,20 +3377,76 @@
           ]
         }
       ],
-      aprovacoes: [
-        {
-          idAprovacao: 'APV-00001',
-          idContrato: 4,
-          tipoSolicitacao: 'Novo Contrato',
-          solicitanteEmail: 'gestao.telefonia@grupobrisanet.com.br',
-          dataSolicitacao: '05/11/2026 14:30',
-          nivelAlcada: 'Gerente Executivo',
-          statusDecisao: 'Pendente',
-          justificativa: 'Contrato de transporte de dados estratégico para contingência do Core de Telefonia.'
-        }
-      ]
+      aprovacoes: []
     };
   }
+
+  function abrirModalAlterarFaixaBaseClientes(idContrato) {
+    var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); });
+    if (!contrato || !contrato.tabelaBaseClientes || contrato.tabelaBaseClientes.length === 0) {
+      mostrarToast('Contrato não possui faixas de base de clientes cadastradas.', 'error');
+      return;
+    }
+    document.getElementById('alterarFaixaContratoId').value = idContrato;
+    var container = document.getElementById('listaFaixasParaSelecao');
+    var html = '';
+    contrato.tabelaBaseClientes.forEach(function(fx, idx) {
+      var isAtiva = fx.atual === true || fx.atual === 'true' || fx.ativa === true;
+      html += '<label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid ' + (isAtiva ? 'var(--brisa-blue)' : '#CBD5E1') + '; background: ' + (isAtiva ? '#EFF6FF' : '#FFFFFF') + '; border-radius: var(--radius-sm); cursor: pointer;">';
+      html += '  <div style="display: flex; align-items: center; gap: 10px;">';
+      html += '    <input type="radio" name="radioEscolhaFaixa" value="' + idx + '" ' + (isAtiva ? 'checked' : '') + ' data-valor="' + escapeHtml(fx.valor) + '">';
+      html += '    <div>';
+      html += '      <div style="font-weight: 700; color: var(--brisa-dark-blue); font-size: 13px;">Faixa ' + (idx + 1) + ': ' + fx.de.toLocaleString('pt-BR') + ' a ' + fx.ate.toLocaleString('pt-BR') + ' assinantes</div>';
+      if (fx.descricao) html += '      <div style="font-size: 11px; color: var(--text-muted);">' + escapeHtml(fx.descricao) + '</div>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <div style="font-weight: 800; color: var(--brisa-dark-blue); font-size: 13px;">' + escapeHtml(fx.valor) + '</div>';
+      html += '</label>';
+    });
+    container.innerHTML = html;
+    document.getElementById('modalAlterarFaixaBaseClientes').style.display = 'flex';
+  }
+
+  function fecharModalAlterarFaixa() {
+    document.getElementById('modalAlterarFaixaBaseClientes').style.display = 'none';
+  }
+
+  function salvarNovaFaixaVigente() {
+    var idContrato = document.getElementById('alterarFaixaContratoId').value;
+    var radioSelecionado = document.querySelector('input[name="radioEscolhaFaixa"]:checked');
+    if (!radioSelecionado) {
+      mostrarToast('Selecione uma faixa.', 'error');
+      return;
+    }
+    var indice = parseInt(radioSelecionado.value, 10);
+    var novoValor = radioSelecionado.getAttribute('data-valor') || '';
+
+    mostrarLoading('Atualizando Faixa', 'Salvando nova faixa em vigor e registrando auditoria...');
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          esconderLoading();
+          if (res && res.success) {
+            fecharModalAlterarFaixa();
+            mostrarToast('Faixa vigente atualizada com sucesso.', 'success');
+            carregarDadosServidor(false);
+          } else {
+            mostrarToast('Erro ao atualizar faixa: ' + (res.error || 'Desconhecido'), 'error');
+          }
+        })
+        .atualizarFaixaBaseClientes({
+          idContrato: idContrato,
+          indiceFaixa: indice,
+          novoValor: novoValor
+        });
+    } else {
+      esconderLoading();
+      fecharModalAlterarFaixa();
+      mostrarToast('Faixa atualizada em demonstração.', 'success');
+    }
+  }
+
 </script>
 </body>
 </html>

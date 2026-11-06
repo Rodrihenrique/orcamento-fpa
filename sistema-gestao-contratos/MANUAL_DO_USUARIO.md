@@ -1,163 +1,152 @@
-# Manual do Usuario: Sistema de Gestao de Contratos
-**Gerencia Executiva de Telefonia - Grupo Brisanet**
+# Manual do Usuário - Sistema de Gestão de Contratos (CLM)
+**Gerência Executiva de Telefonia · brisanet**
 
 ---
 
-## 1. Apresentacao e Objetivos do Sistema
+## 1. Visão Geral do Sistema
+O Sistema de Gestão de Contratos da Gerência Executiva de Telefonia da brisanet foi concebido para centralizar a governança operacional, financeira e documental dos contratos de telecomunicações.
 
-O **Sistema de Gestao de Contratos da Telefonia** e a plataforma corporativa oficial desenvolvida exclusivamente para atender as operacoes, a esteira de governanca e a gestao documental da **Gerencia Executiva de Telefonia** d'**a brisanet**.
-
-### Principais Beneficios:
-*   **Base Oficial Dedicada:** A Telefonia opera em uma nova base independente denominada `Base Oficial de Contratos - Gerência Executiva de Telefonia`, garantindo isolamento total contra alteracoes na planilha anterior.
-*   **Fluxo Centrado no Fornecedor:** O parceiro e cadastrado primeiro e, dentro do seu painel, sao cadastrados e anexados todos os contratos pertencentes a ele.
-*   **Identificacao por Apelido:** Suporte ao campo "Apelido" no cadastro de fornecedores para facilitar o reconhecimento rapido da empresa conforme conhecida pelos colaboradores.
-*   **Formulario Completo de Contrato (29 Campos Oficiais):** Estruturacao minuciosa cobrindo setor da Telefonia, centro de custo, conta contabil, contrato/PO, vigencia, periodicidade, 1a competencia, moeda, cambio, orcamento por lancamento, tributos, contingencia, reajuste, riscos e memoria de calculo.
-*   **Estrutura por Gerencia no Google Drive:** A pasta raiz corporativa `Contratos - Gerência Executiva de Telefonia` e subdividida nas 5 gerencias que compoem a Telefonia, organizando fornecedores e contratos sob seus respectivos setores operacionais.
-*   **Mascaras e Formatacao em Tempo Real:** Digitacao assistida automatica com formatacao de CNPJ (`00.000.000/0000-00`), Moeda (`R$ 0,00`), Porcentagem (`0,00%`), Data (`DD/MM/AAAA`), Telefone (`(00) 00000-0000`) e Taxa de Cambio (`1,0000`).
-*   **Reajuste por Base de Clientes:** Suporte dinamico a tabela de faixas de assinantes/clientes para contratos com modelo de tarifacao escalonada.
-*   **Animacao de Carregamento & Rolagem Lateral:** Indicador visual de processamento em tempo real e janela de novo contrato com rolagem lateral fluida e botoes fixados.
-*   **Esteira Formal de Alcadas de Aprovacao:** Fluxo integrado para validacoes formais de Coordenadores, Gerentes e Gerente Executivo.
-*   **Trilha Oficial de Auditoria Imutavel:** Registro cronologico a prova de adulteracao com data/hora no Horario de Brasilia (UTC-3), e-mail corporativo, acao, valores antes/depois e pareceres.
-*   **Certificado Oficial de Conformidade:** Emissao de folha de rosto com assinatura digital em hash para anexacao comprovatoria.
+O sistema opera no modelo relacional fornecedor-contrato, no qual cada fornecedor corporativo agrupa seus respectivos contratos organizados por setor da telefonia e espelhados em pastas dedicadas no Google Drive corporativo.
 
 ---
 
-## 2. Acesso ao Sistema
+## 2. Acesso e Interface do Usuário
+A interface segue rigorosamente a identidade visual da brisanet, estruturada com a paleta oficial (#FF5022, #2242D4, #0B316D, #D0FF60, #E47D20, #9F4016, #DA2468, #E8E8E8), tipografia Figtree e ausência de emojis.
 
-O sistema pode ser acessado por dois canais oficiais:
-
-1.  **Acesso Direto via WebApp (Navegador):**
-    *   Utilize o link corporativo da aplicacao web disponibilizado pela equipe de TI/Gestao Telefonia.
-    *   Certifique-se de estar conectado com sua conta corporativa do Google Workspace (`@grupobrisanet.com.br`).
-2.  **Acesso Integrado via Google Sheets:**
-    *   Abra a Planilha Oficial de Contratos.
-    *   No menu superior, clique em **Gestao Telefonia** -> **Abrir Painel Corporativo**.
-
----
-
-## 3. Guia Passo a Passo: Setor Administrativo (Gestao Telefonia)
-
-O setor **Gestao Telefonia** atua como operador mestre do sistema, responsavel pelo cadastro de fornecedores, inclusao e aditamento de contratos, classificacao documental, submissao de aprovacoes e controle de prazos.
-
-### 3.1 Cadastrar um Novo Fornecedor
-1.  Na barra de navegacao superior, clique na aba **Novo Fornecedor**.
-2.  Preencha os campos obrigatorios:
-    *   **Razao Social:** Nome empresarial completo registrado na Receita Federal.
-    *   **Nome Fantasia:** Nome de fachada da empresa parceira.
-    *   **Apelido (Nome Usual):** Nome mais conhecido da empresa pelos colaboradores da Telefonia (ex: Huawei, Embratel, Cirion, Vogel, American Tower).
-    *   **CNPJ:** Digite apenas os numeros; o sistema aplica a mascara `00.000.000/0000-00` automaticamente.
-    *   **Telefone Comercial:** Digite os numeros com DDD; a mascara `(00) 00000-0000` sera aplicada.
-    *   **E-mail Comercial:** Endereco corporativo de contato.
-    *   **Status de Homologacao:** Selecione `Ativo` ou `Em Homologacao`.
-    *   **Observacoes Internas:** Informacoes relevantes sobre o parceiro.
-3.  Clique no botao **Salvar Fornecedor**.
-4.  O sistema cadastra o parceiro na base relacional e o disponibiliza para anexacao de contratos.
-
-### 3.2 Visualizar Fornecedores e Contratos (Painel Fornecedores & Contratos)
-1.  Acesse a aba **Fornecedores & Contratos**.
-2.  Visualize os cartoes de cada parceiro homologado:
-    *   Razao Social em destaque acompanhada do **Apelido** entre parenteses.
-    *   CNPJ formatado, nome fantasia e status.
-    *   Total de contratos vinculados e desembolso mensal consolidado.
-    *   Botao de link direto para a pasta do fornecedor no Drive.
-3.  **Para expandir os contratos:** Clique sobre o cabecalho do cartao do fornecedor. A lista de contratos vinculados se abrira em formato de tabela detalhada.
-4.  Utilize o campo de busca superior para localizar parceiros por razao social, nome fantasia, apelido, CNPJ ou numero de contrato/PO.
-
-### 3.3 Adicionar Contrato a um Fornecedor Existente
-1.  No cartao do fornecedor desejado, clique no botao **+ Novo Contrato**.
-2.  A janela modal de cadastro se abrira com os dados do fornecedor e CNPJ ja pre-preenchidos. A janela conta com rolagem lateral propria e botoes fixados no rodape.
-3.  Preencha as 6 secoes do formulario:
-
-#### Secao 1: Setor Responsavel, Identificacao & Objeto
-*   **Setor / Gerencia da Telefonia:** Selecione obrigatoriamente a qual das 5 gerencias pertence:
-    *   `TELEFONIA`
-    *   `GESTAO TELEFONIA`
-    *   `OPERACAO E MANUTENCAO DE REDES`
-    *   `OPERACOES DE REDES`
-    *   `PROJETOS DE IMPLANTACAO`
-*   **Tipo de Contrato:** Voz / Telefonia, Dados / Links Dedicados, Torres e Compartilhamento, Infraestrutura e Redes, Licenciamento de Software, Manutencao Operacional, Servicos Tecnicos ou Outros.
-*   **CNPJ:** Pre-preenchido com o CNPJ do fornecedor (com formatacao automatica).
-*   **Contrato / PO:** Codigo de contrato ou pedido de compra (ex: CT-2026-4412 / PO-9821).
-*   **Centro de Custo:** Codigo do centro de custo responsavel (ex: 104010).
-*   **Objeto do Contrato:** Descricao sucinta e precisa do escopo, circuitos ou servicos prestados.
-
-#### Secao 2: Vigencia, Prazos & Periodicidade
-*   **Inicio da Vigencia:** Data de inicio da operacao.
-*   **Termino da Vigencia & Vigencia Indeterminada:** Data final da vigencia. Caso o contrato nao possua termino previsto, marque **Vigencia Indeterminada** (o campo de data final sera desabilitado).
-*   **Aviso Previo (Dias):** Prazo em dias para comunicacao de rescisao (padrao: 30 dias).
-*   **Renovacao Automatica:** Indique se o contrato possui renovacao automatica (`Sim` ou `Nao`).
-*   **Periodicidade:** Mensal, Bimestral, Trimestral, Semestral, Anual ou Unico.
-*   **1ª Competencia (DD/MM/AAAA):** Data da primeira competencia de faturamento com mascara assistida.
-
-#### Secao 3: Valores Financeiros, Moeda & Orcamento
-*   **Moeda:** BRL - Real, USD - Dolar Americano, EUR - Euro ou Outra.
-*   **Taxa de Cambio:** Valor da cotacao (padrao: 1,0000 para BRL). Ao selecionar moeda estrangeira, o campo e liberado para digitacao.
-*   **Valor Mensal (R$):** Valor mensal em moeda com formatacao em tempo real.
-*   **Valor Base em BRL:** Calculado automaticamente a partir do Valor Mensal multiplicado pela Taxa de Cambio.
-*   **Valor Orcado por Lancamento:** Valor planejado na rubrica orcamentaria.
-*   **Impostos / Encargos (%):** Percentual estimado de tributacao com formatacao automatica (`0,00%`).
-*   **Contingencia (%):** Percentual de margem para variacoes operacionais.
-*   **Conta Contabil:** Codigo contabil do plano de contas (ex: 4.1.1.01.002).
-
-#### Secao 4: Regras de Reajuste & Base de Clientes
-*   **Criterio / Indice de Reajuste:** IPCA, IGP-M, INPC, Fixo / Sem Reajuste, Base de Clientes ou Personalizado.
-*   **Data do Reajuste & Caixa "Sem Reajuste":** Data prevista para aplicacao do reajuste. Caso o contrato seja fixo, marque **Sem Reajuste** (o campo de data e desabilitado).
-*   **Mes Aniversario (1 a 12):** Mes de vigencia em que incide o aniversario contratual.
-*   **Reajuste Aplicado (%):** Percentual de reajuste averbado na competencia.
-*   **Tabela de Valores por Base de Clientes:** Exibida dinamicamente quando selecionado o criterio "Base de Clientes". Permite preencher as faixas de clientes (Faixa De, Faixa Ate, Valor R$/Cliente e Descricao) e adicionar novas linhas pelo botao **+ Adicionar Faixa**.
-
-#### Secao 5: Governanca, Risco & Memoria de Calculo
-*   **Risco:** Classificacao do nivel de risco (`Baixo`, `Medio`, `Alto`).
-*   **Descricao do Risco / Contingencia:** Detalhamento dos fatores de risco operacional ou regras de contingencia.
-*   **Fonte / Memoria de Calculo:** Metodologia de apuracao, volumetria estimada ou premissas aplicadas.
-*   **Observacoes:** Anotacoes complementares e particularidades tecnicas.
-
-#### Secao 6: Arquivos do Contrato (Upload no Drive)
-*   Arraste e solte ou clique para selecionar os documentos do contrato (PDF, PNG, JPG, JPEG, DOCX, XLSX, ZIP).
-*   Os arquivos serao arquivados diretamente na subpasta oficial `01_Contrato_Principal`.
-
-4.  Clique no botao **Salvar Contrato** no rodape fixado.
-5.  O sistema gera o protocolo sequencial oficial (`BRISA-TEL-{ANO}-{ID}`), cria as pastas no Google Drive sob a gerencia indicada, faz o upload dos arquivos e grava o registro na base e na trilha de auditoria.
-
-### 3.4 Utilizar a Ficha 360° do Contrato
-Na lista de contratos vinculados ao parceiro, clique no botao **Ficha 360°**:
-*   **Aba Resumo & Cadastro:** Visao completa dos dados gerais, gerencia setorial, contrato/PO, CNPJ, vigencia, aviso previo, renovacao automatica, periodicidade e conta contabil.
-*   **Aba Financeiro & Reajustes:** Consulta do valor mensal, moeda, cambio, valor base BRL, valor orcado, impostos, contingencia, criterio de reajuste, data de reajuste, nivel de risco, descricao de contingencia, memoria de calculo e tabela de faixas por base de clientes.
-*   **Aba Documentos no Drive:** Acesso direto as 5 subpastas oficiais no Google Drive e upload de documentos complementares.
-*   **Aba Termos Aditivos:** Historico de aditamentos de valor e prazo.
-*   **Aba Auditoria & Certificado:** Historico cronologico de movimentacoes e botao de emissao do certificado com hash de autenticidade.
+A tela principal é composta por:
+1. **Cabeçalho Institucional:** Identificação do sistema, links rápidos para a Planilha Oficial e para o Google Drive da Telefonia.
+2. **Painel de Indicadores (KPIs):** Total de Contratos, Desembolso Mensal Previsto, Contratos com Vencimento em até 60 dias e Solicitações de Alteração Pendentes.
+3. **Navegação por Abas:**
+   - **Fornecedores & Contratos:** Visão consolidada em acordeão (drill-down).
+   - **Novo Fornecedor:** Cadastro de novos parceiros comerciais.
+   - **Central de Aprovações:** Governança formal de alterações, renovações e reajustes não programados.
+   - **Trilha Oficial de Auditoria:** Histórico imutável de todas as ações e decisões.
 
 ---
 
-## 4. Estrutura Padrao no Google Drive
+## 3. Gestão de Fornecedores
 
-Toda a documentacao e organizada estritamente dentro da estrutura padronizada criada pelo sistema:
+### 3.1 Título Principal por Apelido e Perfil Formal
+Na lista de fornecedores, o título principal em destaque é sempre o **Apelido (Nome Usual)** da empresa (ex: *Huawei*, *Cirion*, *Vogel*, *American Tower*), facilitando a identificação imediata pelos colaboradores da telefonia.
 
-```
-[DRIVE] Contratos - Gerência Executiva de Telefonia/
-│
-├── 00_Configuracoes_e_Modelos/
-│
-├── GESTAO TELEFONIA/
-├── OPERACAO E MANUTENCAO DE REDES/
-├── OPERACOES DE REDES/
-├── PROJETOS DE IMPLANTACAO/
-└── TELEFONIA/
-    │
-    └── {NOME_FORNECEDOR}/
-        └── CT-{ANO}-{ID} - {Objeto}/
-            ├── 01_Contrato_Principal/          -> Minutas e instrumento assinado
-            ├── 02_Termos_Aditivos/             -> Termos aditivos averbados
-            ├── 03_Documentos_Tecnicos/         -> Propostas comerciais, SLAs e topologias
-            ├── 04_Boletins_Medicao/            -> Relatorios e atestes de servicos
-            └── 05_Aprovacoes_e_Pareceres/      -> Evidencias de e-mails e despachos
-```
+Ao expandir o fornecedor, o painel exibe o **Perfil Formal do Fornecedor**, contendo:
+- Razão Social completa;
+- Nome Fantasia;
+- CNPJ formatado;
+- Contato Comercial e E-mail Comercial;
+- Link direto para a pasta exclusiva do fornecedor no Google Drive.
+
+### 3.2 Cadastro de Novo Fornecedor
+Para cadastrar um fornecedor:
+1. Acesse a aba **Novo Fornecedor**.
+2. Preencha os campos:
+   - **Razão Social:** Razão formal registrada na Receita Federal.
+   - **Nome Fantasia:** Nome de mercado.
+   - **Apelido (Nome Usual):** Nome mais conhecido internamente na telefonia (utilizado como título principal).
+   - **CNPJ:** Máscara automática (00.000.000/0000-00).
+   - **Telefone Comercial:** Formato com DDD.
+   - **E-mail Comercial:** Endereço para notificações e contatos.
+   - **Status de Homologação:** Ativo ou Em Homologação.
+   - **Observações Internas:** Notas operacionais.
+3. Clique em **Salvar Fornecedor**.
+4. O fornecedor já nasce validado e ativo, pronto para receber seus contratos.
 
 ---
 
-## 5. Boas Praticas e Padroes da Marca
+## 4. Cadastro de Novo Contrato
 
-*   **Identidade da Marca:** Refira-se sempre no feminino: **a brisanet**. A grafia da marca e sempre em caixa baixa (**brisanet** ou **brisa**).
-*   **Comunicacao Direta:** Textos curtos, objetivos e fundamentados, focados em conformidade tecnica e eficiencia operacional.
-*   **Zero Emojis:** E terminantemente proibida a utilizacao de emojis em titulos, despachos, relatorios, botoes, telas ou pareceres contratuais.
-*   **Suporte e Duvidas:** Entre em contato com a equipe da **Gestao Telefonia** pelo e-mail institucional corporativo.
+### 4.1 Abertura do Formulário
+Dentro do cartão do fornecedor correspondente, clique em **+ Novo Contrato** ou **+ Adicionar Contrato a este Fornecedor**. O formulário abre em janela modal com cantos arredondados preservados, rolagem interna suave e botões de ação fixos na base.
+
+### 4.2 Campos Obrigatórios e Estrutura dos 29 Atributos
+O cadastro contempla 6 blocos organizados:
+
+1. **Setor Responsável, Identificação & Objeto:**
+   - **Setor / Gerência da Telefonia:** Seleção obrigatória entre as 5 gerências (*GESTAO TELEFONIA*, *OPERACAO E MANUTENCAO DE REDES*, *OPERACOES DE REDES*, *PROJETOS DE IMPLANTACAO* e *TELEFONIA*). O contrato é automaticamente arquivado na pasta desta gerência no Google Drive.
+   - **Tipo de Contrato:** Voz / Telefonia, Dados, Torres, Software, Manutenção, etc.
+   - **CNPJ:** Preenchido e travado a partir do cadastro do fornecedor.
+   - **Contrato / PO:** Número formal do contrato ou pedido de compra.
+   - **Centro de Custo:** Código de centro de custo da telefonia.
+   - **Objeto do Contrato:** Descrição sucinta do escopo contratado.
+
+2. **Vigência, Prazos & Periodicidade:**
+   - **Início da Vigência:** Formato DD/MM/AAAA.
+   - **Término da Vigência:** Formato DD/MM/AAAA.
+   - **Vigência Indeterminada:** Ao marcar, o campo de término é limpo e desabilitado.
+   - **Aviso Prévio (Dias):** Padrão de 30 dias para notificações de rescisão.
+   - **Renovação Automática:** Sim ou Não.
+   - **Periodicidade:** Mensal, Bimestral, Trimestral, Semestral, Anual ou Único.
+   - **1ª Competência:** Data de referência inicial.
+
+3. **Valores Financeiros, Moeda & Orçamento:**
+   - **Moeda:** BRL, USD, EUR ou Outra.
+   - **Taxa de Câmbio:** Cotação para conversão cambial.
+   - **Valor Mensal:** Valor financeiro periódico com formatação automática de moeda.
+   - **Valor Base em BRL:** Cálculo automático sincronizado (Valor Mensal x Câmbio).
+   - **Valor Orçado por Lançamento:** Previsão contábil do orçamento.
+   - **Impostos / Encargos (%):** Percentual retido ou incidente.
+   - **Contingência (%):** Margem de segurança orçamentária.
+   - **Conta Contábil:** Classificação no plano de contas.
+
+4. **Regras de Reajuste & Base de Clientes:**
+   - **Critério / Índice de Reajuste:** IPCA, IGP-M, INPC, Fixo/Sem Reajuste, Base de Clientes ou Personalizado.
+   - **Caixa de Seleção "Sem Reajuste":** Desabilita campos de reajuste quando aplicável.
+   - **Data do Reajuste & Mês Aniversário:** Ciclo de aplicação do índice.
+   - **Reajuste Aplicado (%):** Percentual praticado.
+   - **Tabela de Faixas por Base de Clientes (com Seleção de Faixa Atual):**
+     Ao selecionar "Base de Clientes", uma tabela dinâmica permite adicionar faixas de assinantes. Na frente de cada faixa, há um botão de seleção ("bolinha" / radio button) para indicar em qual faixa o contrato se encontra atualmente, sincronizando o valor a faturar.
+
+5. **Governança, Risco & Memória de Cálculo:**
+   - **Risco:** Classificação formal (Baixo, Médio ou Alto).
+   - **Descrição do Risco / Contingência:** Análise de impacto e mitigação.
+   - **Fonte / Memória de Cálculo:** Referência técnica adotada.
+   - **Observações Gerais:** Informações complementares.
+
+6. **Anexar Arquivo Oficial do Contrato:**
+   - Upload de documentos (PDF, PNG, JPG, JPEG, DOCX, XLSX).
+   - O arquivo é transmitido e arquivado diretamente na subpasta oficial `01_Contrato_Principal` dentro do Google Drive da gerência selecionada.
+
+---
+
+## 5. Central de Aprovações & Governança de Mudanças
+
+### 5.1 Diretriz Operacional
+Todos os fornecedores e contratos cadastrados no sistema já nascem aprovados e ativos, pois sua formalização prévia foi verificada antes da inclusão no sistema.
+
+A **Central de Aprovações** é utilizada para governança de **Mudanças Contratuais**:
+- Alterações contratuais e de escopo;
+- Renovações de vigência (aditivos de prazo);
+- Reajustes não programados ou extraordinários;
+- Migração de faixas de faturamento por base de clientes.
+
+### 5.2 Fluxo de Solicitação e Decisão Formal
+1. O gestor abre a solicitação através do botão **+ Nova Solicitação de Alteração** ou na Ficha 360 do contrato (**Solicitar Alteração / Aprovação**).
+2. Informa o contrato alvo, o tipo de mudança, o detalhamento da proposta, a alçada requerida (Coordenador, Gerente ou Gerente Executivo), o e-mail do responsável e a justificativa técnica.
+3. O status do contrato passa para `Em Alteração (Aguardando Aprovação)`.
+4. O responsável notificado acessa a Central de Aprovações, avalia o memorial e registra sua decisão:
+   - **Aprovar:** O contrato retorna ao status `Vigente`, e a decisão é gravada com carimbo cronológico oficial.
+   - **Solicitar Ajustes:** O parecer descreve os apontamentos necessários para correções.
+5. Toda decisão gera registro imutável na Trilha Oficial de Auditoria e notificação aos envolvidos.
+
+---
+
+## 6. Alteração de Faixa Vigente (Base de Clientes)
+Quando o índice de reajuste for baseado em Base de Clientes:
+1. Abra a **Ficha 360** do contrato e acesse a aba **Financeiro**.
+2. A tabela de faixas destaca em verde qual faixa está em vigor atualmente.
+3. Se o número de assinantes migrar para uma nova faixa, clique no botão **Alterar Faixa Vigente**.
+4. Selecione a nova faixa e confirme.
+5. O sistema atualiza o valor mensal, recalcula o desembolso e registra a alteração na Trilha Oficial de Auditoria.
+
+---
+
+## 7. Trilha Oficial de Auditoria
+A aba **Trilha Oficial de Auditoria** registra todos os eventos operacionais do sistema com:
+- Protocolo sequencial do evento;
+- Data e hora exatas no fuso horário oficial (America/Fortaleza);
+- E-mail e perfil do responsável pela ação;
+- Tipo de ação realizada (Criação, Alteração, Upload de Anexo, Aprovação, Devolução);
+- Valores comparativos ("Antes" versus "Depois");
+- Justificativa técnica e parecer formal.
+
+Os registros não podem ser editados ou excluídos pelos usuários, servindo como registro oficial para auditorias internas e governança corporativa da brisanet.

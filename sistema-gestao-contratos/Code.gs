@@ -3916,19 +3916,26 @@ function solicitarAprovacaoContrato(payload) {
     var nextApRow = sheetAprov.getLastRow() + 1;
     var idAprovacao = 'APV-' + String(nextApRow - 1).padStart(5, '0');
 
+    var tipoSolicitacaoFinal = payload.tipoSolicitacao || 'Alteração Contratual';
+    var descricaoAlteracao = payload.descricaoAlteracao || '';
+    var justificativaCompleta = justificativa;
+    if (descricaoAlteracao) {
+      justificativaCompleta = 'Alteração: ' + descricaoAlteracao + ' | Justificativa: ' + justificativa;
+    }
+
     // Gravar aprovacao
     sheetAprov.appendRow([
       idAprovacao,
       idContrato,
       payload.idAditivo || '',
-      tipoSolicitacao,
+      tipoSolicitacaoFinal,
       userEmail,
       nowStr,
       aprovadorEmail,
       nivelAlcada,
       'Pendente',
       '',
-      justificativa,
+      justificativaCompleta,
       ''
     ]);
 
@@ -3936,7 +3943,7 @@ function solicitarAprovacaoContrato(payload) {
     var cData = sheetContratos.getDataRange().getValues();
     for (var i = 1; i < cData.length; i++) {
       if (String(cData[i][0]) === String(idContrato)) {
-        sheetContratos.getRange(i + 1, 7).setValue('Aguardando Aprovação'); // status
+        sheetContratos.getRange(i + 1, 7).setValue('Em Alteração (Aguardando Aprovação)'); // status
         sheetContratos.getRange(i + 1, 8).setValue('Pendente ' + nivelAlcada); // status_alcada
         sheetContratos.getRange(i + 1, 26).setValue(nowStr); // data_atualizacao
         break;
@@ -4202,8 +4209,8 @@ function salvarNovoContratoTelefonia(dados) {
       fornNome,
       dados.objeto || '',
       dados.tipo || 'Voz / Telefonia',
-      'Rascunho',
-      'Pendente de Submissão',
+      'Vigente',
+      'Aprovado',
       dados.dataInicio || '',
       dados.prazoIndeterminado ? '' : (dados.dataFim || ''),
       dados.prazoIndeterminado ? 'Sim' : 'Não',
@@ -4544,6 +4551,122 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       idFornecedor: fornId,
       razaoSocial: fornNome,
       message: 'Fornecedor salvo com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+/**
+ * Atualiza a faixa vigente na Tabela de Faixas por Base de Clientes de um contrato,
+ * recalculando o valor mensal do contrato e registrando na Trilha Oficial de Auditoria.
+ * @param {Object} payload { idContrato, indiceFaixa, novoValor }
+ * @return {Object}
+ */
+function atualizarFaixaBaseClientes(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var idContrato = payload.idContrato;
+    var indiceFaixa = parseInt(payload.indiceFaixa, 10);
+    var novoValorStr = payload.novoValor || '';
+    if (!idContrato || isNaN(indiceFaixa)) {
+      throw new Error('ID do contrato e indice da faixa sao obrigatorios.');
+    }
+
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    if (!sheetContratos) throw new Error('Aba de contratos nao localizada.');
+
+    var numCols = sheetContratos.getLastColumn();
+    var headers = sheetContratos.getRange(1, 1, 1, numCols).getValues()[0].map(function(h) {
+      return String(h).toLowerCase().trim();
+    });
+
+    var idxJson = headers.indexOf('tabela_base_clientes_json');
+    var idxValorAtual = headers.indexOf('valor_mensal_atual');
+    var idxDataAtualizacao = headers.indexOf('data_atualizacao');
+    if (idxJson === -1) idxJson = 27;
+    if (idxValorAtual === -1) idxValorAtual = 13;
+    if (idxDataAtualizacao === -1) idxDataAtualizacao = 25;
+
+    var cData = sheetContratos.getDataRange().getValues();
+    var targetRow = -1;
+    var rawJson = '';
+    var valorAnterior = 0;
+
+    for (var i = 1; i < cData.length; i++) {
+      if (String(cData[i][0]) === String(idContrato)) {
+        targetRow = i + 1;
+        rawJson = String(cData[i][idxJson] || '');
+        valorAnterior = normalizarNumero_(cData[i][idxValorAtual] || 0);
+        break;
+      }
+    }
+
+    if (targetRow === -1) {
+      throw new Error('Contrato nao localizado: ' + idContrato);
+    }
+
+    var faixas = [];
+    try {
+      if (rawJson) faixas = JSON.parse(rawJson);
+    } catch(eJson) {}
+
+    if (!Array.isArray(faixas) || faixas.length === 0) {
+      throw new Error('Este contrato nao possui tabela de faixas de base de clientes cadastrada.');
+    }
+
+    if (indiceFaixa < 0 || indiceFaixa >= faixas.length) {
+      throw new Error('Indice de faixa invalido: ' + indiceFaixa);
+    }
+
+    // Marcar a nova faixa como ativa e desmarcar as demais
+    var faixaAtivaNome = '';
+    var faixaAtivaValorNum = 0;
+    for (var f = 0; f < faixas.length; f++) {
+      if (f === indiceFaixa) {
+        faixas[f].atual = true;
+        faixaAtivaNome = faixas[f].de + ' a ' + faixas[f].ate + ' clientes';
+        faixaAtivaValorNum = normalizarNumero_(faixas[f].valor || 0);
+      } else {
+        faixas[f].atual = false;
+      }
+    }
+
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+    var userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestor.telefonia@grupobrisanet.com.br';
+
+    sheetContratos.getRange(targetRow, idxJson + 1).setValue(JSON.stringify(faixas));
+    if (faixaAtivaValorNum > 0) {
+      sheetContratos.getRange(targetRow, idxValorAtual + 1).setValue(faixaAtivaValorNum);
+    }
+    sheetContratos.getRange(targetRow, idxDataAtualizacao + 1).setValue(nowStr);
+
+    registrarLogAuditoriaOficial_(
+      'Contrato',
+      idContrato,
+      'Atualizacao de Faixa Vigente',
+      'Tabela Base de Clientes',
+      'R$ ' + valorAnterior.toFixed(2),
+      'R$ ' + faixaAtivaValorNum.toFixed(2) + ' (' + faixaAtivaNome + ')',
+      'Atualizacao operacional de faixa vigente na base de clientes pelo gestor responsavel.',
+      userEmail
+    );
+
+    return {
+      success: true,
+      novoValor: faixaAtivaValorNum,
+      faixaAtivaNome: faixaAtivaNome,
+      message: 'Faixa vigente da base de clientes atualizada com sucesso para ' + faixaAtivaNome + '.'
     };
   } catch (err) {
     return { success: false, error: err.message };
