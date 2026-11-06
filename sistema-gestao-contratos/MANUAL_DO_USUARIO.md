@@ -1,19 +1,22 @@
-# Manual do Usuário: Sistema de Gestão de Contratos
-**Gerência Executiva de Telefonia - Grupo Brisanet**
+# Manual do Usuario: Sistema de Gestao de Contratos
+**Gerencia Executiva de Telefonia - Grupo Brisanet**
 
 ---
 
-## 1. Apresentação e Objetivos do Sistema
+## 1. Apresentacao e Objetivos do Sistema
 
-O **Sistema de Gestão de Contratos da Telefonia** é a plataforma corporativa oficial desenvolvida exclusivamente para atender as operações, a esteira de governança e a gestão documental da **Gerência Executiva de Telefonia** d'**a brisanet**.
+O **Sistema de Gestao de Contratos da Telefonia** e a plataforma corporativa oficial desenvolvida exclusivamente para atender as operacoes, a esteira de governanca e a gestao documental da **Gerencia Executiva de Telefonia** d'**a brisanet**.
 
-### Principais Benefícios:
-*   **Base Oficial Dedicada:** A Telefonia opera em uma nova base independente denominada `Base Oficial de Contratos - Gerência Executiva de Telefonia`, garantindo isolamento total contra alterações na planilha anterior.
-*   **Visão Centrada no Fornecedor (Modelo Acordeão):** Apresentação consolidada dos parceiros comerciais com expansão imediata para a lista de contratos vinculados.
-*   **Repositório Oficial no Google Drive:** Criação e organização automática da pasta raiz `Contratos - Gerência Executiva de Telefonia` com 5 subpastas padronizadas por contrato e upload direto de arquivos (PDF, PNG, JPEG, DOCX).
-*   **Esteira Formal de Alçadas de Aprovação:** Fluxo integrado para validações formais de Coordenadores, Gerentes e Gerente Executivo.
-*   **Trilha Oficial de Auditoria Imutável:** Registro cronológico à prova de adulteração com data/hora no Horário de Brasília (UTC-3), e-mail corporativo, ação, valores antes/depois e pareceres.
-*   **Certificado Oficial de Conformidade:** Emissão de folha de rosto com assinatura digital em hash para anexação comprobatória.
+### Principais Beneficios:
+*   **Base Oficial Dedicada:** A Telefonia opera em uma nova base independente denominada `Base Oficial de Contratos - Gerência Executiva de Telefonia`, garantindo isolamento total contra alteracoes na planilha anterior.
+*   **Fluxo Centrado no Fornecedor:** O parceiro e cadastrado primeiro e, dentro do seu painel, sao cadastrados e anexados todos os contratos pertencentes a ele.
+*   **Estrutura por Gerencia no Google Drive:** A pasta raiz corporativa `Contratos - Gerência Executiva de Telefonia` e subdividida nas 5 gerencias que compoem a Telefonia, organizando fornecedores e contratos sob seus respectivos setores operacionais.
+*   **Mascaras e Formatacao em Tempo Real:** Digitacao assistida automatica com formatacao de CNPJ (`00.000.000/0000-00`), Moeda (`R$ 0,00`), Porcentagem (`0,00%`) e Telefone (`(00) 00000-0000`).
+*   **Reajuste por Base de Clientes:** Suporte dinamico a tabela de faixas de assinantes/clientes para contratos com modelo de tarifacao escalonada.
+*   **Animacao de Carregamento:** Indicador visual de processamento em tempo real garantindo que o usuario acompanhe o status das requisicoes.
+*   **Esteira Formal de Alcadas de Aprovacao:** Fluxo integrado para validacoes formais de Coordenadores, Gerentes e Gerente Executivo.
+*   **Trilha Oficial de Auditoria Imutavel:** Registro cronologico a prova de adulteracao com data/hora no Horario de Brasilia (UTC-3), e-mail corporativo, acao, valores antes/depois e pareceres.
+*   **Certificado Oficial de Conformidade:** Emissao de folha de rosto com assinatura digital em hash para anexacao comprovatoria.
 
 ---
 
@@ -22,122 +25,150 @@ O **Sistema de Gestão de Contratos da Telefonia** é a plataforma corporativa o
 O sistema pode ser acessado por dois canais oficiais:
 
 1.  **Acesso Direto via WebApp (Navegador):**
-    *   Utilize o link corporativo da aplicação web disponibilizado pela equipe de TI/Gestão Telefonia.
+    *   Utilize o link corporativo da aplicacao web disponibilizado pela equipe de TI/Gestao Telefonia.
     *   Certifique-se de estar conectado com sua conta corporativa do Google Workspace (`@grupobrisanet.com.br`).
 2.  **Acesso Integrado via Google Sheets:**
     *   Abra a Planilha Oficial de Contratos.
-    *   No menu superior, clique em **Gestão Telefonia** &rarr; **Abrir Painel Corporativo**.
+    *   No menu superior, clique em **Gestao Telefonia** -> **Abrir Painel Corporativo**.
 
 ---
 
-## 3. Guia Passo a Passo: Setor Administrativo (Gestão Telefonia)
+## 3. Guia Passo a Passo: Setor Administrativo (Gestao Telefonia)
 
-O setor **Gestão Telefonia** atua como operador mestre do sistema, responsável pelo cadastro, classificação documental, submissão de aprovações e controle de prazos.
+O setor **Gestao Telefonia** atua como operador mestre do sistema, responsavel pelo cadastro de fornecedores, inclusao e aditamento de contratos, classificacao documental, submissao de aprovacoes e controle de prazos.
 
-### 3.1 Navegação por Fornecedores e Contratos
-1.  Na aba superior, selecione **Fornecedores & Contratos**.
-2.  Visualize os cartões dos fornecedores cadastrados. Cada cartão exibe:
-    *   Razão Social e CNPJ do fornecedor.
-    *   Status de homologação (`Ativo`, `Em Homologação`).
-    *   Total de contratos ativos e valor mensal consolidado.
-    *   Botão **Drive** com link direto para a pasta do fornecedor no Google Drive.
-3.  **Para visualizar os contratos:** Clique sobre o cartão do fornecedor. O acordeão se expandirá, revelando a tabela de contratos vinculados.
-4.  Utilize a barra de pesquisa superior para filtrar rapidamente por nome do fornecedor, CNPJ, número de protocolo ou objeto do serviço.
+### 3.1 Cadastrar um Novo Fornecedor
+1.  Na barra de navegacao superior, clique na aba **Novo Fornecedor**.
+2.  Preencha os campos obrigatorios:
+    *   **Razao Social:** Nome empresarial completo.
+    *   **Nome Fantasia:** Nome operacional do fornecedor.
+    *   **CNPJ:** Digite apenas os numeros; o sistema aplica a mascara `00.000.000/0000-00` automaticamente.
+    *   **Segmento / Categoria:** Selecione a especialidade (Equipamentos de Telecom, Voz, Servicos de Rede, Infraestrutura, etc.).
+    *   **Telefone de Contato:** Digite os numeros com DDD; a mascara `(00) 00000-0000` sera aplicada.
+    *   **E-mail Corporativo e Nome do Ponto de Contato.**
+3.  Clique no botao **Salvar Fornecedor**.
+4.  O sistema cadastra o fornecedor, valida a chave e atualiza a visao geral.
 
-### 3.2 Cadastrar um Novo Contrato e Provisionar o Drive
-1.  Clique na aba superior **Novo Contrato**.
-2.  **Seção 1 - Fornecedor:** Informe a Razão Social, Nome Fantasia, CNPJ e o Objeto resumido da contratação.
-3.  **Seção 2 - Vigência:** Selecione a modalidade (Voz, Links Dedicados, Torres, Infraestrutura, etc.) e a data de início da vigência. Caso o contrato não possua data de encerramento prevista, marque a caixa **Vigência Indeterminada** (o campo de data final será desabilitado e limpo automaticamente).
-4.  **Seção 3 - Financeiro & Classificação:** Preencha o valor mensal em R$, índice de reajuste contratual (IPCA, IGP-M, etc.), mês de aniversário, centro de custo e o e-mail do gestor técnico.
-5.  **Seção 4 - Documentos e Arquivo do Contrato:** Arraste e solte ou clique na área de upload para anexar os arquivos do contrato (PDF, PNG, JPEG, DOCX, XLSX). O sistema codifica os documentos e envia diretamente para a subpasta oficial `01_Contrato_Principal` dentro da pasta do fornecedor no Google Drive.
-6.  Clique em **Cadastrar Contrato, Anexar Arquivos e Criar Pastas no Drive**.
-7.  **O que o sistema faz automaticamente:**
-    *   Gera o protocolo sequencial oficial no padrão `BRISA-TEL-{ANO}-{ID}`.
-    *   Cria a pasta do fornecedor no Google Drive caso seja um parceiro novo.
-    *   Cria a pasta do contrato com as **5 subpastas padronizadas**:
-        *   `01_Contrato_Principal`
-        *   `02_Termos_Aditivos`
-        *   `03_Documentos_Tecnicos`
-        *   `04_Boletins_Medicao`
-        *   `05_Aprovacoes_e_Pareceres`
-    *   Faz o upload dos arquivos anexados para a subpasta `01_Contrato_Principal`.
-    *   Registra o evento inaugural e o upload na Trilha Oficial de Auditoria.
+### 3.2 Visualizar Fornecedores e Contratos (Painel Fornecedores & Contratos)
+1.  Acesse a aba **Fornecedores & Contratos**.
+2.  Visualize os cartoes de cada parceiro homologado:
+    *   Razao Social, CNPJ formatado e status de homologacao.
+    *   Total de contratos vinculados e desembolso mensal consolidado.
+    *   Botao de link direto para a pasta do fornecedor no Drive.
+3.  **Para expandir os contratos:** Clique sobre o cabecalho do cartao do fornecedor. A lista de contratos vinculados se abrira em formato de tabela detalhada.
+4.  Utilize o campo de busca superior para localizar parceiros por razao social, CNPJ ou servicos prestados.
 
-### 3.3 Utilizar a Ficha 360° do Contrato
-Na lista de contratos vinculados ao fornecedor, clique no botão **Abrir Ficha 360°**:
-*   **Aba Resumo & Cadastro:** Visão completa dos dados gerais, partes e contatos.
-*   **Aba Financeiro & Reajustes:** Consulta do valor mensal, índice acordado e comprometimento financeiro anual.
-*   **Aba Documentos no Drive:** Visualização e acesso direto às 5 subpastas de documentos no Google Drive.
-*   **Aba Termos Aditivos:** Histórico acumulado de acréscimos de valor ou prorrogações de vigência.
-*   **Aba Auditoria & Certificado:** Linha do tempo com histórico de aprovações e botão para emissão da folha de rosto oficial.
+### 3.3 Adicionar Contrato a um Fornecedor Existente
+1.  No cartao do fornecedor desejado, clique no botao **+ Novo Contrato** (ou no botao "+ Adicionar Contrato" dentro da tabela expandida).
+2.  O modal de cadastro de contrato sera aberto com os dados do fornecedor ja associados.
+3.  **Setor da Gerencia Executiva de Telefonia (Obrigatorio):**
+    *   Selecione a qual das 5 gerencias o contrato pertence:
+        *   `GESTAO TELEFONIA`
+        *   `OPERACAO E MANUTENCAO DE REDES`
+        *   `OPERACOES DE REDES`
+        *   `PROJETOS DE IMPLANTACAO`
+        *   `TELEFONIA`
+4.  **Dados do Contrato e Vigencia:**
+    *   Informe o Objeto Resumido do Contrato.
+    *   Selecione a Modalidade e a Data de Inicio da Vigencia.
+    *   Caso a contratacao nao tenha prazo de encerramento determinado, marque **Vigencia Indeterminada** (o campo de data final sera desabilitado).
+5.  **Financeiro e Indice de Reajuste:**
+    *   Preencha o Valor Mensal (o sistema formata em `R$ 0,00` automaticamente).
+    *   No campo **Criterio / Indice de Reajuste**, selecione o indice (ex: `IPCA`, `IGP-M`, `INPC`, `Fixo / Sem Reajuste` ou `Base de Clientes`).
+    *   **Quando selecionado "Base de Clientes":** O sistema exibe a **Tabela de Faixas por Base de Clientes**. Preencha as faixas de assinantes (ex: 0 a 50.000, 50.001 a 100.000), o valor acordado e a descricao da faixa. Clique em **+ Adicionar Faixa** para novas linhas.
+    *   Preencha o Mes de Reajuste, Centro de Custo e E-mail do Gestor Tecnico.
+6.  **Upload do Arquivo Contratual:**
+    *   Arraste e solte ou selecione o arquivo do contrato (PDF, PNG, JPEG, DOCX, XLSX).
+7.  Clique no botao **Salvar Contrato**.
+8.  **Automacoes executadas pelo sistema:**
+    *   Gera o codigo oficial do contrato (`BRISA-TEL-{ANO}-{ID}`).
+    *   Cria/identifica a pasta da gerencia selecionada no Google Drive.
+    *   Cria a pasta do fornecedor dentro da gerencia respectiva.
+    *   Cria a pasta oficial do contrato com as 5 subpastas padronizadas (`01_Contrato_Principal`, `02_Termos_Aditivos`, `03_Documentos_Tecnicos`, `04_Boletins_Medicao`, `05_Aprovacoes_e_Pareceres`).
+    *   Faz o upload do arquivo para a subpasta `01_Contrato_Principal`.
+    *   Registra a criacao na Trilha Oficial de Auditoria.
 
-### 3.4 Submeter Contrato para Aprovação Formal
-1.  Dentro da Ficha 360° do contrato, clique em **Submeter para Aprovação**.
-2.  Selecione a alçada correspondente:
-    *   `Coordenador`: Aprovação técnica de escopo e volumetria.
-    *   `Gerente`: Validação de orçamento e alçada tática.
-    *   `Gerente Executivo`: Contratos de grande porte ou decisões estratégicas.
-3.  Informe o e-mail institucional do aprovador e redija a **Justificativa Operacional / Parecer Técnico**.
-4.  Clique em **Enviar para Aprovação**. O contrato passa imediatamente para o status `Aguardando Aprovação` e o aprovador recebe uma notificação por e-mail com as instruções de decisão.
+### 3.4 Utilizar a Ficha 360° do Contrato
+Na lista de contratos vinculados ao fornecedor, clique no botao **Ficha 360°**:
+*   **Aba Resumo & Cadastro:** Visao completa dos dados gerais, partes, setor/gerencia responsavel e vigencia.
+*   **Aba Financeiro & Reajustes:** Consulta do valor mensal, criterio/indice acordado e, quando aplicavel, a tabela detalhada de faixas por base de clientes.
+*   **Aba Documentos no Drive:** Links de acesso direto as 5 subpastas oficiais no Google Drive.
+*   **Aba Termos Aditivos:** Historico de aditamentos de valor e prazo.
+*   **Aba Auditoria & Certificado:** Historico cronologico de movimentacoes e botao de emissao do certificado com hash de autenticidade.
 
-### 3.5 Emitir o Certificado Oficial de Auditoria
+### 3.5 Submeter Contrato para Aprovacao Formal
+1.  Na Ficha 360° do contrato, clique em **Submeter para Aprovacao**.
+2.  Selecione a alcada correspondente:
+    *   `Coordenador`: Aprovacao tecnica de escopo e volumetria.
+    *   `Gerente`: Validacao de orcamento e alcada tatica.
+    *   `Gerente Executivo`: Contratos de grande porte ou decisoes estrategicas.
+3.  Informe o e-mail institucional do aprovador e redija a **Justificativa Operacional / Parecer Tecnico**.
+4.  Clique em **Enviar para Aprovacao**. O status mudara para `Aguardando Aprovacao` e o aprovador recebera a notificacao por e-mail.
+
+### 3.6 Emitir o Certificado Oficial de Auditoria
 1.  Na Ficha 360° do contrato, acesse a aba **Auditoria & Certificado**.
 2.  Clique em **Gerar Certificado de Auditoria**.
-3.  O sistema compilará em tela a folha oficial com:
-    *   Identificação visual institucional d'**a brisanet**.
-    *   Dados contratuais e financeiros vigentes.
-    *   Cronologia completa e imutável de todas as decisões tomadas.
-    *   Assinatura digital com hash de autenticidade no padrão `BRISA-AUDIT-...`.
-4.  Clique em **Imprimir / Salvar PDF** para arquivamento ou anexação no processo.
+3.  O sistema gerara a folha oficial com:
+    *   Identificacao institucional d'**a brisanet**.
+    *   Dados contratuais, setor da telefonia e valores vigentes.
+    *   Cronologia completa e imutavel de todas as decisoes tomadas.
+    *   Assinatura digital com hash de autenticidade no padrao `BRISA-AUDIT-...`.
+4.  Clique em **Imprimir / Salvar PDF** para arquivamento ou anexacao formal.
 
 ---
 
 ## 4. Guia Passo a Passo: Aprovadores (Coordenador, Gerente e Gerente Executivo)
 
-Os aprovadores exercem papel decisório na governança dos contratos da Telefonia, avaliando a conformidade técnica e orçamentária.
+Os aprovadores exercem papel decisorio na governanca dos contratos da Telefonia, avaliando conformidade tecnica e orcamentaria.
 
-### 4.1 Recebimento da Solicitação
-*   Ao ser indicado em uma esteira de aprovação, você receberá um e-mail com o assunto:  
+### 4.1 Recebimento da Solicitacao
+*   Ao ser indicado em uma esteira de aprovacao, voce recebera um e-mail com o assunto:
     `[brisanet] Solicitacao de Aprovacao de Contrato - {Alcada} (CT #{ID})`.
-*   O e-mail contém o resumo do objeto, valor mensal, solicitante e o link de acesso rápido.
+*   O e-mail contem o resumo do objeto, gerencia da telefonia, valor mensal, solicitante e o link de acesso rapido.
 
-### 4.2 Decisão na Central de Aprovações
-1.  Acesse o sistema e clique na aba **Central de Aprovações**.
-2.  Localize a solicitação atribuída à sua alçada.
-3.  Analise os dados do contrato, a justificativa do solicitante e, se necessário, consulte a pasta de documentos no Drive.
+### 4.2 Decisao na Central de Aprovacoes
+1.  Acesse o sistema e clique na aba **Central de Aprovacoes**.
+2.  Localize a solicitacao atribuida a sua alcada.
+3.  Analise os dados do contrato, a justificativa do solicitante e consulte a pasta de documentos no Drive se necessario.
 4.  **Para Aprovar:**
-    *   Clique no botão verde **Aprovar**.
-    *   Confirme o registro da aprovação formal. Sua decisão será autenticada digitalmente e o solicitante será informado.
+    *   Clique no botao verde **Aprovar**.
+    *   Confirme o registro da aprovacao formal. Sua decisao sera autenticada digitalmente e o solicitante sera informado.
 5.  **Para Solicitar Ajustes (Devolver):**
-    *   Clique no botão terracota **Solicitar Ajustes**.
-    *   No modal que se abrirá, preencha o campo **Parecer Oficial / Apontamentos** descrevendo de forma detalhada o que precisa ser corrigido ou complementado.
-    *   Clique em **Confirmar Registro**. O contrato retornará imediatamente à Gestão Telefonia com o status `Devolvido para Ajustes`.
+    *   Clique no botao terracota **Solicitar Ajustes**.
+    *   No modal que se abrira, preencha o campo **Parecer Oficial / Apontamentos** descrevendo de forma detalhada o que precisa ser corrigido ou complementado.
+    *   Clique em **Confirmar Registro**. O contrato retornara imediatamente a Gestao Telefonia com o status `Devolvido para Ajustes`.
 
 ---
 
-## 5. Estrutura Padrão no Google Drive
+## 5. Estrutura Padrao no Google Drive
 
-Toda a documentação deve ser organizada estritamente dentro da estrutura padronizada criada pelo sistema:
+Toda a documentacao e organizada estritamente dentro da estrutura padronizada criada pelo sistema:
 
 ```
 [DRIVE] Contratos - Gerência Executiva de Telefonia/
 │
 ├── 00_Configuracoes_e_Modelos/
 │
-├── {NOME_FORNECEDOR}/
-│   └── CT-{ANO}-{ID} - {Objeto}/
-│       ├── 01_Contrato_Principal/          -> Minutas e instrumento assinado
-│       ├── 02_Termos_Aditivos/             -> Termos aditivos averbados
-│       ├── 03_Documentos_Tecnicos/         -> Propostas comerciais, SLAs e topologias
-│       ├── 04_Boletins_Medicao/            -> Relatórios e atestes de serviços
-│       └── 05_Aprovacoes_e_Pareceres/      -> Evidências de e-mails e despachos
+├── GESTAO TELEFONIA/
+├── OPERACAO E MANUTENCAO DE REDES/
+├── OPERACOES DE REDES/
+├── PROJETOS DE IMPLANTACAO/
+└── TELEFONIA/
+    │
+    └── {NOME_FORNECEDOR}/
+        └── CT-{ANO}-{ID} - {Objeto}/
+            ├── 01_Contrato_Principal/          -> Minutas e instrumento assinado
+            ├── 02_Termos_Aditivos/             -> Termos aditivos averbados
+            ├── 03_Documentos_Tecnicos/         -> Propostas comerciais, SLAs e topologias
+            ├── 04_Boletins_Medicao/            -> Relatorios e atestes de servicos
+            └── 05_Aprovacoes_e_Pareceres/      -> Evidencias de e-mails e despachos
 ```
 
 ---
 
-## 6. Boas Práticas e Padrões da Marca
+## 6. Boas Praticas e Padroes da Marca
 
-*   **Identidade da Marca:** Refira-se sempre no feminino: **a brisanet**. A grafia da marca é sempre em caixa baixa (**brisanet** ou **brisa**).
-*   **Comunicação Direta:** Textos curtos, objetivos e fundamentados, focados em conformidade técnica e eficiência operacional.
-*   **Zero Emojis:** É proibida a utilização de emojis em títulos, despachos, relatórios ou pareceres contratuais.
-*   **Suporte e Dúvidas:** Entre em contato com a equipe da **Gestão Telefonia** pelo e-mail institucional corporativo.
+*   **Identidade da Marca:** Refira-se sempre no feminino: **a brisanet**. A grafia da marca e sempre em caixa baixa (**brisanet** ou **brisa**).
+*   **Comunicacao Direta:** Textos curtos, objetivos e fundamentados, focados em conformidade tecnica e eficiencia operacional.
+*   **Zero Emojis:** E terminantemente proibida a utilizacao de emojis em titulos, despachos, relatorios, botoes, telas ou pareceres contratuais.
+*   **Suporte e Duvidas:** Entre em contato com a equipe da **Gestao Telefonia** pelo e-mail institucional corporativo.

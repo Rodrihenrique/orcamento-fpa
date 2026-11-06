@@ -33,7 +33,15 @@ var CONFIG = {
   // Prefixo oficial para protocolo formatado da Telefonia
   PROTOCOL_PREFIX: 'BRISA-TEL',
   // Fuso horario oficial para registro e exibicao de datas e logs (Horario de Brasilia UTC-3)
-  TIMEZONE: 'America/Fortaleza'
+  TIMEZONE: 'America/Fortaleza',
+  // As 5 Gerencias oficiais da Gerencia Executiva de Telefonia
+  GERENCIAS_TELEFONIA: [
+    'GESTAO TELEFONIA',
+    'OPERACAO E MANUTENCAO DE REDES',
+    'OPERACOES DE REDES',
+    'PROJETOS DE IMPLANTACAO',
+    'TELEFONIA'
+  ]
 };
 
 
@@ -3028,6 +3036,23 @@ function obterOuCriarPastaRaizTelefonia_() {
     rootFolder.createFolder('00_Configuracoes_e_Modelos');
   }
 
+  // Assegurar as 5 pastas oficiais das Gerencias da Telefonia
+  var gerencias = CONFIG.GERENCIAS_TELEFONIA || [
+    'GESTAO TELEFONIA',
+    'OPERACAO E MANUTENCAO DE REDES',
+    'OPERACOES DE REDES',
+    'PROJETOS DE IMPLANTACAO',
+    'TELEFONIA'
+  ];
+
+  for (var g = 0; g < gerencias.length; g++) {
+    var gName = gerencias[g];
+    var gFolders = rootFolder.getFoldersByName(gName);
+    if (!gFolders.hasNext()) {
+      rootFolder.createFolder(gName);
+    }
+  }
+
   return rootFolder;
 }
 
@@ -3036,24 +3061,53 @@ function obterOuCriarPastaRaizTelefonia_() {
  * @param {string} nomeFornecedor Nome ou Razao Social do Fornecedor
  * @return {GoogleAppsScript.Drive.Folder} Pasta do fornecedor
  */
-function obterOuCriarPastaFornecedor_(nomeFornecedor) {
+/**
+ * Obtem ou cria a pasta de uma das 5 Gerencias da Telefonia.
+ * @param {string} nomeGerencia
+ * @return {GoogleAppsScript.Drive.Folder}
+ */
+function obterOuCriarPastaGerencia_(nomeGerencia) {
   var rootFolder = obterOuCriarPastaRaizTelefonia_();
+  var gerencias = CONFIG.GERENCIAS_TELEFONIA || [
+    'GESTAO TELEFONIA',
+    'OPERACAO E MANUTENCAO DE REDES',
+    'OPERACOES DE REDES',
+    'PROJETOS DE IMPLANTACAO',
+    'TELEFONIA'
+  ];
+
+  var targetName = String(nomeGerencia || 'TELEFONIA').trim().toUpperCase();
+  var match = gerencias.find(function(g) { return g.toUpperCase() === targetName; }) || 'TELEFONIA';
+
+  var folders = rootFolder.getFoldersByName(match);
+  if (folders.hasNext()) return folders.next();
+  return rootFolder.createFolder(match);
+}
+
+/**
+ * Obtem ou cria a pasta do fornecedor dentro da pasta da respectiva Gerencia.
+ * @param {string} nomeFornecedor Nome ou Razao Social do Fornecedor
+ * @param {string} [nomeGerencia] Nome da Gerencia pertencente
+ * @return {GoogleAppsScript.Drive.Folder} Pasta do fornecedor
+ */
+function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
+  var parentFolder = nomeGerencia ? obterOuCriarPastaGerencia_(nomeGerencia) : obterOuCriarPastaRaizTelefonia_();
   var sanitizedName = String(nomeFornecedor || 'Fornecedor_Sem_Nome')
     .replace(/[\\/:*?"<>|]/g, '_')
     .trim();
   if (!sanitizedName) sanitizedName = 'Fornecedor_Geral';
 
-  var folders = rootFolder.getFoldersByName(sanitizedName);
+  var folders = parentFolder.getFoldersByName(sanitizedName);
   if (folders.hasNext()) {
     return folders.next();
   }
-  return rootFolder.createFolder(sanitizedName);
+  return parentFolder.createFolder(sanitizedName);
 }
 
 /**
- * Cria a estrutura oficial de 5 subpastas padronizadas para um contrato.
+ * Cria a estrutura oficial de 5 subpastas padronizadas para um contrato dentro de sua respectiva Gerencia e Fornecedor.
  * Estrutura:
- *   [Fornecedor]/CT-{ANO}-{ID} - {Objeto}/
+ *   [GERENCIA] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} /
  *     01_Contrato_Principal
  *     02_Termos_Aditivos
  *     03_Documentos_Tecnicos
@@ -3062,10 +3116,11 @@ function obterOuCriarPastaFornecedor_(nomeFornecedor) {
  * @param {string} nomeFornecedor
  * @param {string|number} idContrato
  * @param {string} objeto
+ * @param {string} [nomeGerencia]
  * @return {Object} Metadados da pasta e subpastas criadas
  */
-function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto) {
-  var supplierFolder = obterOuCriarPastaFornecedor_(nomeFornecedor);
+function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nomeGerencia) {
+  var supplierFolder = obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia);
   var ano = new Date().getFullYear();
   var idFormatado = String(idContrato || '0000').padStart(4, '0');
   var objetoResumido = String(objeto || 'Sem_Objeto')
@@ -3614,11 +3669,19 @@ function obterDadosCompletosTelefonia() {
         var cat = String(row[5] || '').trim();
         if (cat) categoriasSet[cat] = true;
 
+        var setorGerencia = String(row[26] || 'TELEFONIA').trim();
+        var tabelaBaseClientesJson = String(row[27] || '');
+        var tabelaBaseClientes = [];
+        try {
+          if (tabelaBaseClientesJson) tabelaBaseClientes = JSON.parse(tabelaBaseClientesJson);
+        } catch(eJson) {}
+
         var contractItem = {
           id: idNum,
           protocolo: String(row[1] || ('BRISA-TEL-' + new Date().getFullYear() + '-' + String(idNum).padStart(4, '0'))),
           idFornecedor: String(row[2] || ''),
           fornecedor: fornNome,
+          setorGerencia: setorGerencia,
           objeto: String(row[4] || ''),
           tipo: String(row[5] || 'Voz / Telefonia'),
           status: status,
@@ -3632,6 +3695,7 @@ function obterDadosCompletosTelefonia() {
           variacaoMesAMesValor: normalizarNumero_(row[14]),
           variacaoMesAMesPercentual: normalizarPorcentagem_(row[15]),
           indiceReajuste: String(row[16] || 'IPCA'),
+          tabelaBaseClientes: tabelaBaseClientes,
           mesAniversario: row[17] || 1,
           centroCusto: cc,
           contaContabil: String(row[19] || ''),
@@ -3736,7 +3800,8 @@ function obterDadosCompletosTelefonia() {
       contratos: contractsList,
       aprovacoes: aprovacoesList,
       centrosCusto: Object.keys(centrosCustoSet),
-      categorias: Object.keys(categoriasSet)
+      categorias: Object.keys(categoriasSet),
+      gerencias: CONFIG.GERENCIAS_TELEFONIA
     };
   } catch (err) {
     return {
@@ -4012,7 +4077,9 @@ function salvarNovoContratoTelefonia(dados) {
     var fornNome = String(dados.fornecedor || '').trim();
     if (!fornNome) throw new Error('Nome do fornecedor e obrigatorio.');
 
-    // Descobrir proximo ID
+    var setorGerencia = String(dados.setorGerencia || 'TELEFONIA').trim().toUpperCase();
+
+    // Descobrir proximo ID sequencial
     var lastRow = sheetContratos.getLastRow();
     var nextId = 1;
     if (lastRow > 1) {
@@ -4026,18 +4093,17 @@ function salvarNovoContratoTelefonia(dados) {
     var ano = new Date().getFullYear();
     var protocolo = 'BRISA-TEL-' + ano + '-' + String(nextId).padStart(4, '0');
 
-    // Provisionar estrutura no Drive
-    var driveStructure = obterOuCriarEstruturaContrato_(fornNome, nextId, dados.objeto);
+    // Provisionar estrutura no Drive dentro da Gerencia correspondente
+    var driveStructure = obterOuCriarEstruturaContrato_(fornNome, nextId, dados.objeto, setorGerencia);
 
     // Verificar se fornecedor ja existe
-    var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
+    var fornId = dados.idFornecedor || ('FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15));
     var fornecedorJaExiste = false;
     var fData = sheetFornecedores.getDataRange().getValues();
     for (var f = 1; f < fData.length; f++) {
       if (String(fData[f][1]).toLowerCase().trim() === fornNome.toLowerCase()) {
         fornecedorJaExiste = true;
         fornId = String(fData[f][0]);
-        // Atualizar pasta do fornecedor se vazia
         if (!fData[f][6] && driveStructure.supplierFolderId) {
           sheetFornecedores.getRange(f + 1, 7).setValue(driveStructure.supplierFolderId);
         }
@@ -4061,6 +4127,9 @@ function salvarNovoContratoTelefonia(dados) {
     }
 
     var valorBase = normalizarNumero_(dados.valorMensal || 0);
+    var tabelaBaseClientesJson = (dados.tabelaBaseClientes && Array.isArray(dados.tabelaBaseClientes))
+      ? JSON.stringify(dados.tabelaBaseClientes)
+      : '';
 
     sheetContratos.appendRow([
       nextId,
@@ -4072,7 +4141,7 @@ function salvarNovoContratoTelefonia(dados) {
       'Rascunho',
       'Pendente de Submissão',
       dados.dataInicio || '',
-      dados.dataFim || '',
+      dados.prazoIndeterminado ? '' : (dados.dataFim || ''),
       dados.prazoIndeterminado ? 'Sim' : 'Não',
       dados.avisoPrevio || 30,
       valorBase,
@@ -4088,23 +4157,12 @@ function salvarNovoContratoTelefonia(dados) {
       driveStructure.supplierFolderId,
       dados.observacoes || '',
       nowStr,
-      nowStr
+      nowStr,
+      setorGerencia,
+      tabelaBaseClientesJson
     ]);
 
-    // Gravar auditoria
-    registrarLogAuditoriaOficial_(
-      'Contrato',
-      nextId,
-      'Criacao de Contrato',
-      'Todos',
-      '-',
-      protocolo,
-      'Contrato cadastrado com sucesso e estrutura no Drive provisionada.',
-      Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
-    );
-
-    
-    // Fazer upload dos arquivos anexados (PDF, PNG, JPEG, etc.) diretamente na pasta do contrato
+    // Fazer upload dos arquivos anexados (PDF, PNG, JPEG, etc.) diretamente na subpasta 01_Contrato_Principal
     var arquivosSalvos = [];
     if (dados.arquivos && dados.arquivos.length > 0 && driveStructure.contractFolderId) {
       var contractFolder = DriveApp.getFolderById(driveStructure.contractFolderId);
@@ -4139,7 +4197,7 @@ function salvarNovoContratoTelefonia(dados) {
               subpastaNome,
               '-',
               file.getName(),
-              'Arquivo arquivado na subpasta ' + subpastaNome,
+              'Arquivo arquivado na subpasta ' + subpastaNome + ' da gerencia ' + setorGerencia,
               Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
             );
           } catch (eArq) {
@@ -4148,6 +4206,17 @@ function salvarNovoContratoTelefonia(dados) {
         }
       }
     }
+
+    registrarLogAuditoriaOficial_(
+      'Contrato',
+      nextId,
+      'Criacao de Contrato',
+      'Todos',
+      '-',
+      protocolo,
+      'Contrato cadastrado no setor ' + setorGerencia + ' com ' + arquivosSalvos.length + ' anexos.',
+      Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
+    );
 
     return {
       success: true,
@@ -4326,5 +4395,76 @@ function gerarCertificadoAuditoriaContrato(idContrato) {
     };
   } catch (err) {
     return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Salva um novo fornecedor no sistema de Telefonia.
+ * Cria o registro na aba Fornecedores e gera log oficial na trilha de auditoria.
+ * @param {Object} dadosFornecedor
+ * @return {Object}
+ */
+function salvarNovoFornecedorTelefonia(dadosFornecedor) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    if (!sheetFornecedores) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    }
+
+    var fornNome = String(dadosFornecedor.razaoSocial || '').trim();
+    if (!fornNome) throw new Error('Razao Social do fornecedor e obrigatoria.');
+
+    var fData = sheetFornecedores.getDataRange().getValues();
+    for (var f = 1; f < fData.length; f++) {
+      if (String(fData[f][1]).toLowerCase().trim() === fornNome.toLowerCase()) {
+        throw new Error('Fornecedor ja cadastrado no sistema: ' + fornNome);
+      }
+    }
+
+    var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
+    var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+
+    sheetFornecedores.appendRow([
+      fornId,
+      fornNome,
+      dadosFornecedor.nomeFantasia || fornNome,
+      dadosFornecedor.cnpj || '',
+      dadosFornecedor.contatoComercial || '',
+      dadosFornecedor.emailComercial || '',
+      '',
+      dadosFornecedor.status || 'Ativo',
+      nowStr
+    ]);
+
+    registrarLogAuditoriaOficial_(
+      'Fornecedor',
+      fornId,
+      'Cadastro de Fornecedor',
+      'Todos',
+      '-',
+      fornNome,
+      'Fornecedor cadastrado com sucesso: ' + fornNome,
+      Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
+    );
+
+    return {
+      success: true,
+      idFornecedor: fornId,
+      razaoSocial: fornNome,
+      message: 'Fornecedor salvo com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
   }
 }
