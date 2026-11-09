@@ -186,26 +186,28 @@ A **Central de Aprovações** é utilizada para governança de **Mudanças Contr
 
 ---
 
-## 9. Aba Log de Alterações (Geral)
+## 9. Aba Log de Alterações & Histórico na Ficha 360°
 
 A aba **Log de Alterações** transforma a governança do sistema em uma central ativa de acompanhamento e monitoramento de alterações contratuais:
+- **Visual em Acordeon por Contrato:**
+  - Cada contrato cadastrado com histórico possui seu próprio card de acordeon executivo.
+  - O cabeçalho do card exibe o Apelido / Razão Social do fornecedor, protocolo do contrato, gerência/setor, objeto resumido, badge de status e contador de alterações registradas.
+  - Clicando no cabeçalho do contrato, o card se expande ou se recolhe suavemente.
+  - Botões de controle rápido no topo: **Expandir Todos**, **Recolher Todos**, **Limpar Filtros** e **Atualizar Log**.
+  - Eventos não vinculados a um contrato específico (como cadastro de novos fornecedores e alterações de permissões de gestores) são organizados no card *Cadastros Gerais, Fornecedores & Governança*.
+- **Linha do Tempo (Timeline) Executiva:**
+  - Tanto na página geral de logs quanto dentro do modal de **Ficha 360°** (aba *Log de Alterações*), o histórico é exibido em uma linha do tempo vertical limpa, profissional e responsiva, eliminando tabelas largas que ultrapassavam os limites da tela e removendo a coluna desnecessária de protocolo de log.
+  - Cada evento da linha do tempo exibe:
+    - Marcador colorido por natureza da ação (azul para cadastros, âmbar para reajustes/alterações de faixa, verde para aprovações).
+    - Badge da ação realizada e carimbo de data e hora no padrão `DD/MM/AAAA - HH:MM:SS`.
+    - E-mail corporativo do responsável e badge de sua gerência/papel.
+    - Comparativo visual de alteração (*Antes vs Depois*) com tag do campo afetado.
+    - Caixa de Justificativa e Parecer formal com layout elegante.
 - **Filtros Multidimensionais:**
-  - **Filtro por Gerência:** Permite selecionar qualquer uma das gerências da Telefonia.
+  - **Filtro por Gerência:** Permite isolar os contratos de qualquer gerência específica da Telefonia.
   - **Filtro por Fornecedor:** Dropdown dinâmico com todos os fornecedores da base.
-  - **Filtro por Contrato:** Dropdown dinâmico com todos os protocolos de contratos cadastrados.
-  - **Busca Textual em Tempo Real:** Pesquisa rápida por protocolo, fornecedor, responsável, ação ou justificativa.
-  - **Limpar Filtros:** Restaura a visualização padrão com um clique.
-- **Tabela Estruturada em 10 Colunas:**
-  1. Protocolo / ID do Log
-  2. Data e Horário (DD/MM/AAAA - HH:MM:SS)
-  3. Responsável (E-mail corporativo)
-  4. Papel / Alçada
-  5. Gerência / Setor
-  6. Fornecedor
-  7. Ação Realizada (Badge colorida)
-  8. Campo Afetado
-  9. Antes versus Depois (Destaque visual de transição de valores)
-  10. Justificativa / Parecer Formal
+  - **Filtro por Contrato:** Dropdown dinâmico com todos os contratos cadastrados.
+  - **Busca Textual em Tempo Real:** Pesquisa rápida por fornecedor, responsável, ação ou justificativa.
 
 ---
 

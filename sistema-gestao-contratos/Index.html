@@ -1221,6 +1221,312 @@
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
+
+    /* ==========================================================================
+       LOG DE ALTERACOES - VISUAL EM ACORDEON POR CONTRATO & LINHA DO TEMPO
+       ========================================================================== */
+    .log-accordion-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      transition: all var(--transition-fast);
+      overflow: hidden;
+    }
+
+    .log-accordion-card:hover {
+      border-color: #CBD5E1;
+      box-shadow: var(--shadow-md);
+    }
+
+    .log-accordion-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      cursor: pointer;
+      background: #FFFFFF;
+      user-select: none;
+      transition: background var(--transition-fast);
+    }
+
+    .log-accordion-header:hover {
+      background: #F8FAFC;
+    }
+
+    .log-accordion-info {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .log-accordion-topline {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .log-contract-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--brisa-dark-blue);
+      letter-spacing: -0.2px;
+    }
+
+    .log-contract-proto {
+      font-family: monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brisa-blue);
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .log-contract-objeto {
+      font-size: 12px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 650px;
+    }
+
+    .log-accordion-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-shrink: 0;
+    }
+
+    .log-events-badge {
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brisa-blue);
+      background: #EEF2FF;
+      border: 1px solid #C7D2FE;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    .log-chevron-icon {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+      transition: transform var(--transition-fast);
+    }
+
+    .log-accordion-card.collapsed .log-chevron-icon {
+      transform: rotate(0deg);
+    }
+
+    .log-accordion-card:not(.collapsed) .log-chevron-icon {
+      transform: rotate(180deg);
+    }
+
+    .log-accordion-body {
+      padding: 20px 24px;
+      background: #FAFBFD;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .log-accordion-card.collapsed .log-accordion-body {
+      display: none;
+    }
+
+    /* Linha do Tempo (Timeline) */
+    .timeline-container {
+      position: relative;
+      padding-left: 28px;
+      margin: 4px 0;
+    }
+
+    .timeline-container::before {
+      content: '';
+      position: absolute;
+      top: 10px;
+      bottom: 12px;
+      left: 8px;
+      width: 2px;
+      background: #E2E8F0;
+    }
+
+    .timeline-item {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .timeline-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .timeline-marker {
+      position: absolute;
+      left: -28px;
+      top: 8px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #FFFFFF;
+      border: 3px solid var(--brisa-blue);
+      box-shadow: 0 0 0 3px rgba(34, 66, 212, 0.12);
+      z-index: 2;
+    }
+
+    .timeline-marker.marker-change {
+      border-color: #FF5022;
+      box-shadow: 0 0 0 3px rgba(255, 80, 34, 0.15);
+    }
+
+    .timeline-marker.marker-approval {
+      border-color: #16A34A;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.15);
+    }
+
+    .timeline-marker.marker-create {
+      border-color: #2242D4;
+      box-shadow: 0 0 0 3px rgba(34, 66, 212, 0.15);
+    }
+
+    .timeline-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      padding: 14px 18px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+      transition: all var(--transition-fast);
+    }
+
+    .timeline-card:hover {
+      border-color: #CBD5E1;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .timeline-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #F1F5F9;
+    }
+
+    .timeline-header-left {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .timeline-action-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .timeline-action-badge.badge-create {
+      background: #EEF2FF;
+      color: #2242D4;
+      border: 1px solid #C7D2FE;
+    }
+
+    .timeline-action-badge.badge-update {
+      background: #FFF7ED;
+      color: #C2410C;
+      border: 1px solid #FFEDD5;
+    }
+
+    .timeline-action-badge.badge-approval {
+      background: #F0FDF4;
+      color: #15803D;
+      border: 1px solid #BBF7D0;
+    }
+
+    .timeline-timestamp {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--brisa-dark-blue);
+      letter-spacing: -0.2px;
+    }
+
+    .timeline-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .timeline-user-email {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--brisa-blue);
+    }
+
+    .timeline-diff-box {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 12px;
+    }
+
+    .timeline-field-tag {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .diff-old {
+      color: #DC2626;
+      text-decoration: line-through;
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .diff-arrow {
+      color: var(--text-muted);
+      font-weight: 700;
+      margin: 0 2px;
+    }
+
+    .diff-new {
+      color: #16A34A;
+      font-weight: 700;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      padding: 2px 7px;
+      border-radius: 4px;
+    }
+
+    .timeline-justification {
+      margin-top: 8px;
+      padding: 8px 12px;
+      background: #F8FAFC;
+      border-left: 3px solid #CBD5E1;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--text-body);
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -1501,9 +1807,9 @@
         <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
-        <input type="text" id="filtroAuditoriaTexto" class="search-input" placeholder="Buscar por Protocolo, Fornecedor, Responsável, Ação ou Justificativa..." oninput="filtrarAuditoria()">
+        <input type="text" id="filtroAuditoriaTexto" class="search-input" placeholder="Buscar por Fornecedor, Responsável, Ação ou Justificativa..." oninput="filtrarAuditoria()">
       </div>
-      <select id="filtroLogGerencia" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 180px;">
+      <select id="filtroLogGerencia" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 170px;">
         <option value="">Gerência: Todas</option>
         <option value="GESTAO TELEFONIA">GESTAO TELEFONIA</option>
         <option value="OPERACAO E MANUTENCAO DE REDES">OPERACAO E MANUTENCAO DE REDES</option>
@@ -1511,12 +1817,18 @@
         <option value="PROJETOS DE IMPLANTACAO">PROJETOS DE IMPLANTACAO</option>
         <option value="TELEFONIA">TELEFONIA</option>
       </select>
-      <select id="filtroLogFornecedor" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 180px;">
+      <select id="filtroLogFornecedor" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 170px;">
         <option value="">Fornecedor: Todos</option>
       </select>
-      <select id="filtroLogContrato" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 180px;">
+      <select id="filtroLogContrato" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 170px;">
         <option value="">Contrato: Todos</option>
       </select>
+      <button type="button" class="btn btn-secondary" onclick="expandirTodosLogs()" title="Expandir todos os contratos">
+        Expandir Todos
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="recolherTodosLogs()" title="Recolher todos os contratos">
+        Recolher Todos
+      </button>
       <button type="button" class="btn btn-secondary" onclick="limparFiltrosAuditoria()" title="Limpar todos os filtros">
         Limpar Filtros
       </button>
@@ -1525,25 +1837,11 @@
       </button>
     </div>
 
-    <div style="background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); overflow: hidden;">
-      <table class="contracts-table" style="margin-top: 0;">
-        <thead>
-          <tr>
-            <th>Protocolo / Log</th>
-            <th>Data e Horário</th>
-            <th>Responsável</th>
-            <th>Papel</th>
-            <th>Gerência / Setor</th>
-            <th>Fornecedor</th>
-            <th>Ação Realizada</th>
-            <th>Campo</th>
-            <th>Antes vs Depois</th>
-            <th>Justificativa / Parecer</th>
-          </tr>
-        </thead>
-        <tbody id="tabelaAuditoriaBody"></tbody>
-      </table>
-    </div>
+    <!-- Barra de Resumo Executivo dos Logs -->
+    <div id="resumoAuditoriaBar" style="display: flex; justify-content: space-between; align-items: center; margin: 10px 4px 16px; font-size: 12px; font-weight: 700; color: var(--brisa-dark-blue);"></div>
+
+    <!-- Container em Acordeon por Contrato com Linha do Tempo -->
+    <div id="containerLogsAcordeao" style="display: flex; flex-direction: column; gap: 14px;"></div>
   </div>
 
 </div>
@@ -2060,6 +2358,7 @@
     contratoSelecionado: null,
     abaFichaAtiva: 'resumo',
     fornecedoresExpandidos: {},
+    logsExpandidos: {},
     arquivosModalContrato: []
   };
 
@@ -2328,6 +2627,31 @@
     // Renderizar Banner de Alertas de Reajuste Periodico (5 dias antes)
     renderizarBannerAlertasReajuste();
 
+    // Garantir calculo correto de desembolso mensal e orcamento anual a partir dos contratos
+    var totalMensalCalc = 0;
+    var contratosAtivosCalc = 0;
+    if (appState.contratos && appState.contratos.length > 0) {
+      for (var ci = 0; ci < appState.contratos.length; ci++) {
+        var cItem = appState.contratos[ci];
+        var cStatus = String(cItem.status || '').toLowerCase();
+        var cAlcada = String(cItem.statusAlcada || '').toLowerCase();
+        var isEncerrado = cStatus.indexOf('cancel') !== -1 || cStatus.indexOf('encerr') !== -1 || cStatus.indexOf('rescind') !== -1 || cStatus.indexOf('inativ') !== -1;
+        var isAtivo = !isEncerrado && (cStatus.indexOf('vigen') !== -1 || cStatus.indexOf('ativ') !== -1 || cAlcada.indexOf('aprov') !== -1 || !cStatus);
+        if (isAtivo) {
+          contratosAtivosCalc++;
+          var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || parseFloat(cItem.valorBaseBrl) || 0;
+          totalMensalCalc += valContrato;
+        }
+      }
+    }
+    if (!appState.kpis.valorMensalTotal || appState.kpis.valorMensalTotal === 0) {
+      appState.kpis.valorMensalTotal = totalMensalCalc;
+      appState.kpis.valorAnualComprometido = totalMensalCalc * 12;
+    }
+    if (!appState.kpis.contratosAtivos || appState.kpis.contratosAtivos === 0) {
+      appState.kpis.contratosAtivos = contratosAtivosCalc;
+    }
+
     // Atualizar KPIs
     document.getElementById('statFornecedores').textContent = appState.kpis.totalFornecedores || appState.fornecedores.length;
     document.getElementById('statContratosAtivos').textContent = appState.kpis.contratosAtivos || 0;
@@ -2377,14 +2701,31 @@
       html += '      <span class="badge-status ' + statusClass + '">' + escapeHtml(f.status || 'Ativo') + '</span>';
       html += '    </div>';
 
+      var fValorMensal = f.valorMensalTotal;
+      var fContratosAtivos = f.contratosAtivos;
+      if ((!fValorMensal || fValorMensal === 0) && f.contratos && f.contratos.length > 0) {
+        fValorMensal = 0;
+        fContratosAtivos = 0;
+        f.contratos.forEach(function(c) {
+          var cSt = String(c.status || '').toLowerCase();
+          var cAlc = String(c.statusAlcada || '').toLowerCase();
+          var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 || cSt.indexOf('inativ') !== -1;
+          var isAt = !isEnc && (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt);
+          if (isAt) {
+            fContratosAtivos++;
+            fValorMensal += (parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0);
+          }
+        });
+      }
+
       html += '    <div class="supplier-metrics">';
       html += '      <div class="metric-chip">';
       html += '        <span class="metric-chip-label">Contratos Ativos</span>';
-      html += '        <span class="metric-chip-val">' + (f.contratosAtivos || 0) + ' de ' + (f.totalContratos || 0) + '</span>';
+      html += '        <span class="metric-chip-val">' + (fContratosAtivos || 0) + ' de ' + (f.totalContratos || (f.contratos ? f.contratos.length : 0)) + '</span>';
       html += '      </div>';
       html += '      <div class="metric-chip">';
       html += '        <span class="metric-chip-label">Desembolso Mensal</span>';
-      html += '        <span class="metric-chip-val">' + formatarMoedaBRL(f.valorMensalTotal || 0) + '</span>';
+      html += '        <span class="metric-chip-val">' + formatarMoedaBRL(fValorMensal || 0) + '</span>';
       html += '      </div>';
       var driveFolderId = f.pastaDriveId || (f.contratos && f.contratos.length > 0 && (f.contratos[0].pastaFornecedorDriveId || f.contratos[0].pastaDriveId)) || '';
 
@@ -3147,50 +3488,14 @@
       if (contractLogs.length === 0) {
         body.innerHTML = '<div style="text-align:center; padding:40px 20px; color:var(--text-muted); background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">' +
           '<div style="font-size:14px; font-weight:700; color:var(--brisa-dark-blue); margin-bottom:4px;">Nenhuma alteração registrada</div>' +
-          '<div style="font-size:12px;">Todas as alterações contratuais, reajustes e aprovações deste contrato serão registradas automaticamente nesta trilha.</div>' +
+          '<div style="font-size:12px;">Todas as alterações contratuais, reajustes e aprovações deste contrato serão registradas automaticamente nesta linha do tempo.</div>' +
           '</div>';
       } else {
-        var logsHtml = '<div style="overflow-x:auto;">' +
-          '<table class="contracts-table" style="margin-top:0; font-size:12px;">' +
-          '<thead><tr>' +
-          '  <th>Protocolo / Log</th>' +
-          '  <th>Data e Horário</th>' +
-          '  <th>Responsável</th>' +
-          '  <th>Papel</th>' +
-          '  <th>Ação Realizada</th>' +
-          '  <th>Campo</th>' +
-          '  <th>Antes vs Depois</th>' +
-          '  <th>Justificativa / Parecer</th>' +
-          '</tr></thead><tbody>';
-
-        contractLogs.forEach(function(l) {
-          var badgeClass = 'ativo';
-          var acaoLower = (l.acao || '').toLowerCase();
-          if (acaoLower.indexOf('exclus') !== -1 || acaoLower.indexOf('devolv') !== -1 || acaoLower.indexOf('ajuste') !== -1) {
-            badgeClass = 'em-risco';
-          } else if (acaoLower.indexOf('solicit') !== -1 || acaoLower.indexOf('altera') !== -1 || acaoLower.indexOf('atualiz') !== -1) {
-            badgeClass = 'analise';
-          }
-
-          logsHtml += '<tr>' +
-            '<td><span class="protocol-chip">' + escapeHtml(l.idLog || '-') + '</span></td>' +
-            '<td style="white-space:nowrap; font-weight:600; color:var(--brisa-dark-blue);">' + formatarDataHoraAuditoria(l.timestamp) + '</td>' +
-            '<td><div style="font-weight:700; color:var(--brisa-blue);">' + escapeHtml(l.usuarioEmail || '-') + '</div></td>' +
-            '<td><span class="badge-setor">' + escapeHtml(l.papelUsuario || 'Usuário') + '</span></td>' +
-            '<td><span class="badge-status ' + badgeClass + '">' + escapeHtml(l.acao || '-') + '</span></td>' +
-            '<td style="color:var(--text-muted); font-size:11px;">' + escapeHtml(l.campoAfetado || '-') + '</td>' +
-            '<td style="font-size:11px;">';
-
-          if (l.valorAnterior && l.valorAnterior !== '-' && l.valorAnterior !== l.novoValor) {
-            logsHtml += '<span style="color:#DC2626; text-decoration:line-through;">' + escapeHtml(l.valorAnterior) + '</span> &rarr; ';
-          }
-          logsHtml += '<span style="color:#16A34A; font-weight:700;">' + escapeHtml(l.novoValor || '-') + '</span></td>' +
-            '<td style="font-size:11px; max-width:240px;">' + escapeHtml(l.justificativa || '-') + '</td>' +
-            '</tr>';
-        });
-
-        logsHtml += '</tbody></table></div>';
-        body.innerHTML = logsHtml;
+        body.innerHTML = '<div style="margin-bottom: 14px; font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue); display: flex; justify-content: space-between; align-items: center;">' +
+          '<span>Histórico de Alterações e Governança</span>' +
+          '<span class="log-events-badge">' + contractLogs.length + ' ' + (contractLogs.length === 1 ? 'evento registrado' : 'eventos registrados') + '</span>' +
+          '</div>' +
+          gerarHtmlLinhaDoTempo(contractLogs);
       }
 
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
@@ -3635,10 +3940,84 @@
     renderizarTrilhaAuditoria('');
   }
 
+  // Gerador Modular de Linha do Tempo (Timeline) para Contratos e Auditoria
+  function gerarHtmlLinhaDoTempo(logsArray) {
+    if (!logsArray || logsArray.length === 0) {
+      return '<div style="text-align: center; padding: 24px; color: var(--text-muted); font-size: 12px;">Nenhum evento registrado nesta linha do tempo.</div>';
+    }
+
+    var html = '<div class="timeline-container">';
+    logsArray.forEach(function(l) {
+      var acaoLower = (l.acao || '').toLowerCase();
+      var markerClass = 'marker-change';
+      var badgeClass = 'badge-update';
+
+      if (acaoLower.indexOf('criac') !== -1 || acaoLower.indexOf('cadastr') !== -1 || acaoLower.indexOf('inclus') !== -1) {
+        markerClass = 'marker-create';
+        badgeClass = 'badge-create';
+      } else if (acaoLower.indexOf('aprov') !== -1 || acaoLower.indexOf('homolog') !== -1) {
+        markerClass = 'marker-approval';
+        badgeClass = 'badge-approval';
+      }
+
+      var formattedTime = formatarDataHoraAuditoria(l.timestamp);
+
+      html += '<div class="timeline-item">';
+      html += '  <div class="timeline-marker ' + markerClass + '"></div>';
+      html += '  <div class="timeline-card">';
+
+      // Cabecalho do Evento: Acao + Data/Hora | Usuario + Papel
+      html += '    <div class="timeline-header">';
+      html += '      <div class="timeline-header-left">';
+      html += '        <span class="timeline-action-badge ' + badgeClass + '">' + escapeHtml(l.acao || 'Alteração') + '</span>';
+      html += '        <span class="timeline-timestamp">' + escapeHtml(formattedTime) + '</span>';
+      html += '      </div>';
+      html += '      <div class="timeline-header-right">';
+      html += '        <span class="timeline-user-email">' + escapeHtml(l.usuarioEmail || '-') + '</span>';
+      html += '        <span class="badge-setor">' + escapeHtml(l.papelUsuario || 'Usuário') + '</span>';
+      html += '      </div>';
+      html += '    </div>';
+
+      // Dados de Alteracao / Antes vs Depois
+      var temCampo = l.campoAfetado && l.campoAfetado !== '-' && l.campoAfetado !== 'Todos';
+      var temDiff = (l.valorAnterior && l.valorAnterior !== '-' && l.valorAnterior !== l.novoValor);
+      var temNovoValor = l.novoValor && l.novoValor !== '-';
+
+      if (temCampo || temDiff || temNovoValor) {
+        html += '    <div class="timeline-diff-box">';
+        if (temCampo) {
+          html += '      <span class="timeline-field-tag">' + escapeHtml(l.campoAfetado) + '</span>';
+        }
+        if (temDiff) {
+          html += '      <span class="diff-old">' + escapeHtml(l.valorAnterior) + '</span>';
+          html += '      <span class="diff-arrow">&rarr;</span>';
+          html += '      <span class="diff-new">' + escapeHtml(l.novoValor) + '</span>';
+        } else if (temNovoValor) {
+          html += '      <span class="diff-new">' + escapeHtml(l.novoValor) + '</span>';
+        }
+        html += '    </div>';
+      }
+
+      // Justificativa / Parecer
+      if (l.justificativa && l.justificativa !== '-') {
+        html += '    <div class="timeline-justification">';
+        html += '      <strong>Justificativa / Parecer:</strong> ' + escapeHtml(l.justificativa);
+        html += '    </div>';
+      }
+
+      html += '  </div>';
+      html += '</div>';
+    });
+
+    html += '</div>';
+    return html;
+  }
+
   // Log de Alteracoes Contratuais & Auditoria
   function renderizarTrilhaAuditoria(filtroTexto) {
-    var tbody = document.getElementById('tabelaAuditoriaBody');
-    if (!tbody) return;
+    var container = document.getElementById('containerLogsAcordeao');
+    var resumoBar = document.getElementById('resumoAuditoriaBar');
+    if (!container) return;
 
     var logs = appState.logs || [];
     var inputFiltro = document.getElementById('filtroAuditoriaTexto');
@@ -3679,10 +4058,10 @@
       });
     }
 
+    // Filtro por Texto Livre
     if (termo) {
       logs = logs.filter(function(l) {
-        return (l.idLog || '').toLowerCase().indexOf(termo) !== -1 ||
-          (l.usuarioEmail || '').toLowerCase().indexOf(termo) !== -1 ||
+        return (l.usuarioEmail || '').toLowerCase().indexOf(termo) !== -1 ||
           (l.acao || '').toLowerCase().indexOf(termo) !== -1 ||
           (l.entidade || '').toLowerCase().indexOf(termo) !== -1 ||
           (l.idRegistro || '').toLowerCase().indexOf(termo) !== -1 ||
@@ -3695,42 +4074,167 @@
     }
 
     if (logs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px;">' +
-        ((termo || gerenciaVal || fornVal || contratoVal) ? 'Nenhum registro de alteração encontrado com os filtros selecionados.' : 'Nenhum registro de log encontrado na planilha oficial.') +
-        '</td></tr>';
+      if (resumoBar) resumoBar.innerHTML = '<span>0 alterações encontradas</span>';
+      container.innerHTML = '<div style="text-align: center; padding: 48px 24px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-subtle);">' +
+        '<div style="font-size: 15px; font-weight: 700; color: var(--brisa-dark-blue); margin-bottom: 6px;">Nenhum registro de alteração localizado</div>' +
+        '<div style="font-size: 13px;">Tente ajustar os filtros ou o termo de busca para visualizar o histórico de eventos.</div>' +
+        '</div>';
       return;
     }
 
-    var html = '';
-    logs.forEach(function(l) {
-      var badgeClass = 'ativo';
-      var acaoLower = (l.acao || '').toLowerCase();
-      if (acaoLower.indexOf('exclus') !== -1 || acaoLower.indexOf('devolv') !== -1 || acaoLower.indexOf('ajuste') !== -1) {
-        badgeClass = 'em-risco';
-      } else if (acaoLower.indexOf('solicit') !== -1 || acaoLower.indexOf('altera') !== -1 || acaoLower.indexOf('atualiz') !== -1) {
-        badgeClass = 'analise';
-      }
+    // Agrupar logs por contrato
+    var contractsGroupMap = {};
+    var generalLogs = [];
 
-      html += '<tr>';
-      html += '  <td><span class="protocol-chip">' + escapeHtml(l.idLog || '-') + '</span></td>';
-      html += '  <td style="font-size: 12px; font-weight: 600; color: var(--brisa-dark-blue); white-space: nowrap;">' + formatarDataHoraAuditoria(l.timestamp) + '</td>';
-      html += '  <td><div style="font-weight: 700; color: var(--brisa-blue); font-size: 12px;">' + escapeHtml(l.usuarioEmail || '-') + '</div></td>';
-      html += '  <td><span class="badge-setor">' + escapeHtml(l.papelUsuario || 'Usuário') + '</span></td>';
-      html += '  <td>' + (l.setorGerencia ? '<span class="badge-setor">' + escapeHtml(l.setorGerencia) + '</span>' : '<span style="color:var(--text-muted); font-size:11px;">-</span>') + '</td>';
-      html += '  <td>' + (l.fornecedor ? ('<strong>' + escapeHtml(l.fornecedor) + '</strong>') : ('<span style="font-size:11px;">' + escapeHtml(l.entidade || '') + ' #' + escapeHtml(l.idRegistro || '') + '</span>')) + '</td>';
-      html += '  <td><span class="badge-status ' + badgeClass + '">' + escapeHtml(l.acao || '-') + '</span></td>';
-      html += '  <td style="font-size: 11px; color: var(--text-muted);">' + escapeHtml(l.campoAfetado || '-') + '</td>';
-      html += '  <td style="font-size: 11px;">';
-      if (l.valorAnterior && l.valorAnterior !== '-' && l.valorAnterior !== l.novoValor) {
-        html += '<span style="color: #DC2626; text-decoration: line-through;">' + escapeHtml(l.valorAnterior) + '</span> &rarr; ';
-      }
-      html += '<span style="color: #16A34A; font-weight: 700;">' + escapeHtml(l.novoValor || '-') + '</span>';
-      html += '  </td>';
-      html += '  <td style="font-size: 11px; max-width: 250px; color: var(--text-primary);">' + escapeHtml(l.justificativa || '-') + '</td>';
-      html += '</tr>';
+    // Mapeamento de contratos conhecidos para informacoes ricas
+    var knownContracts = {};
+    (appState.contratos || []).forEach(function(ct) {
+      var key = String(ct.protocolo || ct.id);
+      knownContracts[key] = ct;
+      knownContracts[String(ct.id)] = ct;
+      if (ct.protocolo) knownContracts[String(ct.protocolo).toLowerCase()] = ct;
     });
 
-    tbody.innerHTML = html;
+    logs.forEach(function(l) {
+      var cKey = '';
+      if (l.protocolo && knownContracts[l.protocolo]) {
+        cKey = knownContracts[l.protocolo].protocolo;
+      } else if (l.idContrato && knownContracts[String(l.idContrato)]) {
+        cKey = knownContracts[String(l.idContrato)].protocolo;
+      } else if (l.idRegistro && knownContracts[String(l.idRegistro)]) {
+        cKey = knownContracts[String(l.idRegistro)].protocolo;
+      } else if (l.protocolo) {
+        cKey = l.protocolo;
+      } else if (l.idContrato) {
+        cKey = 'Contrato #' + l.idContrato;
+      }
+
+      if (cKey) {
+        if (!contractsGroupMap[cKey]) {
+          var matched = knownContracts[cKey] || knownContracts[String(l.idContrato)] || null;
+          contractsGroupMap[cKey] = {
+            key: cKey,
+            protocolo: (matched && matched.protocolo) ? matched.protocolo : (l.protocolo || cKey),
+            fornecedor: (matched && matched.fornecedor) ? matched.fornecedor : (l.fornecedor || 'Fornecedor'),
+            objeto: (matched && matched.objeto) ? matched.objeto : '',
+            setorGerencia: (matched && matched.setorGerencia) ? matched.setorGerencia : (l.setorGerencia || ''),
+            status: (matched && matched.status) ? matched.status : 'Vigente',
+            logs: []
+          };
+        }
+        contractsGroupMap[cKey].logs.push(l);
+      } else {
+        generalLogs.push(l);
+      }
+    });
+
+    var contractKeys = Object.keys(contractsGroupMap);
+    var totalEventos = logs.length;
+    var totalContratosComLogs = contractKeys.length;
+
+    if (resumoBar) {
+      resumoBar.innerHTML = '<span>' + totalContratosComLogs + ' ' + (totalContratosComLogs === 1 ? 'Contrato com histórico' : 'Contratos com histórico') + ' &bull; ' + totalEventos + ' ' + (totalEventos === 1 ? 'evento registrado' : 'eventos registrados') + '</span>' +
+        '<span style="font-weight: 500; font-size: 11px; color: var(--text-muted);">Clique no cabeçalho de cada contrato para recolher ou expandir a linha do tempo</span>';
+    }
+
+    var html = '';
+
+    // Renderizar cada contrato como um card acordeon
+    contractKeys.forEach(function(cKey, idx) {
+      var grp = contractsGroupMap[cKey];
+      var cardId = 'log_card_' + idx;
+      var isCollapsed = (appState.logsExpandidos && appState.logsExpandidos[cardId] === false);
+
+      html += '<div class="log-accordion-card ' + (isCollapsed ? 'collapsed' : '') + '" id="' + cardId + '">';
+      html += '  <div class="log-accordion-header" onclick="alternarAcordeaoLog(\'' + cardId + '\')">';
+      html += '    <div class="log-accordion-info">';
+      html += '      <div class="log-accordion-topline">';
+      html += '        <span class="log-contract-title">' + escapeHtml(grp.fornecedor) + '</span>';
+      html += '        <span class="log-contract-proto">' + escapeHtml(grp.protocolo) + '</span>';
+      if (grp.setorGerencia) {
+        html += '        <span class="badge-setor">' + escapeHtml(grp.setorGerencia) + '</span>';
+      }
+      if (grp.status) {
+        html += '        <span class="badge-status ativo">' + escapeHtml(grp.status) + '</span>';
+      }
+      html += '      </div>';
+      if (grp.objeto) {
+        html += '      <div class="log-contract-objeto" title="' + escapeHtml(grp.objeto) + '">' + escapeHtml(grp.objeto) + '</div>';
+      }
+      html += '    </div>';
+      html += '    <div class="log-accordion-meta">';
+      html += '      <span class="log-events-badge">' + grp.logs.length + ' ' + (grp.logs.length === 1 ? 'alteração' : 'alterações') + '</span>';
+      html += '      <svg class="log-chevron-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">';
+      html += '        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+      html += '      </svg>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <div class="log-accordion-body">';
+      html += gerarHtmlLinhaDoTempo(grp.logs);
+      html += '  </div>';
+      html += '</div>';
+    });
+
+    // Registros Gerais (Cadastros de Fornecedores, Acessos, etc.)
+    if (generalLogs.length > 0) {
+      var genCardId = 'log_card_general';
+      var isGenCollapsed = (appState.logsExpandidos && appState.logsExpandidos[genCardId] === false);
+
+      html += '<div class="log-accordion-card ' + (isGenCollapsed ? 'collapsed' : '') + '" id="' + genCardId + '">';
+      html += '  <div class="log-accordion-header" onclick="alternarAcordeaoLog(\'' + genCardId + '\')">';
+      html += '    <div class="log-accordion-info">';
+      html += '      <div class="log-accordion-topline">';
+      html += '        <span class="log-contract-title">Cadastros Gerais, Fornecedores & Governança</span>';
+      html += '        <span class="badge-setor">SISTEMA</span>';
+      html += '      </div>';
+      html += '      <div class="log-contract-objeto">Eventos gerais de cadastro de parceiros, permissões e operações do sistema</div>';
+      html += '    </div>';
+      html += '    <div class="log-accordion-meta">';
+      html += '      <span class="log-events-badge">' + generalLogs.length + ' ' + (generalLogs.length === 1 ? 'registro' : 'registros') + '</span>';
+      html += '      <svg class="log-chevron-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">';
+      html += '        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+      html += '      </svg>';
+      html += '    </div>';
+      html += '  </div>';
+      html += '  <div class="log-accordion-body">';
+      html += gerarHtmlLinhaDoTempo(generalLogs);
+      html += '  </div>';
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  function alternarAcordeaoLog(cardId) {
+    if (!appState.logsExpandidos) appState.logsExpandidos = {};
+    var card = document.getElementById(cardId);
+    if (!card) return;
+    var willCollapse = !card.classList.contains('collapsed');
+    if (willCollapse) {
+      card.classList.add('collapsed');
+      appState.logsExpandidos[cardId] = false;
+    } else {
+      card.classList.remove('collapsed');
+      appState.logsExpandidos[cardId] = true;
+    }
+  }
+
+  function expandirTodosLogs() {
+    if (!appState.logsExpandidos) appState.logsExpandidos = {};
+    var cards = document.querySelectorAll('.log-accordion-card');
+    cards.forEach(function(c) {
+      c.classList.remove('collapsed');
+      if (c.id) appState.logsExpandidos[c.id] = true;
+    });
+  }
+
+  function recolherTodosLogs() {
+    if (!appState.logsExpandidos) appState.logsExpandidos = {};
+    var cards = document.querySelectorAll('.log-accordion-card');
+    cards.forEach(function(c) {
+      c.classList.add('collapsed');
+      if (c.id) appState.logsExpandidos[c.id] = false;
+    });
   }
 
   function filtrarAuditoria() {

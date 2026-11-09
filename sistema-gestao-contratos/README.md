@@ -23,5 +23,5 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 
 ## Estrutura dos Arquivos
 - `Code.gs`: Backend em Google Apps Script gerenciando Google Sheets relacional (45 colunas na aba Contratos e 10 colunas em Acessos_Alcadas), Google Drive, disparo de e-mails formais e trilha de auditoria.
-- `Index.html`: Frontend responsivo em HTML5, CSS3 e JavaScript nativo com modais com cantos arredondados (16px), acordeão de fornecedores, máscaras de preenchimento, Ficha 360°, banner de alertas e Log de Alterações filtrado.
+- `Index.html`: Frontend responsivo em HTML5, CSS3 e JavaScript nativo com modais com cantos arredondados (16px), acordeão de fornecedores, máscaras de preenchimento, Ficha 360°, banner de alertas e Log de Alterações em acordeão por contrato com linha do tempo executiva.
 - `MANUAL_DO_USUARIO.md`: Guia detalhado passo a passo de operação para os colaboradores.

@@ -1036,11 +1036,24 @@ function normalizarNumero_(valor) {
   if (valor === null || valor === undefined || valor === '') return 0;
   if (typeof valor === 'number') return valor;
   var str = String(valor).trim();
-  // Remover R$, $, espaços
-  str = str.replace(/[R$\s]/g, '');
-  // Converter 1.234,56 -> 1234.56
-  if (str.indexOf(',') !== -1) {
-    str = str.replace(/\./g, '').replace(',', '.');
+  // Remover espacos comuns e espacos nao separaveis (non-breaking spaces)
+  str = str.replace(/[\s\u00A0]/g, '');
+  // Remover siglas de moedas e caracteres nao numericos, preservando digitos, virgula, ponto e menos
+  str = str.replace(/[^0-9,\.\-]/g, '');
+  if (!str) return 0;
+
+  var hasComma = str.indexOf(',') !== -1;
+  var hasDot = str.indexOf('.') !== -1;
+  if (hasComma && hasDot) {
+    if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+      // Padrao brasileiro: 1.234,56 -> 1234.56
+      str = str.replace(/\./g, '').replace(',', '.');
+    } else {
+      // Padrao internacional: 1,234.56 -> 1234.56
+      str = str.replace(/,/g, '');
+    }
+  } else if (hasComma) {
+    str = str.replace(',', '.');
   }
   var parsed = parseFloat(str);
   return isNaN(parsed) ? 0 : parsed;
@@ -4235,14 +4248,29 @@ function obterDadosCompletosTelefonia() {
         var target = String(colName || '').toLowerCase().trim();
         var targetClean = target.replace(/[^a-z0-9]/g, '');
         var idx = -1;
+
+        // Pass 1: Busca exata
         for (var h = 0; h < cHeaders.length; h++) {
           var ch = cHeaders[h];
           var chClean = ch.replace(/[^a-z0-9]/g, '');
-          if (ch === target || chClean === targetClean || chClean.indexOf(targetClean) !== -1 || targetClean.indexOf(chClean) !== -1) {
+          if (ch === target || chClean === targetClean) {
             idx = h;
             break;
           }
         }
+
+        // Pass 2: Busca por aproximacao apenas se nao achou exata
+        if (idx === -1 && targetClean.length >= 4) {
+          for (var h2 = 0; h2 < cHeaders.length; h2++) {
+            var ch2 = cHeaders[h2];
+            var chClean2 = ch2.replace(/[^a-z0-9]/g, '');
+            if (chClean2.indexOf(targetClean) !== -1 || targetClean.indexOf(chClean2) !== -1) {
+              idx = h2;
+              break;
+            }
+          }
+        }
+
         if (idx !== -1 && row[idx] !== undefined && row[idx] !== null && String(row[idx]).trim() !== '') {
           return row[idx];
         }
@@ -4270,13 +4298,27 @@ function obterDadosCompletosTelefonia() {
           }
         }
 
-        var valorMensalAtual = normalizarNumero_(getCol(row, 'valor_mensal_atual', 13, getCol(row, 'valor_mensal_base', 12, 0)));
+        var valorMensalAtual = normalizarNumero_(getCol(row, 'valor_mensal_atual', 13, 0));
+        if (valorMensalAtual === 0) {
+          valorMensalAtual = normalizarNumero_(getCol(row, 'valor_mensal_base', 12, 0));
+        }
+        if (valorMensalAtual === 0) {
+          valorMensalAtual = normalizarNumero_(getCol(row, 'valor_base_brl', 38, 0));
+        }
+        if (valorMensalAtual === 0) {
+          valorMensalAtual = normalizarNumero_(getCol(row, 'valor_orcado_lancamento', 40, 0));
+        }
+
         var diasRestantes = calcularDiasParaVencer_(getCol(row, 'data_fim_vigencia', 9, null));
-        var status = String(getCol(row, 'status', 6, 'Vigente')).trim();
-        var statusAlcada = String(getCol(row, 'status_alcada', 7, 'Aprovado')).trim();
+        var situacaoContrato = String(getCol(row, 'situacao_contrato', 6, getCol(row, 'status', 6, 'Vigente'))).trim();
+        var statusAlcada = String(getCol(row, 'status_de_aprovacao', 7, getCol(row, 'status_alcada', 7, 'Aprovado'))).trim();
 
         totalContratos++;
-        if (status.toLowerCase().indexOf('vigente') !== -1 || status.toLowerCase().indexOf('ativo') !== -1) {
+        var sitLower = situacaoContrato.toLowerCase();
+        var isEncerrado = sitLower.indexOf('cancel') !== -1 || sitLower.indexOf('encerr') !== -1 || sitLower.indexOf('rescind') !== -1 || sitLower.indexOf('inativ') !== -1;
+        var isAtivo = !isEncerrado && (sitLower.indexOf('vigen') !== -1 || sitLower.indexOf('ativ') !== -1 || sitLower.indexOf('aprov') !== -1 || sitLower === '' || sitLower === 'sim');
+
+        if (isAtivo) {
           contratosAtivos++;
           somaValorMensal += valorMensalAtual;
         }
@@ -4306,7 +4348,7 @@ function obterDadosCompletosTelefonia() {
           setorGerencia: setorGerencia,
           objeto: String(getCol(row, 'objeto_contrato', 4, '')),
           tipo: cat,
-          status: status,
+          status: situacaoContrato,
           statusAlcada: statusAlcada,
           dataInicio: formatarDataExibicao_(getCol(row, 'data_inicio_vigencia', 8, '')),
           dataFim: formatarDataExibicao_(getCol(row, 'data_fim_vigencia', 9, '')),
@@ -4407,7 +4449,7 @@ function obterDadosCompletosTelefonia() {
         if (!fornecedoresMap[fKey].pastaDriveId && contractItem.pastaFornecedorDriveId) {
           fornecedoresMap[fKey].pastaDriveId = contractItem.pastaFornecedorDriveId;
         }
-        if (status.toLowerCase().indexOf('vigente') !== -1 || status.toLowerCase().indexOf('ativo') !== -1) {
+        if (isAtivo) {
           fornecedoresMap[fKey].contratosAtivos++;
           fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
         }
