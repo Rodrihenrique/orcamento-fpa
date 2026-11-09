@@ -63,7 +63,7 @@ O cadastro contempla 6 blocos organizados:
 
 1. **Setor Responsável, Identificação & Objeto:**
    - **Setor / Gerência da Telefonia:** Seleção obrigatória entre as 5 gerências (*GESTAO TELEFONIA*, *OPERACAO E MANUTENCAO DE REDES*, *OPERACOES DE REDES*, *PROJETOS DE IMPLANTACAO* e *TELEFONIA*). O contrato é automaticamente arquivado na pasta desta gerência no Google Drive.
-   - **Tipo de Contrato:** Voz / Telefonia, Dados, Torres, Software, Manutenção, etc.
+   - **Tipo de Contrato:** Suporte Técnico, Assessoria e Consultoria Empresarial, Serviços de Terceiros, Interconexão ou personalização via "+ Adicionar outro tipo...".
    - **CNPJ:** Preenchido e travado a partir do cadastro do fornecedor.
    - **Contrato / PO:** Número formal do contrato ou pedido de compra.
    - **Centro de Custo:** Código de centro de custo da telefonia.
@@ -81,7 +81,7 @@ O cadastro contempla 6 blocos organizados:
 3. **Valores Financeiros, Moeda & Orçamento:**
    - **Moeda:** BRL, USD, EUR ou Outra.
    - **Taxa de Câmbio:** Cotação para conversão cambial.
-   - **Valor Mensal:** Valor financeiro periódico com formatação automática de moeda.
+   - **Valor Mensal:** Valor financeiro periódico sem moeda pré-fixada, formatado dinamicamente de acordo com a moeda selecionada (BRL, USD, EUR, etc.).
    - **Valor Base em BRL:** Cálculo automático sincronizado (Valor Mensal x Câmbio).
    - **Valor Orçado por Lançamento:** Previsão contábil do orçamento.
    - **Impostos / Encargos (%):** Percentual retido ou incidente.
@@ -143,7 +143,7 @@ Quando o índice de reajuste for baseado em Base de Clientes:
 ## 7. Trilha Oficial de Auditoria
 A aba **Trilha Oficial de Auditoria** registra todos os eventos operacionais do sistema com:
 - Protocolo sequencial do evento;
-- Data e hora exatas no fuso horário oficial (America/Fortaleza);
+- Data e hora exatas no formato oficial DD/MM/AAAA - HH:MM:SS (America/Fortaleza);
 - E-mail e perfil do responsável pela ação;
 - Tipo de ação realizada (Criação, Alteração, Upload de Anexo, Aprovação, Devolução);
 - Valores comparativos ("Antes" versus "Depois");

@@ -1114,9 +1114,20 @@ function formatarDataExibicao_(val) {
 function formatarDataHoraExibicao_(val) {
   if (!val) return '';
   if (val instanceof Date) {
-    return Utilities.formatDate(val, obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
+    return Utilities.formatDate(val, obterTimezoneOficial_(), 'dd/MM/yyyy - HH:mm:ss');
   }
-  return String(val);
+  var s = String(val).trim();
+  if (/^\d{2}\/\d{2}\/\d{4} - \d{2}:\d{2}:\d{2}$/.test(s)) {
+    return s;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/.test(s)) {
+    return s.substring(0, 10) + ' - ' + s.substring(11);
+  }
+  var d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    return Utilities.formatDate(d, obterTimezoneOficial_(), 'dd/MM/yyyy - HH:mm:ss');
+  }
+  return s;
 }
 
 
@@ -3432,7 +3443,7 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
         var fornecedoresMap = {};
         var contratosRows = [];
         var fornecedoresRows = [];
-        var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+        var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy - HH:mm:ss');
 
         for (var i = 0; i < legacyContracts.length; i++) {
           var c = legacyContracts[i];
@@ -3813,7 +3824,7 @@ function obterDadosCompletosTelefonia() {
 
         var cc = String(getCol(row, 'centro_custo', 18, '')).trim();
         if (cc) centrosCustoSet[cc] = true;
-        var cat = String(getCol(row, 'tipo_contrato', 5, 'Voz / Telefonia')).trim();
+        var cat = String(getCol(row, 'tipo_contrato', 5, 'Suporte Técnico')).trim();
         if (cat) categoriasSet[cat] = true;
 
         var setorGerencia = String(getCol(row, 'setor_gerencia', 26, 'TELEFONIA')).trim();
@@ -3997,7 +4008,7 @@ function obterDadosCompletosTelefonia() {
 
         logsList.push({
           idLog: logId,
-          timestamp: String((idxLogTime !== -1 ? lRow[idxLogTime] : lRow[1]) || ''),
+          timestamp: formatarDataHoraExibicao_(idxLogTime !== -1 ? lRow[idxLogTime] : lRow[1]),
           usuarioEmail: String((idxLogEmail !== -1 ? lRow[idxLogEmail] : lRow[2]) || 'gestao.telefonia@grupobrisanet.com.br'),
           papelUsuario: String((idxLogPapel !== -1 ? lRow[idxLogPapel] : lRow[3]) || 'Gestão Telefonia'),
           entidade: String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || 'Contrato'),
@@ -4383,7 +4394,7 @@ function salvarNovoContratoTelefonia(dados) {
       fornId,
       fornNome,
       dados.objeto || '',
-      dados.tipo || 'Voz / Telefonia',
+      dados.tipo || 'Suporte Técnico',
       'Vigente',
       'Aprovado',
       dados.dataInicio || '',

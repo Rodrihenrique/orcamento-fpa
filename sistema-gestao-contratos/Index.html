@@ -1542,16 +1542,16 @@
           </div>
           <div class="form-group col-span-2">
             <label class="form-label required">Tipo de Contrato</label>
-            <select id="contratoModalTipo" class="form-control" required>
-              <option value="Voz / Telefonia">Voz / Telefonia</option>
-              <option value="Dados / Links Dedicados">Dados / Links Dedicados</option>
-              <option value="Torres e Compartilhamento">Torres e Compartilhamento</option>
-              <option value="Infraestrutura e Redes">Infraestrutura e Redes</option>
-              <option value="Licenciamento de Software">Licenciamento de Software</option>
-              <option value="Manutenção Operacional">Manutenção Operacional</option>
-              <option value="Serviços Técnicos">Serviços Técnicos</option>
-              <option value="Outros">Outros</option>
+            <select id="contratoModalTipo" class="form-control" onchange="alternarTipoContratoModal(this.value)" required>
+              <option value="Suporte Técnico">Suporte Técnico</option>
+              <option value="Assessoria e Consultoria Empresarial">Assessoria e Consultoria Empresarial</option>
+              <option value="Serviços de Terceiros">Serviços de Terceiros</option>
+              <option value="Interconexão">Interconexão</option>
+              <option value="Outro">+ Adicionar outro tipo...</option>
             </select>
+            <div id="containerTipoContratoOutro" style="display: none; margin-top: 6px;">
+              <input type="text" id="contratoModalTipoOutro" class="form-control" placeholder="Especifique o novo tipo de contrato...">
+            </div>
           </div>
           <div class="form-group col-span-2">
             <label class="form-label required">CNPJ</label>
@@ -1635,8 +1635,8 @@
             <input type="text" id="contratoModalTaxaCambio" class="form-control" placeholder="1,0000" value="1,0000" oninput="mascaraTaxaCambio(this)">
           </div>
           <div class="form-group col-span-1">
-            <label class="form-label required">Valor Mensal (R$)</label>
-            <input type="text" id="contratoModalValorMensal" class="form-control" placeholder="R$ 0,00" required oninput="mascaraMoeda(this); atualizarCalculoValorBaseBrl();">
+            <label class="form-label required" id="lblContratoModalValorMensal">Valor Mensal</label>
+            <input type="text" id="contratoModalValorMensal" class="form-control" placeholder="0,00" required oninput="mascaraValorMensal(this); atualizarCalculoValorBaseBrl();">
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Valor Base em BRL</label>
@@ -2060,14 +2060,19 @@
 
   function alternarMoedaModal(moeda) {
     var inputTaxa = document.getElementById('contratoModalTaxaCambio');
-    if (!inputTaxa) return;
-    if (moeda === 'BRL') {
-      inputTaxa.value = '1,0000';
-      inputTaxa.disabled = true;
-      inputTaxa.style.backgroundColor = '#F1F5F9';
-    } else {
-      inputTaxa.disabled = false;
-      inputTaxa.style.backgroundColor = '#FFFFFF';
+    var inputValorMensal = document.getElementById('contratoModalValorMensal');
+    if (inputTaxa) {
+      if (moeda === 'BRL') {
+        inputTaxa.value = '1,0000';
+        inputTaxa.disabled = true;
+        inputTaxa.style.backgroundColor = '#F1F5F9';
+      } else {
+        inputTaxa.disabled = false;
+        inputTaxa.style.backgroundColor = '#FFFFFF';
+      }
+    }
+    if (inputValorMensal && inputValorMensal.value) {
+      mascaraValorMensal(inputValorMensal);
     }
     atualizarCalculoValorBaseBrl();
   }
@@ -2483,7 +2488,8 @@
 
     // Aplicar valores padrao
     document.getElementById('contratoModalSetor').value = 'TELEFONIA';
-    document.getElementById('contratoModalTipo').value = 'Voz / Telefonia';
+    document.getElementById('contratoModalTipo').value = 'Suporte Técnico';
+    alternarTipoContratoModal('Suporte Técnico');
     document.getElementById('contratoModalAvisoPrevio').value = '30';
     document.getElementById('contratoModalRenovacaoAutomatica').value = 'Não';
     document.getElementById('contratoModalMoeda').value = 'BRL';
@@ -2547,6 +2553,7 @@
         var campoValorMensal = document.getElementById('contratoModalValorMensal');
         if (campoValorMensal) {
           campoValorMensal.value = valorInput.value.trim();
+          mascaraValorMensal(campoValorMensal);
           atualizarCalculoValorBaseBrl();
         }
       }
@@ -2696,7 +2703,7 @@
       fornecedor: document.getElementById('contratoModalFornecedorNome').value,
       setorGerencia: document.getElementById('contratoModalSetor').value,
       centroCusto: document.getElementById('contratoModalCentroCusto').value.trim(),
-      tipo: document.getElementById('contratoModalTipo').value,
+      tipo: (document.getElementById('contratoModalTipo').value === 'Outro' && document.getElementById('contratoModalTipoOutro') && document.getElementById('contratoModalTipoOutro').value.trim()) ? document.getElementById('contratoModalTipoOutro').value.trim() : document.getElementById('contratoModalTipo').value,
       objeto: document.getElementById('contratoModalObjeto').value.trim(),
       cnpj: document.getElementById('contratoModalCnpj').value.trim(),
       contratoPo: document.getElementById('contratoModalContratoPo').value.trim(),
@@ -3219,7 +3226,7 @@
 
       html += '<tr>';
       html += '  <td><span class="protocol-chip">' + escapeHtml(l.idLog || '-') + '</span></td>';
-      html += '  <td style="font-size: 12px; font-weight: 600; color: var(--brisa-dark-blue); white-space: nowrap;">' + escapeHtml(l.timestamp || '-') + '</td>';
+      html += '  <td style="font-size: 12px; font-weight: 600; color: var(--brisa-dark-blue); white-space: nowrap;">' + formatarDataHoraAuditoria(l.timestamp) + '</td>';
       html += '  <td><div style="font-weight: 700; color: var(--brisa-blue); font-size: 12px;">' + escapeHtml(l.usuarioEmail || '-') + '</div></td>';
       html += '  <td><span class="badge-setor">' + escapeHtml(l.papelUsuario || 'Usuário') + '</span></td>';
       html += '  <td><strong>' + escapeHtml(l.entidade || '') + ' #' + escapeHtml(l.idRegistro || '') + '</strong></td>';
@@ -3244,6 +3251,65 @@
   }
 
   // Utilitarios
+  function alternarTipoContratoModal(valor) {
+    var container = document.getElementById('containerTipoContratoOutro');
+    var inputOutro = document.getElementById('contratoModalTipoOutro');
+    if (!container || !inputOutro) return;
+    if (valor === 'Outro') {
+      container.style.display = 'block';
+      inputOutro.required = true;
+      inputOutro.focus();
+    } else {
+      container.style.display = 'none';
+      inputOutro.required = false;
+      inputOutro.value = '';
+    }
+  }
+
+  function mascaraValorMensal(input) {
+    var v = input.value.replace(/\D/g, '');
+    if (!v) {
+      input.value = '';
+      atualizarCalculoValorBaseBrl();
+      return;
+    }
+    var num = parseFloat(v) / 100;
+    var selectMoeda = document.getElementById('contratoModalMoeda');
+    var moeda = selectMoeda ? selectMoeda.value : 'BRL';
+
+    if (moeda === 'USD') {
+      input.value = 'US$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else if (moeda === 'EUR') {
+      input.value = '€ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else if (moeda === 'Outra') {
+      input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    } else {
+      input.value = 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    atualizarCalculoValorBaseBrl();
+  }
+
+  function formatarDataHoraAuditoria(val) {
+    if (!val) return '-';
+    var s = String(val).trim();
+    if (!s || s === '-') return '-';
+    if (/^\d{2}\/\d{2}\/\d{4} - \d{2}:\d{2}:\d{2}$/.test(s)) return s;
+    if (/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2}$/.test(s)) {
+      return s.substring(0, 10) + ' - ' + s.substring(11);
+    }
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      var dia = String(d.getDate()).padStart(2, '0');
+      var mes = String(d.getMonth() + 1).padStart(2, '0');
+      var ano = d.getFullYear();
+      var hor = String(d.getHours()).padStart(2, '0');
+      var min = String(d.getMinutes()).padStart(2, '0');
+      var seg = String(d.getSeconds()).padStart(2, '0');
+      return dia + '/' + mes + '/' + ano + ' - ' + hor + ':' + min + ':' + seg;
+    }
+    return s;
+  }
+
   function formatarDataClient(val) {
     if (!val) return '-';
     var s = String(val).trim();
