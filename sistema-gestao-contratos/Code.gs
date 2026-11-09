@@ -3380,7 +3380,9 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
     ];
 
     var headersAcessos = [
-      'id_usuario', 'nome_completo', 'papel', 'notificacoes_alertas', 'status'
+      'ID do Usuário', 'Colaborador', 'E-mail', 'Setor / Gerência Permitida',
+      'Papel / Alçada', 'Substituto Temporário (E-mail)', 'Início da Substituição',
+      'Término da Substituição', 'Substituição Indeterminada (Sim/Não)', 'Status'
     ];
 
     var headersLogs = [
@@ -3402,6 +3404,9 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
     var sheetAprovacoes = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_APROVACOES, headersAprovacoes);
     var sheetAditivos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ADITIVOS, headersAditivos);
     var sheetAcessos = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_ACESSOS, headersAcessos);
+    if (sheetAcessos) {
+      garantirHeadersAcessos_(sheetAcessos);
+    }
     var sheetLogs = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_LOGS, headersLogs);
 
     // Remover aba padrão em branco se houver outras abas
@@ -3598,24 +3603,397 @@ function registrarLogAuditoriaOficial_(entidade, idRegistro, acao, campoAfetado,
 }
 
 /**
+ * Garante que a aba Acessos_Alcadas tenha as 10 colunas oficiais de controle de acessos
+ * por gerencia e gestao de substituto temporario em ausencias.
+ * @param {Sheet} sheetAcessos
+ */
+function garantirHeadersAcessos_(sheetAcessos) {
+  if (!sheetAcessos) return;
+  var headersOficiais = [
+    'ID do Usuário',
+    'Colaborador',
+    'E-mail',
+    'Setor / Gerência Permitida',
+    'Papel / Alçada',
+    'Substituto Temporário (E-mail)',
+    'Início da Substituição',
+    'Término da Substituição',
+    'Substituição Indeterminada (Sim/Não)',
+    'Status'
+  ];
+
+  sheetAcessos.getRange(1, 1, 1, headersOficiais.length).setValues([headersOficiais]);
+  var headerRange = sheetAcessos.getRange(1, 1, 1, headersOficiais.length);
+  headerRange.setBackground('#0B316D')
+             .setFontColor('#FFFFFF')
+             .setFontWeight('bold')
+             .setFontFamily('Figtree');
+
+  // Se nao existirem usuarios cadastrados, preencher os 5 setores oficiais e administrativo
+  if (sheetAcessos.getLastRow() <= 1) {
+    var defaultRows = [
+      ['USR-001', 'Gestão Telefonia (Administrativo)', 'gestao.telefonia@grupobrisanet.com.br', 'GESTAO TELEFONIA', 'Administrador', '', '', '', 'Não', 'Ativo'],
+      ['USR-002', 'Rodrigo Alves', 'rodrigoalves@grupobrisanet.com.br', 'GESTAO TELEFONIA', 'Gerente Executivo', '', '', '', 'Não', 'Ativo'],
+      ['USR-003', 'Gestor Telefonia', 'telefonia@grupobrisanet.com.br', 'TELEFONIA', 'Coordenador', '', '', '', 'Não', 'Ativo'],
+      ['USR-004', 'Gestor Operação e Manutenção', 'operacao.manutencao@grupobrisanet.com.br', 'OPERACAO E MANUTENCAO DE REDES', 'Coordenador', '', '', '', 'Não', 'Ativo'],
+      ['USR-005', 'Gestor Operações de Redes', 'operacoes.redes@grupobrisanet.com.br', 'OPERACOES DE REDES', 'Coordenador', '', '', '', 'Não', 'Ativo'],
+      ['USR-006', 'Gestor Projetos de Implantação', 'projetos.implantacao@grupobrisanet.com.br', 'PROJETOS DE IMPLANTACAO', 'Coordenador', '', '', '', 'Não', 'Ativo']
+    ];
+    sheetAcessos.getRange(2, 1, defaultRows.length, headersOficiais.length).setValues(defaultRows);
+  }
+}
+
+/**
+ * Obtem as permissoes de acesso, setor permitido e papel do usuario ativo,
+ * avaliando se ele opera como titular ou como substituto temporario ativo.
+ * @param {string} email
+ * @return {Object}
+ */
+function obterPermissoesUsuario_(email) {
+  var emailNorm = String(email || '').toLowerCase().trim();
+  var defaultResp = {
+    email: emailNorm || 'gestao.telefonia@grupobrisanet.com.br',
+    nome: 'Gestão Telefonia (Administrativo)',
+    papel: 'Administrador',
+    setorPermitido: 'GESTAO TELEFONIA',
+    acessoTotal: true,
+    isSubstituto: false,
+    titularSubstituido: '',
+    substitutoEmail: '',
+    substitutoInicio: '',
+    substitutoFim: '',
+    substitutoIndeterminado: false,
+    substitutoAtivo: false
+  };
+
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) return defaultResp;
+    garantirHeadersAcessos_(sheet);
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return defaultResp;
+
+    var now = new Date();
+    var hojeZerado = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // 1. Verificar se o usuario logado e substituto temporario ativo de algum titular
+    for (var s = 1; s < data.length; s++) {
+      var rowS = data[s];
+      var subEmail = String(rowS[5] || '').toLowerCase().trim();
+      var statusS = String(rowS[9] || 'Ativo').trim();
+      if (statusS.toLowerCase() !== 'ativo') continue;
+
+      if (subEmail && subEmail === emailNorm) {
+        var subIndet = String(rowS[8] || '').toLowerCase().trim() === 'sim';
+        var dIni = converterParaData_(rowS[6]);
+        var dFim = converterParaData_(rowS[7]);
+        var ativoPeriodo = false;
+
+        if (subIndet) {
+          ativoPeriodo = true;
+        } else if (dIni && dFim) {
+          ativoPeriodo = (hojeZerado.getTime() >= dIni.getTime() && hojeZerado.getTime() <= dFim.getTime());
+        } else if (dIni && !dFim) {
+          ativoPeriodo = (hojeZerado.getTime() >= dIni.getTime());
+        }
+
+        if (ativoPeriodo) {
+          var titularNome = String(rowS[1] || '');
+          var titularEmail = String(rowS[2] || '');
+          var setorTitular = String(rowS[3] || 'GESTAO TELEFONIA').trim().toUpperCase();
+          var papelTitular = String(rowS[4] || 'Gestor').trim();
+          var acessoTotalTitular = (setorTitular.indexOf('GESTAO') !== -1 || setorTitular.indexOf('ADMIN') !== -1 || setorTitular.indexOf('TODOS') !== -1);
+
+          return {
+            email: emailNorm,
+            nome: titularNome + ' (Substituto: ' + emailNorm + ')',
+            papel: papelTitular,
+            setorPermitido: setorTitular,
+            acessoTotal: acessoTotalTitular,
+            isSubstituto: true,
+            titularSubstituido: titularEmail,
+            substitutoEmail: '',
+            substitutoInicio: '',
+            substitutoFim: '',
+            substitutoIndeterminado: false,
+            substitutoAtivo: false
+          };
+        }
+      }
+    }
+
+    // 2. Verificar titularidade direta do usuario
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowEmail = String(row[2] || row[0] || '').toLowerCase().trim();
+      if (rowEmail === emailNorm) {
+        var nome = String(row[1] || emailNorm);
+        var setor = String(row[3] || 'GESTAO TELEFONIA').trim().toUpperCase();
+        var papel = String(row[4] || 'Gestor').trim();
+        var subE = String(row[5] || '').trim();
+        var subIni = formatarDataExibicao_(row[6]);
+        var subFim = formatarDataExibicao_(row[7]);
+        var subInd = String(row[8] || '').toLowerCase().trim() === 'sim';
+        var status = String(row[9] || 'Ativo').trim();
+
+        var subAtivo = false;
+        if (subE && status.toLowerCase() === 'ativo') {
+          if (subInd) {
+            subAtivo = true;
+          } else {
+            var dI = converterParaData_(row[6]);
+            var dF = converterParaData_(row[7]);
+            if (dI && dF) {
+              subAtivo = (hojeZerado.getTime() >= dI.getTime() && hojeZerado.getTime() <= dF.getTime());
+            } else if (dI && !dF) {
+              subAtivo = (hojeZerado.getTime() >= dI.getTime());
+            }
+          }
+        }
+
+        var acessoTotal = (setor.indexOf('GESTAO') !== -1 || setor.indexOf('ADMIN') !== -1 || setor.indexOf('TODOS') !== -1);
+
+        return {
+          email: emailNorm,
+          nome: nome,
+          papel: papel,
+          setorPermitido: setor,
+          acessoTotal: acessoTotal,
+          isSubstituto: false,
+          titularSubstituido: '',
+          substitutoEmail: subE,
+          substitutoInicio: subIni,
+          substitutoFim: subFim,
+          substitutoIndeterminado: subInd,
+          substitutoAtivo: subAtivo
+        };
+      }
+    }
+  } catch (err) {
+    Logger.log('Erro ao obter permissoes de usuario: ' + err.message);
+  }
+
+  return defaultResp;
+}
+
+/**
  * Descobre o papel do usuario na tabela Acessos_Alcadas.
  * @param {string} email
  * @return {string} Papel do usuario
  */
 function obterPapelUsuario_(email) {
+  var p = obterPermissoesUsuario_(email);
+  return p.papel || 'Gestão Telefonia';
+}
+
+/**
+ * Salva a definicao de substituto temporario para o titular durante sua ausencia.
+ * @param {Object} payload { substitutoEmail, dataInicio, dataFim, indeterminado }
+ * @return {Object}
+ */
+function salvarSubstitutoAusenciaTelefonia(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
   try {
     var ss = obterPlanilha_();
     var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
-    if (!sheet) return 'Gestão Telefonia';
+    if (!sheet) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    }
+    garantirHeadersAcessos_(sheet);
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch(e) {}
+    if (!userEmail) userEmail = payload.titularEmail || 'gestao.telefonia@grupobrisanet.com.br';
+    var userEmailNorm = userEmail.toLowerCase().trim();
+
+    var subEmail = String(payload.substitutoEmail || '').toLowerCase().trim();
+    if (!subEmail) throw new Error('E-mail do substituto e obrigatorio.');
+    if (subEmail === userEmailNorm) throw new Error('O substituto nao pode ser o proprio titular.');
+
+    var subIndeterminado = !!payload.indeterminado;
+    var dataInicio = payload.dataInicio || '';
+    var dataFim = subIndeterminado ? '' : (payload.dataFim || '');
+
     var data = sheet.getDataRange().getValues();
-    var target = String(email || '').toLowerCase().trim();
+    var rowIndex = -1;
     for (var i = 1; i < data.length; i++) {
-      if (String(data[i][0]).toLowerCase().trim() === target) {
-        return String(data[i][2]);
+      var rowEmail = String(data[i][2] || data[i][0] || '').toLowerCase().trim();
+      if (rowEmail === userEmailNorm) {
+        rowIndex = i + 1;
+        break;
       }
     }
-  } catch (e) {}
-  return 'Gestão Telefonia';
+
+    if (rowIndex !== -1) {
+      sheet.getRange(rowIndex, 6).setValue(subEmail);
+      sheet.getRange(rowIndex, 7).setValue(dataInicio);
+      sheet.getRange(rowIndex, 8).setValue(dataFim);
+      sheet.getRange(rowIndex, 9).setValue(subIndeterminado ? 'Sim' : 'Não');
+      sheet.getRange(rowIndex, 10).setValue('Ativo');
+    } else {
+      var nextId = 'USR-' + String(sheet.getLastRow()).padStart(3, '0');
+      sheet.appendRow([
+        nextId,
+        userEmailNorm.split('@')[0],
+        userEmailNorm,
+        'GESTAO TELEFONIA',
+        'Gestor',
+        subEmail,
+        dataInicio,
+        dataFim,
+        subIndeterminado ? 'Sim' : 'Não',
+        'Ativo'
+      ]);
+    }
+
+    var userPapel = obterPapelUsuario_(userEmailNorm);
+    var periodoDesc = subIndeterminado ? 'Periodo Indeterminado' : ('De ' + dataInicio + ' ate ' + dataFim);
+    registrarLogAuditoriaOficial_(
+      'Controle de Acessos',
+      userEmailNorm,
+      'Designacao de Substituto Temporario',
+      'substituto_temporario',
+      '-',
+      subEmail + ' (' + periodoDesc + ')',
+      'Substituto temporario designado para o periodo: ' + periodoDesc,
+      userEmailNorm,
+      userPapel
+    );
+
+    return {
+      success: true,
+      message: 'Substituto ' + subEmail + ' configurado com sucesso (' + periodoDesc + ').',
+      substituto: {
+        email: subEmail,
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        indeterminado: subIndeterminado
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch(eL) {}
+  }
+}
+
+/**
+ * Revoga a substituicao temporaria ativa do titular.
+ * @return {Object}
+ */
+function revogarSubstitutoAusenciaTelefonia() {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) return { success: true };
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch(e) {}
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userEmailNorm = userEmail.toLowerCase().trim();
+
+    var data = sheet.getDataRange().getValues();
+    var rowIndex = -1;
+    var subAnterior = '';
+    for (var i = 1; i < data.length; i++) {
+      var rowEmail = String(data[i][2] || data[i][0] || '').toLowerCase().trim();
+      if (rowEmail === userEmailNorm) {
+        rowIndex = i + 1;
+        subAnterior = String(data[i][5] || '');
+        break;
+      }
+    }
+
+    if (rowIndex !== -1) {
+      sheet.getRange(rowIndex, 6).setValue('');
+      sheet.getRange(rowIndex, 7).setValue('');
+      sheet.getRange(rowIndex, 8).setValue('');
+      sheet.getRange(rowIndex, 9).setValue('Não');
+    }
+
+    var userPapel = obterPapelUsuario_(userEmailNorm);
+    registrarLogAuditoriaOficial_(
+      'Controle de Acessos',
+      userEmailNorm,
+      'Revogacao de Substituto Temporario',
+      'substituto_temporario',
+      subAnterior || '-',
+      'Nenhum',
+      'Substituicao temporaria revogada pelo titular.',
+      userEmailNorm,
+      userPapel
+    );
+
+    return { success: true, message: 'Substituição temporária revogada com sucesso.' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch(eL) {}
+  }
+}
+
+/**
+ * Calcula a proxima data de reajuste periodico com base na periodicidade contratual
+ * e determina se o contrato esta dentro da janela de alerta (<= 5 dias).
+ * @param {string|Date} dataBaseStr Data inicial (competencia, inicio ou reajuste)
+ * @param {string} periodicidadeStr Mensal, Bimestral, Trimestral, Semestral, Anual, Unico
+ * @return {Object|null}
+ */
+function calcProximoReajustePeriodico_(dataBaseStr, periodicidadeStr) {
+  var dt = converterParaData_(dataBaseStr);
+  if (!dt) return null;
+  var p = String(periodicidadeStr || '').toLowerCase().trim();
+  var meses = 0;
+  if (p.indexOf('mensal') !== -1 && p.indexOf('bi') === -1 && p.indexOf('tri') === -1 && p.indexOf('sem') === -1) meses = 1;
+  else if (p.indexOf('bimestral') !== -1) meses = 2;
+  else if (p.indexOf('trimestral') !== -1) meses = 3;
+  else if (p.indexOf('semestral') !== -1) meses = 6;
+  else if (p.indexOf('anual') !== -1) meses = 12;
+  if (meses === 0) return null;
+
+  var hoje = new Date();
+  var hojeZerado = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+  var cursor = new Date(dt.getTime());
+  cursor.setHours(0, 0, 0, 0);
+
+  var limit = 0;
+  while (cursor < hojeZerado && limit < 240) {
+    cursor.setMonth(cursor.getMonth() + meses);
+    limit++;
+  }
+
+  var diffMs = cursor.getTime() - hojeZerado.getTime();
+  var diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+  var isAlerta = (diffDias >= 0 && diffDias <= 5);
+
+  return {
+    proximaData: cursor,
+    proximaDataFormatada: Utilities.formatDate(cursor, CONFIG.TIMEZONE, 'dd/MM/yyyy'),
+    diasRestantes: diffDias,
+    isAlerta5Dias: isAlerta,
+    periodicidade: periodicidadeStr
+  };
 }
 
 /**
@@ -3744,7 +4122,8 @@ function obterDadosCompletosTelefonia() {
       userEmail = 'gestao.telefonia@grupobrisanet.com.br';
     }
     if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
-    var userRole = obterPapelUsuario_(userEmail);
+    var permissoesUsuario = obterPermissoesUsuario_(userEmail);
+    var userRole = permissoesUsuario.papel;
 
     // 1. Ler Fornecedores com Auto-Cura de Cabecalhos e Colunas Deslocadas
     var fornecedoresMap = {};
@@ -3845,6 +4224,7 @@ function obterDadosCompletosTelefonia() {
     var contratosRisco60Dias = 0;
     var centrosCustoSet = {};
     var categoriasSet = {};
+    var alertasReajustesList = [];
 
     if (sheetContratos && sheetContratos.getLastRow() > 1) {
       var numColsC = Math.max(sheetContratos.getLastColumn(), 45);
@@ -3879,6 +4259,17 @@ function obterDadosCompletosTelefonia() {
         if (!rawId && !fornNome) continue;
 
         var idNum = parseInt(rawId, 10) || (c + 1);
+        var setorGerencia = String(getCol(row, 'setor_gerencia', 26, 'TELEFONIA')).trim();
+
+        // 2.1 Controle de Acesso por Setor (Gerencia)
+        if (!permissoesUsuario.acessoTotal) {
+          var setorNorm = setorGerencia.toUpperCase().trim();
+          var permNorm = permissoesUsuario.setorPermitido.toUpperCase().trim();
+          if (setorNorm !== permNorm && permNorm.indexOf(setorNorm) === -1 && setorNorm.indexOf(permNorm) === -1) {
+            continue; // Contrato fora do setor permitido para este gestor
+          }
+        }
+
         var valorMensalAtual = normalizarNumero_(getCol(row, 'valor_mensal_atual', 13, getCol(row, 'valor_mensal_base', 12, 0)));
         var diasRestantes = calcularDiasParaVencer_(getCol(row, 'data_fim_vigencia', 9, null));
         var status = String(getCol(row, 'status', 6, 'Vigente')).trim();
@@ -3899,12 +4290,13 @@ function obterDadosCompletosTelefonia() {
         var cat = String(getCol(row, 'tipo_contrato', 5, 'Suporte Técnico')).trim();
         if (cat) categoriasSet[cat] = true;
 
-        var setorGerencia = String(getCol(row, 'setor_gerencia', 26, 'TELEFONIA')).trim();
         var tabelaBaseClientesJson = String(getCol(row, 'tabela_base_clientes_json', 27, ''));
         var tabelaBaseClientes = [];
         try {
           if (tabelaBaseClientesJson) tabelaBaseClientes = JSON.parse(tabelaBaseClientesJson);
         } catch(eJson) {}
+
+        var emailResp = String(getCol(row, 'gestor_tecnico_email', 20, '')).trim();
 
         var contractItem = {
           id: idNum,
@@ -3929,7 +4321,8 @@ function obterDadosCompletosTelefonia() {
           mesAniversario: getCol(row, 'mes_aniversario_reajuste', 17, 1),
           centroCusto: cc,
           contaContabil: String(getCol(row, 'conta_contabil', 19, '')),
-          gestor: String(getCol(row, 'gestor_tecnico_email', 20, '')),
+          gestor: emailResp,
+          emailResponsavel: emailResp,
           pastaDriveId: String(getCol(row, 'id_pasta_drive', 21, '')),
           pastaFornecedorDriveId: String(getCol(row, 'id_pasta_fornecedor_drive', 22, '')),
           observacoes: String(getCol(row, 'observacoes', 23, '')),
@@ -3953,6 +4346,40 @@ function obterDadosCompletosTelefonia() {
           descricaoRisco: String(getCol(row, 'descricao_risco', 43, '')),
           memoriaCalculo: String(getCol(row, 'memoria_calculo', 44, ''))
         };
+
+        // 2.2 Alerta de Reajuste Periodico (<= 5 dias antes)
+        var semReajusteBool = contractItem.semReajuste;
+        var periodicidadeVal = contractItem.periodicidade;
+        var dataReajusteVal = getCol(row, 'data_reajuste', 33, '');
+        var primCompVal = getCol(row, 'primeira_competencia', 32, '');
+        var dataInicioVal = getCol(row, 'data_inicio_vigencia', 8, '');
+        var dataBaseReajuste = dataReajusteVal || primCompVal || dataInicioVal;
+
+        var reajusteInfo = null;
+        if (!semReajusteBool && periodicidadeVal && periodicidadeVal.toLowerCase() !== 'único' && periodicidadeVal.toLowerCase() !== 'unico') {
+          reajusteInfo = calcProximoReajustePeriodico_(dataBaseReajuste, periodicidadeVal);
+        }
+
+        if (reajusteInfo) {
+          contractItem.proximoReajuste = reajusteInfo.proximaDataFormatada;
+          contractItem.diasParaReajuste = reajusteInfo.diasRestantes;
+          contractItem.alertaReajusteAtivo = reajusteInfo.isAlerta5Dias;
+
+          if (reajusteInfo.isAlerta5Dias) {
+            alertasReajustesList.push({
+              idContrato: idNum,
+              protocolo: contractItem.protocolo,
+              fornecedor: fornNome,
+              setorGerencia: setorGerencia,
+              objeto: contractItem.objeto,
+              periodicidade: periodicidadeVal,
+              dataProximoReajuste: reajusteInfo.proximaDataFormatada,
+              diasRestantes: reajusteInfo.diasRestantes,
+              emailResponsavel: emailResp || 'gestao.telefonia@grupobrisanet.com.br',
+              valorMensal: valorMensalAtual
+            });
+          }
+        }
 
         contractsList.push(contractItem);
 
@@ -4049,7 +4476,11 @@ function obterDadosCompletosTelefonia() {
     var keys = Object.keys(fornecedoresMap);
     keys.sort();
     for (var k = 0; k < keys.length; k++) {
-      fornecedoresArray.push(fornecedoresMap[keys[k]]);
+      var fObj = fornecedoresMap[keys[k]];
+      if (!permissoesUsuario.acessoTotal && fObj.contratos.length === 0) {
+        continue;
+      }
+      fornecedoresArray.push(fObj);
     }
 
     // 5. Ler Logs de Auditoria
@@ -4078,13 +4509,34 @@ function obterDadosCompletosTelefonia() {
         var logId = String((idxLogId !== -1 ? lRow[idxLogId] : lRow[0]) || '').trim();
         if (!logId) continue;
 
+        var regId = String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-');
+        var matchingContract = null;
+        for (var mc = 0; mc < contractsList.length; mc++) {
+          if (String(contractsList[mc].id) === regId || String(contractsList[mc].protocolo) === regId) {
+            matchingContract = contractsList[mc];
+            break;
+          }
+        }
+
+        var logSetor = matchingContract ? matchingContract.setorGerencia : '';
+        var logForn = matchingContract ? matchingContract.fornecedor : '';
+        var logProto = matchingContract ? matchingContract.protocolo : (regId.indexOf('BRISA-TEL') !== -1 ? regId : '');
+
+        if (!logForn && String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || '') === 'Fornecedor') {
+          logForn = regId.replace('FORN-', '').replace(/_/g, ' ');
+        }
+
         logsList.push({
           idLog: logId,
           timestamp: formatarDataHoraExibicao_(idxLogTime !== -1 ? lRow[idxLogTime] : lRow[1]),
           usuarioEmail: String((idxLogEmail !== -1 ? lRow[idxLogEmail] : lRow[2]) || 'gestao.telefonia@grupobrisanet.com.br'),
           papelUsuario: String((idxLogPapel !== -1 ? lRow[idxLogPapel] : lRow[3]) || 'Gestão Telefonia'),
           entidade: String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || 'Contrato'),
-          idRegistro: String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-'),
+          idRegistro: regId,
+          idContrato: matchingContract ? matchingContract.id : (parseInt(regId, 10) || ''),
+          protocolo: logProto,
+          fornecedor: logForn,
+          setorGerencia: logSetor,
           acao: String((idxLogAcao !== -1 ? lRow[idxLogAcao] : lRow[6]) || 'Alteração'),
           campoAfetado: String((idxLogCampo !== -1 ? lRow[idxLogCampo] : lRow[7]) || '-'),
           valorAnterior: String((idxLogAntes !== -1 ? lRow[idxLogAntes] : lRow[8]) || '-'),
@@ -4102,8 +4554,19 @@ function obterDadosCompletosTelefonia() {
       driveRootUrl: obterOuCriarPastaRaizTelefonia_().getUrl(),
       usuarioAtual: {
         email: userEmail,
-        papel: userRole
+        papel: userRole,
+        setorPermitido: permissoesUsuario.setorPermitido,
+        acessoTotal: permissoesUsuario.acessoTotal,
+        isSubstituto: permissoesUsuario.isSubstituto,
+        titularSubstituido: permissoesUsuario.titularSubstituido,
+        substitutoEmail: permissoesUsuario.substitutoEmail,
+        substitutoInicio: permissoesUsuario.substitutoInicio,
+        substitutoFim: permissoesUsuario.substitutoFim,
+        substitutoIndeterminado: permissoesUsuario.substitutoIndeterminado,
+        substitutoAtivo: permissoesUsuario.substitutoAtivo
       },
+      alertasReajuste: alertasReajustesList,
+      totalAlertasReajuste: alertasReajustesList.length,
       kpis: {
         totalContratos: totalContratos,
         contratosAtivos: contratosAtivos,
@@ -4111,7 +4574,8 @@ function obterDadosCompletosTelefonia() {
         valorAnualComprometido: somaValorMensal * 12,
         contratosRisco60Dias: contratosRisco60Dias,
         minhasAprovacoesPendentes: minhasAprovacoesPendentes,
-        totalFornecedores: fornecedoresArray.length
+        totalFornecedores: fornecedoresArray.length,
+        totalAlertasReajuste: alertasReajustesList.length
       },
       fornecedores: fornecedoresArray,
       contratos: contractsList,
@@ -4483,7 +4947,7 @@ function salvarNovoContratoTelefonia(dados) {
       dados.mesAniversario || 1,
       dados.centroCusto || '',
       dados.contaContabil || '',
-      dados.gestor || '',
+      dados.emailResponsavel || dados.gestor || '',
       driveStructure.contractFolderId,
       driveStructure.supplierFolderId,
       dados.observacoes || '',
@@ -4564,7 +5028,7 @@ function salvarNovoContratoTelefonia(dados) {
       'Cadastro Inicial',
       '-',
       protocolo + ' | ' + fornNome + ' (' + setorGerencia + ')',
-      'Contrato cadastrado no setor ' + setorGerencia + ' com ' + arquivosSalvos.length + ' anexos.',
+      'Contrato cadastrado no setor ' + setorGerencia + ' com ' + arquivosSalvos.length + ' anexos. Responsavel: ' + (dados.emailResponsavel || dados.gestor || '-'),
       userEmailAtual,
       userPapelAtual
     );
