@@ -1100,6 +1100,13 @@ function formatarDataExibicao_(val) {
     var p = s.substring(0, 10).split('-');
     return p[2] + '/' + p[1] + '/' + p[0];
   }
+  if (/^\d{2}\/\d{2}\/\d{4}/.test(s)) {
+    return s.substring(0, 10);
+  }
+  var d = new Date(s);
+  if (!isNaN(d.getTime()) && s.length > 10) {
+    return Utilities.formatDate(d, obterTimezoneOficial_(), 'dd/MM/yyyy');
+  }
   return s;
 }
 
@@ -3091,33 +3098,58 @@ function obterOuCriarPastaGerencia_(nomeGerencia) {
  * @return {GoogleAppsScript.Drive.Folder} Pasta do fornecedor
  */
 function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
-  var parentFolder = nomeGerencia ? obterOuCriarPastaGerencia_(nomeGerencia) : obterOuCriarPastaRaizTelefonia_();
   var sanitizedName = String(nomeFornecedor || 'Fornecedor_Sem_Nome')
     .replace(/[\\/:*?"<>|]/g, '_')
     .trim();
   if (!sanitizedName) sanitizedName = 'Fornecedor_Geral';
 
-  var folders = parentFolder.getFoldersByName(sanitizedName);
-  if (folders.hasNext()) {
-    return folders.next();
+  if (nomeGerencia) {
+    var parentGerencia = obterOuCriarPastaGerencia_(nomeGerencia);
+    var fld = parentGerencia.getFoldersByName(sanitizedName);
+    if (fld.hasNext()) return fld.next();
+    return parentGerencia.createFolder(sanitizedName);
   }
-  return parentFolder.createFolder(sanitizedName);
+
+  // Se nao foi passada gerencia, procurar primeiro na raiz
+  var rootFolder = obterOuCriarPastaRaizTelefonia_();
+  var rootMatches = rootFolder.getFoldersByName(sanitizedName);
+  if (rootMatches.hasNext()) {
+    return rootMatches.next();
+  }
+
+  // Procurar dentro das 5 gerencias oficiais antes de criar uma nova
+  var gerencias = CONFIG.GERENCIAS_TELEFONIA || [
+    'GESTAO TELEFONIA',
+    'OPERACAO E MANUTENCAO DE REDES',
+    'OPERACOES DE REDES',
+    'PROJETOS DE IMPLANTACAO',
+    'TELEFONIA'
+  ];
+  for (var g = 0; g < gerencias.length; g++) {
+    var gFolders = rootFolder.getFoldersByName(gerencias[g]);
+    if (gFolders.hasNext()) {
+      var gFolder = gFolders.next();
+      var subMatch = gFolder.getFoldersByName(sanitizedName);
+      if (subMatch.hasNext()) {
+        return subMatch.next();
+      }
+    }
+  }
+
+  // Se nao encontrou em nenhuma gerencia, cria na raiz
+  return rootFolder.createFolder(sanitizedName);
 }
 
 /**
- * Cria a estrutura oficial de 5 subpastas padronizadas para um contrato dentro de sua respectiva Gerencia e Fornecedor.
+ * Cria a estrutura oficial de pasta para um contrato dentro de sua respectiva Gerencia e Fornecedor.
  * Estrutura:
  *   [GERENCIA] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} /
  *     01_Contrato_Principal
- *     02_Termos_Aditivos
- *     03_Documentos_Tecnicos
- *     04_Boletins_Medicao
- *     05_Aprovacoes_e_Pareceres
  * @param {string} nomeFornecedor
  * @param {string|number} idContrato
  * @param {string} objeto
  * @param {string} [nomeGerencia]
- * @return {Object} Metadados da pasta e subpastas criadas
+ * @return {Object} Metadados da pasta e subpasta criada
  */
 function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nomeGerencia) {
   var supplierFolder = obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia);
@@ -3138,11 +3170,7 @@ function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nome
   }
 
   var standardSubfolders = [
-    '01_Contrato_Principal',
-    '02_Termos_Aditivos',
-    '03_Documentos_Tecnicos',
-    '04_Boletins_Medicao',
-    '05_Aprovacoes_e_Pareceres'
+    '01_Contrato_Principal'
   ];
 
   var subfoldersMap = {};
@@ -3828,7 +3856,7 @@ function obterDadosCompletosTelefonia() {
           renovacaoAutomatica: String(getCol(row, 'renovacao_automatica', 29, 'Não')),
           moeda: String(getCol(row, 'moeda', 30, 'BRL')),
           periodicidade: String(getCol(row, 'periodicidade', 31, 'Mensal')),
-          primeiraCompetencia: String(getCol(row, 'primeira_competencia', 32, '')),
+          primeiraCompetencia: formatarDataExibicao_(getCol(row, 'primeira_competencia', 32, '')),
           dataReajuste: formatarDataExibicao_(getCol(row, 'data_reajuste', 33, '')),
           semReajuste: String(getCol(row, 'sem_reajuste', 34, 'Não')).toLowerCase() === 'sim',
           reajusteAplicado: String(getCol(row, 'reajuste_aplicado_pct', 35, '0,00%')),
@@ -3866,6 +3894,9 @@ function obterDadosCompletosTelefonia() {
 
         fornecedoresMap[fKey].contratos.push(contractItem);
         fornecedoresMap[fKey].totalContratos++;
+        if (!fornecedoresMap[fKey].pastaDriveId && contractItem.pastaFornecedorDriveId) {
+          fornecedoresMap[fKey].pastaDriveId = contractItem.pastaFornecedorDriveId;
+        }
         if (status.toLowerCase().indexOf('vigente') !== -1 || status.toLowerCase().indexOf('ativo') !== -1) {
           fornecedoresMap[fKey].contratosAtivos++;
           fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
@@ -3903,6 +3934,30 @@ function obterDadosCompletosTelefonia() {
           justificativa: apRow[10] || '',
           parecer: apRow[11] || ''
         });
+      }
+    }
+
+    // Assegurar que todo fornecedor possua pastaDriveId provisionada
+    var keysFornMap = Object.keys(fornecedoresMap);
+    for (var kfm = 0; kfm < keysFornMap.length; kfm++) {
+      var fnObj = fornecedoresMap[keysFornMap[kfm]];
+      if (!fnObj.pastaDriveId) {
+        for (var cfi = 0; cfi < fnObj.contratos.length; cfi++) {
+          if (fnObj.contratos[cfi].pastaFornecedorDriveId) {
+            fnObj.pastaDriveId = fnObj.contratos[cfi].pastaFornecedorDriveId;
+            break;
+          }
+        }
+        if (!fnObj.pastaDriveId) {
+          try {
+            var fFolderObj = obterOuCriarPastaFornecedor_(fnObj.razaoSocial || fnObj.apelido);
+            if (fFolderObj) {
+              fnObj.pastaDriveId = fFolderObj.getId();
+            }
+          } catch (eFld) {
+            Logger.log('Aviso: Nao foi possivel provisionar pasta para ' + fnObj.razaoSocial + ': ' + eFld.message);
+          }
+        }
       }
     }
 
@@ -4291,8 +4346,9 @@ function salvarNovoContratoTelefonia(dados) {
       if (String(fData[f][1]).toLowerCase().trim() === fornNome.toLowerCase()) {
         fornecedorJaExiste = true;
         fornId = String(fData[f][0]);
-        if (!fData[f][6] && driveStructure.supplierFolderId) {
-          sheetFornecedores.getRange(f + 1, 7).setValue(driveStructure.supplierFolderId);
+        var pastaExistenteForn = String(fData[f][7] || '').trim();
+        if (!pastaExistenteForn && driveStructure.supplierFolderId) {
+          sheetFornecedores.getRange(f + 1, 8).setValue(driveStructure.supplierFolderId);
         }
         break;
       }
@@ -4643,6 +4699,9 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
     var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
 
+    var fornFolder = obterOuCriarPastaFornecedor_(fornNome);
+    var fornFolderId = fornFolder ? fornFolder.getId() : '';
+
     garantirHeadersFornecedores_(sheetFornecedores);
     var fornApelido = String(dadosFornecedor.apelido || dadosFornecedor.nomeFantasia || fornNome).trim();
     sheetFornecedores.appendRow([
@@ -4653,7 +4712,7 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       dadosFornecedor.cnpj || '',
       dadosFornecedor.contatoComercial || '',
       dadosFornecedor.emailComercial || '',
-      '',
+      fornFolderId,
       dadosFornecedor.status || 'Ativo',
       nowStr
     ]);

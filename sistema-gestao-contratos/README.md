@@ -1,4 +1,4 @@
-# Sistema de Gestão de Contratos (CLM) - Telefonia
+# Painel de Contratos | Gestão Telefonia - Telefonia
 **Gerência Executiva de Telefonia · brisanet**
 
 Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle Management) desenvolvido para a Gerência Executiva de Telefonia da brisanet.

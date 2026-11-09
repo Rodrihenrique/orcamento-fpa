@@ -1,10 +1,10 @@
-# Manual do Usuário - Sistema de Gestão de Contratos (CLM)
+# Manual do Usuário - Painel de Contratos | Gestão Telefonia
 **Gerência Executiva de Telefonia · brisanet**
 
 ---
 
 ## 1. Visão Geral do Sistema
-O Sistema de Gestão de Contratos da Gerência Executiva de Telefonia da brisanet foi concebido para centralizar a governança operacional, financeira e documental dos contratos de telecomunicações.
+O Painel de Contratos da Gerência Executiva de Telefonia da brisanet foi concebido para centralizar a governança operacional, financeira e documental dos contratos de telecomunicações.
 
 O sistema opera no modelo relacional fornecedor-contrato, no qual cada fornecedor corporativo agrupa seus respectivos contratos organizados por setor da telefonia e espelhados em pastas dedicadas no Google Drive corporativo.
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestão de Contratos | Telefonia - brisanet</title>
+  <title>Painel de Contratos | Gestão Telefonia - brisanet</title>
   <!-- Tipografia Oficial: Figtree (primária) e Rubik (secundária) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1243,9 +1243,9 @@
       <div class="brand-logo-pill">brisanet</div>
       <div class="brand-titles">
         <h1>
-          Gestão de Contratos
+          Painel de Contratos
           <span class="brand-divider">|</span>
-          Telefonia
+          Gestão Telefonia
         </h1>
         <div class="brand-subtitle">GERÊNCIA EXECUTIVA DE TELEFONIA · BRISANET</div>
       </div>
@@ -1822,8 +1822,6 @@
       <button type="button" class="modal-tab-btn active" id="tabFichaResumo" onclick="trocarAbaFicha('resumo')">Resumo & Cadastro</button>
       <button type="button" class="modal-tab-btn" id="tabFichaFinanceiro" onclick="trocarAbaFicha('financeiro')">Financeiro & Reajustes</button>
       <button type="button" class="modal-tab-btn" id="tabFichaDocumentos" onclick="trocarAbaFicha('documentos')">Documentos no Drive</button>
-      <button type="button" class="modal-tab-btn" id="tabFichaAditivos" onclick="trocarAbaFicha('aditivos')">Termos Aditivos</button>
-      <button type="button" class="modal-tab-btn" id="tabFichaAuditoria" onclick="trocarAbaFicha('auditoria')">Auditoria & Certificado</button>
     </div>
 
     <div class="modal-body" id="fichaBodyContent"></div>
@@ -2238,12 +2236,14 @@
       html += '        <span class="metric-chip-label">Desembolso Mensal</span>';
       html += '        <span class="metric-chip-val">' + formatarMoedaBRL(f.valorMensalTotal || 0) + '</span>';
       html += '      </div>';
+      var driveFolderId = f.pastaDriveId || (f.contratos && f.contratos.length > 0 && (f.contratos[0].pastaFornecedorDriveId || f.contratos[0].pastaDriveId)) || '';
+
       html += '      <div class="supplier-actions" onclick="event.stopPropagation()">';
       html += '        <button type="button" class="btn-add-contract" onclick="abrirModalNovoContrato(\'' + escapeHtml(f.id) + '\', \'' + escapeHtml(f.razaoSocial) + '\')">';
       html += '          + Novo Contrato';
       html += '        </button>';
-      if (f.pastaDriveId) {
-        html += '        <a href="https://drive.google.com/drive/folders/' + f.pastaDriveId + '" target="_blank" class="btn-folder-drive" title="Abrir pasta no Drive">';
+      if (driveFolderId) {
+        html += '        <a href="https://drive.google.com/drive/folders/' + driveFolderId + '" target="_blank" class="btn-folder-drive" title="Abrir pasta no Drive">';
         html += '          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
         html += '          Drive';
         html += '        </a>';
@@ -2266,7 +2266,7 @@
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">CNPJ</span><div style="font-family: monospace; font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.cnpj || '-') + '</div></div>';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Contato Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.contato || '-') + '</div></div>';
       html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">E-mail Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.email || '-') + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Pasta no Google Drive</span><div style="margin-top: 2px;">' + (f.pastaDriveId ? '<a href="https://drive.google.com/drive/folders/' + f.pastaDriveId + '" target="_blank" style="color: var(--brisa-blue); font-weight: 600; text-decoration: none;">Abrir Pasta &rarr;</a>' : '<span style="color: var(--text-muted);">Não provisionada</span>') + '</div></div>';
+      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Pasta no Google Drive</span><div style="margin-top: 2px;">' + (driveFolderId ? '<a href="https://drive.google.com/drive/folders/' + driveFolderId + '" target="_blank" style="color: var(--brisa-blue); font-weight: 600; text-decoration: none;">Abrir Pasta &rarr;</a>' : '<span style="color: var(--text-muted);">Não provisionada</span>') + '</div></div>';
       html += '    </div>';
 
       html += '    <div class="supplier-body-top">';
@@ -2874,7 +2874,7 @@
     var c = appState.contratoSelecionado;
     if (!c) return;
 
-    var tabs = ['tabFichaResumo', 'tabFichaFinanceiro', 'tabFichaDocumentos', 'tabFichaAditivos', 'tabFichaAuditoria'];
+    var tabs = ['tabFichaResumo', 'tabFichaFinanceiro', 'tabFichaDocumentos'];
     tabs.forEach(function(t) {
       var el = document.getElementById(t);
       if (el) el.classList.remove('active');
@@ -2901,7 +2901,7 @@
         '<div class="form-group"><span class="form-label">Término da Vigência</span><div>' + (c.prazoIndeterminado ? 'Vigência Indeterminada' : escapeHtml(c.dataFim || 'Indeterminada')) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Aviso Prévio</span><div>' + (c.avisoPrevio || 30) + ' dias</div></div>' +
         '<div class="form-group"><span class="form-label">Renovação Automática</span><div>' + escapeHtml(c.renovacaoAutomatica || 'Não') + '</div></div>' +
-        '<div class="form-group"><span class="form-label">1ª Competência</span><div>' + escapeHtml(c.primeiraCompetencia || '-') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">1ª Competência</span><div>' + formatarDataClient(c.primeiraCompetencia) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Centro de Custo</span><div>' + escapeHtml(c.centroCusto || '-') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Conta Contábil</span><div>' + escapeHtml(c.contaContabil || '-') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Gestor Técnico</span><div>' + escapeHtml(c.gestor || '-') + '</div></div>' +
@@ -2950,42 +2950,22 @@
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
     } else if (abaNome === 'documentos') {
       body.innerHTML = '<div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">' +
-        '<div><strong>Estrutura de Arquivos no Drive (5 Subpastas Padronizadas)</strong></div>' +
+        '<div><strong>Estrutura de Arquivos no Drive (Pasta de Contrato Principal)</strong></div>' +
         (c.pastaDriveId ? '<a href="https://drive.google.com/drive/folders/' + c.pastaDriveId + '" target="_blank" class="btn btn-secondary" style="height:30px; font-size:11px;">Abrir Pasta no Drive</a>' : '') +
         '</div>' +
-        '<div class="drive-folders-grid">' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">01_Contrato_Principal</span><span class="drive-folder-desc">Minuta aprovada e instrumento contratual assinado.</span></div>' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">02_Termos_Aditivos</span><span class="drive-folder-desc">Aditivos de valor, vigência ou escopo.</span></div>' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">03_Documentos_Tecnicos</span><span class="drive-folder-desc">Propostas, memoriais, topologias e certidões.</span></div>' +
-        '  <div class="drive-folder-item"><span class="drive-folder-name">04_Boletins_Medicao</span><span class="drive-folder-desc">Medições mensais e atestes operacionais.</span></div>' +
-        '  <div class="drive-folder-item" style="grid-column: span 2;"><span class="drive-folder-name">05_Aprovacoes_e_Pareceres</span><span class="drive-folder-desc">Evidências formais de aprovação e despachos executivos.</span></div>' +
+        '<div class="drive-folders-grid" style="grid-template-columns: 1fr;">' +
+        '  <div class="drive-folder-item"><span class="drive-folder-name">Contrato Principal (01_Contrato_Principal)</span><span class="drive-folder-desc">Minuta aprovada, instrumento contratual assinado e anexos oficiais do contrato.</span></div>' +
         '</div>' +
         '<div style="margin-top:20px; padding:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px;">' +
         '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue); margin-bottom:8px;">Upload Adicional de Documento</div>' +
         '  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
         '    <select id="modalUploadSubpasta" class="filter-select" style="font-size:12px; height:32px;">' +
-        '      <option value="01_Contrato_Principal">01_Contrato_Principal</option>' +
-        '      <option value="02_Termos_Aditivos">02_Termos_Aditivos</option>' +
-        '      <option value="03_Documentos_Tecnicos">03_Documentos_Tecnicos</option>' +
-        '      <option value="04_Boletins_Medicao">04_Boletins_Medicao</option>' +
-        '      <option value="05_Aprovacoes_e_Pareceres">05_Aprovacoes_e_Pareceres</option>' +
+        '      <option value="01_Contrato_Principal">Contrato Principal (01_Contrato_Principal)</option>' +
         '    </select>' +
         '    <input type="file" id="modalUploadFileInput" style="font-size:12px;">' +
         '    <button type="button" class="btn btn-action-primary" onclick="submeterUploadModalFicha()">Fazer Upload para o Drive</button>' +
         '  </div>' +
         '</div>';
-      footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
-    } else if (abaNome === 'aditivos') {
-      body.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-muted);">' +
-        'Nenhum termo aditivo averbado para este contrato.' +
-        '</div>';
-      footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
-    } else if (abaNome === 'auditoria') {
-      body.innerHTML = '<div style="margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">' +
-        '<div><strong>Trilha Oficial de Auditoria do Contrato #' + c.id + '</strong></div>' +
-        '<button type="button" class="btn btn-primary" onclick="abrirCertificadoAuditoria(' + c.id + ')">Gerar Certificado de Auditoria</button>' +
-        '</div>' +
-        '<div id="timelineAuditoriaContrato" style="font-size:12px; color:var(--text-muted);">Clique no botão acima para emitir a Folha de Rosto e Certificado Oficial com validação digital.</div>';
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
     }
   }
@@ -3264,6 +3244,25 @@
   }
 
   // Utilitarios
+  function formatarDataClient(val) {
+    if (!val) return '-';
+    var s = String(val).trim();
+    if (!s || s === '-') return '-';
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+      var p = s.substring(0, 10).split('-');
+      return p[2] + '/' + p[1] + '/' + p[0];
+    }
+    var d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      var dia = String(d.getDate()).padStart(2, '0');
+      var mes = String(d.getMonth() + 1).padStart(2, '0');
+      var ano = d.getFullYear();
+      return dia + '/' + mes + '/' + ano;
+    }
+    return s;
+  }
+
   function formatarMoedaBRL(val) {
     var num = parseFloat(val) || 0;
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
