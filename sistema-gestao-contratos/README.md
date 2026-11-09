@@ -7,7 +7,8 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 
 ## Principais Recursos
 - **Hierarquia por Fornecedor (Drill-down):** Fornecedores exibidos pelo **Apelido (Nome Usual)** como título principal, com perfil formal (Razão Social, Nome Fantasia, CNPJ, Contatos e Pasta no Drive) expandido.
-- **Estrutura por 5 Gerências:** Pastas dedicadas no Google Drive corporativo para *GESTAO TELEFONIA*, *OPERACAO E MANUTENCAO DE REDES*, *OPERACOES DE REDES*, *PROJETOS DE IMPLANTACAO* e *TELEFONIA*.
+- **Estrutura por 5 Gerências:** A pasta raiz no Google Drive contém exclusivamente as 5 pastas setoriais da Telefonia (*GESTAO TELEFONIA*, *OPERACAO E MANUTENCAO DE REDES*, *OPERACOES DE REDES*, *PROJETOS DE IMPLANTACAO* e *TELEFONIA*). No formulário de Novo Fornecedor, o campo Setor define em qual gerência a pasta daquele parceiro será criada.
+- **Base Oficial de Contratos:** Linha 1 de cabeçalho da aba Contratos formatada com os 45 títulos oficiais amigáveis correspondentes aos campos do formulário corporativo.
 - **29 Atributos Contratuais:** Formulário com máscaras automáticas (CNPJ, Moeda, Taxa de Câmbio, Percentuais, Datas), vigência indeterminada, reajuste por base de clientes e upload direto para a subpasta `01_Contrato_Principal`.
 - **Tabela de Faixas por Base de Clientes com Faixa Atual:** Campo de seleção tipo "bolinha" (radio button) para indicar a faixa em vigor atual, com rotina de atualização operacional quando o número de assinantes cresce.
 - **Governança de Mudanças (Central de Aprovações):** Contratos cadastrados nascem ativos e validados. A esteira de aprovações é reservada para alterações de escopo, renovações, reajustes não programados e migração de faixas por alçada formal (Coordenador, Gerente, Gerente Executivo).

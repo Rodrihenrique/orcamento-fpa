@@ -43,13 +43,14 @@ Para cadastrar um fornecedor:
    - **Razão Social:** Razão formal registrada na Receita Federal.
    - **Nome Fantasia:** Nome de mercado.
    - **Apelido (Nome Usual):** Nome mais conhecido internamente na telefonia (utilizado como título principal).
+   - **Setor / Gerência da Telefonia:** Seleção entre as 5 gerências (*GESTAO TELEFONIA*, *OPERACAO E MANUTENCAO DE REDES*, *OPERACOES DE REDES*, *PROJETOS DE IMPLANTACAO*, *TELEFONIA*), definindo em qual pasta setorial do Google Drive a pasta deste fornecedor será criada.
    - **CNPJ:** Máscara automática (00.000.000/0000-00).
    - **Telefone Comercial:** Formato com DDD.
    - **E-mail Comercial:** Endereço para notificações e contatos.
    - **Status de Homologação:** Ativo ou Em Homologação.
    - **Observações Internas:** Notas operacionais.
 3. Clique em **Salvar Fornecedor**.
-4. O fornecedor já nasce validado e ativo, pronto para receber seus contratos.
+4. O fornecedor já nasce validado e ativo, com sua pasta provisionada dentro do setor escolhido no Drive, pronto para receber seus contratos.
 
 ---
 
@@ -150,3 +151,66 @@ A aba **Trilha Oficial de Auditoria** registra todos os eventos operacionais do 
 - Justificativa técnica e parecer formal.
 
 Os registros não podem ser editados ou excluídos pelos usuários, servindo como registro oficial para auditorias internas e governança corporativa da brisanet.
+
+---
+
+## 8. Estrutura de Pastas no Google Drive e Planilha Oficial
+
+### 8.1 Estrutura do Google Drive
+A pasta raiz `Contratos - Gerência Executiva de Telefonia` contém exclusivamente as 5 pastas dos setores da Telefonia:
+- `GESTAO TELEFONIA`
+- `OPERACAO E MANUTENCAO DE REDES`
+- `OPERACOES DE REDES`
+- `PROJETOS DE IMPLANTACAO`
+- `TELEFONIA`
+
+Cada fornecedor e seus respectivos contratos são organizados dentro da gerência correspondente selecionada:
+`[SETOR] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} / 01_Contrato_Principal`
+
+### 8.2 Linha de Cabeçalho Oficial da Aba Contratos
+A linha 1 da aba `Contratos` na planilha oficial contém exatamente as 45 colunas oficiais amigáveis correspondentes a todos os campos do formulário:
+1. `ID do Contrato`
+2. `Protocolo Oficial`
+3. `ID do Fornecedor`
+4. `Fornecedor / Razão Social`
+5. `Objeto do Contrato`
+6. `Tipo de Contrato`
+7. `Situação do Contrato`
+8. `Status de Aprovação`
+9. `Início da Vigência`
+10. `Término da Vigência`
+11. `Vigência Indeterminada`
+12. `Aviso Prévio (Dias)`
+13. `Valor Mensal Base`
+14. `Valor Mensal Atual`
+15. `Variação Mês a Mês (Valor)`
+16. `Variação Mês a Mês (%)`
+17. `Critério / Índice de Reajuste`
+18. `Mês Aniversário (1 a 12)`
+19. `Centro de Custo`
+20. `Conta Contábil`
+21. `Gestor Técnico`
+22. `ID Pasta Contrato (Drive)`
+23. `ID Pasta Fornecedor (Drive)`
+24. `Observações`
+25. `Data de Criação`
+26. `Data de Atualização`
+27. `Setor / Gerência da Telefonia`
+28. `Tabela Base de Clientes (JSON)`
+29. `CNPJ`
+30. `Renovação Automática (Sim/Não)`
+31. `Moeda`
+32. `Periodicidade`
+33. `1ª Competência (DD/MM/AAAA)`
+34. `Data do Reajuste`
+35. `Sem Reajuste`
+36. `Reajuste Aplicado (%)`
+37. `Impostos / Encargos (%)`
+38. `Taxa de Câmbio`
+39. `Valor Base em BRL`
+40. `Contingência (%)`
+41. `Valor Orçado por Lançamento`
+42. `Contrato / PO`
+43. `Risco (Baixo, Médio, Alto)`
+44. `Descrição do Risco / Contingência`
+45. `Fonte / Memória de Cálculo`

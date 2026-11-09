@@ -3048,13 +3048,7 @@ function obterOuCriarPastaRaizTelefonia_() {
     rootFolder = DriveApp.createFolder(rootName);
   }
 
-  // Assegurar subpasta de modelos e configuracoes
-  var configFolders = rootFolder.getFoldersByName('00_Configuracoes_e_Modelos');
-  if (!configFolders.hasNext()) {
-    rootFolder.createFolder('00_Configuracoes_e_Modelos');
-  }
-
-  // Assegurar as 5 pastas oficiais das Gerencias da Telefonia
+  // Assegurar estritamente apenas as 5 pastas oficiais das Gerencias/Setores da Telefonia na raiz
   var gerencias = CONFIG.GERENCIAS_TELEFONIA || [
     'GESTAO TELEFONIA',
     'OPERACAO E MANUTENCAO DE REDES',
@@ -3075,11 +3069,6 @@ function obterOuCriarPastaRaizTelefonia_() {
 }
 
 /**
- * Obtem ou cria a pasta do fornecedor dentro da pasta raiz da Telefonia.
- * @param {string} nomeFornecedor Nome ou Razao Social do Fornecedor
- * @return {GoogleAppsScript.Drive.Folder} Pasta do fornecedor
- */
-/**
  * Obtem ou cria a pasta de uma das 5 Gerencias da Telefonia.
  * @param {string} nomeGerencia
  * @return {GoogleAppsScript.Drive.Folder}
@@ -3094,8 +3083,8 @@ function obterOuCriarPastaGerencia_(nomeGerencia) {
     'TELEFONIA'
   ];
 
-  var targetName = String(nomeGerencia || 'TELEFONIA').trim().toUpperCase();
-  var match = gerencias.find(function(g) { return g.toUpperCase() === targetName; }) || 'TELEFONIA';
+  var targetName = String(nomeGerencia || 'GESTAO TELEFONIA').trim().toUpperCase();
+  var match = gerencias.find(function(g) { return g.toUpperCase() === targetName; }) || 'GESTAO TELEFONIA';
 
   var folders = rootFolder.getFoldersByName(match);
   if (folders.hasNext()) return folders.next();
@@ -3104,6 +3093,7 @@ function obterOuCriarPastaGerencia_(nomeGerencia) {
 
 /**
  * Obtem ou cria a pasta do fornecedor dentro da pasta da respectiva Gerencia.
+ * Garante que a pasta raiz do Drive contenha exclusivamente as 5 pastas dos setores.
  * @param {string} nomeFornecedor Nome ou Razao Social do Fornecedor
  * @param {string} [nomeGerencia] Nome da Gerencia pertencente
  * @return {GoogleAppsScript.Drive.Folder} Pasta do fornecedor
@@ -3114,21 +3104,7 @@ function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
     .trim();
   if (!sanitizedName) sanitizedName = 'Fornecedor_Geral';
 
-  if (nomeGerencia) {
-    var parentGerencia = obterOuCriarPastaGerencia_(nomeGerencia);
-    var fld = parentGerencia.getFoldersByName(sanitizedName);
-    if (fld.hasNext()) return fld.next();
-    return parentGerencia.createFolder(sanitizedName);
-  }
-
-  // Se nao foi passada gerencia, procurar primeiro na raiz
   var rootFolder = obterOuCriarPastaRaizTelefonia_();
-  var rootMatches = rootFolder.getFoldersByName(sanitizedName);
-  if (rootMatches.hasNext()) {
-    return rootMatches.next();
-  }
-
-  // Procurar dentro das 5 gerencias oficiais antes de criar uma nova
   var gerencias = CONFIG.GERENCIAS_TELEFONIA || [
     'GESTAO TELEFONIA',
     'OPERACAO E MANUTENCAO DE REDES',
@@ -3136,6 +3112,16 @@ function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
     'PROJETOS DE IMPLANTACAO',
     'TELEFONIA'
   ];
+
+  // 1. Se foi informada a gerencia, obter/criar diretamente dentro da pasta daquela gerencia
+  if (nomeGerencia) {
+    var parentGerencia = obterOuCriarPastaGerencia_(nomeGerencia);
+    var fld = parentGerencia.getFoldersByName(sanitizedName);
+    if (fld.hasNext()) return fld.next();
+    return parentGerencia.createFolder(sanitizedName);
+  }
+
+  // 2. Se nao foi passada gerencia, procurar dentro das 5 gerencias oficiais antes de criar uma nova
   for (var g = 0; g < gerencias.length; g++) {
     var gFolders = rootFolder.getFoldersByName(gerencias[g]);
     if (gFolders.hasNext()) {
@@ -3147,8 +3133,12 @@ function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
     }
   }
 
-  // Se nao encontrou em nenhuma gerencia, cria na raiz
-  return rootFolder.createFolder(sanitizedName);
+  // 3. Caso nao tenha sido encontrada em nenhuma gerencia e nao foi informada,
+  // alocar dentro da gerencia padrao GESTAO TELEFONIA (NUNCA solta na raiz)
+  var defaultGerencia = obterOuCriarPastaGerencia_('GESTAO TELEFONIA');
+  var defFld = defaultGerencia.getFoldersByName(sanitizedName);
+  if (defFld.hasNext()) return defFld.next();
+  return defaultGerencia.createFolder(sanitizedName);
 }
 
 /**
@@ -3353,20 +3343,21 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
 
     // 1. Cabecalhos Oficiais
     var headersContratos = [
-      'id_contrato', 'protocolo_oficial', 'id_fornecedor', 'fornecedor_nome',
-      'objeto_contrato', 'tipo_contrato', 'status', 'status_alcada',
-      'data_inicio_vigencia', 'data_fim_vigencia', 'vigencia_indeterminada',
-      'aviso_previo_dias', 'valor_mensal_base', 'valor_mensal_atual',
-      'variacao_mes_a_mes_valor', 'variacao_mes_a_mes_percentual',
-      'indice_reajuste', 'mes_aniversario_reajuste', 'centro_custo',
-      'conta_contabil', 'gestor_tecnico_email', 'id_pasta_drive',
-      'id_pasta_fornecedor_drive', 'observacoes', 'data_criacao', 'data_atualizacao',
-      'setor_gerencia', 'tabela_base_clientes_json',
-      'cnpj', 'renovacao_automatica', 'moeda', 'periodicidade',
-      'primeira_competencia', 'data_reajuste', 'sem_reajuste',
-      'reajuste_aplicado_pct', 'impostos_encargos_pct', 'taxa_cambio',
-      'valor_base_brl', 'contingencia_pct', 'valor_orcado_lancamento',
-      'contrato_po', 'risco', 'descricao_risco', 'memoria_calculo'
+      'ID do Contrato', 'Protocolo Oficial', 'ID do Fornecedor', 'Fornecedor / Razão Social',
+      'Objeto do Contrato', 'Tipo de Contrato', 'Situação do Contrato', 'Status de Aprovação',
+      'Início da Vigência', 'Término da Vigência', 'Vigência Indeterminada',
+      'Aviso Prévio (Dias)', 'Valor Mensal Base', 'Valor Mensal Atual',
+      'Variação Mês a Mês (Valor)', 'Variação Mês a Mês (%)',
+      'Critério / Índice de Reajuste', 'Mês Aniversário (1 a 12)', 'Centro de Custo',
+      'Conta Contábil', 'Gestor Técnico', 'ID Pasta Contrato (Drive)',
+      'ID Pasta Fornecedor (Drive)', 'Observações', 'Data de Criação', 'Data de Atualização',
+      'Setor / Gerência da Telefonia', 'Tabela Base de Clientes (JSON)',
+      'CNPJ', 'Renovação Automática (Sim/Não)', 'Moeda', 'Periodicidade',
+      '1ª Competência (DD/MM/AAAA)', 'Data do Reajuste', 'Sem Reajuste',
+      'Reajuste Aplicado (%)', 'Impostos / Encargos (%)', 'Taxa de Câmbio',
+      'Valor Base em BRL', 'Contingência (%)', 'Valor Orçado por Lançamento',
+      'Contrato / PO', 'Risco (Baixo, Médio, Alto)', 'Descrição do Risco / Contingência',
+      'Fonte / Memória de Cálculo'
     ];
 
     var headersFornecedores = [
@@ -3635,6 +3626,70 @@ function obterPapelUsuario_(email) {
  */
 
 /**
+ * Garante que a aba Contratos tenha todas as 45 colunas oficiais com os nomes amigaveis
+ * correspondentes aos campos de preenchimento do formulario corporativo.
+ * @param {Sheet} sheetContratos
+ */
+function garantirHeadersContratos_(sheetContratos) {
+  if (!sheetContratos) return;
+  var headersOficiais = [
+    'ID do Contrato',
+    'Protocolo Oficial',
+    'ID do Fornecedor',
+    'Fornecedor / Razão Social',
+    'Objeto do Contrato',
+    'Tipo de Contrato',
+    'Situação do Contrato',
+    'Status de Aprovação',
+    'Início da Vigência',
+    'Término da Vigência',
+    'Vigência Indeterminada',
+    'Aviso Prévio (Dias)',
+    'Valor Mensal Base',
+    'Valor Mensal Atual',
+    'Variação Mês a Mês (Valor)',
+    'Variação Mês a Mês (%)',
+    'Critério / Índice de Reajuste',
+    'Mês Aniversário (1 a 12)',
+    'Centro de Custo',
+    'Conta Contábil',
+    'Gestor Técnico',
+    'ID Pasta Contrato (Drive)',
+    'ID Pasta Fornecedor (Drive)',
+    'Observações',
+    'Data de Criação',
+    'Data de Atualização',
+    'Setor / Gerência da Telefonia',
+    'Tabela Base de Clientes (JSON)',
+    'CNPJ',
+    'Renovação Automática (Sim/Não)',
+    'Moeda',
+    'Periodicidade',
+    '1ª Competência (DD/MM/AAAA)',
+    'Data do Reajuste',
+    'Sem Reajuste',
+    'Reajuste Aplicado (%)',
+    'Impostos / Encargos (%)',
+    'Taxa de Câmbio',
+    'Valor Base em BRL',
+    'Contingência (%)',
+    'Valor Orçado por Lançamento',
+    'Contrato / PO',
+    'Risco (Baixo, Médio, Alto)',
+    'Descrição do Risco / Contingência',
+    'Fonte / Memória de Cálculo'
+  ];
+
+  // Sempre sincronizar a linha 1 com os 45 cabecalhos oficiais amigaveis
+  sheetContratos.getRange(1, 1, 1, headersOficiais.length).setValues([headersOficiais]);
+  var headerRange = sheetContratos.getRange(1, 1, 1, headersOficiais.length);
+  headerRange.setBackground('#0B316D')
+             .setFontColor('#FFFFFF')
+             .setFontWeight('bold')
+             .setFontFamily('Figtree');
+}
+
+/**
  * Garante que a aba Fornecedores tenha os 10 cabecalhos oficiais e auto-repara
  * linhas legadas ou deslocadas onde o Apelido ficou na coluna do CNPJ.
  * @param {Sheet} sheetFornecedores
@@ -3673,6 +3728,13 @@ function obterDadosCompletosTelefonia() {
       sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
       sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
       sheetAprovacoes = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+    }
+
+    if (sheetContratos) {
+      garantirHeadersContratos_(sheetContratos);
+    }
+    if (sheetFornecedores) {
+      garantirHeadersFornecedores_(sheetFornecedores);
     }
 
     var userEmail = '';
@@ -3785,12 +3847,22 @@ function obterDadosCompletosTelefonia() {
     var categoriasSet = {};
 
     if (sheetContratos && sheetContratos.getLastRow() > 1) {
-      var numColsC = sheetContratos.getLastColumn();
+      var numColsC = Math.max(sheetContratos.getLastColumn(), 45);
       var cHeaders = sheetContratos.getRange(1, 1, 1, numColsC).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
       var cRows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, numColsC).getValues();
 
       function getCol(row, colName, fallbackIdx, defVal) {
-        var idx = cHeaders.indexOf(colName);
+        var target = String(colName || '').toLowerCase().trim();
+        var targetClean = target.replace(/[^a-z0-9]/g, '');
+        var idx = -1;
+        for (var h = 0; h < cHeaders.length; h++) {
+          var ch = cHeaders[h];
+          var chClean = ch.replace(/[^a-z0-9]/g, '');
+          if (ch === target || chClean === targetClean || chClean.indexOf(targetClean) !== -1 || targetClean.indexOf(chClean) !== -1) {
+            idx = h;
+            break;
+          }
+        }
         if (idx !== -1 && row[idx] !== undefined && row[idx] !== null && String(row[idx]).trim() !== '') {
           return row[idx];
         }
@@ -4327,6 +4399,8 @@ function salvarNovoContratoTelefonia(dados) {
       sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
     }
 
+    garantirHeadersContratos_(sheetContratos);
+
     var fornNome = String(dados.fornecedor || '').trim();
     if (!fornNome) throw new Error('Nome do fornecedor e obrigatorio.');
 
@@ -4710,7 +4784,11 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
     var fornId = 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15);
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
 
-    var fornFolder = obterOuCriarPastaFornecedor_(fornNome);
+    // Setor da Telefonia selecionado no formulario (ex: GESTAO TELEFONIA)
+    var setorGerencia = String(dadosFornecedor.setor || dadosFornecedor.setorGerencia || 'GESTAO TELEFONIA').trim().toUpperCase();
+
+    // Criar a pasta do fornecedor diretamente dentro da pasta do Setor escolhido
+    var fornFolder = obterOuCriarPastaFornecedor_(fornNome, setorGerencia);
     var fornFolderId = fornFolder ? fornFolder.getId() : '';
 
     garantirHeadersFornecedores_(sheetFornecedores);
@@ -4736,8 +4814,8 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       'Cadastro de Fornecedor',
       'Cadastro Geral',
       '-',
-      fornNome + ' (' + fornApelido + ') | CNPJ: ' + (dadosFornecedor.cnpj || '-'),
-      dadosFornecedor.observacoes || ('Fornecedor cadastrado com sucesso: ' + fornNome),
+      fornNome + ' (' + fornApelido + ') | Setor: ' + setorGerencia + ' | CNPJ: ' + (dadosFornecedor.cnpj || '-'),
+      dadosFornecedor.observacoes || ('Fornecedor cadastrado com sucesso no setor ' + setorGerencia + ': ' + fornNome),
       userEmailForn,
       userPapelForn
     );
@@ -4746,6 +4824,8 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       success: true,
       idFornecedor: fornId,
       razaoSocial: fornNome,
+      pastaDriveId: fornFolderId,
+      setorGerencia: setorGerencia,
       message: 'Fornecedor salvo com sucesso.'
     };
   } catch (err) {
@@ -4782,14 +4862,22 @@ function atualizarFaixaBaseClientes(payload) {
     var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
     if (!sheetContratos) throw new Error('Aba de contratos nao localizada.');
 
-    var numCols = sheetContratos.getLastColumn();
+    var numCols = Math.max(sheetContratos.getLastColumn(), 45);
     var headers = sheetContratos.getRange(1, 1, 1, numCols).getValues()[0].map(function(h) {
       return String(h).toLowerCase().trim();
     });
 
-    var idxJson = headers.indexOf('tabela_base_clientes_json');
-    var idxValorAtual = headers.indexOf('valor_mensal_atual');
-    var idxDataAtualizacao = headers.indexOf('data_atualizacao');
+    var idxJson = -1;
+    var idxValorAtual = -1;
+    var idxDataAtualizacao = -1;
+
+    for (var h = 0; h < headers.length; h++) {
+      var hd = headers[h].replace(/[^a-z0-9]/g, '');
+      if (hd.indexOf('tabelabaseclientes') !== -1 || hd.indexOf('baseclientes') !== -1) idxJson = h;
+      if (hd.indexOf('valormensalatual') !== -1) idxValorAtual = h;
+      if (hd.indexOf('dataatualizacao') !== -1 || hd.indexOf('datadeatualizacao') !== -1) idxDataAtualizacao = h;
+    }
+
     if (idxJson === -1) idxJson = 27;
     if (idxValorAtual === -1) idxValorAtual = 13;
     if (idxDataAtualizacao === -1) idxDataAtualizacao = 25;

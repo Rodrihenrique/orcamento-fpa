@@ -1381,13 +1381,23 @@
           <div class="form-group col-span-1">
             <label class="form-label required">Apelido (Nome Usual)</label>
             <input type="text" id="novoFornecedorApelido" class="form-control" placeholder="Ex: Huawei, Cirion, Vogel..." required>
-            
           </div>
-          <div class="form-group">
+          <div class="form-group col-span-2">
+            <label class="form-label required">Setor / Gerência da Telefonia</label>
+            <select id="novoFornecedorSetor" class="form-control" required>
+              <option value="GESTAO TELEFONIA">GESTAO TELEFONIA</option>
+              <option value="OPERACAO E MANUTENCAO DE REDES">OPERACAO E MANUTENCAO DE REDES</option>
+              <option value="OPERACOES DE REDES">OPERACOES DE REDES</option>
+              <option value="PROJETOS DE IMPLANTACAO">PROJETOS DE IMPLANTACAO</option>
+              <option value="TELEFONIA">TELEFONIA</option>
+            </select>
+            <small style="font-size: 11px; color: var(--text-muted);">Define em qual pasta setorial do Google Drive a pasta deste fornecedor será criada.</small>
+          </div>
+          <div class="form-group col-span-1">
             <label class="form-label required">CNPJ</label>
             <input type="text" id="novoFornecedorCnpjInput" class="form-control" placeholder="00.000.000/0000-00" maxlength="18" required oninput="mascaraCnpj(this)">
           </div>
-          <div class="form-group">
+          <div class="form-group col-span-1">
             <label class="form-label">Telefone Comercial</label>
             <input type="text" id="novoFornecedorTelefone" class="form-control" placeholder="(00) 00000-0000" maxlength="15" oninput="mascaraTelefone(this)">
           </div>
@@ -1395,14 +1405,14 @@
             <label class="form-label">E-mail Comercial</label>
             <input type="email" id="novoFornecedorEmailComercial" class="form-control" placeholder="comercial@fornecedor.com.br">
           </div>
-          <div class="form-group">
+          <div class="form-group col-span-2">
             <label class="form-label required">Status de Homologação</label>
             <select id="novoFornecedorStatus" class="form-control" required>
               <option value="Ativo">Ativo</option>
               <option value="Em Homologação">Em Homologação</option>
             </select>
           </div>
-          <div class="form-group col-span-3">
+          <div class="form-group col-span-4">
             <label class="form-label">Observações Internas</label>
             <input type="text" id="novoFornecedorObservacoes" class="form-control" placeholder="Notas sobre a parceria ou contas...">
           </div>
@@ -1532,11 +1542,11 @@
           <div class="form-group col-span-2">
             <label class="form-label required">Setor / Gerência da Telefonia</label>
             <select id="contratoModalSetor" class="form-control" required>
-              <option value="TELEFONIA">TELEFONIA</option>
               <option value="GESTAO TELEFONIA">GESTAO TELEFONIA</option>
               <option value="OPERACAO E MANUTENCAO DE REDES">OPERACAO E MANUTENCAO DE REDES</option>
               <option value="OPERACOES DE REDES">OPERACOES DE REDES</option>
               <option value="PROJETOS DE IMPLANTACAO">PROJETOS DE IMPLANTACAO</option>
+              <option value="TELEFONIA">TELEFONIA</option>
             </select>
             <small style="font-size: 11px; color: var(--text-muted);">Arquivamento automático na pasta desta gerência no Google Drive.</small>
           </div>
@@ -2420,6 +2430,8 @@
       razaoSocial: document.getElementById('novoFornecedorRazaoSocial').value.trim(),
       nomeFantasia: document.getElementById('novoFornecedorNomeFantasia').value.trim(),
       apelido: document.getElementById('novoFornecedorApelido').value.trim(),
+      setor: document.getElementById('novoFornecedorSetor').value,
+      setorGerencia: document.getElementById('novoFornecedorSetor').value,
       cnpj: document.getElementById('novoFornecedorCnpjInput').value.trim(),
       contatoComercial: document.getElementById('novoFornecedorTelefone').value.trim(),
       emailComercial: document.getElementById('novoFornecedorEmailComercial').value.trim(),
@@ -2487,7 +2499,7 @@
     }
 
     // Aplicar valores padrao
-    document.getElementById('contratoModalSetor').value = 'TELEFONIA';
+    document.getElementById('contratoModalSetor').value = 'GESTAO TELEFONIA';
     document.getElementById('contratoModalTipo').value = 'Suporte Técnico';
     alternarTipoContratoModal('Suporte Técnico');
     document.getElementById('contratoModalAvisoPrevio').value = '30';
