@@ -2179,7 +2179,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           <div class="dropzone-text">Arraste e solte o arquivo do contrato aqui, ou clique para selecionar</div>
-          <div class="dropzone-hint">Formatos suportados: PDF, PNG, JPG, JPEG, DOCX, XLSX (Arquivamento direto na subpasta 01_Contrato_Principal)</div>
+          <div class="dropzone-hint">Formatos suportados: PDF, PNG, JPG, JPEG, DOCX, XLSX (Arquivamento direto na pasta selecionada: Contrato, Anexos, Documentação ou NF)</div>
         </div>
         <div class="files-list-container" id="listaArquivosModalContrato"></div>
 
@@ -2199,21 +2199,21 @@
      MODAL ALTERAR FAIXA VIGENTE (BASE DE CLIENTES)
      ========================================================================== -->
 <div class="modal-overlay" id="modalAlterarFaixaBaseClientes">
-  <div class="modal-content" style="max-width: 550px; border-radius: 16px; overflow: hidden;">
+  <div class="modal-content" style="max-width: 620px; border-radius: 16px; overflow: hidden;">
     <div class="modal-header" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
-      <div class="modal-header-title">Alterar Faixa Vigente (Base de Clientes)</div>
+      <div class="modal-header-title">Alterar Faixas e Reajustar Valores (Base de Clientes)</div>
       <button type="button" class="modal-close-btn" onclick="fecharModalAlterarFaixa()">&times;</button>
     </div>
     <div class="modal-body" style="padding: 20px 24px;">
       <input type="hidden" id="alterarFaixaContratoId">
       <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
-        Selecione abaixo a faixa em que a base de clientes do contrato se encontra atualmente para atualizar o valor faturado e registrar na trilha de auditoria:
+        Selecione a faixa vigente do contrato e, caso necessário, edite diretamente os valores monetários de cada faixa para registrar o reajuste:
       </p>
-      <div id="listaFaixasParaSelecao" style="display: flex; flex-direction: column; gap: 8px;"></div>
+      <div id="listaFaixasParaSelecao" style="display: flex; flex-direction: column; gap: 10px;"></div>
     </div>
     <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: flex-end; gap: 12px;">
       <button type="button" class="btn btn-secondary" onclick="fecharModalAlterarFaixa()">Cancelar</button>
-      <button type="button" class="btn btn-primary" onclick="salvarNovaFaixaVigente()">Confirmar Alteração de Faixa</button>
+      <button type="button" class="btn btn-primary" onclick="salvarNovaFaixaVigente()">Confirmar Reajuste / Alteração de Faixas</button>
     </div>
   </div>
 </div>
@@ -2839,8 +2839,9 @@
     // Renderizar Banner de Alertas de Reajuste Periodico (5 dias antes)
     renderizarBannerAlertasReajuste();
 
-    // Garantir calculo correto de desembolso mensal e orcamento anual a partir dos contratos
+    // Garantir calculo correto de desembolso mensal e orcamento anual considerando os meses de cobranca efetiva
     var totalMensalCalc = 0;
+    var totalAnualCalc = 0;
     var contratosAtivosCalc = 0;
     if (appState.contratos && appState.contratos.length > 0) {
       for (var ci = 0; ci < appState.contratos.length; ci++) {
@@ -2851,15 +2852,19 @@
         var isAtivo = !isEncerrado && (cStatus.indexOf('vigen') !== -1 || cStatus.indexOf('ativ') !== -1 || cAlcada.indexOf('aprov') !== -1 || !cStatus);
         if (isAtivo) {
           contratosAtivosCalc++;
-          var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || parseFloat(cItem.valorBaseBrl) || 0;
+          var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || 0;
+          var msCob = parseInt(cItem.mesesCobranca, 10);
+          if (isNaN(msCob) || msCob <= 0) msCob = 12;
+          var valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
           totalMensalCalc += valContrato;
+          totalAnualCalc += valAnual;
         }
       }
     }
     if (!appState.kpis.valorMensalTotal || appState.kpis.valorMensalTotal === 0) {
       appState.kpis.valorMensalTotal = totalMensalCalc;
-      appState.kpis.valorAnualComprometido = totalMensalCalc * 12;
     }
+    appState.kpis.valorAnualComprometido = totalAnualCalc;
     if (!appState.kpis.contratosAtivos || appState.kpis.contratosAtivos === 0) {
       appState.kpis.contratosAtivos = contratosAtivosCalc;
     }
@@ -2906,26 +2911,27 @@
       var selectClass = isEncerrado ? 'encerrado' : 'ativo';
 
       // Verificar contratos, valores e alerta discreto de vencimento proximo
-      var fValorMensal = f.valorMensalTotal;
-      var fContratosAtivos = f.contratosAtivos;
+      var fValorMensal = 0;
+      var fValorAnual = 0;
+      var fContratosAtivos = 0;
       var menorDiasVencimento = null;
 
       if (f.contratos && f.contratos.length > 0) {
-        var precisaRecalcular = (!fValorMensal || fValorMensal === 0);
-        if (precisaRecalcular) {
-          fValorMensal = 0;
-          fContratosAtivos = 0;
-        }
-
         f.contratos.forEach(function(c) {
           var cSt = String(c.status || '').toLowerCase();
           var cAlc = String(c.statusAlcada || '').toLowerCase();
           var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 || cSt.indexOf('inativ') !== -1;
           var isAt = !isEnc && (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt);
 
-          if (isAt && precisaRecalcular) {
+          var vMensal = (parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || 0);
+          var meses = parseInt(c.mesesCobranca, 10);
+          if (isNaN(meses) || meses <= 0) meses = 12;
+          var vAnual = parseFloat(c.desembolsoAnual) || (vMensal * meses);
+
+          if (isAt) {
             fContratosAtivos++;
-            fValorMensal += (parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0);
+            fValorMensal += vMensal;
+            fValorAnual += vAnual;
           }
 
           if (isAt && !c.prazoIndeterminado && c.diasRestantes !== null && c.diasRestantes !== undefined) {
@@ -2937,6 +2943,10 @@
             }
           }
         });
+      } else {
+        fValorMensal = f.valorMensalTotal || 0;
+        fValorAnual = f.desembolsoAnualTotal || (fValorMensal * 12);
+        fContratosAtivos = f.contratosAtivos || 0;
       }
 
       html += '<div class="supplier-accordion-card ' + (isExpanded ? 'expanded' : '') + '" id="' + fId + '">';
@@ -2973,7 +2983,7 @@
       html += '      </div>';
       html += '      <div class="metric-chip">';
       html += '        <span class="metric-chip-label">Desembolso Anual</span>';
-      html += '        <span class="metric-chip-val">' + formatarMoedaBRL((fValorMensal || 0) * 12) + '</span>';
+      html += '        <span class="metric-chip-val">' + formatarMoedaBRL(fValorAnual || 0) + '</span>';
       html += '      </div>';
       var driveFolderId = f.pastaDriveId || (f.contratos && f.contratos.length > 0 && (f.contratos[0].pastaFornecedorDriveId || f.contratos[0].pastaDriveId)) || '';
 
@@ -3452,7 +3462,7 @@
             tamanho: file.size,
             mimeType: file.type || 'application/octet-stream',
             base64: base64,
-            subpasta: '01_Contrato_Principal'
+            subpasta: (document.getElementById('contratoModalSubpastaDestino') ? document.getElementById('contratoModalSubpastaDestino').value : 'Contrato')
           });
           renderizarListaArquivosModalContrato();
         };
@@ -3476,7 +3486,7 @@
       html += '  <div class="file-item-info">';
       html += '    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="color:var(--brisa-blue);"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>';
       html += '    <span class="file-item-name">' + escapeHtml(f.nome) + '</span>';
-      html += '    <span class="file-item-size">(' + sizeKb + ') &rarr; Subpasta: 01_Contrato_Principal</span>';
+      html += '    <span class="file-item-size">(' + sizeKb + ') &rarr; Pasta: ' + escapeHtml(f.subpasta || 'Contrato') + '</span>';
       html += '  </div>';
       html += '  <button type="button" class="btn-remove-file" onclick="removerArquivoModalContrato(' + idx + ')">&times;</button>';
       html += '</div>';
@@ -3749,7 +3759,7 @@
         faixasHtml = '<div style="margin-top:16px; border-top:1px solid #E2E8F0; padding-top:12px;">' +
           '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
           '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">Tabela de Reajuste por Base de Clientes (Assinantes)</div>' +
-          '  <button type="button" class="btn btn-secondary" style="height: 28px; font-size: 11px;" onclick="abrirModalAlterarFaixaBaseClientes(\'' + c.id + '\')">Alterar Faixa Vigente</button>' +
+          '  <button type="button" class="btn btn-secondary" style="height: 28px; font-size: 11px;" onclick="abrirModalAlterarFaixaBaseClientes(\'' + c.id + '\')">Reajustar Valores e Faixa Vigente</button>' +
           '</div>' +
           '<table class="tier-table">' +
           '<thead><tr><th style="width:100px; text-align:center;">Situação</th><th>Faixa De</th><th>Faixa Até</th><th>Valor (R$) / Cliente</th><th>Regra</th></tr></thead><tbody>';
@@ -3940,11 +3950,15 @@
     }
 
     var taxaCambio = desformatarNumero(document.getElementById('contratoModalTaxaCambio').value) || 1;
-    var vBaseBrl = vTotal * taxaCambio;
-    var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
-    if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(vBaseBrl);
+    var desembolsoAnual = vTotal * taxaCambio * meses;
 
-    var desembolsoAnual = vBaseBrl * meses;
+    // Valor Base BRL e Valor Orcado devem ser exatamente os mesmos do Desembolso Anual
+    var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
+    if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(desembolsoAnual);
+
+    var inpOrcado = document.getElementById('contratoModalValorOrcado');
+    if (inpOrcado) inpOrcado.value = formatarMoedaBRL(desembolsoAnual);
+
     var displayAnual = document.getElementById('displayDesembolsoAnualNovo');
     if (displayAnual) {
       displayAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (meses !== 12 ? ' (' + meses + ' meses)' : '');
@@ -5333,7 +5347,7 @@
   }
 
   function abrirModalAlterarFaixaBaseClientes(idContrato) {
-    var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); });
+    var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); }) || appState.contratoSelecionado;
     if (!contrato || !contrato.tabelaBaseClientes || contrato.tabelaBaseClientes.length === 0) {
       mostrarToast('Contrato não possui faixas de base de clientes cadastradas.', 'error');
       return;
@@ -5343,16 +5357,21 @@
     var html = '';
     contrato.tabelaBaseClientes.forEach(function(fx, idx) {
       var isAtiva = fx.atual === true || fx.atual === 'true' || fx.ativa === true;
-      html += '<label style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid ' + (isAtiva ? 'var(--brisa-blue)' : '#CBD5E1') + '; background: ' + (isAtiva ? '#EFF6FF' : '#FFFFFF') + '; border-radius: var(--radius-sm); cursor: pointer;">';
-      html += '  <div style="display: flex; align-items: center; gap: 10px;">';
-      html += '    <input type="radio" name="radioEscolhaFaixa" value="' + idx + '" ' + (isAtiva ? 'checked' : '') + ' data-valor="' + escapeHtml(fx.valor) + '">';
+      var deNum = typeof fx.de === 'number' ? fx.de : (parseInt(fx.de, 10) || 0);
+      var ateNum = typeof fx.ate === 'number' ? fx.ate : (parseInt(fx.ate, 10) || 0);
+      html += '<div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid ' + (isAtiva ? 'var(--brisa-blue)' : '#CBD5E1') + '; background: ' + (isAtiva ? '#EFF6FF' : '#FFFFFF') + '; border-radius: var(--radius-sm); gap: 12px;">';
+      html += '  <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; flex: 1;">';
+      html += '    <input type="radio" name="radioEscolhaFaixa" value="' + idx + '" ' + (isAtiva ? 'checked' : '') + ' style="cursor: pointer;">';
       html += '    <div>';
-      html += '      <div style="font-weight: 700; color: var(--brisa-dark-blue); font-size: 13px;">Faixa ' + (idx + 1) + ': ' + fx.de.toLocaleString('pt-BR') + ' a ' + fx.ate.toLocaleString('pt-BR') + ' assinantes</div>';
+      html += '      <div style="font-weight: 700; color: var(--brisa-dark-blue); font-size: 13px;">Faixa ' + (idx + 1) + ': ' + deNum.toLocaleString('pt-BR') + ' a ' + ateNum.toLocaleString('pt-BR') + ' assinantes ' + (isAtiva ? '<span class="badge-status ativo" style="font-size: 9px; padding: 2px 6px;">Vigente</span>' : '') + '</div>';
       if (fx.descricao) html += '      <div style="font-size: 11px; color: var(--text-muted);">' + escapeHtml(fx.descricao) + '</div>';
       html += '    </div>';
+      html += '  </label>';
+      html += '  <div style="display: flex; align-items: center; gap: 6px;">';
+      html += '    <span style="font-size: 11px; font-weight: 600; color: var(--text-muted);">Valor:</span>';
+      html += '    <input type="text" class="input-faixa-modal-valor form-control" data-indice="' + idx + '" value="' + escapeHtml(fx.valor || '') + '" oninput="mascaraMoedaGenerica(this)" style="width: 135px; height: 32px; font-size: 13px; font-weight: 700; text-align: right; color: var(--brisa-dark-blue);">';
       html += '  </div>';
-      html += '  <div style="font-weight: 800; color: var(--brisa-dark-blue); font-size: 13px;">' + escapeHtml(fx.valor) + '</div>';
-      html += '</label>';
+      html += '</div>';
     });
     container.innerHTML = html;
     document.getElementById('modalAlterarFaixaBaseClientes').style.display = 'flex';
@@ -5366,13 +5385,30 @@
     var idContrato = document.getElementById('alterarFaixaContratoId').value;
     var radioSelecionado = document.querySelector('input[name="radioEscolhaFaixa"]:checked');
     if (!radioSelecionado) {
-      mostrarToast('Selecione uma faixa.', 'error');
+      mostrarToast('Selecione qual das faixas será a vigente.', 'error');
       return;
     }
     var indice = parseInt(radioSelecionado.value, 10);
-    var novoValor = radioSelecionado.getAttribute('data-valor') || '';
+    var container = document.getElementById('listaFaixasParaSelecao');
+    var inputs = container.querySelectorAll('.input-faixa-modal-valor');
 
-    mostrarLoading('Atualizando Faixa', 'Salvando nova faixa em vigor e registrando auditoria...');
+    var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); }) || appState.contratoSelecionado;
+    if (!contrato) return;
+
+    var faixasAtualizadas = [];
+    for (var f = 0; f < (contrato.tabelaBaseClientes || []).length; f++) {
+      var fxOrig = contrato.tabelaBaseClientes[f];
+      var valInput = inputs[f] ? inputs[f].value.trim() : fxOrig.valor;
+      faixasAtualizadas.push({
+        de: fxOrig.de,
+        ate: fxOrig.ate,
+        valor: valInput,
+        descricao: fxOrig.descricao || '',
+        atual: (f === indice)
+      });
+    }
+
+    mostrarLoading('Atualizando Faixas & Valores', 'Salvando reajuste das faixas, nova faixa vigente e registrando na auditoria oficial...');
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
@@ -5380,32 +5416,39 @@
           esconderLoading();
           if (res && res.success) {
             fecharModalAlterarFaixa();
-            mostrarToast('Faixa vigente atualizada com sucesso.', 'success');
+            mostrarToast('Faixas e valores atualizados com sucesso.', 'success');
             if (appState.contratoSelecionado && String(appState.contratoSelecionado.id) === String(idContrato)) {
-              if (appState.contratoSelecionado.tabelaBaseClientes) {
-                appState.contratoSelecionado.tabelaBaseClientes.forEach(function(fx, fIdx) {
-                  fx.atual = (fIdx === indice);
-                });
-              }
+              appState.contratoSelecionado.tabelaBaseClientes = res.faixas || faixasAtualizadas;
               if (res.novoValor) {
                 appState.contratoSelecionado.valorMensal = res.novoValor;
               }
-              renderizarAbaFicha360('financeiro');
+              if (res.desembolsoAnual) {
+                appState.contratoSelecionado.desembolsoAnual = res.desembolsoAnual;
+                appState.contratoSelecionado.valorBaseBrl = formatarMoedaBRL(res.desembolsoAnual);
+                appState.contratoSelecionado.valorOrcado = formatarMoedaBRL(res.desembolsoAnual);
+              }
+              abrirFicha360(idContrato);
             }
             carregarDadosServidor(false);
           } else {
             mostrarToast('Erro ao atualizar faixa: ' + (res.error || 'Desconhecido'), 'error');
           }
         })
+        .withFailureHandler(function(err) {
+          esconderLoading();
+          mostrarToast('Falha na comunicação com o servidor: ' + err.message, 'error');
+        })
         .atualizarFaixaBaseClientes({
           idContrato: idContrato,
           indiceFaixa: indice,
-          novoValor: novoValor
+          faixas: faixasAtualizadas
         });
     } else {
-      esconderLoading();
-      fecharModalAlterarFaixa();
-      mostrarToast('Faixa atualizada em demonstração.', 'success');
+      setTimeout(function() {
+        esconderLoading();
+        fecharModalAlterarFaixa();
+        mostrarToast('Faixas atualizadas em demonstração.', 'success');
+      }, 500);
     }
   }
 

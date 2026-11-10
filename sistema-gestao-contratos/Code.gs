@@ -83,6 +83,7 @@ function onOpen() {
       .addItem('Inicializar / Verificar Base Relacional', 'inicializarEstruturaRelacionalPlanilha')
       .addItem('Criar Nova Planilha Oficial Dedicada', 'criarNovaPlanilhaOficialTelefonia')
       .addItem('Configurar Pasta Raiz no Drive', 'abrirPastaAnexosDrive')
+      .addItem('Padronizar Pastas Drive (4 Pastas)', 'padronizarPastasDriveTelefonia')
       .addSeparator()
       .addItem('Verificar Vencimentos e Alertas', 'verificarVencimentosManualmente')
       .addItem('Autorizar Permissões do Sistema', 'autorizarPermissoes')
@@ -3158,13 +3159,115 @@ function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
  * Cria a estrutura oficial de pasta para um contrato dentro de sua respectiva Gerencia e Fornecedor.
  * Estrutura:
  *   [GERENCIA] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} /
- *     01_Contrato_Principal
+ *     Contrato
  * @param {string} nomeFornecedor
  * @param {string|number} idContrato
  * @param {string} objeto
  * @param {string} [nomeGerencia]
  * @return {Object} Metadados da pasta e subpasta criada
  */
+/**
+ * Padroniza as subpastas do contrato para conter estritamente as 4 pastas oficiais:
+ * Contrato, Anexos, Documentação e NF.
+ * Renomeia 01_Contrato_Principal para Contrato e remove pastas Contrato duplicadas/anteriores vazias.
+ * @param {Folder} contractFolder
+ */
+function padronizarSubpastasContratoDrive_(contractFolder) {
+  if (!contractFolder) return;
+  try {
+    // 1. Verificar existencia de pasta legada '01_Contrato_Principal'
+    var p01Matches = contractFolder.getFoldersByName('01_Contrato_Principal');
+    var p01Folder = p01Matches.hasNext() ? p01Matches.next() : null;
+
+    // 2. Verificar se ja existe pasta 'Contrato'
+    var cMatches = contractFolder.getFoldersByName('Contrato');
+    var contratoFolder = cMatches.hasNext() ? cMatches.next() : null;
+
+    if (p01Folder) {
+      if (contratoFolder) {
+        // Mover arquivos existentes na pasta Contrato para p01 antes de renomear
+        var cFiles = contratoFolder.getFiles();
+        while (cFiles.hasNext()) {
+          var cf = cFiles.next();
+          cf.moveTo(p01Folder);
+        }
+        // Excluir a pasta Contrato duplicada/anterior
+        contratoFolder.setTrashed(true);
+      }
+      // Renomear 01_Contrato_Principal para Contrato
+      p01Folder.setName('Contrato');
+      contratoFolder = p01Folder;
+    } else if (!contratoFolder) {
+      contratoFolder = contractFolder.createFolder('Contrato');
+    }
+
+    // 3. Garantir pastas oficiais Anexos, Documentacao e NF
+    var anMatches = contractFolder.getFoldersByName('Anexos');
+    var anexosFolder = anMatches.hasNext() ? anMatches.next() : contractFolder.createFolder('Anexos');
+
+    var docMatches = contractFolder.getFoldersByName('Documentação');
+    var docFolder = docMatches.hasNext() ? docMatches.next() : contractFolder.createFolder('Documentação');
+
+    var nfMatches = contractFolder.getFoldersByName('NF');
+    var nfFolder = nfMatches.hasNext() ? nfMatches.next() : contractFolder.createFolder('NF');
+
+    // 4. Mover arquivos de pastas nao padronizadas e descarta-las
+    var allSubs = contractFolder.getFolders();
+    var toTrash = [];
+    while (allSubs.hasNext()) {
+      var sub = allSubs.next();
+      var sName = sub.getName();
+      if (sName === 'Contrato' || sName === 'Anexos' || sName === 'Documentação' || sName === 'NF') {
+        continue;
+      }
+      var dest = anexosFolder;
+      if (/03_|nota|fiscal|faturam|nf/i.test(sName)) {
+        dest = nfFolder;
+      } else if (/04_|certid|habilita|doc/i.test(sName)) {
+        dest = docFolder;
+      } else if (/01_|contrato_princ/i.test(sName)) {
+        dest = contratoFolder;
+      }
+
+      var sFiles = sub.getFiles();
+      while (sFiles.hasNext()) {
+        sFiles.next().moveTo(dest);
+      }
+      toTrash.push(sub);
+    }
+
+    for (var t = 0; t < toTrash.length; t++) {
+      toTrash[t].setTrashed(true);
+    }
+  } catch (errPadrao) {
+    Logger.log('Aviso ao padronizar subpastas do contrato: ' + errPadrao.message);
+  }
+}
+
+/**
+ * Varre todos os setores, fornecedores e contratos no Drive padronizando para as 4 pastas oficiais.
+ * @return {Object}
+ */
+function padronizarPastasDriveTelefonia() {
+  var rootFolder = obterOuCriarPastaAnexos_();
+  var count = 0;
+  var secIt = rootFolder.getFolders();
+  while (secIt.hasNext()) {
+    var secFolder = secIt.next();
+    var suppIt = secFolder.getFolders();
+    while (suppIt.hasNext()) {
+      var suppFolder = suppIt.next();
+      var ctIt = suppFolder.getFolders();
+      while (ctIt.hasNext()) {
+        var ctFolder = ctIt.next();
+        padronizarSubpastasContratoDrive_(ctFolder);
+        count++;
+      }
+    }
+  }
+  return { success: true, totalContratosPadronizados: count, message: count + ' pastas de contratos padronizadas com sucesso.' };
+}
+
 function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nomeGerencia) {
   var supplierFolder = obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia);
   var ano = new Date().getFullYear();
@@ -3182,6 +3285,9 @@ function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nome
   } else {
     contractFolder = supplierFolder.createFolder(folderContractName);
   }
+
+  // Padronizacao estrita das 4 pastas
+  padronizarSubpastasContratoDrive_(contractFolder);
 
   var standardSubfolders = [
     'Contrato',
@@ -3267,7 +3373,7 @@ function listarArquivosPastaContrato(idPastaContrato) {
 /**
  * Realiza upload de arquivo para uma subpasta especifica do contrato.
  * @param {string} idPastaContrato
- * @param {string} nomeSubpasta Ex: '01_Contrato_Principal'
+ * @param {string} nomeSubpasta Ex: 'Contrato'
  * @param {string} nomeArquivo
  * @param {string} base64Data
  * @param {string} mimeType
@@ -4454,7 +4560,8 @@ function obterDadosCompletosTelefonia() {
           contratos: [],
           totalContratos: 0,
           contratosAtivos: 0,
-          valorMensalTotal: 0
+          valorMensalTotal: 0,
+          desembolsoAnualTotal: 0
         };
       }
     }
@@ -4689,7 +4796,8 @@ function obterDadosCompletosTelefonia() {
             contratos: [],
             totalContratos: 0,
             contratosAtivos: 0,
-            valorMensalTotal: 0
+            valorMensalTotal: 0,
+            desembolsoAnualTotal: 0
           };
         }
 
@@ -4701,6 +4809,7 @@ function obterDadosCompletosTelefonia() {
         if (isAtivo) {
           fornecedoresMap[fKey].contratosAtivos++;
           fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
+          fornecedoresMap[fKey].desembolsoAnualTotal = (fornecedoresMap[fKey].desembolsoAnualTotal || 0) + desembolsoAnualContrato;
         }
       }
     }
@@ -5281,9 +5390,17 @@ function salvarNovoContratoTelefonia(dados) {
       dados.reajusteAplicado || '0,00%',
       dados.impostosEncargos || '0,00%',
       dados.taxaCambio || '1,0000',
-      dados.valorBaseBrl || valorBase,
+      (function() {
+        var tx = normalizarNumero_(dados.taxaCambio || 1) || 1;
+        var ms = parseInt(dados.mesesCobranca, 10) || 12;
+        return valorBase * ms * tx;
+      })(), // Valor Base em BRL igual ao Desembolso Anual
       dados.contingencia || '0,00%',
-      dados.valorOrcado || 'R$ 0,00',
+      (function() {
+        var tx = normalizarNumero_(dados.taxaCambio || 1) || 1;
+        var ms = parseInt(dados.mesesCobranca, 10) || 12;
+        return valorBase * ms * tx;
+      })(), // Valor Orcado igual ao Desembolso Anual
       dados.contratoPo || '',
       dados.risco || 'Baixo',
       dados.descricaoRisco || '',
@@ -5637,7 +5754,6 @@ function atualizarFaixaBaseClientes(payload) {
   try {
     var idContrato = payload.idContrato;
     var indiceFaixa = parseInt(payload.indiceFaixa, 10);
-    var novoValorStr = payload.novoValor || '';
     if (!idContrato || isNaN(indiceFaixa)) {
       throw new Error('ID do contrato e indice da faixa sao obrigatorios.');
     }
@@ -5646,48 +5762,59 @@ function atualizarFaixaBaseClientes(payload) {
     var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
     if (!sheetContratos) throw new Error('Aba de contratos nao localizada.');
 
-    var numCols = Math.max(sheetContratos.getLastColumn(), 45);
+    var numCols = Math.max(sheetContratos.getLastColumn(), 48);
     var headers = sheetContratos.getRange(1, 1, 1, numCols).getValues()[0].map(function(h) {
       return String(h).toLowerCase().trim();
     });
 
-    var idxJson = -1;
-    var idxValorAtual = -1;
-    var idxDataAtualizacao = -1;
+    var idxJson = 27;
+    var idxValorBase = 12;
+    var idxValorAtual = 13;
+    var idxDataAtualizacao = 25;
+    var idxTaxaCambio = 37;
+    var idxValorBaseBrl = 38;
+    var idxValorOrcado = 40;
+    var idxMesesCobranca = 47;
 
     for (var h = 0; h < headers.length; h++) {
       var hd = headers[h].replace(/[^a-z0-9]/g, '');
       if (hd.indexOf('tabelabaseclientes') !== -1 || hd.indexOf('baseclientes') !== -1) idxJson = h;
+      if (hd.indexOf('valormensalbase') !== -1) idxValorBase = h;
       if (hd.indexOf('valormensalatual') !== -1) idxValorAtual = h;
       if (hd.indexOf('dataatualizacao') !== -1 || hd.indexOf('datadeatualizacao') !== -1) idxDataAtualizacao = h;
+      if (hd.indexOf('valorbaseembrl') !== -1 || hd.indexOf('valorbasebrl') !== -1) idxValorBaseBrl = h;
+      if (hd.indexOf('valororcado') !== -1) idxValorOrcado = h;
+      if (hd.indexOf('mesesdecobranca') !== -1 || hd.indexOf('mesescobranca') !== -1) idxMesesCobranca = h;
     }
-
-    if (idxJson === -1) idxJson = 27;
-    if (idxValorAtual === -1) idxValorAtual = 13;
-    if (idxDataAtualizacao === -1) idxDataAtualizacao = 25;
 
     var cData = sheetContratos.getDataRange().getValues();
     var targetRow = -1;
     var rawJson = '';
     var valorAnterior = 0;
+    var rowValues = null;
 
     for (var i = 1; i < cData.length; i++) {
-      if (String(cData[i][0]) === String(idContrato)) {
+      if (String(cData[i][0]) === String(idContrato) || String(cData[i][1]) === String(idContrato)) {
         targetRow = i + 1;
+        rowValues = cData[i];
         rawJson = String(cData[i][idxJson] || '');
         valorAnterior = normalizarNumero_(cData[i][idxValorAtual] || 0);
         break;
       }
     }
 
-    if (targetRow === -1) {
+    if (targetRow === -1 || !rowValues) {
       throw new Error('Contrato nao localizado: ' + idContrato);
     }
 
     var faixas = [];
-    try {
-      if (rawJson) faixas = JSON.parse(rawJson);
-    } catch(eJson) {}
+    if (payload.faixas && Array.isArray(payload.faixas) && payload.faixas.length > 0) {
+      faixas = payload.faixas;
+    } else {
+      try {
+        if (rawJson) faixas = JSON.parse(rawJson);
+      } catch(eJson) {}
+    }
 
     if (!Array.isArray(faixas) || faixas.length === 0) {
       throw new Error('Este contrato nao possui tabela de faixas de base de clientes cadastrada.');
@@ -5697,37 +5824,48 @@ function atualizarFaixaBaseClientes(payload) {
       throw new Error('Indice de faixa invalido: ' + indiceFaixa);
     }
 
-    // Marcar a nova faixa como ativa e desmarcar as demais
+    // Atualizar valores editados de cada faixa e definir a faixa ativa
     var faixaAtivaNome = '';
     var faixaAtivaValorNum = 0;
     for (var f = 0; f < faixas.length; f++) {
+      var fValNum = normalizarNumero_(faixas[f].valor || 0);
+      faixas[f].de = parseInt(faixas[f].de, 10) || 0;
+      faixas[f].ate = parseInt(faixas[f].ate, 10) || 0;
+      faixas[f].valor = 'R$ ' + fValNum.toFixed(2);
       if (f === indiceFaixa) {
         faixas[f].atual = true;
         faixaAtivaNome = faixas[f].de + ' a ' + faixas[f].ate + ' clientes';
-        faixaAtivaValorNum = normalizarNumero_(faixas[f].valor || 0);
+        faixaAtivaValorNum = fValNum;
       } else {
         faixas[f].atual = false;
       }
     }
+
+    var taxaCambio = normalizarNumero_(rowValues[idxTaxaCambio] || 1) || 1;
+    var mesesCobranca = parseInt(rowValues[idxMesesCobranca] || 12, 10) || 12;
+    var novoDesembolsoAnual = faixaAtivaValorNum * mesesCobranca * taxaCambio;
 
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
     var userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestor.telefonia@grupobrisanet.com.br';
 
     sheetContratos.getRange(targetRow, idxJson + 1).setValue(JSON.stringify(faixas));
     if (faixaAtivaValorNum > 0) {
+      sheetContratos.getRange(targetRow, idxValorBase + 1).setValue(faixaAtivaValorNum);
       sheetContratos.getRange(targetRow, idxValorAtual + 1).setValue(faixaAtivaValorNum);
     }
     sheetContratos.getRange(targetRow, idxDataAtualizacao + 1).setValue(nowStr);
+    sheetContratos.getRange(targetRow, idxValorBaseBrl + 1).setValue(novoDesembolsoAnual);
+    sheetContratos.getRange(targetRow, idxValorOrcado + 1).setValue(novoDesembolsoAnual);
 
     var userPapelFaixa = obterPapelUsuario_(userEmail);
     registrarLogAuditoriaOficial_(
       'Contrato',
       idContrato,
-      'Atualizacao de Faixa Vigente',
+      'Reajuste de Valores de Faixas / Faixa Vigente',
       'Tabela Base de Clientes',
       'R$ ' + valorAnterior.toFixed(2),
       'R$ ' + faixaAtivaValorNum.toFixed(2) + ' (' + faixaAtivaNome + ')',
-      'Atualizacao operacional de faixa vigente na base de clientes pelo gestor responsavel.',
+      'Reajuste de valores e atualizacao operacional de faixa vigente na base de clientes pelo gestor responsavel.',
       userEmail,
       userPapelFaixa
     );
@@ -5736,7 +5874,9 @@ function atualizarFaixaBaseClientes(payload) {
       success: true,
       novoValor: faixaAtivaValorNum,
       faixaAtivaNome: faixaAtivaNome,
-      message: 'Faixa vigente da base de clientes atualizada com sucesso para ' + faixaAtivaNome + '.'
+      faixas: faixas,
+      desembolsoAnual: novoDesembolsoAnual,
+      message: 'Faixas e valores de clientes atualizados com sucesso para ' + faixaAtivaNome + '.'
     };
   } catch (err) {
     return { success: false, error: err.message };
@@ -5857,7 +5997,10 @@ function salvarAlteracaoContratoTelefonia(payload) {
     sheetContratos.getRange(targetRow, 17).setValue(newIndice);
     sheetContratos.getRange(targetRow, 26).setValue(nowStr); // data atualizacao
     if (newDataReajuste) sheetContratos.getRange(targetRow, 34).setValue(newDataReajuste);
-    sheetContratos.getRange(targetRow, 39).setValue(newValorMensal); // valor base BRL
+    var newTaxaCambio = normalizarNumero_(rowData[37] || 1) || 1;
+    var newDesembolsoAnual = newValorMensal * newMesesCobranca * newTaxaCambio;
+    sheetContratos.getRange(targetRow, 39).setValue(newDesembolsoAnual); // Valor Base em BRL igual ao Desembolso Anual
+    sheetContratos.getRange(targetRow, 41).setValue(newDesembolsoAnual); // Valor Orcado igual ao Desembolso Anual
     sheetContratos.getRange(targetRow, 46).setValue(newQtdServicos);
     sheetContratos.getRange(targetRow, 47).setValue(newValorUnitario);
     sheetContratos.getRange(targetRow, 48).setValue(newMesesCobranca);

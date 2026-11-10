@@ -81,7 +81,7 @@ Na lista de fornecedores:
 - **Métricas Executivas no Cabeçalho:** Cada fornecedor exibe seus três indicadores consolidados:
   - **Contratos Ativos:** Proporção de contratos vigentes sobre o total (ex: *1 de 1*).
   - **Desembolso Mensal:** Soma mensal dos contratos vigentes do fornecedor.
-  - **Desembolso Anual:** Custo anual consolidado do fornecedor (Valor Mensal x 12).
+  - **Desembolso Anual:** Custo anual consolidado do fornecedor, calculado pela soma dinâmica do Desembolso Anual efetivo de cada contrato ativo (multiplicando o valor mensal pelos meses de cobrança de cada contrato).
 
 Ao expandir o fornecedor, o painel exibe:
 1. **Perfil Formal do Fornecedor:** Razão Social, Nome Fantasia, Apelido, CNPJ formatado, Contato Comercial, E-mail Comercial e Link da Pasta no Drive.
@@ -140,8 +140,7 @@ O cadastro contempla 6 blocos organizados:
    - **Período de Cobrança Efetiva (Meses no Ano):**
      - Permite definir a quantidade real de meses faturados no ano (ex: 9 meses em contratos com vigência de 12 meses decorrente de carência, período de implantação ou sazonalidade).
      - O cálculo do **Desembolso Anual** e o card de **Orçamento Anual Comprometido** multiplicam exatamente o valor mensal pelos meses efetivos de cobrança (ex: R$ 129.000,00 x 9 = R$ 1.161.000,00).
-   - **Valor Base em BRL:** Cálculo automático sincronizado (Valor Mensal Total x Câmbio).
-   - **Valor Orçado por Lançamento:** Previsão contábil do orçamento.
+   - **Valor Base em BRL & Valor Orçado por Lançamento:** Ambos são sincronizados dinamicamente e passam a ser rigorosamente iguais ao **Desembolso Anual** (Valor Mensal Total x Câmbio x Meses de Cobrança Efetiva), garantindo alinhamento total com as premissas de planejamento orçamentário e finanças (FP&A).
    - **Impostos / Encargos (%):** Percentual retido ou incidente.
    - **Contingência (%):** Margem de segurança orçamentária.
    - **Conta Contábil:** Classificação no plano de contas.
@@ -152,7 +151,7 @@ O cadastro contempla 6 blocos organizados:
    - **Data do Reajuste & Mês Aniversário:** Ciclo de aplicação do índice.
    - **Reajuste Aplicado (%):** Percentual praticado.
    - **Tabela de Faixas por Base de Clientes (com Seleção de Faixa Atual):**
-     Ao selecionar "Base de Clientes", uma tabela dinâmica permite adicionar faixas de assinantes. Na frente de cada faixa, há um botão de seleção ("bolinha" / radio button) para indicar em qual faixa o contrato se encontra atualmente, sincronizando o valor a faturar.
+     Ao selecionar "Base de Clientes", uma tabela dinâmica permite adicionar faixas de assinantes com campos de valores totalmente editáveis. Na frente de cada faixa, há um botão de seleção ("bolinha" / radio button) para indicar em qual faixa o contrato se encontra atualmente. Além disso, a qualquer momento na Ficha 360°, o gestor pode acionar o modal "Reajustar Valores e Faixa Vigente" para editar manualmente os valores monetários de qualquer faixa caso haja repactuação comercial, salvando os novos valores e registrando o evento no Log de Auditoria Oficial.
 
 5. **Governança, Risco & Memória de Cálculo:**
    - **Risco:** Classificação formal (Baixo, Médio ou Alto).
@@ -162,7 +161,7 @@ O cadastro contempla 6 blocos organizados:
 
 6. **Anexar Arquivo Oficial do Contrato:**
    - Upload de documentos (PDF, PNG, JPG, JPEG, DOCX, XLSX).
-   - O arquivo é transmitido e arquivado diretamente na subpasta oficial `01_Contrato_Principal` dentro do Google Drive da gerência selecionada.
+   - O arquivo é transmitido e arquivado diretamente na pasta selecionada pelo usuário (`Contrato`, `Anexos`, `Documentação` ou `NF`) dentro do Google Drive da gerência selecionada.
 
 ---
 
@@ -171,7 +170,7 @@ O cadastro contempla 6 blocos organizados:
 Ao clicar em **Abrir Ficha 360°** em qualquer contrato, o modal executivo apresenta quatro abas temáticas:
 1. **Resumo & Cadastro:** Dados cadastrais, objeto, prazos, e-mail do gestor responsável e datas formatadas.
 2. **Financeiro & Reajustes:** Desembolso, moeda, reajustes e tabela de faixas de base de clientes com indicação destacada da faixa vigente.
-3. **Documentos no Drive:** Link direto para a pasta do contrato e interface de upload adicional para a subpasta `01_Contrato_Principal`.
+3. **Documentos no Drive:** Link direto para a pasta do contrato e interface de visualização e upload direto para as 4 pastas oficiais padronizadas (`Contrato`, `Anexos`, `Documentação` e `NF`).
 4. **Log de Alterações (Individual do Contrato):**
    - Exibe a cronologia completa e imutável de todas as modificações realizadas especificamente naquele contrato.
    - Detalha data e horário (DD/MM/AAAA - HH:MM:SS), e-mail do responsável, papel/alçada, ação realizada, campo afetado, valor anterior versus novo valor e justificativa operacional ou parecer de aprovação.
