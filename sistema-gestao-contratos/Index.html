@@ -2542,6 +2542,59 @@
     if (overlay) overlay.classList.remove('active');
   }
 
+  // Conversores e formatadores numericos e monetarios
+  function formatarNumeroDecimal(val) {
+    if (val === undefined || val === null || val === '') return '0,00';
+    var num = (typeof val === 'number') ? val : desformatarNumero(val);
+    if (isNaN(num)) num = 0;
+    return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function desformatarNumero(val) {
+    if (val === undefined || val === null || val === '') return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    var s = String(val).trim();
+    if (!s) return 0;
+    var digitos = s.replace(/\D/g, '');
+    if (!digitos) return 0;
+    if (s.indexOf(',') !== -1) {
+      s = s.replace(/\./g, '').replace(',', '.').replace(/[^0-9.-]/g, '');
+      var parsed = parseFloat(s);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    if (s.indexOf('.') !== -1) {
+      var partes = s.split('.');
+      if (partes.length === 2 && partes[1].length <= 2) {
+        var parsed = parseFloat(s.replace(/[^0-9.-]/g, ''));
+        return isNaN(parsed) ? 0 : parsed;
+      }
+      s = s.replace(/\./g, '');
+      var parsed = parseFloat(s.replace(/[^0-9.-]/g, ''));
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    var num = parseFloat(digitos) / 100;
+    return isNaN(num) ? 0 : num;
+  }
+
+  function mascaraMoedaGenerica(input) {
+    if (!input) return;
+    var v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = ''; return; }
+    var num = parseFloat(v) / 100;
+    input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function formatarDataBR(val) {
+    if (!val) return '';
+    var s = String(val).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      var p = s.split('-');
+      return p[2] + '/' + p[1] + '/' + p[0];
+    }
+    return formatarDataClient(val);
+  }
+
   // Mascaras em Tempo Real
   function mascaraCnpj(input) {
     var v = input.value.replace(/\D/g, '');
@@ -3779,7 +3832,7 @@
       }
 
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
-        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Solicitar Alteração / Aprovação</button>';
+        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     }
   }
 
@@ -3916,32 +3969,56 @@
 
   function aoSelecionarContratoParaAlterar(idContrato) {
     if (!idContrato) return;
-    var c = (appState.contratos || []).find(function(item) { return String(item.id) === String(idContrato); });
+    var c = (appState.contratos || []).find(function(item) { return String(item.id) === String(idContrato); }) || appState.contratoSelecionado;
     if (!c) return;
 
-    document.getElementById('solicitacaoObjetoContrato').value = c.objeto || '';
-    document.getElementById('solicitacaoMoeda').value = c.moeda || 'BRL';
+    var elObj = document.getElementById('solicitacaoObjetoContrato');
+    if (elObj) elObj.value = c.objeto || '';
+
+    var elMoeda = document.getElementById('solicitacaoMoeda');
+    if (elMoeda) elMoeda.value = c.moeda || 'BRL';
 
     var qtd = parseInt(c.quantidadeServicos, 10) || 1;
-    var vMensal = parseFloat(c.valorMensal) || 0;
+    var vMensal = parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0;
     var vUnit = parseFloat(c.valorUnitario) || (vMensal / qtd) || vMensal;
     var meses = parseInt(c.mesesCobranca, 10) || 12;
 
-    document.getElementById('solicitacaoQtdServicos').value = qtd;
-    document.getElementById('solicitacaoValorUnitario').value = formatarNumeroDecimal(vUnit);
-    document.getElementById('solicitacaoValorMensal').value = formatarNumeroDecimal(vMensal);
-    document.getElementById('solicitacaoMesesCobranca').value = meses;
+    var elQtd = document.getElementById('solicitacaoQtdServicos');
+    if (elQtd) elQtd.value = qtd;
+
+    var elUnit = document.getElementById('solicitacaoValorUnitario');
+    if (elUnit) elUnit.value = formatarNumeroDecimal(vUnit);
+
+    var elMensal = document.getElementById('solicitacaoValorMensal');
+    if (elMensal) elMensal.value = formatarNumeroDecimal(vMensal);
+
+    var elMeses = document.getElementById('solicitacaoMesesCobranca');
+    if (elMeses) elMeses.value = meses;
 
     // Converter datas DD/MM/AAAA para YYYY-MM-DD
-    document.getElementById('solicitacaoDataInicio').value = converterDataParaInputDate(c.dataInicio);
-    document.getElementById('solicitacaoDataFim').value = converterDataParaInputDate(c.dataFim);
-    document.getElementById('solicitacaoPrazoIndeterminado').checked = (c.prazoIndeterminado === true);
-    alternarPrazoIndeterminadoModalAlteracao(c.prazoIndeterminado === true);
+    var elDtIni = document.getElementById('solicitacaoDataInicio');
+    if (elDtIni) elDtIni.value = converterDataParaInputDate(c.dataInicio);
 
-    document.getElementById('solicitacaoIndiceReajuste').value = c.indiceReajuste || 'IPCA';
-    document.getElementById('solicitacaoStatusContrato').value = c.status || 'Vigente';
-    document.getElementById('solicitacaoStatusAlcada').value = c.statusAlcada || 'Aprovado';
-    document.getElementById('solicitacaoJustificativa').value = '';
+    var elDtFim = document.getElementById('solicitacaoDataFim');
+    if (elDtFim) elDtFim.value = converterDataParaInputDate(c.dataFim);
+
+    var elPrazoIndet = document.getElementById('solicitacaoPrazoIndeterminado');
+    if (elPrazoIndet) {
+      elPrazoIndet.checked = (c.prazoIndeterminado === true || String(c.prazoIndeterminado).toLowerCase() === 'sim');
+      alternarPrazoIndeterminadoModalAlteracao(elPrazoIndet.checked);
+    }
+
+    var elIndice = document.getElementById('solicitacaoIndiceReajuste');
+    if (elIndice) elIndice.value = c.indiceReajuste || 'IPCA';
+
+    var elStatus = document.getElementById('solicitacaoStatusContrato');
+    if (elStatus) elStatus.value = c.status || 'Vigente';
+
+    var elAlcada = document.getElementById('solicitacaoStatusAlcada');
+    if (elAlcada) elAlcada.value = c.statusAlcada || 'Aprovado';
+
+    var elJust = document.getElementById('solicitacaoJustificativa');
+    if (elJust) elJust.value = '';
 
     recalcularValoresModalAlteracao();
   }
@@ -4019,11 +4096,19 @@
   }
 
   function abrirModalSolicitarAprovacaoParaContrato() {
-    var c = appState.contratoSelecionado;
-    if (!c) return;
-    popularSelectContratosSolicitacao(c.id);
-    aoSelecionarContratoParaAlterar(c.id);
-    document.getElementById('modalSolicitarAprovacao').style.display = 'flex';
+    try {
+      var c = appState.contratoSelecionado;
+      if (c && c.id) {
+        popularSelectContratosSolicitacao(c.id);
+        aoSelecionarContratoParaAlterar(c.id);
+      } else {
+        popularSelectContratosSolicitacao();
+      }
+    } catch (err) {
+      console.warn('Aviso ao inicializar modal de alteracao:', err);
+    }
+    var modal = document.getElementById('modalSolicitarAprovacao');
+    if (modal) modal.style.display = 'flex';
   }
 
   function fecharModalSolicitarAprovacao() {
