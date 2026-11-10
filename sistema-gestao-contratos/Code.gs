@@ -3600,6 +3600,12 @@ function registrarLogAuditoriaOficial_(entidade, idRegistro, acao, campoAfetado,
   }
 }
 
+/**
+ * Garante que a aba Acessos_Alcadas tenha as colunas necessarias de controle de acessos
+ * por gerencia e gestao de substituto temporario em ausencias.
+ * Respeita a decisao do usuario: suporta tanto 9 colunas (sem ID) quanto 10 colunas (com ID).
+ * @param {Sheet} sheetAcessos
+ */
 function garantirHeadersAcessos_(sheetAcessos) {
   if (!sheetAcessos) return;
   var lastRow = sheetAcessos.getLastRow();
@@ -3644,6 +3650,542 @@ function garantirHeadersAcessos_(sheetAcessos) {
                       .setFontColor('#FFFFFF')
                       .setFontWeight('bold')
                       .setFontFamily('Figtree');
+}
+
+/**
+ * Mapeia dinamicamente os índices de colunas da aba Acessos_Alcadas
+ * garantindo compatibilidade total com ou sem a coluna 'ID do Usuário'.
+ * @param {Array<string>} headers
+ * @return {Object} Indices (0-based) das colunas
+ */
+function mapearIndicesAcessos_(headers) {
+  var norm = (headers || []).map(function(h) {
+    return String(h || '').toLowerCase().trim();
+  });
+
+  var findIdx = function(regex) {
+    for (var i = 0; i < norm.length; i++) {
+      if (regex.test(norm[i])) return i;
+    }
+    return -1;
+  };
+
+  var idxId = findIdx(/^id/);
+  var idxEmail = findIdx(/^(e-?mail|email)$/);
+  if (idxEmail === -1) {
+    for (var e = 0; e < norm.length; e++) {
+      if (norm[e].indexOf('mail') !== -1 && norm[e].indexOf('substituto') === -1) {
+        idxEmail = e;
+        break;
+      }
+    }
+  }
+  var idxColaborador = findIdx(/^(colaborador|nome|usuario|usuário)$/);
+  var idxSetor = findIdx(/setor|ger[eê]ncia/);
+  var idxPapel = findIdx(/papel|al[cç]ada/);
+  var idxSubstituto = findIdx(/substituto/);
+  var idxInicio = findIdx(/in[ií]cio/);
+  var idxTermino = findIdx(/t[eé]rmino|fim/);
+  var idxIndeterminado = findIdx(/indeterminado/);
+  var idxStatus = findIdx(/status/);
+
+  var hasId = idxId !== -1;
+  var offset = hasId ? 1 : 0;
+
+  return {
+    hasId: hasId,
+    id: idxId !== -1 ? idxId : (hasId ? 0 : -1),
+    colaborador: idxColaborador !== -1 ? idxColaborador : (0 + offset),
+    email: idxEmail !== -1 ? idxEmail : (1 + offset),
+    setor: idxSetor !== -1 ? idxSetor : (2 + offset),
+    papel: idxPapel !== -1 ? idxPapel : (3 + offset),
+    substituto: idxSubstituto !== -1 ? idxSubstituto : (4 + offset),
+    inicio: idxInicio !== -1 ? idxInicio : (5 + offset),
+    termino: idxTermino !== -1 ? idxTermino : (6 + offset),
+    indeterminado: idxIndeterminado !== -1 ? idxIndeterminado : (7 + offset),
+    status: idxStatus !== -1 ? idxStatus : (8 + offset)
+  };
+}
+
+/**
+ * Obtem as permissoes de acesso, setor permitido e papel do usuario ativo,
+ * avaliando se ele opera como titular ou como substituto temporario ativo.
+ * Identificacao dinamica de colunas para suportar com ou sem 'ID do Usuário'.
+ * @param {string} email
+ * @return {Object}
+ */
+function obterPermissoesUsuario_(email) {
+  var emailNorm = String(email || '').toLowerCase().trim();
+  var defaultResp = {
+    email: emailNorm || 'gestao.telefonia@grupobrisanet.com.br',
+    nome: 'Gestão Telefonia (Administrativo)',
+    papel: 'Administrador',
+    setorPermitido: 'GESTAO TELEFONIA',
+    acessoTotal: true,
+    isSubstituto: false,
+    titularSubstituido: '',
+    substitutoEmail: '',
+    substitutoInicio: '',
+    substitutoFim: '',
+    substitutoIndeterminado: false,
+    substitutoAtivo: false
+  };
+
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) return defaultResp;
+    garantirHeadersAcessos_(sheet);
+
+    var data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return defaultResp;
+
+    var headers = data[0];
+    var colMap = mapearIndicesAcessos_(headers);
+
+    var now = new Date();
+    var hojeZerado = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    // 1. Verificar se o usuario logado e substituto temporario ativo de algum titular
+    for (var s = 1; s < data.length; s++) {
+      var rowS = data[s];
+      var subEmail = String(rowS[colMap.substituto] || '').toLowerCase().trim();
+      var statusS = String(rowS[colMap.status] || 'Ativo').trim();
+      if (statusS.toLowerCase() !== 'ativo') continue;
+
+      if (subEmail && subEmail === emailNorm) {
+        var subIndet = String(rowS[colMap.indeterminado] || '').toLowerCase().trim() === 'sim';
+        var dIni = converterParaData_(rowS[colMap.inicio]);
+        var dFim = converterParaData_(rowS[colMap.termino]);
+        var ativoPeriodo = false;
+
+        if (subIndet) {
+          ativoPeriodo = true;
+        } else if (dIni && dFim) {
+          ativoPeriodo = (hojeZerado.getTime() >= dIni.getTime() && hojeZerado.getTime() <= dFim.getTime());
+        } else if (dIni && !dFim) {
+          ativoPeriodo = (hojeZerado.getTime() >= dIni.getTime());
+        }
+
+        if (ativoPeriodo) {
+          var titularNome = String(rowS[colMap.colaborador] || '');
+          var titularEmail = String(rowS[colMap.email] || '');
+          var setorTitular = String(rowS[colMap.setor] || 'GESTAO TELEFONIA').trim().toUpperCase();
+          var papelTitular = String(rowS[colMap.papel] || 'Gestor').trim();
+          var acessoTotalTitular = (setorTitular.indexOf('GESTAO') !== -1 || setorTitular.indexOf('ADMIN') !== -1 || setorTitular.indexOf('TODOS') !== -1);
+
+          return {
+            email: emailNorm,
+            nome: titularNome + ' (Substituto: ' + emailNorm + ')',
+            papel: papelTitular,
+            setorPermitido: setorTitular,
+            acessoTotal: acessoTotalTitular,
+            isSubstituto: true,
+            titularSubstituido: titularEmail,
+            substitutoEmail: '',
+            substitutoInicio: '',
+            substitutoFim: '',
+            substitutoIndeterminado: false,
+            substitutoAtivo: false
+          };
+        }
+      }
+    }
+
+    // 2. Verificar titularidade direta do usuario
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rowEmail = String(row[colMap.email] || '').toLowerCase().trim();
+      if (rowEmail === emailNorm) {
+        var nome = String(row[colMap.colaborador] || emailNorm);
+        var setor = String(row[colMap.setor] || 'GESTAO TELEFONIA').trim().toUpperCase();
+        var papel = String(row[colMap.papel] || 'Gestor').trim();
+        var subE = String(row[colMap.substituto] || '').trim();
+        var subIni = formatarDataExibicao_(row[colMap.inicio]);
+        var subFim = formatarDataExibicao_(row[colMap.termino]);
+        var subInd = String(row[colMap.indeterminado] || '').toLowerCase().trim() === 'sim';
+        var status = String(row[colMap.status] || 'Ativo').trim();
+
+        var subAtivo = false;
+        if (subE && status.toLowerCase() === 'ativo') {
+          if (subInd) {
+            subAtivo = true;
+          } else {
+            var dI = converterParaData_(row[colMap.inicio]);
+            var dF = converterParaData_(row[colMap.termino]);
+            if (dI && dF) {
+              subAtivo = (hojeZerado.getTime() >= dI.getTime() && hojeZerado.getTime() <= dF.getTime());
+            } else if (dI && !dF) {
+              subAtivo = (hojeZerado.getTime() >= dI.getTime());
+            }
+          }
+        }
+
+        var acessoTotal = (setor.indexOf('GESTAO') !== -1 || setor.indexOf('ADMIN') !== -1 || setor.indexOf('TODOS') !== -1);
+
+        return {
+          email: emailNorm,
+          nome: nome,
+          papel: papel,
+          setorPermitido: setor,
+          acessoTotal: acessoTotal,
+          isSubstituto: false,
+          titularSubstituido: '',
+          substitutoEmail: subE,
+          substitutoInicio: subIni,
+          substitutoFim: subFim,
+          substitutoIndeterminado: subInd,
+          substitutoAtivo: subAtivo
+        };
+      }
+    }
+  } catch (err) {
+    Logger.log('Erro ao obter permissoes de usuario: ' + err.message);
+  }
+
+  return defaultResp;
+}
+
+/**
+ * Descobre o papel do usuario na tabela Acessos_Alcadas.
+ * @param {string} email
+ * @return {string} Papel do usuario
+ */
+function obterPapelUsuario_(email) {
+  var p = obterPermissoesUsuario_(email);
+  return p.papel || 'Gestão Telefonia';
+}
+
+/**
+ * Salva a definicao de substituto temporario para o titular durante sua ausencia.
+ * Identificacao dinamica de colunas para total robustez.
+ * @param {Object} payload { substitutoEmail, dataInicio, dataFim, indeterminado }
+ * @return {Object}
+ */
+function salvarSubstitutoAusenciaTelefonia(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    }
+    garantirHeadersAcessos_(sheet);
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch(e) {}
+    if (!userEmail) userEmail = payload.titularEmail || 'gestao.telefonia@grupobrisanet.com.br';
+    var userEmailNorm = userEmail.toLowerCase().trim();
+
+    var subEmail = String(payload.substitutoEmail || '').toLowerCase().trim();
+    if (!subEmail) throw new Error('E-mail do substituto e obrigatorio.');
+    if (subEmail === userEmailNorm) throw new Error('O substituto nao pode ser o proprio titular.');
+
+    var subIndeterminado = !!payload.indeterminado;
+    var dataInicio = payload.dataInicio || '';
+    var dataFim = subIndeterminado ? '' : (payload.dataFim || '');
+
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    var colMap = mapearIndicesAcessos_(headers);
+
+    var rowIndex = -1;
+    for (var i = 1; i < data.length; i++) {
+      var rowEmail = String(data[i][colMap.email] || '').toLowerCase().trim();
+      if (rowEmail === userEmailNorm) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (rowIndex !== -1) {
+      sheet.getRange(rowIndex, colMap.substituto + 1).setValue(subEmail);
+      sheet.getRange(rowIndex, colMap.inicio + 1).setValue(dataInicio);
+      sheet.getRange(rowIndex, colMap.termino + 1).setValue(dataFim);
+      sheet.getRange(rowIndex, colMap.indeterminado + 1).setValue(subIndeterminado ? 'Sim' : 'Não');
+      sheet.getRange(rowIndex, colMap.status + 1).setValue('Ativo');
+    } else {
+      var newRow = [];
+      for (var c = 0; c < headers.length; c++) newRow.push('');
+      if (colMap.hasId && colMap.id !== -1) {
+        newRow[colMap.id] = 'USR-' + String(sheet.getLastRow()).padStart(3, '0');
+      }
+      newRow[colMap.colaborador] = userEmailNorm.split('@')[0];
+      newRow[colMap.email] = userEmailNorm;
+      newRow[colMap.setor] = 'GESTAO TELEFONIA';
+      newRow[colMap.papel] = 'Gestor';
+      newRow[colMap.substituto] = subEmail;
+      newRow[colMap.inicio] = dataInicio;
+      newRow[colMap.termino] = dataFim;
+      newRow[colMap.indeterminado] = subIndeterminado ? 'Sim' : 'Não';
+      newRow[colMap.status] = 'Ativo';
+      sheet.appendRow(newRow);
+    }
+
+    var userPapel = obterPapelUsuario_(userEmailNorm);
+    var periodoDesc = subIndeterminado ? 'Periodo Indeterminado' : ('De ' + dataInicio + ' ate ' + dataFim);
+    registrarLogAuditoriaOficial_(
+      'Controle de Acessos',
+      userEmailNorm,
+      'Designacao de Substituto Temporario',
+      'substituto_temporario',
+      '-',
+      subEmail + ' (' + periodoDesc + ')',
+      'Substituto temporario designado para o periodo: ' + periodoDesc,
+      userEmailNorm,
+      userPapel
+    );
+
+    return {
+      success: true,
+      message: 'Substituto ' + subEmail + ' configurado com sucesso (' + periodoDesc + ').',
+      substituto: {
+        email: subEmail,
+        dataInicio: dataInicio,
+        dataFim: dataFim,
+        indeterminado: subIndeterminado
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch(eL) {}
+  }
+}
+
+/**
+ * Revoga a substituicao temporaria ativa do titular.
+ * @return {Object}
+ */
+function revogarSubstitutoAusenciaTelefonia() {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) return { success: true };
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch(e) {}
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userEmailNorm = userEmail.toLowerCase().trim();
+
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0];
+    var colMap = mapearIndicesAcessos_(headers);
+
+    var rowIndex = -1;
+    var subAnterior = '';
+    for (var i = 1; i < data.length; i++) {
+      var rowEmail = String(data[i][colMap.email] || '').toLowerCase().trim();
+      if (rowEmail === userEmailNorm) {
+        rowIndex = i + 1;
+        subAnterior = String(data[i][colMap.substituto] || '');
+        break;
+      }
+    }
+
+    if (rowIndex !== -1) {
+      sheet.getRange(rowIndex, colMap.substituto + 1).setValue('');
+      sheet.getRange(rowIndex, colMap.inicio + 1).setValue('');
+      sheet.getRange(rowIndex, colMap.termino + 1).setValue('');
+      sheet.getRange(rowIndex, colMap.indeterminado + 1).setValue('Não');
+    }
+
+    var userPapel = obterPapelUsuario_(userEmailNorm);
+    registrarLogAuditoriaOficial_(
+      'Controle de Acessos',
+      userEmailNorm,
+      'Revogacao de Substituto Temporario',
+      'substituto_temporario',
+      subAnterior || '-',
+      'Nenhum',
+      'Substituicao temporaria revogada pelo titular.',
+      userEmailNorm,
+      userPapel
+    );
+
+    return { success: true, message: 'Substituição temporária revogada com sucesso.' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch(eL) {}
+  }
+}
+
+/**
+ * Atualiza o status operacional do fornecedor (Ativo / Encerrado)
+ * gravando na aba Fornecedores e registrando na Trilha Oficial de Auditoria.
+ * @param {string} idOuNomeFornecedor
+ * @param {string} novoStatus 'Ativo' ou 'Encerrado'
+ * @return {Object}
+ */
+function atualizarStatusFornecedorTelefonia(idOuNomeFornecedor, novoStatus) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var ss = obterPlanilha_();
+    var sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    if (!sheetFornecedores) {
+      return { success: false, error: 'Aba Fornecedores nao localizada na planilha.' };
+    }
+
+    var fornRef = String(idOuNomeFornecedor || '').trim().toLowerCase();
+    if (!fornRef) throw new Error('Identificador ou Razao Social do fornecedor e obrigatorio.');
+
+    var statusNormalizado = String(novoStatus || 'Ativo').trim();
+    if (statusNormalizado.toLowerCase() === 'encerrado') {
+      statusNormalizado = 'Encerrado';
+    } else {
+      statusNormalizado = 'Ativo';
+    }
+
+    var data = sheetFornecedores.getDataRange().getValues();
+    if (data.length <= 1) throw new Error('Nenhum fornecedor registrado na planilha.');
+
+    var headers = data[0].map(function(h) { return String(h).toLowerCase().trim(); });
+    var colStatus = headers.indexOf('status');
+    if (colStatus === -1) colStatus = 8; // Fallback coluna 9 (index 8)
+
+    var colId = headers.indexOf('id_fornecedor');
+    var colRazao = headers.indexOf('razao_social');
+    var colApelido = headers.indexOf('apelido');
+
+    var rowIndex = -1;
+    var statusAnterior = 'Ativo';
+    var nomeFornecedor = fornRef;
+
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var rId = String((colId !== -1 ? row[colId] : row[0]) || '').trim().toLowerCase();
+      var rRazao = String((colRazao !== -1 ? row[colRazao] : row[1]) || '').trim().toLowerCase();
+      var rApelido = String((colApelido !== -1 ? row[colApelido] : row[3]) || '').trim().toLowerCase();
+
+      if (rId === fornRef || rRazao === fornRef || rApelido === fornRef) {
+        rowIndex = i + 1;
+        statusAnterior = String(row[colStatus] || 'Ativo');
+        nomeFornecedor = String((colRazao !== -1 ? row[colRazao] : row[1]) || fornRef);
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      throw new Error('Fornecedor nao localizado na base de dados: ' + idOuNomeFornecedor);
+    }
+
+    sheetFornecedores.getRange(rowIndex, colStatus + 1).setValue(statusNormalizado);
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch(eU) {}
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userPapel = obterPapelUsuario_(userEmail);
+
+    registrarLogAuditoriaOficial_(
+      'Fornecedor',
+      nomeFornecedor,
+      'Atualizacao de Status',
+      'status',
+      statusAnterior,
+      statusNormalizado,
+      'Status operacional do fornecedor alterado de ' + statusAnterior + ' para ' + statusNormalizado + '.',
+      userEmail,
+      userPapel
+    );
+
+    return {
+      success: true,
+      idFornecedor: idOuNomeFornecedor,
+      nomeFornecedor: nomeFornecedor,
+      statusAnterior: statusAnterior,
+      novoStatus: statusNormalizado,
+      message: 'Status do fornecedor ' + nomeFornecedor + ' atualizado para ' + statusNormalizado + '.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch(eL) {}
+  }
+}
+
+/**
+ * Executa a limpeza operacional da planilha:
+ * 1. Remove com seguranca as abas 'Página2' e 'Página3' (ou 'Sheet2'/'Sheet3') se existirem.
+ * 2. Verifica a aba 'Acessos_Alcadas'; se a Coluna A for 'ID do Usuário' e estiver vazia, remove a coluna.
+ * @return {Object} Resultado da operacao
+ */
+function limparAbasEEstruturaAcessos() {
+  try {
+    var ss = obterPlanilha_();
+    var abasRemovidas = [];
+    var abasParaVerificar = ['Página2', 'Página3', 'Sheet2', 'Sheet3', 'Pagina2', 'Pagina3'];
+
+    abasParaVerificar.forEach(function(nomeAba) {
+      var aba = ss.getSheetByName(nomeAba);
+      if (aba && ss.getSheets().length > 1) {
+        try {
+          ss.deleteSheet(aba);
+          abasRemovidas.push(nomeAba);
+        } catch(eDel) {
+          Logger.log('Nao foi possivel excluir a aba ' + nomeAba + ': ' + eDel.message);
+        }
+      }
+    });
+
+    var colunaIdRemovida = false;
+    var sheetAcessos = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (sheetAcessos && sheetAcessos.getLastRow() >= 1) {
+      var firstCell = String(sheetAcessos.getRange(1, 1).getValue() || '').toLowerCase().trim();
+      if (firstCell.indexOf('id') !== -1) {
+        var numRows = sheetAcessos.getLastRow();
+        var hasValues = false;
+        if (numRows > 1) {
+          var col1Values = sheetAcessos.getRange(2, 1, numRows - 1, 1).getValues();
+          for (var r = 0; r < col1Values.length; r++) {
+            if (String(col1Values[r][0] || '').trim() !== '') {
+              hasValues = true;
+              break;
+            }
+          }
+        }
+        if (!hasValues) {
+          sheetAcessos.deleteColumn(1);
+          colunaIdRemovida = true;
+        }
+      }
+    }
+
+    return {
+      success: true,
+      abasRemovidas: abasRemovidas,
+      colunaIdRemovida: colunaIdRemovida,
+      message: 'Limpeza de abas e estrutura executada com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 }
 
 /**
