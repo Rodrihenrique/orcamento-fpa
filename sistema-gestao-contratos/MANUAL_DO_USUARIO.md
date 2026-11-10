@@ -133,8 +133,14 @@ O cadastro contempla 6 blocos organizados:
 3. **Valores Financeiros, Moeda & Orçamento:**
    - **Moeda:** BRL, USD, EUR ou Outra.
    - **Taxa de Câmbio:** Cotação para conversão cambial.
-   - **Valor Mensal:** Valor financeiro periódico sem moeda pré-fixada, formatado dinamicamente de acordo com a moeda selecionada (BRL, USD, EUR, etc.).
-   - **Valor Base em BRL:** Cálculo automático sincronizado (Valor Mensal x Câmbio).
+   - **Multiplicador de Serviços:**
+     - **Valor Unitário do Serviço:** Valor unitário de cada item ou prestação (ex: R$ 43.000,00).
+     - **Quantidade de Serviços:** Número de serviços contratados (ex: 3 serviços).
+     - **Valor Mensal Total:** Cálculo dinâmico multiplicando o valor unitário pela quantidade de serviços (ex: R$ 43.000,00 x 3 = R$ 129.000,00 / mês). Permite edição direta manual sincronizada.
+   - **Período de Cobrança Efetiva (Meses no Ano):**
+     - Permite definir a quantidade real de meses faturados no ano (ex: 9 meses em contratos com vigência de 12 meses decorrente de carência, período de implantação ou sazonalidade).
+     - O cálculo do **Desembolso Anual** e o card de **Orçamento Anual Comprometido** multiplicam exatamente o valor mensal pelos meses efetivos de cobrança (ex: R$ 129.000,00 x 9 = R$ 1.161.000,00).
+   - **Valor Base em BRL:** Cálculo automático sincronizado (Valor Mensal Total x Câmbio).
    - **Valor Orçado por Lançamento:** Previsão contábil do orçamento.
    - **Impostos / Encargos (%):** Percentual retido ou incidente.
    - **Contingência (%):** Margem de segurança orçamentária.
@@ -183,14 +189,20 @@ A **Central de Aprovações** é utilizada para governança de **Mudanças Contr
 - Reajustes não programados ou extraordinários;
 - Migração de faixas de faturamento por base de clientes.
 
-### 8.2 Fluxo de Solicitação e Decisão Formal
-1. O gestor abre a solicitação através do botão **+ Nova Solicitação de Alteração** ou na Ficha 360° do contrato (**Solicitar Alteração / Aprovação**).
-2. Informa o contrato alvo, o tipo de mudança, o detalhamento da proposta, a alçada requerida (Coordenador, Gerente ou Gerente Executivo), o e-mail do responsável e a justificativa técnica.
-3. O status do contrato passa para `Em Alteração (Aguardando Aprovação)`.
-4. O responsável notificado acessa a Central de Aprovações, avalia o memorial e registra sua decisão:
-   - **Aprovar:** O contrato retorna ao status `Vigente`, e a decisão é gravada com carimbo cronológico oficial.
-   - **Solicitar Ajustes:** O parecer descreve os apontamentos necessários para correções.
-5. Toda decisão gera registro imutável no Log de Alterações e notificação aos envolvidos.
+### 8.2 Fluxo de Alteração Contratual pelo Responsável & Governança
+1. Ao identificar a necessidade de alteração de valor, vigência/prazo, serviços ou condições, o responsável pelo contrato acessa o sistema e clica em **Realizar Alteração / Aprovação** (na Ficha 360° ou na esteira de governança).
+2. O modal interativo permite ao responsável realizar a mudança diretamente:
+   - **Objeto do Contrato:** Atualização da descrição do escopo contratado.
+   - **Multiplicador de Serviços & Valores:** Ajuste do Valor Unitário, Quantidade de Serviços e Valor Mensal Total com cálculo automático em tempo real.
+   - **Período de Cobrança Efetiva:** Definição de meses faturados no ano (ex: 9 meses) e recálculo instantâneo do Desembolso Anual.
+   - **Prazos & Vigência:** Atualização da data de início, data de término ou marcação de vigência indeterminada.
+   - **Critério de Reajuste e Data:** Alteração de índices (IPCA, IGP-M, Base de Clientes, etc.) e data programada de reajuste.
+   - **Situação e Alçada:** Atualização do status operacional (Vigente, Em Alteração, Suspenso, Encerrado) e alçada (Aprovado, Pendente).
+   - **Justificativa Operacional Obrigatória:** Campo mandatório para registro formal na trilha de auditoria.
+3. Ao clicar em **Salvar Alteração no Contrato**:
+   - As alterações são gravadas imediatamente na base oficial de contratos da planilha.
+   - Um registro cronológico oficial é gravado na aba `Auditoria_Logs` com o e-mail do responsável, data/hora, campos alterados (*Antes vs Depois*) e parecer.
+   - Pendências anteriores de aprovação vinculadas ao contrato são automaticamente concluídas.
 
 ---
 
@@ -234,9 +246,17 @@ A pasta raiz `Contratos - Gerência Executiva de Telefonia` contém exclusivamen
 - `TELEFONIA`
 
 Cada fornecedor e seus respectivos contratos são organizados dentro da gerência correspondente selecionada:
-`[SETOR] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} / 01_Contrato_Principal`
+`[SETOR] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} / [Subpastas]`
 
-### 10.2 Linha de Cabeçalho Oficial da Aba Contratos (45 Colunas)
+Cada contrato conta com **4 subpastas padronizadas**:
+1. `Contrato`: Minuta aprovada, instrumento contratual assinado e aditivos.
+2. `Anexos`: Anexos técnicos, propostas comerciais, escopo e memórias de cálculo.
+3. `Documentação`: Certidões negativas, habilitação jurídica e procurações.
+4. `NF`: Notas fiscais mensais, boletos de cobrança e comprovantes de faturamento.
+
+No formulário de Novo Contrato e no modal de Ficha 360°, o usuário escolhe a pasta de destino de cada arquivo anexado.
+
+### 10.2 Linha de Cabeçalho Oficial da Aba Contratos (49 Colunas)
 1. `ID do Contrato`
 2. `Protocolo Oficial`
 3. `ID do Fornecedor`
@@ -282,6 +302,10 @@ Cada fornecedor e seus respectivos contratos são organizados dentro da gerênci
 43. `Risco (Baixo, Médio, Alto)`
 44. `Descrição do Risco / Contingência`
 45. `Fonte / Memória de Cálculo`
+46. `Quantidade de Serviços`
+47. `Valor Unitário`
+48. `Meses de Cobrança Efetiva`
+49. `Pasta de Destino no Drive`
 
 ### 10.3 Estrutura da Aba Acessos_Alcadas (10 Colunas)
 1. `ID do Usuário`
