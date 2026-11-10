@@ -1985,14 +1985,24 @@
           </div>
           <div class="form-group col-span-1">
             <label class="form-label required">Periodicidade</label>
-            <select id="contratoModalPeriodicidade" class="form-control" required>
+            <select id="contratoModalPeriodicidade" class="form-control" required onchange="aoMudarPeriodicidadeNovoContrato()">
               <option value="Mensal">Mensal</option>
               <option value="Bimestral">Bimestral</option>
               <option value="Trimestral">Trimestral</option>
               <option value="Semestral">Semestral</option>
-              <option value="Anual">Anual</option>
-              <option value="Único">Único</option>
+              <option value="Anual">Anual (1 vez por ano)</option>
+              <option value="A cada 2 anos">A cada 2 anos (Bianual)</option>
+              <option value="A cada 3 anos">A cada 3 anos (Trienal)</option>
+              <option value="A cada 4 anos">A cada 4 anos (Quadrienal)</option>
+              <option value="A cada 5 anos">A cada 5 anos (Quinquenal)</option>
+              <option value="A cada 10 anos">A cada 10 anos (Decenal)</option>
+              <option value="Personalizado em Anos">Personalizado (Definir anos...)</option>
+              <option value="Único">Único (Pagamento Único)</option>
             </select>
+            <div id="boxPeriodicidadeAnosPersonalizado" style="display: none; margin-top: 6px;">
+              <label class="form-label" style="font-size: 11px;">Quantidade de Anos do Ciclo</label>
+              <input type="number" id="contratoModalQtdAnos" class="form-control" value="5" min="1" max="50" oninput="aoDigitarQtdAnosPersonalizado()">
+            </div>
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">1ª Competência (DD/MM/AAAA)</label>
@@ -2045,6 +2055,7 @@
             <div id="displayDesembolsoAnualNovo" style="height: 38px; display: flex; align-items: center; padding: 0 12px; background: #EEF2FF; border: 1px solid #BFDBFE; border-radius: 6px; font-size: 13px; font-weight: 800; color: var(--brisa-blue);">
               R$ 0,00
             </div>
+            <div id="badgeAlertaPeriodoNovoContrato" style="display: none; margin-top: 8px; padding: 10px 14px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 6px; font-size: 11px; font-weight: 700; color: #C2410C;"></div>
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Valor Orçado por Lançamento</label>
@@ -2303,19 +2314,36 @@
       </div>
       <div id="modalAltBadgeCalculoServico" style="font-size: 11px; font-weight: 700; color: var(--brisa-blue); margin-bottom: 12px; display: none;"></div>
 
-      <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+      <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+        <div class="form-group">
+          <label class="form-label required">Periodicidade</label>
+          <select id="solicitacaoPeriodicidade" class="form-control" onchange="recalcularValoresModalAlteracao()">
+            <option value="Mensal">Mensal</option>
+            <option value="Bimestral">Bimestral</option>
+            <option value="Trimestral">Trimestral</option>
+            <option value="Semestral">Semestral</option>
+            <option value="Anual">Anual (1 vez por ano)</option>
+            <option value="A cada 2 anos">A cada 2 anos (Bianual)</option>
+            <option value="A cada 3 anos">A cada 3 anos (Trienal)</option>
+            <option value="A cada 4 anos">A cada 4 anos (Quadrienal)</option>
+            <option value="A cada 5 anos">A cada 5 anos (Quinquenal)</option>
+            <option value="A cada 10 anos">A cada 10 anos (Decenal)</option>
+            <option value="Único">Único</option>
+          </select>
+        </div>
         <div class="form-group">
           <label class="form-label required">Período de Cobrança (Meses no Ano)</label>
           <input type="number" id="solicitacaoMesesCobranca" class="form-control" value="12" min="1" max="60" oninput="recalcularValoresModalAlteracao();" required>
-          <small style="color: var(--text-muted); font-size: 11px;">Meses de cobrança ativa (ex: 9 meses em vigência de 12 meses).</small>
+          <small style="color: var(--text-muted); font-size: 11px;">Meses de cobrança ativa.</small>
         </div>
         <div class="form-group">
           <label class="form-label">Desembolso Anual Estimado</label>
-          <div id="solicitacaoDesembolsoAnualDisplay" style="height: 38px; display: flex; align-items: center; padding: 0 12px; background: #EEF2FF; border: 1px solid #BFDBFE; border-radius: 6px; font-size: 14px; font-weight: 800; color: var(--brisa-blue);">
+          <div id="solicitacaoDesembolsoAnualDisplay" style="height: 38px; display: flex; align-items: center; padding: 0 12px; background: #EEF2FF; border: 1px solid #BFDBFE; border-radius: 6px; font-size: 13px; font-weight: 800; color: var(--brisa-blue);">
             R$ 0,00
           </div>
         </div>
       </div>
+      <div id="modalAltBadgePlurianual" style="display: none; padding: 8px 12px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 6px; font-size: 11px; font-weight: 700; color: #C2410C; margin-bottom: 12px;"></div>
 
       <!-- Vigencia e Prazos -->
       <div style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue); margin-top: 14px; margin-bottom: 8px; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px;">
@@ -2540,6 +2568,30 @@
   function esconderLoading() {
     var overlay = document.getElementById('appLoadingOverlay');
     if (overlay) overlay.classList.remove('active');
+  }
+
+  // Funcoes auxiliares de periodicidade e contratos plurianuais (a cada X anos)
+  function ehPeriodicidadePlurianual(periodicidadeStr) {
+    if (!periodicidadeStr) return false;
+    var s = String(periodicidadeStr).toLowerCase().trim();
+    if (s.indexOf('a cada') !== -1 && s.indexOf('ano') !== -1) return true;
+    if (s.indexOf('bianual') !== -1 || s.indexOf('trienal') !== -1 || s.indexOf('quadrienal') !== -1 || s.indexOf('quinquenal') !== -1 || s.indexOf('decenal') !== -1) return true;
+    if (s.indexOf('plurianual') !== -1) return true;
+    return false;
+  }
+
+  function obterTextoAlertaPeriodicidade(periodicidadeStr) {
+    var s = String(periodicidadeStr || '').trim();
+    if (!s) return '';
+    var lower = s.toLowerCase();
+    if (lower.indexOf('5 ano') !== -1 || lower.indexOf('quinquenal') !== -1) return 'Pago apenas a cada 5 anos';
+    if (lower.indexOf('a cada') !== -1 && lower.indexOf('ano') !== -1) return 'Pago apenas ' + s.toLowerCase();
+    if (lower.indexOf('2 ano') !== -1 || lower.indexOf('bianual') !== -1) return 'Pago apenas a cada 2 anos';
+    if (lower.indexOf('3 ano') !== -1 || lower.indexOf('trienal') !== -1) return 'Pago apenas a cada 3 anos';
+    if (lower.indexOf('4 ano') !== -1 || lower.indexOf('quadrienal') !== -1) return 'Pago apenas a cada 4 anos';
+    if (lower.indexOf('10 ano') !== -1 || lower.indexOf('decenal') !== -1) return 'Pago apenas a cada 10 anos';
+    if (lower.indexOf('anual') !== -1) return 'Pago 1 vez por ano';
+    return 'Pago conforme periodicidade: ' + s;
   }
 
   // Conversores e formatadores numericos e monetarios
@@ -2852,11 +2904,24 @@
         var isAtivo = !isEncerrado && (cStatus.indexOf('vigen') !== -1 || cStatus.indexOf('ativ') !== -1 || cAlcada.indexOf('aprov') !== -1 || !cStatus);
         if (isAtivo) {
           contratosAtivosCalc++;
+          var isPluriKpi = ehPeriodicidadePlurianual(cItem.periodicidade);
+          var isAnualKpi = String(cItem.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriKpi;
           var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || 0;
           var msCob = parseInt(cItem.mesesCobranca, 10);
           if (isNaN(msCob) || msCob <= 0) msCob = 12;
-          var valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
-          totalMensalCalc += valContrato;
+
+          var valAnual = 0;
+          if (isPluriKpi) {
+            valAnual = 0; // Nao entra no orcamento anual 12m porque nao ocorre todo ano
+          } else if (isAnualKpi) {
+            valAnual = valContrato;
+          } else {
+            valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
+          }
+
+          if (!isPluriKpi) {
+            totalMensalCalc += valContrato;
+          }
           totalAnualCalc += valAnual;
         }
       }
@@ -2923,14 +2988,26 @@
           var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 || cSt.indexOf('inativ') !== -1;
           var isAt = !isEnc && (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt);
 
+          var isPluriForn = ehPeriodicidadePlurianual(c.periodicidade);
+          var isAnualForn = String(c.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriForn;
           var vMensal = (parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || 0);
           var meses = parseInt(c.mesesCobranca, 10);
           if (isNaN(meses) || meses <= 0) meses = 12;
-          var vAnual = parseFloat(c.desembolsoAnual) || (vMensal * meses);
+
+          var vAnual = 0;
+          if (isPluriForn) {
+            vAnual = 0; // Nao soma no desembolso anual porque nao tem todo ano
+          } else if (isAnualForn) {
+            vAnual = vMensal;
+          } else {
+            vAnual = parseFloat(c.desembolsoAnual) || (vMensal * meses);
+          }
 
           if (isAt) {
             fContratosAtivos++;
-            fValorMensal += vMensal;
+            if (!isPluriForn) {
+              fValorMensal += vMensal;
+            }
             fValorAnual += vAnual;
           }
 
@@ -3064,14 +3141,30 @@
           var vAnualNum = c.desembolsoAnual ? parseFloat(c.desembolsoAnual) : (vMensalNum * mCobrancaNum);
           var qtdSrvNum = parseInt(c.quantidadeServicos, 10) || 1;
 
+          var isPluriContrato = ehPeriodicidadePlurianual(c.periodicidade);
+          var isAnualContrato = String(c.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriContrato;
+
           var labelMensalCol = formatarMoedaBRL(vMensalNum);
-          if (qtdSrvNum > 1) {
+          if (isPluriContrato) {
+            labelMensalCol += ' <div style="font-size:10px; font-weight:700; color:#C2410C;">' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</div>';
+          } else if (isAnualContrato) {
+            labelMensalCol += ' <div style="font-size:10px; font-weight:600; color:var(--brisa-blue);">1x ao ano</div>';
+          } else if (qtdSrvNum > 1) {
             labelMensalCol += ' <div style="font-size:10px; font-weight:600; color:var(--text-muted);">' + qtdSrvNum + ' serviços</div>';
           }
 
-          var labelAnualCol = formatarMoedaBRL(vAnualNum);
-          if (mCobrancaNum !== 12) {
-            labelAnualCol += ' <span style="font-size:10px; font-weight:600; color:#64748B;">(' + mCobrancaNum + ' meses)</span>';
+          var labelAnualCol = '';
+          if (isPluriContrato) {
+            // Regra: nao mostra valor anual porque nao tem todo ano, mas o valor fica registrado com alerta
+            labelAnualCol = '<span class="badge-alerta-ciclo" style="background:#FFF7ED; color:#C2410C; border:1px solid #FFEDD5; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:700; display:inline-block;" title="Não possui desembolso anual recorrente porque não tem todo ano.">Não aplicável</span>' +
+              '<div style="font-size:10px; color:var(--text-muted); font-weight:600; margin-top:2px;">Reg. ciclo: ' + formatarMoedaBRL(vMensalNum) + '</div>';
+          } else {
+            labelAnualCol = formatarMoedaBRL(vAnualNum);
+            if (isAnualContrato) {
+              labelAnualCol += ' <span style="font-size:10px; font-weight:600; color:#64748B;">(1 parcela/ano)</span>';
+            } else if (mCobrancaNum !== 12) {
+              labelAnualCol += ' <span style="font-size:10px; font-weight:600; color:#64748B;">(' + mCobrancaNum + ' meses)</span>';
+            }
           }
 
           html += '        <tr>';
@@ -3544,7 +3637,7 @@
       avisoPrevio: parseInt(document.getElementById('contratoModalAvisoPrevio').value, 10) || 30,
       renovacaoAutomatica: document.getElementById('contratoModalRenovacaoAutomatica').value,
       moeda: document.getElementById('contratoModalMoeda').value,
-      periodicidade: document.getElementById('contratoModalPeriodicidade').value,
+      periodicidade: obterPeriodicidadeNovoContratoSelecionada(),
       primeiraCompetencia: document.getElementById('contratoModalPrimeiraCompetencia').value.trim(),
       mesesCobranca: parseInt(document.getElementById('contratoModalMesesCobranca').value, 10) || 12,
       qtdServicos: parseInt(document.getElementById('contratoModalQtdServicos').value, 10) || 1,
@@ -3774,14 +3867,24 @@
 
       var riscoBadgeClass = (c.risco === 'Alto') ? 'em-risco' : ((c.risco === 'Médio') ? 'analise' : 'ativo');
 
+      var isPlurianualFicha = ehPeriodicidadePlurianual(c.periodicidade);
+      var alertaPlurianualHtml = '';
+      if (isPlurianualFicha) {
+        alertaPlurianualHtml = '<div style="grid-column: 1 / -1; padding: 12px 16px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 8px; margin-bottom: 12px;">' +
+          '<div style="font-weight: 700; color: #C2410C; font-size: 13px; margin-bottom: 3px;">Alerta de Periodicidade de Pagamento (' + escapeHtml(c.periodicidade) + ')</div>' +
+          '<div style="font-size: 12px; color: #9A3412;">Este contrato é pago exclusivamente <strong>' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</strong>. Não possui desembolso anual recorrente porque o pagamento não ocorre todo ano. O valor registrado para visualização e execução no ciclo é de <strong>' + formatarMoedaBRL(c.valorMensal) + '</strong>.</div>' +
+          '</div>';
+      }
+
       body.innerHTML = '<div class="form-grid">' +
-        '<div class="form-group"><span class="form-label">Valor Mensal</span><div style="font-size:18px; font-weight:800; color:var(--brisa-dark-blue);">' + formatarMoedaBRL(c.valorMensal) + '</div></div>' +
+        alertaPlurianualHtml +
+        '<div class="form-group"><span class="form-label">' + (isPlurianualFicha ? 'Valor do Pagamento no Ciclo' : 'Valor Mensal') + '</span><div style="font-size:18px; font-weight:800; color:var(--brisa-dark-blue);">' + formatarMoedaBRL(c.valorMensal) + (isPlurianualFicha ? ' <span style="font-size:11px; font-weight:700; color:#C2410C;">(' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + ')</span>' : '') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Periodicidade</span><div style="font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(c.periodicidade || 'Mensal') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Serviços / Unidade</span><div>' + (parseInt(c.quantidadeServicos, 10) || 1) + ' serviço(s) · Unitário: ' + formatarMoedaBRL(c.valorUnitario || c.valorMensal) + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Período de Cobrança</span><div>' + (parseInt(c.mesesCobranca, 10) || 12) + ' meses faturados no ano</div></div>' +
-        '<div class="form-group"><span class="form-label">Desembolso Anual</span><div style="font-size:18px; font-weight:800; color:var(--brisa-blue);">' + formatarMoedaBRL(c.desembolsoAnual || ((parseFloat(c.valorMensal) || 0) * (parseInt(c.mesesCobranca, 10) || 12))) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Desembolso Anual (12m)</span><div style="font-size:18px; font-weight:800; color:var(--brisa-blue);">' + (isPlurianualFicha ? '<span style="color:#C2410C; font-size:13px; font-weight:700;">Não aplicável (Não tem todo ano)</span>' : formatarMoedaBRL(c.desembolsoAnual || ((parseFloat(c.valorMensal) || 0) * (parseInt(c.mesesCobranca, 10) || 12)))) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Moeda</span><div>' + escapeHtml(c.moeda || 'BRL') + ' (Câmbio: ' + escapeHtml(c.taxaCambio || '1,0000') + ')</div></div>' +
-        '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + (c.valorBaseBrl || formatarMoedaBRL(c.valorMensal)) + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + (c.valorOrcado || formatarMoedaBRL(c.valorMensal)) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + (c.valorBaseBrl || formatarMoedaBRL(c.valorMensal)) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + (c.valorOrcado || formatarMoedaBRL(c.valorMensal)) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Impostos / Encargos</span><div>' + (c.impostosEncargos || '0,00%') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Contingência</span><div>' + (c.contingencia || '0,00%') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Critério de Reajuste</span><div>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</div></div>' +
@@ -3932,36 +4035,93 @@
     atualizarCalculosNovoContrato();
   }
 
+  function aoMudarPeriodicidadeNovoContrato() {
+    var sel = document.getElementById('contratoModalPeriodicidade');
+    var val = sel ? sel.value : 'Mensal';
+    var boxPers = document.getElementById('boxPeriodicidadeAnosPersonalizado');
+    if (boxPers) {
+      boxPers.style.display = (val === 'Personalizado em Anos') ? 'block' : 'none';
+    }
+    atualizarCalculosNovoContrato();
+  }
+
+  function aoDigitarQtdAnosPersonalizado() {
+    atualizarCalculosNovoContrato();
+  }
+
+  function obterPeriodicidadeNovoContratoSelecionada() {
+    var sel = document.getElementById('contratoModalPeriodicidade');
+    var val = sel ? sel.value : 'Mensal';
+    if (val === 'Personalizado em Anos') {
+      var qtd = parseInt(document.getElementById('contratoModalQtdAnos').value, 10) || 5;
+      return 'A cada ' + qtd + ' anos';
+    }
+    return val;
+  }
+
   function atualizarCalculosNovoContrato() {
     var vTotalStr = document.getElementById('contratoModalValorMensal').value;
     var vTotal = desformatarNumero(vTotalStr);
     var qtd = parseInt(document.getElementById('contratoModalQtdServicos').value, 10) || 1;
     var vUnit = desformatarNumero(document.getElementById('contratoModalValorUnitario').value);
     var meses = parseInt(document.getElementById('contratoModalMesesCobranca').value, 10) || 12;
+    var periodicidade = obterPeriodicidadeNovoContratoSelecionada();
+
+    var isPlurianual = ehPeriodicidadePlurianual(periodicidade);
+    var isAnual = periodicidade.toLowerCase().indexOf('anual') !== -1 && !isPlurianual;
+
+    // Adaptacao da label do campo de valor
+    var lblValor = document.getElementById('lblContratoModalValorMensal');
+    if (lblValor) {
+      lblValor.textContent = isPlurianual ? 'Valor do Pagamento no Ciclo' : (isAnual ? 'Valor da Parcela Anual' : 'Valor Mensal Total');
+    }
 
     var badgeSrv = document.getElementById('badgeMultiplicadorServicoNovo');
     if (badgeSrv) {
       if (qtd > 1 && vUnit > 0) {
         badgeSrv.style.display = 'block';
-        badgeSrv.textContent = qtd + ' serviços x ' + formatarNumeroDecimal(vUnit) + ' = ' + formatarNumeroDecimal(vTotal) + ' / mês';
+        badgeSrv.textContent = qtd + ' serviços x ' + formatarNumeroDecimal(vUnit) + ' = ' + formatarNumeroDecimal(vTotal) + (isPlurianual ? ' / ciclo' : (isAnual ? ' / ano' : ' / mês'));
       } else {
         badgeSrv.style.display = 'none';
       }
     }
 
     var taxaCambio = desformatarNumero(document.getElementById('contratoModalTaxaCambio').value) || 1;
-    var desembolsoAnual = vTotal * taxaCambio * meses;
-
-    // Valor Base BRL e Valor Orcado devem ser exatamente os mesmos do Desembolso Anual
-    var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
-    if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(desembolsoAnual);
-
-    var inpOrcado = document.getElementById('contratoModalValorOrcado');
-    if (inpOrcado) inpOrcado.value = formatarMoedaBRL(desembolsoAnual);
-
     var displayAnual = document.getElementById('displayDesembolsoAnualNovo');
-    if (displayAnual) {
-      displayAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (meses !== 12 ? ' (' + meses + ' meses)' : '');
+    var badgeAlertaPeriodo = document.getElementById('badgeAlertaPeriodoNovoContrato');
+
+    if (isPlurianual) {
+      // Regra para contratos que sao pagos a cada X anos (ex: a cada 5 anos):
+      // Nao mostra valor anual porque nao tem todo ano, mas o valor fica registrado com alerta explicito
+      if (displayAnual) {
+        displayAnual.innerHTML = '<span style="color:#C2410C; font-size:12px; font-weight:700;">Não aplicável (Não tem todo ano)</span>';
+      }
+      if (badgeAlertaPeriodo) {
+        badgeAlertaPeriodo.style.display = 'block';
+        badgeAlertaPeriodo.innerHTML = 'Alerta de Pagamento Plurianual: Este contrato é pago exclusivamente <u>' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '</u>. O valor de <strong>' + formatarMoedaBRL(vTotal * taxaCambio) + '</strong> fica registrado para visualização e execução no ciclo, sem computar desembolso anual nos anos sem faturamento.';
+      }
+
+      var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
+      if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(vTotal * taxaCambio);
+
+      var inpOrcado = document.getElementById('contratoModalValorOrcado');
+      if (inpOrcado) inpOrcado.value = formatarMoedaBRL(vTotal * taxaCambio);
+    } else {
+      if (badgeAlertaPeriodo) {
+        badgeAlertaPeriodo.style.display = 'none';
+      }
+      var multMeses = isAnual ? 1 : meses;
+      var desembolsoAnual = vTotal * taxaCambio * multMeses;
+
+      var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
+      if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(desembolsoAnual);
+
+      var inpOrcado = document.getElementById('contratoModalValorOrcado');
+      if (inpOrcado) inpOrcado.value = formatarMoedaBRL(desembolsoAnual);
+
+      if (displayAnual) {
+        displayAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (isAnual ? ' (1 parcela anual)' : (meses !== 12 ? ' (' + meses + ' meses)' : ''));
+      }
     }
   }
 
@@ -3991,6 +4151,9 @@
 
     var elMoeda = document.getElementById('solicitacaoMoeda');
     if (elMoeda) elMoeda.value = c.moeda || 'BRL';
+
+    var elPeriod = document.getElementById('solicitacaoPeriodicidade');
+    if (elPeriod) elPeriod.value = c.periodicidade || 'Mensal';
 
     var qtd = parseInt(c.quantidadeServicos, 10) || 1;
     var vMensal = parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0;
@@ -4082,10 +4245,27 @@
     }
 
     var meses = parseInt(document.getElementById('solicitacaoMesesCobranca').value, 10) || 12;
-    var desembolsoAnual = vTotal * meses;
+    var elPeriod = document.getElementById('solicitacaoPeriodicidade');
+    var periodicidade = elPeriod ? elPeriod.value : 'Mensal';
+    var isPlurianual = ehPeriodicidadePlurianual(periodicidade);
+    var isAnual = periodicidade.toLowerCase().indexOf('anual') !== -1 && !isPlurianual;
+
     var dispAnual = document.getElementById('solicitacaoDesembolsoAnualDisplay');
-    if (dispAnual) {
-      dispAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (meses !== 12 ? ' (' + meses + ' meses faturados)' : '');
+    var badgePluri = document.getElementById('modalAltBadgePlurianual');
+
+    if (isPlurianual) {
+      if (dispAnual) dispAnual.innerHTML = '<span style="color:#C2410C; font-size:12px; font-weight:700;">Não aplicável (Não tem todo ano)</span>';
+      if (badgePluri) {
+        badgePluri.style.display = 'block';
+        badgePluri.innerHTML = 'Alerta: Contrato pago exclusivamente ' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '. O valor de ' + formatarMoedaBRL(vTotal) + ' fica registrado no ciclo, sem desembolso anual recorrente.';
+      }
+    } else {
+      if (badgePluri) badgePluri.style.display = 'none';
+      var multMeses = isAnual ? 1 : meses;
+      var desembolsoAnual = vTotal * multMeses;
+      if (dispAnual) {
+        dispAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (isAnual ? ' (1 parcela anual)' : (meses !== 12 ? ' (' + meses + ' meses faturados)' : ''));
+      }
     }
   }
 
@@ -4171,6 +4351,7 @@
       dataInicio: formatarDataBR(dtInicio),
       dataFim: isIndet ? '' : formatarDataBR(dtFim),
       prazoIndeterminado: isIndet,
+      periodicidade: (document.getElementById('solicitacaoPeriodicidade') ? document.getElementById('solicitacaoPeriodicidade').value : 'Mensal'),
       indiceReajuste: indice,
       status: statusContrato,
       statusAlcada: statusAlcada,
@@ -5354,7 +5535,13 @@
     }
     document.getElementById('alterarFaixaContratoId').value = idContrato;
     var container = document.getElementById('listaFaixasParaSelecao');
+    var isPluriContrato = ehPeriodicidadePlurianual(contrato.periodicidade);
     var html = '';
+    if (isPluriContrato) {
+      html += '<div style="padding: 10px 14px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 6px; font-size: 12px; color: #C2410C; margin-bottom: 6px; font-weight: 700;">';
+      html += '  Alerta: Este contrato possui pagamento periódico ' + escapeHtml(contrato.periodicidade) + '. Os valores das faixas abaixo são pagos no respectivo ciclo e não compõem desembolso anual recorrente.';
+      html += '</div>';
+    }
     contrato.tabelaBaseClientes.forEach(function(fx, idx) {
       var isAtiva = fx.atual === true || fx.atual === 'true' || fx.ativa === true;
       var deNum = typeof fx.de === 'number' ? fx.de : (parseInt(fx.de, 10) || 0);

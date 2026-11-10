@@ -4298,6 +4298,39 @@ function limparAbasEEstruturaAcessos() {
 }
 
 /**
+ * Determina se a periodicidade do contrato e plurianual (paga a cada X anos, ex: 5 anos).
+ * @param {string} periodicidadeStr
+ * @return {boolean}
+ */
+function ehPeriodicidadePlurianual_(periodicidadeStr) {
+  if (!periodicidadeStr) return false;
+  var s = String(periodicidadeStr).toLowerCase().trim();
+  if (s.indexOf('a cada') !== -1 && s.indexOf('ano') !== -1) return true;
+  if (s.indexOf('bianual') !== -1 || s.indexOf('trienal') !== -1 || s.indexOf('quadrienal') !== -1 || s.indexOf('quinquenal') !== -1 || s.indexOf('decenal') !== -1) return true;
+  if (s.indexOf('plurianual') !== -1) return true;
+  return false;
+}
+
+/**
+ * Retorna o texto formatado do alerta de periodicidade.
+ * @param {string} periodicidadeStr
+ * @return {string}
+ */
+function obterTextoAlertaPeriodicidade_(periodicidadeStr) {
+  var s = String(periodicidadeStr || '').trim();
+  if (!s) return '';
+  var lower = s.toLowerCase();
+  if (lower.indexOf('5 ano') !== -1 || lower.indexOf('quinquenal') !== -1) return 'Pago apenas a cada 5 anos';
+  if (lower.indexOf('a cada') !== -1 && lower.indexOf('ano') !== -1) return 'Pago apenas ' + s.toLowerCase();
+  if (lower.indexOf('2 ano') !== -1 || lower.indexOf('bianual') !== -1) return 'Pago apenas a cada 2 anos';
+  if (lower.indexOf('3 ano') !== -1 || lower.indexOf('trienal') !== -1) return 'Pago apenas a cada 3 anos';
+  if (lower.indexOf('4 ano') !== -1 || lower.indexOf('quadrienal') !== -1) return 'Pago apenas a cada 4 anos';
+  if (lower.indexOf('10 ano') !== -1 || lower.indexOf('decenal') !== -1) return 'Pago apenas a cada 10 anos';
+  if (lower.indexOf('anual') !== -1) return 'Pago 1 vez por ano';
+  return 'Pago conforme periodicidade: ' + s;
+}
+
+/**
  * Calcula a proxima data de reajuste periodico com base na periodicidade contratual
  * e determina se o contrato esta dentro da janela de alerta (<= 5 dias).
  * @param {string|Date} dataBaseStr Data inicial (competencia, inicio ou reajuste)
@@ -4313,7 +4346,18 @@ function calcProximoReajustePeriodico_(dataBaseStr, periodicidadeStr) {
   else if (p.indexOf('bimestral') !== -1) meses = 2;
   else if (p.indexOf('trimestral') !== -1) meses = 3;
   else if (p.indexOf('semestral') !== -1) meses = 6;
-  else if (p.indexOf('anual') !== -1) meses = 12;
+  else if (p.indexOf('anual') !== -1 && p.indexOf('cada') === -1 && p.indexOf('bi') === -1 && p.indexOf('tri') === -1) meses = 12;
+  else if (p.indexOf('2 ano') !== -1 || p.indexOf('bianual') !== -1) meses = 24;
+  else if (p.indexOf('3 ano') !== -1 || p.indexOf('trienal') !== -1) meses = 36;
+  else if (p.indexOf('4 ano') !== -1 || p.indexOf('quadrienal') !== -1) meses = 48;
+  else if (p.indexOf('5 ano') !== -1 || p.indexOf('quinquenal') !== -1) meses = 60;
+  else if (p.indexOf('10 ano') !== -1 || p.indexOf('decenal') !== -1) meses = 120;
+  else {
+    var matchAnos = p.match(/a cada (\d+)\s*anos?/i);
+    if (matchAnos) {
+      meses = parseInt(matchAnos[1], 10) * 12;
+    }
+  }
   if (meses === 0) return null;
 
   var hoje = new Date();
@@ -4685,7 +4729,20 @@ function obterDadosCompletosTelefonia() {
         }
         var mesesCobranca = parseInt(getCol(row, 'meses_de_cobranca_efetiva', 47, getCol(row, 'meses_cobranca', 47, 12)), 10) || 12;
         var subpastaDrive = String(getCol(row, 'pasta_de_destino_no_drive', 48, getCol(row, 'subpasta_destino', 48, 'Contrato'))).trim() || 'Contrato';
-        var desembolsoAnualContrato = valorMensalAtual * mesesCobranca;
+        var periodicidadeContrato = String(getCol(row, 'periodicidade', 31, 'Mensal'));
+        var isPluriContrato = ehPeriodicidadePlurianual_(periodicidadeContrato);
+        var isAnualContrato = periodicidadeContrato.toLowerCase().indexOf('anual') !== -1 && !isPluriContrato;
+
+        // Regra para contratos que sao pagos uma vez por ano, ou anos (ex: a cada 5 anos):
+        // Nao mostra valor anual porque nao tem todo ano, mas o valor fica registrado no contrato
+        var desembolsoAnualContrato = 0;
+        if (isPluriContrato) {
+          desembolsoAnualContrato = 0;
+        } else if (isAnualContrato) {
+          desembolsoAnualContrato = valorMensalAtual;
+        } else {
+          desembolsoAnualContrato = valorMensalAtual * mesesCobranca;
+        }
 
         var contractItem = {
           id: idNum,
@@ -4738,7 +4795,9 @@ function obterDadosCompletosTelefonia() {
           valorUnitario: valorUnitario,
           mesesCobranca: mesesCobranca,
           desembolsoAnual: desembolsoAnualContrato,
-          subpastaDestino: subpastaDrive
+          subpastaDestino: subpastaDrive,
+          isPlurianual: isPluriContrato,
+          alertaPeriodicidade: isPluriContrato ? obterTextoAlertaPeriodicidade_(periodicidadeContrato) : ''
         };
 
         if (isAtivo) {
@@ -4808,7 +4867,10 @@ function obterDadosCompletosTelefonia() {
         }
         if (isAtivo) {
           fornecedoresMap[fKey].contratosAtivos++;
-          fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
+          // Se for plurianual (ex: a cada 5 anos), nao soma no desembolso mensal recorrente
+          if (!isPluriContrato) {
+            fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
+          }
           fornecedoresMap[fKey].desembolsoAnualTotal = (fornecedoresMap[fKey].desembolsoAnualTotal || 0) + desembolsoAnualContrato;
         }
       }
@@ -5392,15 +5454,24 @@ function salvarNovoContratoTelefonia(dados) {
       dados.taxaCambio || '1,0000',
       (function() {
         var tx = normalizarNumero_(dados.taxaCambio || 1) || 1;
+        var p = String(dados.periodicidade || 'Mensal');
+        var isPl = ehPeriodicidadePlurianual_(p);
+        var isAn = p.toLowerCase().indexOf('anual') !== -1 && !isPl;
         var ms = parseInt(dados.mesesCobranca, 10) || 12;
+        // Para visualizacao e registro, o valor do ciclo fica gravado
+        if (isPl || isAn) return valorBase * tx;
         return valorBase * ms * tx;
-      })(), // Valor Base em BRL igual ao Desembolso Anual
+      })(), // Valor Base em BRL
       dados.contingencia || '0,00%',
       (function() {
         var tx = normalizarNumero_(dados.taxaCambio || 1) || 1;
+        var p = String(dados.periodicidade || 'Mensal');
+        var isPl = ehPeriodicidadePlurianual_(p);
+        var isAn = p.toLowerCase().indexOf('anual') !== -1 && !isPl;
         var ms = parseInt(dados.mesesCobranca, 10) || 12;
+        if (isPl || isAn) return valorBase * tx;
         return valorBase * ms * tx;
-      })(), // Valor Orcado igual ao Desembolso Anual
+      })(), // Valor Orcado
       dados.contratoPo || '',
       dados.risco || 'Baixo',
       dados.descricaoRisco || '',
@@ -5997,13 +6068,31 @@ function salvarAlteracaoContratoTelefonia(payload) {
     sheetContratos.getRange(targetRow, 17).setValue(newIndice);
     sheetContratos.getRange(targetRow, 26).setValue(nowStr); // data atualizacao
     if (newDataReajuste) sheetContratos.getRange(targetRow, 34).setValue(newDataReajuste);
+    var oldPeriodicidade = String(rowData[31] || 'Mensal');
+    var newPeriodicidade = (payload.periodicidade !== undefined) ? String(payload.periodicidade).trim() : oldPeriodicidade;
+    var isPluriAlt = ehPeriodicidadePlurianual_(newPeriodicidade);
+    var isAnualAlt = newPeriodicidade.toLowerCase().indexOf('anual') !== -1 && !isPluriAlt;
     var newTaxaCambio = normalizarNumero_(rowData[37] || 1) || 1;
-    var newDesembolsoAnual = newValorMensal * newMesesCobranca * newTaxaCambio;
-    sheetContratos.getRange(targetRow, 39).setValue(newDesembolsoAnual); // Valor Base em BRL igual ao Desembolso Anual
-    sheetContratos.getRange(targetRow, 41).setValue(newDesembolsoAnual); // Valor Orcado igual ao Desembolso Anual
+    var newDesembolsoAnual = 0;
+    if (isPluriAlt) {
+      newDesembolsoAnual = 0; // Nao tem todo ano
+    } else if (isAnualAlt) {
+      newDesembolsoAnual = newValorMensal * newTaxaCambio;
+    } else {
+      newDesembolsoAnual = newValorMensal * newMesesCobranca * newTaxaCambio;
+    }
+
+    var valorRegistroCiclo = newValorMensal * newTaxaCambio;
+    sheetContratos.getRange(targetRow, 32).setValue(newPeriodicidade); // Periodicidade (Col 32)
+    sheetContratos.getRange(targetRow, 39).setValue(isPluriAlt ? valorRegistroCiclo : newDesembolsoAnual); // Valor Base em BRL
+    sheetContratos.getRange(targetRow, 41).setValue(isPluriAlt ? valorRegistroCiclo : newDesembolsoAnual); // Valor Orcado
     sheetContratos.getRange(targetRow, 46).setValue(newQtdServicos);
     sheetContratos.getRange(targetRow, 47).setValue(newValorUnitario);
     sheetContratos.getRange(targetRow, 48).setValue(newMesesCobranca);
+
+    if (newPeriodicidade !== oldPeriodicidade) {
+      alteracoes.push({ campo: 'Periodicidade de Pagamento', de: oldPeriodicidade, para: newPeriodicidade });
+    }
 
     // Se houver aprovacao pendente vinculada a este contrato, concluir
     try {

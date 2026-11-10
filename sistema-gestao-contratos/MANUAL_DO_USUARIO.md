@@ -165,6 +165,17 @@ O cadastro contempla 6 blocos organizados:
 
 ---
 
+### 6.3 Regra para Contratos Plurianuais e Pagos por Ciclos de Anos (Ex: a cada 5 anos)
+Para contratos cujo faturamento ou pagamento ocorra apenas uma vez a cada múltiplos anos (ex: **a cada 5 anos**, bianual, trienal, etc.) ou anual único:
+1. **Periodicidade Especial:** No formulário de cadastro e no modal de alteração, selecione opções como *A cada 5 anos (Quinquenal)*, *A cada 2 anos (Bianual)* ou *Personalizado em Anos*.
+2. **Desembolso Anual Desativado:** Como a despesa não se repete anualmente (*não tem todo ano*), a coluna e o indicador de **Desembolso Anual** não exibem um valor recorrente anual, exibindo a tag **Não aplicável** acompanhada do valor registrado no ciclo.
+3. **Valor Visível e Registrado com Alerta:** O valor total da parcela ou ciclo permanece integralmente registrado e visível em todos os módulos (*Valor do Pagamento no Ciclo*, *Valor Base em BRL* e *Valor Orçado*), acompanhado de badge e aviso visual destacado em laranja:
+   - Exemplo: `Alerta: Pago apenas a cada 5 anos (Valor registrado no ciclo: R$ 50.000,00)`.
+4. **Governança no Acordeão e KPIs:** O custo do contrato plurianual não inflaciona artificialmente o Desembolso Anual recorrente do fornecedor nem o Orçamento Anual de 12 meses nos anos sem faturamento, mantendo a precisão orçamentária do FP&A.
+5. **Integração com Modelo de Faixas:** Caso o contrato utilize a Tabela de Faixas por Base de Clientes, ao selecionar a faixa vigente e a periodicidade plurianual, o sistema aplica instantaneamente a regra de visualização com alerta, sem conversão para desembolso anual contínuo.
+
+---
+
 ## 7. Ficha 360° do Contrato & Controle de Logs Individual
 
 Ao clicar em **Abrir Ficha 360°** em qualquer contrato, o modal executivo apresenta quatro abas temáticas:
