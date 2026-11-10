@@ -4768,11 +4768,36 @@ function obterDadosCompletosTelefonia() {
       var idxLogDepois = lHeaders.indexOf('novo_valor');
       var idxLogJust = lHeaders.indexOf('justificativa_parecer');
 
+      var userEmailNorm = (permissoesUsuario.email || '').toLowerCase().trim();
+      var titularNorm = (permissoesUsuario.titularSubstituido || '').toLowerCase().trim();
+      var substitutoNorm = (permissoesUsuario.substitutoEmail || '').toLowerCase().trim();
+
       // Iterar de tras para frente para os logs mais recentes aparecerem primeiro
       for (var l = lData.length - 1; l >= 0; l--) {
         var lRow = lData[l];
         var logId = String((idxLogId !== -1 ? lRow[idxLogId] : lRow[0]) || '').trim();
         if (!logId) continue;
+
+        var rawLogEmail = String((idxLogEmail !== -1 ? lRow[idxLogEmail] : lRow[2]) || '').trim().toLowerCase();
+
+        // Regra de Seguranca de Acesso aos Logs:
+        // Apenas Gestao Telefonia (Administrativo) tem acesso total a todos os logs da organizacao.
+        // Os demais gestores tem acesso exclusivamente as suas proprias alteracoes (e do titular/substituto).
+        if (!permissoesUsuario.acessoTotal) {
+          var isProprioLog = false;
+          if (userEmailNorm) {
+            isProprioLog = (rawLogEmail === userEmailNorm) || (rawLogEmail.split('@')[0] === userEmailNorm.split('@')[0]);
+          }
+          if (!isProprioLog && titularNorm) {
+            isProprioLog = (rawLogEmail === titularNorm) || (rawLogEmail.split('@')[0] === titularNorm.split('@')[0]);
+          }
+          if (!isProprioLog && substitutoNorm) {
+            isProprioLog = (rawLogEmail === substitutoNorm) || (rawLogEmail.split('@')[0] === substitutoNorm.split('@')[0]);
+          }
+          if (!isProprioLog) {
+            continue; // Pular log pertencente a outro gestor
+          }
+        }
 
         var regId = String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-');
         var matchingContract = null;

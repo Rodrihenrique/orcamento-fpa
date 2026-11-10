@@ -4056,7 +4056,20 @@
   function popularFiltrosAuditoria() {
     var selForn = document.getElementById('filtroLogFornecedor');
     var selContrato = document.getElementById('filtroLogContrato');
+    var selGerencia = document.getElementById('filtroLogGerencia');
     if (!selForn || !selContrato) return;
+
+    // Se o usuario tiver acesso restrito (nao for Gestao Telefonia), travar o seletor na sua gerencia
+    if (selGerencia && appState.usuarioAtual) {
+      if (!appState.usuarioAtual.acessoTotal && appState.usuarioAtual.setorPermitido) {
+        selGerencia.value = appState.usuarioAtual.setorPermitido;
+        selGerencia.disabled = true;
+        selGerencia.title = 'Acesso restrito ao seu setor: ' + appState.usuarioAtual.setorPermitido;
+      } else {
+        selGerencia.disabled = false;
+        selGerencia.title = '';
+      }
+    }
 
     var fornAtual = selForn.value;
     var contratoAtual = selContrato.value;
@@ -4081,7 +4094,13 @@
     var txt = document.getElementById('filtroAuditoriaTexto');
     if (txt) txt.value = '';
     var g = document.getElementById('filtroLogGerencia');
-    if (g) g.value = '';
+    if (g) {
+      if (appState.usuarioAtual && !appState.usuarioAtual.acessoTotal && appState.usuarioAtual.setorPermitido) {
+        g.value = appState.usuarioAtual.setorPermitido;
+      } else {
+        g.value = '';
+      }
+    }
     var f = document.getElementById('filtroLogFornecedor');
     if (f) f.value = '';
     var c = document.getElementById('filtroLogContrato');
@@ -4169,6 +4188,28 @@
     if (!container) return;
 
     var logs = appState.logs || [];
+
+    // Regra de Seguranca de Acesso aos Logs:
+    // Apenas Gestao Telefonia (Administrativo) tem visao global de todos os logs.
+    // Cada gestor setorial tem acesso exclusivamente as suas proprias alteracoes.
+    if (appState.usuarioAtual && !appState.usuarioAtual.acessoTotal) {
+      var myEmail = (appState.usuarioAtual.email || '').toLowerCase().trim();
+      var titEmail = (appState.usuarioAtual.titularSubstituido || '').toLowerCase().trim();
+      var subEmail = (appState.usuarioAtual.substitutoEmail || '').toLowerCase().trim();
+
+      logs = logs.filter(function(l) {
+        var logEmail = (l.usuarioEmail || '').toLowerCase().trim();
+        var match = (logEmail === myEmail) || (myEmail && logEmail.split('@')[0] === myEmail.split('@')[0]);
+        if (!match && titEmail) {
+          match = (logEmail === titEmail) || (logEmail.split('@')[0] === titEmail.split('@')[0]);
+        }
+        if (!match && subEmail) {
+          match = (logEmail === subEmail) || (logEmail.split('@')[0] === subEmail.split('@')[0]);
+        }
+        return match;
+      });
+    }
+
     var inputFiltro = document.getElementById('filtroAuditoriaTexto');
     var termo = (filtroTexto !== undefined ? filtroTexto : (inputFiltro ? inputFiltro.value : '')).toLowerCase().trim();
 
@@ -4222,11 +4263,23 @@
       });
     }
 
+    var isTotal = (appState.usuarioAtual && appState.usuarioAtual.acessoTotal);
+    var statusBadgeHtml = isTotal
+      ? '<span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; background:#EEF2FF; color:#1E40AF; font-size:11px; font-weight:700; border:1px solid #BFDBFE;">Visão Completa &bull; Gestão Telefonia (Administrativo)</span>'
+      : '<span style="display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:4px; background:#FEF3C7; color:#92400E; font-size:11px; font-weight:700; border:1px solid #FCD34D;">Mostrando apenas suas alterações (' + escapeHtml(appState.usuarioAtual ? appState.usuarioAtual.email : '') + ')</span>';
+
     if (logs.length === 0) {
-      if (resumoBar) resumoBar.innerHTML = '<span>0 alterações encontradas</span>';
+      if (resumoBar) {
+        resumoBar.innerHTML = '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+          '<span>0 alterações encontradas</span>' +
+          statusBadgeHtml +
+          '</div>';
+      }
       container.innerHTML = '<div style="text-align: center; padding: 48px 24px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-subtle);">' +
         '<div style="font-size: 15px; font-weight: 700; color: var(--brisa-dark-blue); margin-bottom: 6px;">Nenhum registro de alteração localizado</div>' +
-        '<div style="font-size: 13px;">Tente ajustar os filtros ou o termo de busca para visualizar o histórico de eventos.</div>' +
+        '<div style="font-size: 13px;">' +
+        (isTotal ? 'Tente ajustar os filtros ou o termo de busca para visualizar o histórico de eventos.' : 'Você ainda não possui alterações registradas com seu usuário neste período.') +
+        '</div>' +
         '</div>';
       return;
     }
@@ -4282,7 +4335,10 @@
     var totalContratosComLogs = contractKeys.length;
 
     if (resumoBar) {
-      resumoBar.innerHTML = '<span>' + totalContratosComLogs + ' ' + (totalContratosComLogs === 1 ? 'Contrato com histórico' : 'Contratos com histórico') + ' &bull; ' + totalEventos + ' ' + (totalEventos === 1 ? 'evento registrado' : 'eventos registrados') + '</span>' +
+      resumoBar.innerHTML = '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">' +
+        '<span>' + totalContratosComLogs + ' ' + (totalContratosComLogs === 1 ? 'Contrato com histórico' : 'Contratos com histórico') + ' &bull; ' + totalEventos + ' ' + (totalEventos === 1 ? 'evento registrado' : 'eventos registrados') + '</span>' +
+        statusBadgeHtml +
+        '</div>' +
         '<span style="font-weight: 500; font-size: 11px; color: var(--text-muted);">Clique no cabeçalho de cada contrato para recolher ou expandir a linha do tempo</span>';
     }
 

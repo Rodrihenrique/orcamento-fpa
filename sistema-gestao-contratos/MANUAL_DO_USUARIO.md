@@ -216,6 +216,10 @@ A aba **Log de Alterações** transforma a governança do sistema em uma central
   - **Filtro por Fornecedor:** Dropdown dinâmico com todos os fornecedores da base.
   - **Filtro por Contrato:** Dropdown dinâmico com todos os contratos cadastrados.
   - **Busca Textual em Tempo Real:** Pesquisa rápida por fornecedor, responsável, ação ou justificativa.
+- **Política de Privacidade e Acesso por Perfil:**
+  - **Gestão Telefonia (Administrativo):** Acesso total e irrestrito (acessoTotal = true) a todos os logs de auditoria de todos os contratos, gerências e colaboradores da organização, com selo indicativo "Visão Completa · Gestão Telefonia (Administrativo)".
+  - **Gestores Setoriais:** Acesso restrito exclusivamente às suas próprias alterações (ações originadas por seu e-mail corporativo ou pelo substituto/titular legal se ativo). O seletor de gerência permanece travado em seu setor correspondente e a barra executiva informa "Mostrando apenas suas alterações (email@grupobrisanet.com.br)".
+  - **Segurança em Dupla Camada (Backend + Frontend):** A filtragem é aplicada nativamente no servidor Google Apps Script (Code.gs) impedindo o tráfego de dados de outros gestores na rede, e reforçada no cliente (Index.html).
 
 ---
 

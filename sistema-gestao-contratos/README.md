@@ -14,7 +14,7 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 - **Alertas de Reajuste Periódico de Valor (5 Dias Antes):** Banner de alerta executivo notificando gestores e o setor Administrativo 5 dias antes de repactuações periódicas de valor.
 - **E-mail do Responsável pelo Contrato:** Campo obrigatório no Módulo 1 do cadastro contratual, armazenado na planilha e integrado a alertas e governança.
 - **Controle de Logs por Contrato (Ficha 360°):** Histórico individual e imutável de alterações em cada contrato.
-- **Log de Alterações em Linha do Tempo Acordeon:** Central de monitoramento com timeline executiva, botão unificado **Expandir / Recolher Todos**, e filtros multidimensionais por Gerência, Fornecedor e Contrato.
+- **Log de Alterações em Linha do Tempo Acordeon:** Central de monitoramento com timeline executiva, botão unificado **Expandir / Recolher Todos**, filtros multidimensionais por Gerência, Fornecedor e Contrato, e política estrita de privacidade onde cada gestor acessa unicamente as suas próprias alterações (e do seu substituto/titular), cabendo exclusivamente à Gestão Telefonia (Administrativo) o acesso global irrestrito.
 - **Base Oficial de Contratos (45 Colunas):** Linha 1 de cabeçalho da aba Contratos formatada com títulos oficiais amigáveis correspondentes a todos os campos do formulário corporativo.
 - **Tabela de Faixas por Base de Clientes:** Seleção de faixa em vigor com radio button ("bolinha") e atualização dinâmica.
 - **Governança de Mudanças (Central de Aprovações):** Contratos cadastrados nascem ativos e validados. A esteira de aprovações é reservada para alterações de escopo, renovações, reajustes extraordinários e migração de faixas.
