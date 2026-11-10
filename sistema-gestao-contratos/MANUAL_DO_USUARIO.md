@@ -39,7 +39,11 @@ A aba `Acessos_Alcadas` da planilha oficial controla a visibilidade e permissõe
 
 Os gestores com acesso setorial visualizam apenas os contratos e KPIs pertencentes à sua respectiva gerência, garantindo sigilo e foco operacional.
 
-### 3.2 Designação de Substituto Temporário durante Ausência
+### 3.2 Estrutura da Aba Acessos_Alcadas e Limpeza de Abas Auxiliares
+- **Coluna "ID do Usuário":** No Google Apps Script e Google Workspace, a autenticação e verificação de perfil ocorrem de forma nativa e segura através do e-mail corporativo (`Session.getActiveUser().getEmail()`). A coluna "ID do Usuário" na aba `Acessos_Alcadas` era apenas um identificador numérico interno opcional (matrícula/UID) e **não é necessária** para o funcionamento do sistema. Ela pode ser excluída da planilha sem qualquer impacto, pois o backend mapeia as colunas dinamicamente pelos títulos dos cabeçalhos.
+- **Abas Auxiliares "Página2" e "Página3":** Essas abas eram listas residuais de colaboradores criadas na importação/geração inicial da planilha. O sistema de contratos utiliza exclusivamente as abas oficiais (`Fornecedores`, `Contratos`, `Acessos_Alcadas`, `Auditoria_Logs`, `Aprovacoes_Solicitadas` e `Aditivos`). Portanto, as abas `Página2` e `Página3` **podem ser excluídas com total segurança**. O sistema conta inclusive com a rotina automática `limparAbasEEstruturaAcessos()` no código para realizar essa limpeza operacional.
+
+### 3.3 Designação de Substituto Temporário durante Ausência
 Quando o gestor ou gerente responsável por aprovações e gestão de contratos for se ausentar (férias, licença, viagem a serviço), ele pode designar formalmente um substituto temporário:
 1. No cabeçalho superior do sistema, clique em **Definir Substituto**.
 2. No modal de configuração:
@@ -69,15 +73,19 @@ Quando faltarem 5 dias ou menos para a data prevista de reajuste:
 
 ## 5. Gestão de Fornecedores
 
-### 5.1 Título Principal por Apelido e Perfil Formal
-Na lista de fornecedores, o título principal em destaque é sempre o **Apelido (Nome Usual)** da empresa (ex: *Huawei*, *Cirion*, *Vogel*, *American Tower*), facilitando a identificação imediata pelos colaboradores da telefonia.
+### 5.1 Título Principal por Apelido, Status Interativo e Alerta de Vencimento
+Na lista de fornecedores:
+- **Título por Apelido:** O título principal em destaque é sempre o **Apelido (Nome Usual)** da empresa (ex: *Huawei*, *Cirion*, *Vogel*, *American Tower*), facilitando a identificação imediata pelos colaboradores da telefonia.
+- **Status Operacional Alterável (Lista Suspensa):** Ao lado do título e do CNPJ, a tag de status é uma lista suspensa interativa com as opções **ATIVO** (verde) e **ENCERRADO** (cinza neutro). Ao alterar o status diretamente no painel, a alteração é gravada em tempo real na aba `Fornecedores` e registrada com carimbo cronológico na trilha de auditoria.
+- **Alerta Discreto de Vencimento Próximo:** Sempre que um fornecedor possuir contratos vigentes com vencimento previsto para os próximos 60 dias ou menos, o sistema exibe um badge discreto e elegante em tom âmbar suave ao lado do status (`Vence em X dias`), permitindo rápida identificação visual preventiva sem poluição visual.
+- **Métricas Executivas no Cabeçalho:** Cada fornecedor exibe seus três indicadores consolidados:
+  - **Contratos Ativos:** Proporção de contratos vigentes sobre o total (ex: *1 de 1*).
+  - **Desembolso Mensal:** Soma mensal dos contratos vigentes do fornecedor.
+  - **Desembolso Anual:** Custo anual consolidado do fornecedor (Valor Mensal x 12).
 
-Ao expandir o fornecedor, o painel exibe o **Perfil Formal do Fornecedor**, contendo:
-- Razão Social completa;
-- Nome Fantasia;
-- CNPJ formatado;
-- Contato Comercial e E-mail Comercial;
-- Link direto para a pasta exclusiva do fornecedor no Google Drive dentro da gerência correspondente.
+Ao expandir o fornecedor, o painel exibe:
+1. **Perfil Formal do Fornecedor:** Razão Social, Nome Fantasia, Apelido, CNPJ formatado, Contato Comercial, E-mail Comercial e Link da Pasta no Drive.
+2. **Tabela de Contratos do Fornecedor:** Protocolo, Objeto & Setor, Vigência, **Valor Mensal**, **Desembolso Anual** (valor anual individual daquele contrato), Critério de Reajuste, Alçada/Status e Botão para Abrir Ficha 360°.
 
 ### 5.2 Cadastro de Novo Fornecedor
 Para cadastrar um fornecedor:
@@ -193,7 +201,7 @@ A aba **Log de Alterações** transforma a governança do sistema em uma central
   - Cada contrato cadastrado com histórico possui seu próprio card de acordeon executivo.
   - O cabeçalho do card exibe o Apelido / Razão Social do fornecedor, protocolo do contrato, gerência/setor, objeto resumido, badge de status e contador de alterações registradas.
   - Clicando no cabeçalho do contrato, o card se expande ou se recolhe suavemente.
-  - Botões de controle rápido no topo: **Expandir Todos**, **Recolher Todos**, **Limpar Filtros** e **Atualizar Log**.
+  - Botões de controle rápido no topo: **Expandir / Recolher Todos** (botão único toggle idêntico ao painel principal), **Limpar Filtros** e **Atualizar Log**.
   - Eventos não vinculados a um contrato específico (como cadastro de novos fornecedores e alterações de permissões de gestores) são organizados no card *Cadastros Gerais, Fornecedores & Governança*.
 - **Linha do Tempo (Timeline) Executiva:**
   - Tanto na página geral de logs quanto dentro do modal de **Ficha 360°** (aba *Log de Alterações*), o histórico é exibido em uma linha do tempo vertical limpa, profissional e responsiva, eliminando tabelas largas que ultrapassavam os limites da tela e removendo a coluna desnecessária de protocolo de log.

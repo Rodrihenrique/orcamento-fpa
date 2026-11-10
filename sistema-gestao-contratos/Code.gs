@@ -3422,25 +3422,10 @@ function inicializarEstruturaRelacionalPlanilha(planilhaAlvo) {
     }
     var sheetLogs = obterOuCriarAbaRelacional_(ss, CONFIG.SHEET_LOGS, headersLogs);
 
-    // Remover aba padrão em branco se houver outras abas
+    // Limpeza de abas residuais nao utilizadas (Pagina1, Pagina2, Pagina3, Sheet1, Sheet2, Sheet3)
     try {
-      var defaultSheet = ss.getSheetByName('Página1') || ss.getSheetByName('Sheet1');
-      if (defaultSheet && ss.getSheets().length > 1) {
-        ss.deleteSheet(defaultSheet);
-      }
-    } catch (eDef) {}
-
-
-    // Pre-popular perfis de acesso padrao caso vazia
-    if (sheetAcessos.getLastRow() <= 1) {
-      var defaultUsers = [
-        ['gestao.telefonia@grupobrisanet.com.br', 'Gestão Telefonia (Administrativo)', 'Gestão Telefonia', 'Sim', 'Ativo'],
-        ['coordenador.telefonia@grupobrisanet.com.br', 'Coordenador de Operações Telefonia', 'Coordenador', 'Sim', 'Ativo'],
-        ['gerente.telefonia@grupobrisanet.com.br', 'Gerente de Telefonia', 'Gerente', 'Sim', 'Ativo'],
-        ['gerente.executivo@grupobrisanet.com.br', 'Gerente Executivo de Telefonia', 'Gerente Executivo', 'Sim', 'Ativo']
-      ];
-      sheetAcessos.getRange(2, 1, defaultUsers.length, 5).setValues(defaultUsers);
-    }
+      limparAbasEEstruturaAcessos();
+    } catch (eLimpeza) {}
 
     // 2. Se a aba Contratos estiver vazia, migrar automaticamente a partir da aba Legado
     var totalMigrados = 0;
@@ -3615,354 +3600,50 @@ function registrarLogAuditoriaOficial_(entidade, idRegistro, acao, campoAfetado,
   }
 }
 
-/**
- * Garante que a aba Acessos_Alcadas tenha as 10 colunas oficiais de controle de acessos
- * por gerencia e gestao de substituto temporario em ausencias.
- * @param {Sheet} sheetAcessos
- */
 function garantirHeadersAcessos_(sheetAcessos) {
   if (!sheetAcessos) return;
-  var headersOficiais = [
-    'ID do Usuário',
-    'Colaborador',
-    'E-mail',
-    'Setor / Gerência Permitida',
-    'Papel / Alçada',
-    'Substituto Temporário (E-mail)',
-    'Início da Substituição',
-    'Término da Substituição',
-    'Substituição Indeterminada (Sim/Não)',
-    'Status'
-  ];
+  var lastRow = sheetAcessos.getLastRow();
+  var lastCol = sheetAcessos.getLastColumn();
 
-  sheetAcessos.getRange(1, 1, 1, headersOficiais.length).setValues([headersOficiais]);
-  var headerRange = sheetAcessos.getRange(1, 1, 1, headersOficiais.length);
-  headerRange.setBackground('#0B316D')
-             .setFontColor('#FFFFFF')
-             .setFontWeight('bold')
-             .setFontFamily('Figtree');
-
-  // Se nao existirem usuarios cadastrados, preencher os 5 setores oficiais e administrativo
-  if (sheetAcessos.getLastRow() <= 1) {
-    var defaultRows = [
-      ['USR-001', 'Gestão Telefonia (Administrativo)', 'gestao.telefonia@grupobrisanet.com.br', 'GESTAO TELEFONIA', 'Administrador', '', '', '', 'Não', 'Ativo'],
-      ['USR-002', 'Rodrigo Alves', 'rodrigoalves@grupobrisanet.com.br', 'GESTAO TELEFONIA', 'Gerente Executivo', '', '', '', 'Não', 'Ativo'],
-      ['USR-003', 'Gestor Telefonia', 'telefonia@grupobrisanet.com.br', 'TELEFONIA', 'Coordenador', '', '', '', 'Não', 'Ativo'],
-      ['USR-004', 'Gestor Operação e Manutenção', 'operacao.manutencao@grupobrisanet.com.br', 'OPERACAO E MANUTENCAO DE REDES', 'Coordenador', '', '', '', 'Não', 'Ativo'],
-      ['USR-005', 'Gestor Operações de Redes', 'operacoes.redes@grupobrisanet.com.br', 'OPERACOES DE REDES', 'Coordenador', '', '', '', 'Não', 'Ativo'],
-      ['USR-006', 'Gestor Projetos de Implantação', 'projetos.implantacao@grupobrisanet.com.br', 'PROJETOS DE IMPLANTACAO', 'Coordenador', '', '', '', 'Não', 'Ativo']
+  if (lastRow < 1 || lastCol < 1) {
+    // Nova criacao: criar no formato limpo oficial sem ID do Usuario
+    var headersLimpos = [
+      'Colaborador',
+      'E-mail',
+      'Setor / Gerência Permitida',
+      'Papel / Alçada',
+      'Substituto Temporário (E-mail)',
+      'Início da Substituição',
+      'Término da Substituição',
+      'Substituição Indeterminada (Sim/Não)',
+      'Status'
     ];
-    sheetAcessos.getRange(2, 1, defaultRows.length, headersOficiais.length).setValues(defaultRows);
-  }
-}
+    sheetAcessos.getRange(1, 1, 1, headersLimpos.length).setValues([headersLimpos]);
+    var headerRange = sheetAcessos.getRange(1, 1, 1, headersLimpos.length);
+    headerRange.setBackground('#0B316D')
+               .setFontColor('#FFFFFF')
+               .setFontWeight('bold')
+               .setFontFamily('Figtree');
 
-/**
- * Obtem as permissoes de acesso, setor permitido e papel do usuario ativo,
- * avaliando se ele opera como titular ou como substituto temporario ativo.
- * @param {string} email
- * @return {Object}
- */
-function obterPermissoesUsuario_(email) {
-  var emailNorm = String(email || '').toLowerCase().trim();
-  var defaultResp = {
-    email: emailNorm || 'gestao.telefonia@grupobrisanet.com.br',
-    nome: 'Gestão Telefonia (Administrativo)',
-    papel: 'Administrador',
-    setorPermitido: 'GESTAO TELEFONIA',
-    acessoTotal: true,
-    isSubstituto: false,
-    titularSubstituido: '',
-    substitutoEmail: '',
-    substitutoInicio: '',
-    substitutoFim: '',
-    substitutoIndeterminado: false,
-    substitutoAtivo: false
-  };
-
-  try {
-    var ss = obterPlanilha_();
-    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
-    if (!sheet) return defaultResp;
-    garantirHeadersAcessos_(sheet);
-
-    var data = sheet.getDataRange().getValues();
-    if (data.length <= 1) return defaultResp;
-
-    var now = new Date();
-    var hojeZerado = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    // 1. Verificar se o usuario logado e substituto temporario ativo de algum titular
-    for (var s = 1; s < data.length; s++) {
-      var rowS = data[s];
-      var subEmail = String(rowS[5] || '').toLowerCase().trim();
-      var statusS = String(rowS[9] || 'Ativo').trim();
-      if (statusS.toLowerCase() !== 'ativo') continue;
-
-      if (subEmail && subEmail === emailNorm) {
-        var subIndet = String(rowS[8] || '').toLowerCase().trim() === 'sim';
-        var dIni = converterParaData_(rowS[6]);
-        var dFim = converterParaData_(rowS[7]);
-        var ativoPeriodo = false;
-
-        if (subIndet) {
-          ativoPeriodo = true;
-        } else if (dIni && dFim) {
-          ativoPeriodo = (hojeZerado.getTime() >= dIni.getTime() && hojeZerado.getTime() <= dFim.getTime());
-        } else if (dIni && !dFim) {
-          ativoPeriodo = (hojeZerado.getTime() >= dIni.getTime());
-        }
-
-        if (ativoPeriodo) {
-          var titularNome = String(rowS[1] || '');
-          var titularEmail = String(rowS[2] || '');
-          var setorTitular = String(rowS[3] || 'GESTAO TELEFONIA').trim().toUpperCase();
-          var papelTitular = String(rowS[4] || 'Gestor').trim();
-          var acessoTotalTitular = (setorTitular.indexOf('GESTAO') !== -1 || setorTitular.indexOf('ADMIN') !== -1 || setorTitular.indexOf('TODOS') !== -1);
-
-          return {
-            email: emailNorm,
-            nome: titularNome + ' (Substituto: ' + emailNorm + ')',
-            papel: papelTitular,
-            setorPermitido: setorTitular,
-            acessoTotal: acessoTotalTitular,
-            isSubstituto: true,
-            titularSubstituido: titularEmail,
-            substitutoEmail: '',
-            substitutoInicio: '',
-            substitutoFim: '',
-            substitutoIndeterminado: false,
-            substitutoAtivo: false
-          };
-        }
-      }
-    }
-
-    // 2. Verificar titularidade direta do usuario
-    for (var i = 1; i < data.length; i++) {
-      var row = data[i];
-      var rowEmail = String(row[2] || row[0] || '').toLowerCase().trim();
-      if (rowEmail === emailNorm) {
-        var nome = String(row[1] || emailNorm);
-        var setor = String(row[3] || 'GESTAO TELEFONIA').trim().toUpperCase();
-        var papel = String(row[4] || 'Gestor').trim();
-        var subE = String(row[5] || '').trim();
-        var subIni = formatarDataExibicao_(row[6]);
-        var subFim = formatarDataExibicao_(row[7]);
-        var subInd = String(row[8] || '').toLowerCase().trim() === 'sim';
-        var status = String(row[9] || 'Ativo').trim();
-
-        var subAtivo = false;
-        if (subE && status.toLowerCase() === 'ativo') {
-          if (subInd) {
-            subAtivo = true;
-          } else {
-            var dI = converterParaData_(row[6]);
-            var dF = converterParaData_(row[7]);
-            if (dI && dF) {
-              subAtivo = (hojeZerado.getTime() >= dI.getTime() && hojeZerado.getTime() <= dF.getTime());
-            } else if (dI && !dF) {
-              subAtivo = (hojeZerado.getTime() >= dI.getTime());
-            }
-          }
-        }
-
-        var acessoTotal = (setor.indexOf('GESTAO') !== -1 || setor.indexOf('ADMIN') !== -1 || setor.indexOf('TODOS') !== -1);
-
-        return {
-          email: emailNorm,
-          nome: nome,
-          papel: papel,
-          setorPermitido: setor,
-          acessoTotal: acessoTotal,
-          isSubstituto: false,
-          titularSubstituido: '',
-          substitutoEmail: subE,
-          substitutoInicio: subIni,
-          substitutoFim: subFim,
-          substitutoIndeterminado: subInd,
-          substitutoAtivo: subAtivo
-        };
-      }
-    }
-  } catch (err) {
-    Logger.log('Erro ao obter permissoes de usuario: ' + err.message);
+    var defaultRows = [
+      ['Gestão Telefonia (Administrativo)', 'gestao.telefonia@grupobrisanet.com.br', 'GESTAO TELEFONIA', 'Administrador', '', '', '', 'Não', 'Ativo'],
+      ['Rodrigo Alves', 'rodrigoalves@grupobrisanet.com.br', 'GESTAO TELEFONIA', 'Gerente Executivo', '', '', '', 'Não', 'Ativo'],
+      ['Gestor Telefonia', 'telefonia@grupobrisanet.com.br', 'TELEFONIA', 'Coordenador', '', '', '', 'Não', 'Ativo'],
+      ['Gestor Operação e Manutenção', 'operacao.manutencao@grupobrisanet.com.br', 'OPERACAO E MANUTENCAO DE REDES', 'Coordenador', '', '', '', 'Não', 'Ativo'],
+      ['Gestor Operações de Redes', 'operacoes.redes@grupobrisanet.com.br', 'OPERACOES DE REDES', 'Coordenador', '', '', '', 'Não', 'Ativo'],
+      ['Gestor Projetos de Implantação', 'projetos.implantacao@grupobrisanet.com.br', 'PROJETOS DE IMPLANTACAO', 'Coordenador', '', '', '', 'Não', 'Ativo']
+    ];
+    sheetAcessos.getRange(2, 1, defaultRows.length, headersLimpos.length).setValues(defaultRows);
+    return;
   }
 
-  return defaultResp;
-}
-
-/**
- * Descobre o papel do usuario na tabela Acessos_Alcadas.
- * @param {string} email
- * @return {string} Papel do usuario
- */
-function obterPapelUsuario_(email) {
-  var p = obterPermissoesUsuario_(email);
-  return p.papel || 'Gestão Telefonia';
-}
-
-/**
- * Salva a definicao de substituto temporario para o titular durante sua ausencia.
- * @param {Object} payload { substitutoEmail, dataInicio, dataFim, indeterminado }
- * @return {Object}
- */
-function salvarSubstitutoAusenciaTelefonia(payload) {
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
-  } catch (e) {
-    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
-  }
-
-  try {
-    var ss = obterPlanilha_();
-    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
-    if (!sheet) {
-      inicializarEstruturaRelacionalPlanilha();
-      sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
-    }
-    garantirHeadersAcessos_(sheet);
-
-    var userEmail = '';
-    try {
-      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
-    } catch(e) {}
-    if (!userEmail) userEmail = payload.titularEmail || 'gestao.telefonia@grupobrisanet.com.br';
-    var userEmailNorm = userEmail.toLowerCase().trim();
-
-    var subEmail = String(payload.substitutoEmail || '').toLowerCase().trim();
-    if (!subEmail) throw new Error('E-mail do substituto e obrigatorio.');
-    if (subEmail === userEmailNorm) throw new Error('O substituto nao pode ser o proprio titular.');
-
-    var subIndeterminado = !!payload.indeterminado;
-    var dataInicio = payload.dataInicio || '';
-    var dataFim = subIndeterminado ? '' : (payload.dataFim || '');
-
-    var data = sheet.getDataRange().getValues();
-    var rowIndex = -1;
-    for (var i = 1; i < data.length; i++) {
-      var rowEmail = String(data[i][2] || data[i][0] || '').toLowerCase().trim();
-      if (rowEmail === userEmailNorm) {
-        rowIndex = i + 1;
-        break;
-      }
-    }
-
-    if (rowIndex !== -1) {
-      sheet.getRange(rowIndex, 6).setValue(subEmail);
-      sheet.getRange(rowIndex, 7).setValue(dataInicio);
-      sheet.getRange(rowIndex, 8).setValue(dataFim);
-      sheet.getRange(rowIndex, 9).setValue(subIndeterminado ? 'Sim' : 'Não');
-      sheet.getRange(rowIndex, 10).setValue('Ativo');
-    } else {
-      var nextId = 'USR-' + String(sheet.getLastRow()).padStart(3, '0');
-      sheet.appendRow([
-        nextId,
-        userEmailNorm.split('@')[0],
-        userEmailNorm,
-        'GESTAO TELEFONIA',
-        'Gestor',
-        subEmail,
-        dataInicio,
-        dataFim,
-        subIndeterminado ? 'Sim' : 'Não',
-        'Ativo'
-      ]);
-    }
-
-    var userPapel = obterPapelUsuario_(userEmailNorm);
-    var periodoDesc = subIndeterminado ? 'Periodo Indeterminado' : ('De ' + dataInicio + ' ate ' + dataFim);
-    registrarLogAuditoriaOficial_(
-      'Controle de Acessos',
-      userEmailNorm,
-      'Designacao de Substituto Temporario',
-      'substituto_temporario',
-      '-',
-      subEmail + ' (' + periodoDesc + ')',
-      'Substituto temporario designado para o periodo: ' + periodoDesc,
-      userEmailNorm,
-      userPapel
-    );
-
-    return {
-      success: true,
-      message: 'Substituto ' + subEmail + ' configurado com sucesso (' + periodoDesc + ').',
-      substituto: {
-        email: subEmail,
-        dataInicio: dataInicio,
-        dataFim: dataFim,
-        indeterminado: subIndeterminado
-      }
-    };
-  } catch (err) {
-    return { success: false, error: err.message };
-  } finally {
-    try { lock.releaseLock(); } catch(eL) {}
-  }
-}
-
-/**
- * Revoga a substituicao temporaria ativa do titular.
- * @return {Object}
- */
-function revogarSubstitutoAusenciaTelefonia() {
-  var lock = LockService.getScriptLock();
-  try {
-    lock.waitLock(30000);
-  } catch (e) {
-    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
-  }
-
-  try {
-    var ss = obterPlanilha_();
-    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
-    if (!sheet) return { success: true };
-
-    var userEmail = '';
-    try {
-      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
-    } catch(e) {}
-    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
-    var userEmailNorm = userEmail.toLowerCase().trim();
-
-    var data = sheet.getDataRange().getValues();
-    var rowIndex = -1;
-    var subAnterior = '';
-    for (var i = 1; i < data.length; i++) {
-      var rowEmail = String(data[i][2] || data[i][0] || '').toLowerCase().trim();
-      if (rowEmail === userEmailNorm) {
-        rowIndex = i + 1;
-        subAnterior = String(data[i][5] || '');
-        break;
-      }
-    }
-
-    if (rowIndex !== -1) {
-      sheet.getRange(rowIndex, 6).setValue('');
-      sheet.getRange(rowIndex, 7).setValue('');
-      sheet.getRange(rowIndex, 8).setValue('');
-      sheet.getRange(rowIndex, 9).setValue('Não');
-    }
-
-    var userPapel = obterPapelUsuario_(userEmailNorm);
-    registrarLogAuditoriaOficial_(
-      'Controle de Acessos',
-      userEmailNorm,
-      'Revogacao de Substituto Temporario',
-      'substituto_temporario',
-      subAnterior || '-',
-      'Nenhum',
-      'Substituicao temporaria revogada pelo titular.',
-      userEmailNorm,
-      userPapel
-    );
-
-    return { success: true, message: 'Substituição temporária revogada com sucesso.' };
-  } catch (err) {
-    return { success: false, error: err.message };
-  } finally {
-    try { lock.releaseLock(); } catch(eL) {}
-  }
+  // Se ja existirem cabecalhos, nao sobrescrevemos para nao desfazer remocoes manuais de coluna
+  var numColsToStyle = Math.max(lastCol, 9);
+  var headerRangeExistente = sheetAcessos.getRange(1, 1, 1, numColsToStyle);
+  headerRangeExistente.setBackground('#0B316D')
+                      .setFontColor('#FFFFFF')
+                      .setFontWeight('bold')
+                      .setFontFamily('Figtree');
 }
 
 /**

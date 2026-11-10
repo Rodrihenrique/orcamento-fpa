@@ -536,6 +536,48 @@
     .badge-status.analise { background: var(--warning-bg); color: var(--warning); }
     .badge-status.encerrado { background: var(--danger-bg); color: var(--danger); }
 
+    .badge-status-select {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      outline: none;
+      font-family: inherit;
+      transition: all var(--transition-fast);
+      appearance: auto;
+      border: 1px solid transparent;
+    }
+    .badge-status-select.ativo {
+      background: var(--success-bg);
+      color: var(--success);
+      border-color: #A7F3D0;
+    }
+    .badge-status-select.encerrado {
+      background: #F1F5F9;
+      color: #475569;
+      border-color: #CBD5E1;
+    }
+    .badge-status-select:hover {
+      opacity: 0.9;
+    }
+
+    .badge-alerta-vencimento {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      font-weight: 700;
+      background: #FFF7ED;
+      color: #C2410C;
+      border: 1px solid #FED7AA;
+      white-space: nowrap;
+    }
+
     .supplier-metrics {
       display: flex;
       align-items: center;
@@ -1823,11 +1865,8 @@
       <select id="filtroLogContrato" class="filter-select" onchange="filtrarAuditoria()" style="flex: 1; min-width: 170px;">
         <option value="">Contrato: Todos</option>
       </select>
-      <button type="button" class="btn btn-secondary" onclick="expandirTodosLogs()" title="Expandir todos os contratos">
-        Expandir Todos
-      </button>
-      <button type="button" class="btn btn-secondary" onclick="recolherTodosLogs()" title="Recolher todos os contratos">
-        Recolher Todos
+      <button type="button" class="btn btn-secondary" onclick="alternarTodosLogs()" title="Expandir ou recolher todos os contratos">
+        Expandir / Recolher Todos
       </button>
       <button type="button" class="btn btn-secondary" onclick="limparFiltrosAuditoria()" title="Limpar todos os filtros">
         Limpar Filtros
@@ -2701,7 +2740,44 @@
     fornecedores.forEach(function(f, idx) {
       var fId = 'forn_' + idx;
       var isExpanded = appState.fornecedoresExpandidos[fId] || false;
-      var statusClass = (f.status || 'Ativo').toLowerCase();
+      var statusRaw = String(f.status || 'Ativo').trim();
+      var isEncerrado = statusRaw.toLowerCase().indexOf('encerr') !== -1;
+      var statusValor = isEncerrado ? 'Encerrado' : 'Ativo';
+      var selectClass = isEncerrado ? 'encerrado' : 'ativo';
+
+      // Verificar contratos, valores e alerta discreto de vencimento proximo
+      var fValorMensal = f.valorMensalTotal;
+      var fContratosAtivos = f.contratosAtivos;
+      var menorDiasVencimento = null;
+
+      if (f.contratos && f.contratos.length > 0) {
+        var precisaRecalcular = (!fValorMensal || fValorMensal === 0);
+        if (precisaRecalcular) {
+          fValorMensal = 0;
+          fContratosAtivos = 0;
+        }
+
+        f.contratos.forEach(function(c) {
+          var cSt = String(c.status || '').toLowerCase();
+          var cAlc = String(c.statusAlcada || '').toLowerCase();
+          var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 || cSt.indexOf('inativ') !== -1;
+          var isAt = !isEnc && (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt);
+
+          if (isAt && precisaRecalcular) {
+            fContratosAtivos++;
+            fValorMensal += (parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0);
+          }
+
+          if (isAt && !c.prazoIndeterminado && c.diasRestantes !== null && c.diasRestantes !== undefined) {
+            var dias = parseInt(c.diasRestantes, 10);
+            if (!isNaN(dias) && dias >= 0 && dias <= 60) {
+              if (menorDiasVencimento === null || dias < menorDiasVencimento) {
+                menorDiasVencimento = dias;
+              }
+            }
+          }
+        });
+      }
 
       html += '<div class="supplier-accordion-card ' + (isExpanded ? 'expanded' : '') + '" id="' + fId + '">';
       html += '  <div class="supplier-header" onclick="alternarFornecedor(\'' + fId + '\')">';
@@ -2711,25 +2787,20 @@
       if (f.cnpj) {
         html += '      <span class="badge-cnpj">' + escapeHtml(f.cnpj) + '</span>';
       }
-      html += '      <span class="badge-status ' + statusClass + '">' + escapeHtml(f.status || 'Ativo') + '</span>';
-      html += '    </div>';
+      // Status interativo do fornecedor (lista suspensa ATIVO / ENCERRADO)
+      html += '      <select class="badge-status-select ' + selectClass + '" onclick="event.stopPropagation()" onchange="alterarStatusFornecedor(this, \'' + escapeHtml(f.id || '') + '\', \'' + escapeHtml(f.razaoSocial) + '\')" title="Alterar status operacional do fornecedor">';
+      html += '        <option value="Ativo"' + (statusValor === 'Ativo' ? ' selected' : '') + '>ATIVO</option>';
+      html += '        <option value="Encerrado"' + (statusValor === 'Encerrado' ? ' selected' : '') + '>ENCERRADO</option>';
+      html += '      </select>';
 
-      var fValorMensal = f.valorMensalTotal;
-      var fContratosAtivos = f.contratosAtivos;
-      if ((!fValorMensal || fValorMensal === 0) && f.contratos && f.contratos.length > 0) {
-        fValorMensal = 0;
-        fContratosAtivos = 0;
-        f.contratos.forEach(function(c) {
-          var cSt = String(c.status || '').toLowerCase();
-          var cAlc = String(c.statusAlcada || '').toLowerCase();
-          var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 || cSt.indexOf('inativ') !== -1;
-          var isAt = !isEnc && (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt);
-          if (isAt) {
-            fContratosAtivos++;
-            fValorMensal += (parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0);
-          }
-        });
+      // Alerta discreto quando houver contrato proximo do vencimento (60 dias ou menos)
+      if (menorDiasVencimento !== null) {
+        html += '      <span class="badge-alerta-vencimento" title="Fornecedor possui contrato vencendo nos proximos 60 dias">';
+        html += '        <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+        html += '        Vence em ' + menorDiasVencimento + ' dias';
+        html += '      </span>';
       }
+      html += '    </div>';
 
       html += '    <div class="supplier-metrics">';
       html += '      <div class="metric-chip">';
@@ -2739,6 +2810,10 @@
       html += '      <div class="metric-chip">';
       html += '        <span class="metric-chip-label">Desembolso Mensal</span>';
       html += '        <span class="metric-chip-val">' + formatarMoedaBRL(fValorMensal || 0) + '</span>';
+      html += '      </div>';
+      html += '      <div class="metric-chip">';
+      html += '        <span class="metric-chip-label">Desembolso Anual</span>';
+      html += '        <span class="metric-chip-val">' + formatarMoedaBRL((fValorMensal || 0) * 12) + '</span>';
       html += '      </div>';
       var driveFolderId = f.pastaDriveId || (f.contratos && f.contratos.length > 0 && (f.contratos[0].pastaFornecedorDriveId || f.contratos[0].pastaDriveId)) || '';
 
@@ -2790,6 +2865,7 @@
         html += '          <th>Objeto & Setor</th>';
         html += '          <th>Vigência</th>';
         html += '          <th>Valor Mensal</th>';
+        html += '          <th>Desembolso Anual</th>';
         html += '          <th>Critério Reajuste</th>';
         html += '          <th>Alçada / Status</th>';
         html += '          <th style="text-align: right;">Ação</th>';
@@ -2813,6 +2889,8 @@
           }
 
           var setorBadge = c.setorGerencia ? '<span class="badge-setor">' + escapeHtml(c.setorGerencia) + '</span>' : '';
+          var vMensalNum = parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0;
+          var vAnualNum = vMensalNum * 12;
 
           html += '        <tr>';
           html += '          <td><span class="protocol-chip">' + escapeHtml(c.protocolo) + '</span></td>';
@@ -2824,7 +2902,8 @@
           html += '            <div>' + escapeHtml(vigenciaTxt) + '</div>';
           html += '            <span class="badge-urgency ' + urgencyClass + '">' + diasTxt + '</span>';
           html += '          </td>';
-          html += '          <td style="font-weight: 700;">' + formatarMoedaBRL(c.valorMensal) + '</td>';
+          html += '          <td style="font-weight: 700;">' + formatarMoedaBRL(vMensalNum) + '</td>';
+          html += '          <td style="font-weight: 700; color: var(--brisa-blue);">' + formatarMoedaBRL(vAnualNum) + '</td>';
           html += '          <td>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</td>';
           html += '          <td><span class="badge-alcada">' + escapeHtml(c.statusAlcada || 'Aprovado') + '</span></td>';
           html += '          <td style="text-align: right;">';
@@ -2873,6 +2952,43 @@
         appState.fornecedoresExpandidos[c.id] = false;
       }
     });
+  }
+
+  function alterarStatusFornecedor(selectElem, fornId, fornRazao) {
+    var novoStatus = selectElem.value;
+    var fornNome = fornRazao || fornId;
+
+    if (novoStatus === 'Encerrado') {
+      selectElem.className = 'badge-status-select encerrado';
+    } else {
+      selectElem.className = 'badge-status-select ativo';
+    }
+
+    mostrarFeedback('Atualizando status de ' + fornNome + ' para ' + novoStatus + '...', 'info');
+
+    google.script.run
+      .withSuccessHandler(function(res) {
+        if (res && res.success) {
+          mostrarFeedback('Status de ' + fornNome + ' atualizado para ' + novoStatus + ' com sucesso!', 'success');
+          if (appState.fornecedores) {
+            appState.fornecedores.forEach(function(item) {
+              if (item.id === fornId || item.razaoSocial === fornRazao) {
+                item.status = novoStatus;
+              }
+            });
+          }
+        } else {
+          mostrarFeedback('Erro ao atualizar status: ' + ((res && res.error) || 'Falha no servidor'), 'danger');
+          selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
+          selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
+        }
+      })
+      .withFailureHandler(function(err) {
+        mostrarFeedback('Erro ao atualizar status: ' + err.message, 'danger');
+        selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
+        selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
+      })
+      .atualizarStatusFornecedorTelefonia(fornId || fornRazao, novoStatus);
   }
 
   function filtrarFornecedores() {
@@ -3474,6 +3590,7 @@
 
       body.innerHTML = '<div class="form-grid">' +
         '<div class="form-group"><span class="form-label">Valor Mensal</span><div style="font-size:18px; font-weight:800; color:var(--brisa-dark-blue);">' + formatarMoedaBRL(c.valorMensal) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Desembolso Anual</span><div style="font-size:18px; font-weight:800; color:var(--brisa-blue);">' + formatarMoedaBRL((parseFloat(c.valorMensal) || 0) * 12) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Moeda</span><div>' + escapeHtml(c.moeda || 'BRL') + ' (Câmbio: ' + escapeHtml(c.taxaCambio || '1,0000') + ')</div></div>' +
         '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + (c.valorBaseBrl || formatarMoedaBRL(c.valorMensal)) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + (c.valorOrcado || formatarMoedaBRL(c.valorMensal)) + '</div></div>' +
@@ -4249,6 +4366,25 @@
       card.classList.remove('collapsed');
       appState.logsExpandidos[cardId] = true;
     }
+  }
+
+  function alternarTodosLogs() {
+    if (!appState.logsExpandidos) appState.logsExpandidos = {};
+    var cards = document.querySelectorAll('.log-accordion-card');
+    var algumRecolhido = false;
+    cards.forEach(function(c) {
+      if (c.classList.contains('collapsed')) algumRecolhido = true;
+    });
+
+    cards.forEach(function(c) {
+      if (algumRecolhido) {
+        c.classList.remove('collapsed');
+        if (c.id) appState.logsExpandidos[c.id] = true;
+      } else {
+        c.classList.add('collapsed');
+        if (c.id) appState.logsExpandidos[c.id] = false;
+      }
+    });
   }
 
   function expandirTodosLogs() {
