@@ -132,15 +132,15 @@ O cadastro contempla 6 blocos organizados:
 
 3. **Valores Financeiros, Moeda & Orçamento:**
    - **Moeda:** BRL, USD, EUR ou Outra.
-   - **Taxa de Câmbio:** Cotação para conversão cambial.
-   - **Multiplicador de Serviços:**
-     - **Valor Unitário do Serviço:** Valor unitário de cada item ou prestação (ex: R$ 43.000,00).
+   - **Taxa de Câmbio:** Cotação para conversão cambial (para moedas diferentes de BRL, converte o Valor Unitário na moeda de origem para Real no Valor Mensal Total e nos totais anuais/ciclo).
+   - **Multiplicador de Serviços & Conversão Cambial:**
+     - **Valor Unitário do Serviço:** Valor unitário na moeda selecionada (ex: 5.600,00 USD ou R$ 43.000,00 BRL).
      - **Quantidade de Serviços:** Número de serviços contratados (ex: 3 serviços).
-     - **Valor Mensal Total:** Cálculo dinâmico multiplicando o valor unitário pela quantidade de serviços (ex: R$ 43.000,00 x 3 = R$ 129.000,00 / mês). Permite edição direta manual sincronizada.
+     - **Valor Mensal Total (BRL):** Cálculo dinâmico sempre exibido e consolidado em Reais: `Valor Unitário × Quantidade de Serviços × Taxa de Câmbio` (ex: 5.600,00 USD × 1 × 5,3000 = R$ 29.680,00 BRL). Permite edição direta manual sincronizada em BRL (atualizando o Valor Unitário na moeda do contrato).
    - **Período de Cobrança Efetiva (Meses no Ano):**
      - Permite definir a quantidade real de meses faturados no ano (ex: 9 meses em contratos com vigência de 12 meses decorrente de carência, período de implantação ou sazonalidade).
-     - O cálculo do **Desembolso Anual** e o card de **Orçamento Anual Comprometido** multiplicam exatamente o valor mensal pelos meses efetivos de cobrança (ex: R$ 129.000,00 x 9 = R$ 1.161.000,00).
-   - **Valor Base em BRL & Valor Orçado por Lançamento:** Ambos são sincronizados dinamicamente e passam a ser rigorosamente iguais ao **Desembolso Anual** (Valor Mensal Total x Câmbio x Meses de Cobrança Efetiva), garantindo alinhamento total com as premissas de planejamento orçamentário e finanças (FP&A).
+     - O cálculo do **Desembolso Anual** e o card de **Orçamento Anual Comprometido** multiplicam exatamente o Valor Mensal Total em BRL pelos meses efetivos de cobrança (ex: R$ 29.680,00 × 12 = R$ 356.160,00).
+   - **Valor Base em BRL & Valor Orçado por Lançamento:** Ambos são sincronizados dinamicamente com o **Desembolso Anual** em BRL (Valor Mensal Total em BRL × Meses de Cobrança Efetiva, ou valor do ciclo para contratos anuais/plurianuais), sem dupla multiplicação cambial, garantindo alinhamento total com as premissas de planejamento orçamentário e finanças (FP&A).
    - **Impostos / Encargos (%):** Percentual retido ou incidente.
    - **Contingência (%):** Margem de segurança orçamentária.
    - **Conta Contábil:** Classificação no plano de contas.

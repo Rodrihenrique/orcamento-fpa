@@ -2034,10 +2034,10 @@
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Taxa de Câmbio</label>
-            <input type="text" id="contratoModalTaxaCambio" class="form-control" placeholder="1,0000" value="1,0000" oninput="mascaraTaxaCambio(this); atualizarCalculosNovoContrato();">
+            <input type="text" id="contratoModalTaxaCambio" class="form-control" placeholder="1,0000" value="1,0000" oninput="mascaraTaxaCambio(this); aoAlterarTaxaCambioNovoContrato();">
           </div>
           <div class="form-group col-span-1">
-            <label class="form-label">Valor Unitário do Serviço</label>
+            <label class="form-label" id="lblContratoModalValorUnitario">Valor Unitário do Serviço (<span id="lblMoedaUnitarioNovo">BRL</span>)</label>
             <input type="text" id="contratoModalValorUnitario" class="form-control" placeholder="0,00" oninput="mascaraMoedaGenerica(this); recalcularPorValorUnitarioNovoContrato();">
           </div>
           <div class="form-group col-span-1">
@@ -2045,7 +2045,7 @@
             <input type="number" id="contratoModalQtdServicos" class="form-control" value="1" min="1" oninput="recalcularPorQtdServicosNovoContrato();">
           </div>
           <div class="form-group col-span-1">
-            <label class="form-label required" id="lblContratoModalValorMensal">Valor Mensal Total</label>
+            <label class="form-label required" id="lblContratoModalValorMensal">Valor Mensal Total (BRL)</label>
             <input type="text" id="contratoModalValorMensal" class="form-control" placeholder="0,00" required oninput="mascaraMoedaGenerica(this); aoDigitarValorMensalManualNovoContrato();">
             <div id="badgeMultiplicadorServicoNovo" style="font-size: 11px; font-weight: 700; color: var(--brisa-blue); margin-top: 4px; display: none;"></div>
           </div>
@@ -2346,7 +2346,7 @@
       <div class="form-grid" style="grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 10px;">
         <div class="form-group">
           <label class="form-label">Moeda</label>
-          <select id="solicitacaoMoeda" class="form-control">
+          <select id="solicitacaoMoeda" class="form-control" onchange="aoAlterarMoedaModalAlteracao(this.value)">
             <option value="BRL">BRL - Real</option>
             <option value="USD">USD - Dólar</option>
             <option value="EUR">EUR - Euro</option>
@@ -2369,7 +2369,7 @@
 
       <div class="form-grid" style="grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 6px;">
         <div class="form-group">
-          <label class="form-label required">Valor Unitário</label>
+          <label class="form-label required" id="lblSolicitacaoValorUnitario">Valor Unitário (<span id="lblMoedaUnitarioAlt">BRL</span>)</label>
           <input type="text" id="solicitacaoValorUnitario" class="form-control" placeholder="0,00" oninput="mascaraMoedaGenerica(this); recalcularValoresModalAlteracao();" required>
         </div>
         <div class="form-group">
@@ -2377,7 +2377,7 @@
           <input type="number" id="solicitacaoQtdServicos" class="form-control" value="1" min="1" oninput="recalcularValoresModalAlteracao();" required>
         </div>
         <div class="form-group">
-          <label class="form-label required">Valor Mensal Total</label>
+          <label class="form-label required">Valor Mensal Total (BRL)</label>
           <input type="text" id="solicitacaoValorMensal" class="form-control" placeholder="0,00" oninput="mascaraMoedaGenerica(this); aoDigitarValorMensalManualModalAlteracao();" required>
         </div>
         <div class="form-group">
@@ -2843,45 +2843,28 @@
     input.value = v;
   }
 
-  function mascaraTaxaCambio(input) {
-    var v = input.value.replace(/\D/g, '');
-    if (!v) { input.value = '1,0000'; atualizarCalculoValorBaseBrl(); return; }
-    var num = parseFloat(v) / 10000;
-    input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-    atualizarCalculoValorBaseBrl();
+  function obterTaxaCambioNumerica(moeda, taxaVal) {
+    var m = String(moeda || 'BRL').trim().toUpperCase();
+    if (!m || m === 'BRL') return 1;
+    if (typeof taxaVal === 'number') return (!isNaN(taxaVal) && taxaVal > 0) ? taxaVal : 1;
+    var s = String(taxaVal || '').trim().replace(/[\s\u00A0]/g, '').replace(/[^0-9,.\-]/g, '');
+    if (!s) return 1;
+    if (s.indexOf(',') !== -1) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    }
+    var num = parseFloat(s);
+    return (!isNaN(num) && num > 0) ? num : 1;
   }
 
-  function atualizarCalculoValorBaseBrl() {
-    var inputValorMensal = document.getElementById('contratoModalValorMensal');
-    var inputTaxa = document.getElementById('contratoModalTaxaCambio');
-    var inputBaseBrl = document.getElementById('contratoModalValorBaseBrl');
-    var selectMoeda = document.getElementById('contratoModalMoeda');
-    if (!inputValorMensal || !inputBaseBrl) return;
-
-    var vmRaw = inputValorMensal.value.replace(/\D/g, '');
-    if (!vmRaw) {
-      inputBaseBrl.value = '';
-      return;
+  function configurarEstadoMoedaETaxa(moeda, idInputTaxa, idLabelMoeda) {
+    var m = String(moeda || 'BRL').trim() || 'BRL';
+    var lblMoeda = document.getElementById(idLabelMoeda);
+    if (lblMoeda) {
+      lblMoeda.textContent = (m === 'Outra') ? 'Moeda Estrangeira' : m;
     }
-    var vm = parseFloat(vmRaw) / 100;
-
-    var moeda = selectMoeda ? selectMoeda.value : 'BRL';
-    if (moeda === 'BRL') {
-      if (inputTaxa) inputTaxa.value = '1,0000';
-      inputBaseBrl.value = vm.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    } else {
-      var taxaRaw = inputTaxa ? inputTaxa.value.replace(/\D/g, '') : '10000';
-      var taxa = taxaRaw ? (parseFloat(taxaRaw) / 10000) : 1;
-      var totalBrl = vm * taxa;
-      inputBaseBrl.value = totalBrl.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    }
-  }
-
-  function alternarMoedaModal(moeda) {
-    var inputTaxa = document.getElementById('contratoModalTaxaCambio');
-    var inputValorMensal = document.getElementById('contratoModalValorMensal');
+    var inputTaxa = document.getElementById(idInputTaxa);
     if (inputTaxa) {
-      if (moeda === 'BRL') {
+      if (m === 'BRL') {
         inputTaxa.value = '1,0000';
         inputTaxa.disabled = true;
         inputTaxa.style.backgroundColor = '#F1F5F9';
@@ -2890,10 +2873,45 @@
         inputTaxa.style.backgroundColor = '#FFFFFF';
       }
     }
-    if (inputValorMensal && inputValorMensal.value) {
-      mascaraValorMensal(inputValorMensal);
+  }
+
+  function formatarValorNaMoedaContrato(valor, moeda) {
+    var num = (typeof valor === 'number') ? valor : desformatarNumero(valor);
+    if (isNaN(num)) num = 0;
+    var m = String(moeda || 'BRL').trim().toUpperCase();
+    if (!m || m === 'BRL') return formatarMoedaBRL(num);
+    return formatarNumeroDecimal(num) + ' ' + (m === 'OUTRA' ? 'Moeda Estrangeira' : m);
+  }
+
+  function formatarBadgeCalculoServico(qtd, vUnit, vTotalBrl, moeda, taxaCambio, sufixoPeriodo) {
+    var m = String(moeda || 'BRL').trim() || 'BRL';
+    var labelQtd = qtd + (qtd === 1 ? ' serviço x ' : ' serviços x ');
+    if (m.toUpperCase() !== 'BRL') {
+      var labelMoeda = (m === 'Outra') ? 'Moeda Estrangeira' : m;
+      var taxaFmt = taxaCambio.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+      return labelQtd + formatarNumeroDecimal(vUnit) + ' ' + labelMoeda + ' x câmbio ' + taxaFmt + ' = ' + formatarMoedaBRL(vTotalBrl) + sufixoPeriodo;
     }
-    atualizarCalculoValorBaseBrl();
+    return labelQtd + formatarNumeroDecimal(vUnit) + ' = ' + formatarNumeroDecimal(vTotalBrl) + sufixoPeriodo;
+  }
+
+  function mascaraTaxaCambio(input) {
+    var v = input.value.replace(/\D/g, '');
+    if (!v) { input.value = '1,0000'; return; }
+    var num = parseFloat(v) / 10000;
+    input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+  }
+
+  function atualizarCalculoValorBaseBrl() {
+    if (typeof atualizarCalculosNovoContrato === 'function') {
+      atualizarCalculosNovoContrato();
+    }
+  }
+
+  function alternarMoedaModal(moeda) {
+    configurarEstadoMoedaETaxa(moeda, 'contratoModalTaxaCambio', 'lblMoedaUnitarioNovo');
+    if (typeof aoAlterarTaxaCambioNovoContrato === 'function') {
+      aoAlterarTaxaCambioNovoContrato();
+    }
   }
 
   function alternarSemReajusteModal(isSemReajuste) {
@@ -3819,9 +3837,9 @@
       if (valorInput && valorInput.value.trim()) {
         var campoValorMensal = document.getElementById('contratoModalValorMensal');
         if (campoValorMensal) {
-          campoValorMensal.value = valorInput.value.trim();
-          mascaraValorMensal(campoValorMensal);
-          atualizarCalculoValorBaseBrl();
+          var numVal = desformatarNumero(valorInput.value.trim());
+          campoValorMensal.value = formatarNumeroDecimal(numVal);
+          aoDigitarValorMensalManualNovoContrato();
         }
       }
     }
@@ -4272,11 +4290,11 @@
         alertaPlurianualHtml +
         '<div class="form-group"><span class="form-label">' + (isPlurianualFicha ? 'Valor do Pagamento no Ciclo' : 'Valor Mensal') + '</span><div style="font-size:18px; font-weight:800; color:var(--brisa-dark-blue);">' + formatarMoedaBRL(c.valorMensal) + (isPlurianualFicha ? ' <span style="font-size:11px; font-weight:700; color:#C2410C;">(' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + ')</span>' : '') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Periodicidade</span><div style="font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(c.periodicidade || 'Mensal') + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Serviços / Unidade</span><div>' + (parseInt(c.quantidadeServicos, 10) || 1) + ' serviço(s) · Unitário: ' + formatarMoedaBRL(c.valorUnitario || c.valorMensal) + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Serviços / Unidade</span><div>' + (parseInt(c.quantidadeServicos, 10) || 1) + ' serviço(s) · Unitário: ' + formatarValorNaMoedaContrato((c.valorUnitario || c.valorMensal), (c.moeda || 'BRL')) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Desembolso Anual (12m)</span><div style="font-size:18px; font-weight:800; color:var(--brisa-blue);">' + (isPlurianualFicha ? '<span style="color:#C2410C; font-size:13px; font-weight:700;">Não aplicável (Não tem todo ano)</span>' : formatarMoedaBRL(c.desembolsoAnual || ((parseFloat(c.valorMensal) || 0) * (parseInt(c.mesesCobranca, 10) || 12)))) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Moeda</span><div>' + escapeHtml(c.moeda || 'BRL') + ' (Câmbio: ' + escapeHtml(c.taxaCambio || '1,0000') + ')</div></div>' +
-        '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + formatarValorFinanceiroExibicao(c.valorBaseBrl, c.valorMensal) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + formatarValorFinanceiroExibicao(c.valorOrcado, c.valorMensal) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + formatarValorFinanceiroExibicao(c.valorBaseBrl, (isPlurianualFicha ? c.valorMensal : (c.desembolsoAnual || c.valorMensal))) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + formatarValorFinanceiroExibicao(c.valorOrcado, (isPlurianualFicha ? c.valorMensal : (c.desembolsoAnual || c.valorMensal))) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Impostos / Encargos</span><div>' + (c.impostosEncargos || '0,00%') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Contingência</span><div>' + (c.contingencia || '0,00%') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Critério de Reajuste</span><div>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</div></div>' +
@@ -4469,13 +4487,16 @@
   }
 
   // =========================================================================
-  // CALCULOS E MULTIPLICADOR DE SERVICOS NO FORMULARIO NOVO CONTRATO
+  // CALCULOS, CAMBIO E MULTIPLICADOR DE SERVICOS NO FORMULARIO NOVO CONTRATO
   // =========================================================================
   function recalcularPorValorUnitarioNovoContrato() {
     var vUnitStr = document.getElementById('contratoModalValorUnitario').value;
     var qtd = parseInt(document.getElementById('contratoModalQtdServicos').value, 10) || 1;
+    if (qtd < 1) qtd = 1;
+    var moeda = document.getElementById('contratoModalMoeda').value || 'BRL';
+    var taxaCambio = obterTaxaCambioNumerica(moeda, document.getElementById('contratoModalTaxaCambio').value);
     var vUnit = desformatarNumero(vUnitStr);
-    var vTotal = vUnit * qtd;
+    var vTotal = vUnit * qtd * taxaCambio;
 
     var inpTotal = document.getElementById('contratoModalValorMensal');
     inpTotal.value = formatarNumeroDecimal(vTotal);
@@ -4488,25 +4509,54 @@
     if (qtd < 1) qtd = 1;
     document.getElementById('contratoModalQtdServicos').value = qtd;
 
+    var moeda = document.getElementById('contratoModalMoeda').value || 'BRL';
+    var taxaCambio = obterTaxaCambioNumerica(moeda, document.getElementById('contratoModalTaxaCambio').value);
     var vUnit = desformatarNumero(vUnitStr);
     if (vUnit === 0) {
       var vTotalStr = document.getElementById('contratoModalValorMensal').value;
       var vTotal = desformatarNumero(vTotalStr);
       if (vTotal > 0) {
-        vUnit = vTotal / qtd;
+        vUnit = vTotal / (qtd * taxaCambio);
         document.getElementById('contratoModalValorUnitario').value = formatarNumeroDecimal(vUnit);
       }
     }
-    var vTotalFinal = vUnit * qtd;
+    var vTotalFinal = vUnit * qtd * taxaCambio;
     document.getElementById('contratoModalValorMensal').value = formatarNumeroDecimal(vTotalFinal);
+    atualizarCalculosNovoContrato();
+  }
+
+  function aoAlterarTaxaCambioNovoContrato() {
+    var elUnit = document.getElementById('contratoModalValorUnitario');
+    var elQtd = document.getElementById('contratoModalQtdServicos');
+    var elTotal = document.getElementById('contratoModalValorMensal');
+    var elMoeda = document.getElementById('contratoModalMoeda');
+    var elTaxa = document.getElementById('contratoModalTaxaCambio');
+    if (!elTotal || !elMoeda || !elTaxa) return;
+
+    var moeda = elMoeda.value || 'BRL';
+    var taxaCambio = obterTaxaCambioNumerica(moeda, elTaxa.value);
+    var qtd = parseInt(elQtd ? elQtd.value : 1, 10) || 1;
+    if (qtd < 1) qtd = 1;
+    var vUnit = elUnit ? desformatarNumero(elUnit.value) : 0;
+    var vTotalAtual = desformatarNumero(elTotal.value);
+
+    if (vUnit > 0) {
+      elTotal.value = formatarNumeroDecimal(vUnit * qtd * taxaCambio);
+    } else if (vTotalAtual > 0 && elUnit) {
+      elUnit.value = formatarNumeroDecimal(vTotalAtual / (qtd * taxaCambio));
+    }
     atualizarCalculosNovoContrato();
   }
 
   function aoDigitarValorMensalManualNovoContrato() {
     var vTotalStr = document.getElementById('contratoModalValorMensal').value;
     var qtd = parseInt(document.getElementById('contratoModalQtdServicos').value, 10) || 1;
+    if (qtd < 1) qtd = 1;
+    var moeda = document.getElementById('contratoModalMoeda').value || 'BRL';
+    var taxaCambio = obterTaxaCambioNumerica(moeda, document.getElementById('contratoModalTaxaCambio').value);
     var vTotal = desformatarNumero(vTotalStr);
-    var vUnit = qtd > 0 ? (vTotal / qtd) : vTotal;
+    var denom = qtd * taxaCambio;
+    var vUnit = denom > 0 ? (vTotal / denom) : vTotal;
 
     document.getElementById('contratoModalValorUnitario').value = formatarNumeroDecimal(vUnit);
     atualizarCalculosNovoContrato();
@@ -4538,32 +4588,35 @@
 
   function atualizarCalculosNovoContrato() {
     var vTotalStr = document.getElementById('contratoModalValorMensal').value;
+    // vTotal ja representa o Valor Mensal Total (ou do ciclo) convertido para BRL
     var vTotal = desformatarNumero(vTotalStr);
     var qtd = parseInt(document.getElementById('contratoModalQtdServicos').value, 10) || 1;
+    if (qtd < 1) qtd = 1;
     var vUnit = desformatarNumero(document.getElementById('contratoModalValorUnitario').value);
     var meses = parseInt(document.getElementById('contratoModalMesesCobranca').value, 10) || 12;
+    var moeda = document.getElementById('contratoModalMoeda').value || 'BRL';
+    var taxaCambio = obterTaxaCambioNumerica(moeda, document.getElementById('contratoModalTaxaCambio').value);
     var periodicidade = obterPeriodicidadeNovoContratoSelecionada();
 
     var isPlurianual = ehPeriodicidadePlurianual(periodicidade);
     var isAnual = periodicidade.toLowerCase().indexOf('anual') !== -1 && !isPlurianual;
 
-    // Adaptacao da label do campo de valor
+    // Adaptacao da label do campo de valor (sempre em BRL)
     var lblValor = document.getElementById('lblContratoModalValorMensal');
     if (lblValor) {
-      lblValor.textContent = isPlurianual ? 'Valor do Pagamento no Ciclo' : (isAnual ? 'Valor da Parcela Anual' : 'Valor Mensal Total');
+      lblValor.textContent = isPlurianual ? 'Valor do Pagamento no Ciclo (BRL)' : (isAnual ? 'Valor da Parcela Anual (BRL)' : 'Valor Mensal Total (BRL)');
     }
 
     var badgeSrv = document.getElementById('badgeMultiplicadorServicoNovo');
     if (badgeSrv) {
-      if (qtd > 1 && vUnit > 0) {
+      if ((qtd > 1 || moeda !== 'BRL') && vUnit > 0) {
         badgeSrv.style.display = 'block';
-        badgeSrv.textContent = qtd + ' serviços x ' + formatarNumeroDecimal(vUnit) + ' = ' + formatarNumeroDecimal(vTotal) + (isPlurianual ? ' / ciclo' : (isAnual ? ' / ano' : ' / mês'));
+        badgeSrv.textContent = formatarBadgeCalculoServico(qtd, vUnit, vTotal, moeda, taxaCambio, (isPlurianual ? ' / ciclo' : (isAnual ? ' / ano' : ' / mês')));
       } else {
         badgeSrv.style.display = 'none';
       }
     }
 
-    var taxaCambio = desformatarNumero(document.getElementById('contratoModalTaxaCambio').value) || 1;
     var displayAnual = document.getElementById('displayDesembolsoAnualNovo');
     var badgeAlertaPeriodo = document.getElementById('badgeAlertaPeriodoNovoContrato');
 
@@ -4575,23 +4628,21 @@
       }
       if (badgeAlertaPeriodo) {
         badgeAlertaPeriodo.style.display = 'block';
-        badgeAlertaPeriodo.innerHTML = 'Alerta de Pagamento Plurianual: Este contrato é pago exclusivamente <u>' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '</u>. O valor de <strong>' + formatarMoedaBRL(vTotal * taxaCambio) + '</strong> fica registrado para visualização e execução no ciclo, sem computar desembolso anual nos anos sem faturamento.';
+        badgeAlertaPeriodo.innerHTML = 'Alerta de Pagamento Plurianual: Este contrato é pago exclusivamente <u>' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '</u>. O valor de <strong>' + formatarMoedaBRL(vTotal) + '</strong> fica registrado para visualização e execução no ciclo, sem computar desembolso anual nos anos sem faturamento.';
       }
 
       var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
-      if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(vTotal * taxaCambio);
+      if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(vTotal);
 
       var inpOrcado = document.getElementById('contratoModalValorOrcado');
-      if (inpOrcado) inpOrcado.value = formatarMoedaBRL(vTotal * taxaCambio);
+      if (inpOrcado) inpOrcado.value = formatarMoedaBRL(vTotal);
 
       var boxCondPluri = document.getElementById('boxCondicoesPagamentoPlurianual');
       if (boxCondPluri) {
         boxCondPluri.style.display = 'block';
-        var selFormaPluri = document.getElementById('contratoModalFormaPagamentoPlurianual');
-        var formaPluri = selFormaPluri ? selFormaPluri.value : 'Parcela Única';
         var inpQtdPluri = document.getElementById('contratoModalQtdParcelasPlurianual');
         var qtdPluri = parseInt(inpQtdPluri ? inpQtdPluri.value : 1, 10) || 1;
-        var valParcEst = (vTotal * taxaCambio) / qtdPluri;
+        var valParcEst = vTotal / qtdPluri;
         var dispValParc = document.getElementById('displayValorParcelaPlurianualNovo');
         if (dispValParc) {
           dispValParc.textContent = formatarMoedaBRL(valParcEst);
@@ -4606,7 +4657,7 @@
         badgeAlertaPeriodo.style.display = 'none';
       }
       var multMeses = isAnual ? 1 : meses;
-      var desembolsoAnual = vTotal * taxaCambio * multMeses;
+      var desembolsoAnual = vTotal * multMeses;
 
       var inpBaseBrl = document.getElementById('contratoModalValorBaseBrl');
       if (inpBaseBrl) inpBaseBrl.value = formatarMoedaBRL(desembolsoAnual);
@@ -4716,11 +4767,15 @@
       alternarTipoContratoModalAlteracao(elTipo.value);
     }
 
+    var moedaSel = c.moeda || 'BRL';
     var elMoeda = document.getElementById('solicitacaoMoeda');
-    if (elMoeda) elMoeda.value = c.moeda || 'BRL';
+    if (elMoeda) elMoeda.value = moedaSel;
 
+    configurarEstadoMoedaETaxa(moedaSel, 'solicitacaoTaxaCambio', 'lblMoedaUnitarioAlt');
     var elTaxa = document.getElementById('solicitacaoTaxaCambio');
-    if (elTaxa) elTaxa.value = c.taxaCambio || '1,0000';
+    if (elTaxa && String(moedaSel).toUpperCase() !== 'BRL') {
+      elTaxa.value = c.taxaCambio || '1,0000';
+    }
 
     var elImpostos = document.getElementById('solicitacaoImpostosEncargos');
     if (elImpostos) elImpostos.value = c.impostosEncargos || '0,00%';
@@ -4735,8 +4790,10 @@
     if (elPeriod) elPeriod.value = c.periodicidade || 'Mensal';
 
     var qtd = parseInt(c.quantidadeServicos, 10) || 1;
+    if (qtd < 1) qtd = 1;
+    var taxaInitNum = obterTaxaCambioNumerica(moedaSel, elTaxa ? elTaxa.value : '1,0000');
     var vMensal = parseFloat(c.valorMensal) || parseFloat(c.valorMensalBase) || parseFloat(c.valorBaseBrl) || 0;
-    var vUnit = parseFloat(c.valorUnitario) || (vMensal / qtd) || vMensal;
+    var vUnit = parseFloat(c.valorUnitario) || (vMensal / (qtd * taxaInitNum)) || 0;
     var meses = parseInt(c.mesesCobranca, 10) || 12;
 
     var elQtd = document.getElementById('solicitacaoQtdServicos');
@@ -4811,6 +4868,11 @@
     var elJust = document.getElementById('solicitacaoJustificativa');
     if (elJust) elJust.value = '';
 
+    atualizarDisplayTotaisModalAlteracao();
+  }
+
+  function aoAlterarMoedaModalAlteracao(moeda) {
+    configurarEstadoMoedaETaxa(moeda, 'solicitacaoTaxaCambio', 'lblMoedaUnitarioAlt');
     recalcularValoresModalAlteracao();
   }
 
@@ -4843,18 +4905,33 @@
     var vUnitStr = document.getElementById('solicitacaoValorUnitario').value;
     var qtd = parseInt(document.getElementById('solicitacaoQtdServicos').value, 10) || 1;
     if (qtd < 1) qtd = 1;
-    var vUnit = desformatarNumero(vUnitStr);
-    var vTotal = vUnit * qtd;
+    var elMoeda = document.getElementById('solicitacaoMoeda');
+    var moeda = elMoeda ? elMoeda.value : 'BRL';
     var elTaxa = document.getElementById('solicitacaoTaxaCambio');
-    var taxaCambio = (elTaxa ? desformatarNumero(elTaxa.value) : 1) || 1;
+    var taxaCambio = obterTaxaCambioNumerica(moeda, elTaxa ? elTaxa.value : '1,0000');
+
+    var vUnit = desformatarNumero(vUnitStr);
+    var vTotal = vUnit * qtd * taxaCambio;
 
     document.getElementById('solicitacaoValorMensal').value = formatarNumeroDecimal(vTotal);
+    atualizarDisplayTotaisModalAlteracao();
+  }
+
+  function atualizarDisplayTotaisModalAlteracao() {
+    var vUnit = desformatarNumero(document.getElementById('solicitacaoValorUnitario').value);
+    var vTotal = desformatarNumero(document.getElementById('solicitacaoValorMensal').value);
+    var qtd = parseInt(document.getElementById('solicitacaoQtdServicos').value, 10) || 1;
+    if (qtd < 1) qtd = 1;
+    var elMoeda = document.getElementById('solicitacaoMoeda');
+    var moeda = elMoeda ? elMoeda.value : 'BRL';
+    var elTaxa = document.getElementById('solicitacaoTaxaCambio');
+    var taxaCambio = obterTaxaCambioNumerica(moeda, elTaxa ? elTaxa.value : '1,0000');
 
     var badgeSrv = document.getElementById('modalAltBadgeCalculoServico');
     if (badgeSrv) {
-      if (qtd > 1 && vUnit > 0) {
+      if ((qtd > 1 || moeda !== 'BRL') && vUnit > 0) {
         badgeSrv.style.display = 'block';
-        badgeSrv.textContent = qtd + ' serviços x ' + formatarNumeroDecimal(vUnit) + ' = ' + formatarNumeroDecimal(vTotal) + ' / mês';
+        badgeSrv.textContent = formatarBadgeCalculoServico(qtd, vUnit, vTotal, moeda, taxaCambio, ' / mês');
       } else {
         badgeSrv.style.display = 'none';
       }
@@ -4874,13 +4951,13 @@
       if (dispAnual) dispAnual.innerHTML = '<span style="color:#C2410C; font-size:12px; font-weight:700;">Não aplicável (Não tem todo ano)</span>';
       if (badgePluri) {
         badgePluri.style.display = 'block';
-        badgePluri.innerHTML = 'Alerta: Contrato pago exclusivamente ' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '. O valor de ' + formatarMoedaBRL(vTotal * taxaCambio) + ' fica registrado no ciclo, sem desembolso anual recorrente.';
+        badgePluri.innerHTML = 'Alerta: Contrato pago exclusivamente ' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '. O valor de ' + formatarMoedaBRL(vTotal) + ' fica registrado no ciclo, sem desembolso anual recorrente.';
       }
       if (boxPluriAlt) {
         boxPluriAlt.style.display = 'block';
         var inpQtdAlt = document.getElementById('solicitacaoQtdParcelasPlurianual');
         var qtdAlt = parseInt(inpQtdAlt ? inpQtdAlt.value : 1, 10) || 1;
-        var valParcAlt = (vTotal * taxaCambio) / qtdAlt;
+        var valParcAlt = vTotal / qtdAlt;
         var dispValAlt = document.getElementById('solicitacaoValorParcelaDisplay');
         if (dispValAlt) dispValAlt.textContent = formatarMoedaBRL(valParcAlt);
       }
@@ -4888,7 +4965,7 @@
       if (badgePluri) badgePluri.style.display = 'none';
       if (boxPluriAlt) boxPluriAlt.style.display = 'none';
       var multMeses = isAnual ? 1 : meses;
-      var desembolsoAnual = vTotal * taxaCambio * multMeses;
+      var desembolsoAnual = vTotal * multMeses;
       if (dispAnual) {
         dispAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (isAnual ? ' (1 parcela anual)' : (meses !== 12 ? ' (' + meses + ' meses faturados)' : ''));
       }
@@ -4914,21 +4991,28 @@
         else if (val === 'Anual') inpQtd.value = anos;
       }
     }
-    recalcularValoresModalAlteracao();
+    atualizarDisplayTotaisModalAlteracao();
   }
 
   function aoMudarQtdParcelasModalAlteracao() {
-    recalcularValoresModalAlteracao();
+    atualizarDisplayTotaisModalAlteracao();
   }
 
   function aoDigitarValorMensalManualModalAlteracao() {
     var vTotalStr = document.getElementById('solicitacaoValorMensal').value;
     var qtd = parseInt(document.getElementById('solicitacaoQtdServicos').value, 10) || 1;
+    if (qtd < 1) qtd = 1;
+    var elMoeda = document.getElementById('solicitacaoMoeda');
+    var moeda = elMoeda ? elMoeda.value : 'BRL';
+    var elTaxa = document.getElementById('solicitacaoTaxaCambio');
+    var taxaCambio = obterTaxaCambioNumerica(moeda, elTaxa ? elTaxa.value : '1,0000');
+
     var vTotal = desformatarNumero(vTotalStr);
-    var vUnit = qtd > 0 ? (vTotal / qtd) : vTotal;
+    var denom = qtd * taxaCambio;
+    var vUnit = denom > 0 ? (vTotal / denom) : vTotal;
 
     document.getElementById('solicitacaoValorUnitario').value = formatarNumeroDecimal(vUnit);
-    recalcularValoresModalAlteracao();
+    atualizarDisplayTotaisModalAlteracao();
   }
 
   function abrirModalSolicitarAprovacao() {
@@ -5781,23 +5865,12 @@
     var v = input.value.replace(/\D/g, '');
     if (!v) {
       input.value = '';
-      atualizarCalculoValorBaseBrl();
+      atualizarCalculosNovoContrato();
       return;
     }
     var num = parseFloat(v) / 100;
-    var selectMoeda = document.getElementById('contratoModalMoeda');
-    var moeda = selectMoeda ? selectMoeda.value : 'BRL';
-
-    if (moeda === 'USD') {
-      input.value = 'US$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    } else if (moeda === 'EUR') {
-      input.value = '€ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    } else if (moeda === 'Outra') {
-      input.value = num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    } else {
-      input.value = 'R$ ' + num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-    atualizarCalculoValorBaseBrl();
+    input.value = formatarNumeroDecimal(num);
+    aoDigitarValorMensalManualNovoContrato();
   }
 
   function formatarDataHoraAuditoria(val) {

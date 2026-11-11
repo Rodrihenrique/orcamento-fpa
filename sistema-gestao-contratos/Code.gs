@@ -1060,6 +1060,16 @@ function normalizarNumero_(valor) {
   return isNaN(parsed) ? 0 : parsed;
 }
 
+/**
+ * Resolve a taxa de cambio numerica de forma segura, retornando sempre 1 para BRL.
+ */
+function obterTaxaCambioNumerica_(moeda, taxaVal) {
+  var m = String(moeda || 'BRL').trim().toUpperCase();
+  if (!m || m === 'BRL') return 1;
+  var parsed = normalizarNumero_(taxaVal);
+  return parsed > 0 ? parsed : 1;
+}
+
 
 function normalizarPorcentagem_(valor) {
   if (valor === null || valor === undefined || valor === '') return '';
@@ -4981,10 +4991,14 @@ function obterDadosCompletosTelefonia() {
 
         var emailResp = String(getCol(row, 'gestor_tecnico_email', 20, '')).trim();
 
+        var moedaRow = String(getCol(row, 'moeda', 30, 'BRL')).trim() || 'BRL';
+        var taxaCambioRowStr = String(getCol(row, 'taxa_cambio', 37, '1,0000'));
+        var taxaCambioRowNum = obterTaxaCambioNumerica_(moedaRow, taxaCambioRowStr);
         var qtdServicos = parseInt(getCol(row, 'quantidade_de_servicos', 45, getCol(row, 'quantidade_servicos', 45, 1)), 10) || 1;
         var valorUnitario = normalizarNumero_(getCol(row, 'valor_unitario', 46, 0));
         if (valorUnitario === 0) {
-          valorUnitario = valorMensalAtual > 0 ? (valorMensalAtual / qtdServicos) : valorMensalAtual;
+          var denomUnit = qtdServicos * taxaCambioRowNum;
+          valorUnitario = valorMensalAtual > 0 ? (valorMensalAtual / (denomUnit > 0 ? denomUnit : 1)) : 0;
         }
         var mesesCobranca = parseInt(getCol(row, 'meses_de_cobranca_efetiva', 47, getCol(row, 'meses_cobranca', 47, 12)), 10) || 12;
         var subpastaDrive = String(getCol(row, 'pasta_de_destino_no_drive', 48, getCol(row, 'subpasta_destino', 48, 'Contrato'))).trim() || 'Contrato';
@@ -5694,7 +5708,29 @@ function salvarNovoContratoTelefonia(dados) {
       ]);
     }
 
+    var moedaNovo = String(dados.moeda || 'BRL').trim() || 'BRL';
+    var taxaCambioNovoStr = (moedaNovo.toUpperCase() === 'BRL')
+      ? '1,0000'
+      : (String(dados.taxaCambio || '1,0000').trim() || '1,0000');
+    var taxaCambioNovoNum = obterTaxaCambioNumerica_(moedaNovo, taxaCambioNovoStr);
+    var qtdServicosNovo = parseInt(dados.qtdServicos, 10) || 1;
+    if (qtdServicosNovo < 1) qtdServicosNovo = 1;
+    var valorUnitarioNovo = normalizarNumero_(dados.valorUnitario || 0);
+    // valorBase armazena o Valor Mensal Total (ou do ciclo) sempre convertido em BRL
     var valorBase = normalizarNumero_(dados.valorMensal || 0);
+    if (valorBase === 0 && valorUnitarioNovo > 0) {
+      valorBase = valorUnitarioNovo * qtdServicosNovo * taxaCambioNovoNum;
+    }
+    if (valorUnitarioNovo === 0 && valorBase > 0) {
+      valorUnitarioNovo = valorBase / (qtdServicosNovo * taxaCambioNovoNum);
+    }
+
+    var periodicidadeNovo = String(dados.periodicidade || 'Mensal');
+    var isPluriNovo = ehPeriodicidadePlurianual_(periodicidadeNovo);
+    var isAnualNovo = periodicidadeNovo.toLowerCase().indexOf('anual') !== -1 && !isPluriNovo;
+    var mesesCobrancaNovo = parseInt(dados.mesesCobranca, 10) || 12;
+    var valorBaseOuAnualBrl = (isPluriNovo || isAnualNovo) ? valorBase : (valorBase * mesesCobrancaNovo);
+
     var tabelaBaseClientesJson = (dados.tabelaBaseClientes && Array.isArray(dados.tabelaBaseClientes))
       ? JSON.stringify(dados.tabelaBaseClientes)
       : '';
@@ -5730,43 +5766,26 @@ function salvarNovoContratoTelefonia(dados) {
       tabelaBaseClientesJson,
       dados.cnpj || '',
       dados.renovacaoAutomatica || 'Não',
-      dados.moeda || 'BRL',
-      dados.periodicidade || 'Mensal',
+      moedaNovo,
+      periodicidadeNovo,
       dados.primeiraCompetencia || '',
       dados.semReajuste ? '' : (dados.dataReajuste || ''),
       dados.semReajuste ? 'Sim' : 'Não',
       dados.reajusteAplicado || '0,00%',
       dados.impostosEncargos || '0,00%',
-      dados.taxaCambio || '1,0000',
-      (function() {
-        var tx = normalizarNumero_(dados.taxaCambio || 1) || 1;
-        var p = String(dados.periodicidade || 'Mensal');
-        var isPl = ehPeriodicidadePlurianual_(p);
-        var isAn = p.toLowerCase().indexOf('anual') !== -1 && !isPl;
-        var ms = parseInt(dados.mesesCobranca, 10) || 12;
-        // Para visualizacao e registro, o valor do ciclo fica gravado
-        if (isPl || isAn) return valorBase * tx;
-        return valorBase * ms * tx;
-      })(), // Valor Base em BRL
+      taxaCambioNovoStr,
+      valorBaseOuAnualBrl, // Valor Base em BRL
       dados.contingencia || '0,00%',
-      (function() {
-        var tx = normalizarNumero_(dados.taxaCambio || 1) || 1;
-        var p = String(dados.periodicidade || 'Mensal');
-        var isPl = ehPeriodicidadePlurianual_(p);
-        var isAn = p.toLowerCase().indexOf('anual') !== -1 && !isPl;
-        var ms = parseInt(dados.mesesCobranca, 10) || 12;
-        if (isPl || isAn) return valorBase * tx;
-        return valorBase * ms * tx;
-      })(), // Valor Orcado
+      valorBaseOuAnualBrl, // Valor Orcado
       dados.contratoPo || '',
       dados.risco || 'Baixo',
       dados.descricaoRisco || '',
       dados.memoriaCalculo || '',
-      parseInt(dados.qtdServicos, 10) || 1,
-      normalizarNumero_(dados.valorUnitario || valorBase),
-      parseInt(dados.mesesCobranca, 10) || 12,
+      qtdServicosNovo,
+      valorUnitarioNovo,
+      mesesCobrancaNovo,
       String(dados.subpastaDestino || 'Contrato').trim(),
-      String(dados.formaPagamentoPlurianual || (ehPeriodicidadePlurianual_(dados.periodicidade) ? 'Parcela Única' : 'Mensal')).trim(),
+      String(dados.formaPagamentoPlurianual || (isPluriNovo ? 'Parcela Única' : 'Mensal')).trim(),
       parseInt(dados.qtdParcelasPlurianual, 10) || 1,
       normalizarNumero_(dados.valorParcelaPlurianual || (valorBase / (parseInt(dados.qtdParcelasPlurianual, 10) || 1)))
     ]);
@@ -6319,7 +6338,8 @@ function salvarAlteracaoContratoTelefonia(payload) {
     var oldDescricaoRisco = String(rowData[43] || '');
     var oldMemoriaCalculo = String(rowData[44] || '');
     var oldQtdServicos = normalizarNumero_(rowData[45] || 1) || 1;
-    var oldValorUnitario = normalizarNumero_(rowData[46] || (oldValorMensal / oldQtdServicos)) || oldValorMensal;
+    var oldTaxaNum = obterTaxaCambioNumerica_(oldMoeda, oldTaxaCambioStr);
+    var oldValorUnitario = normalizarNumero_(rowData[46] || (oldValorMensal / (oldQtdServicos * oldTaxaNum))) || (oldValorMensal / (oldQtdServicos * oldTaxaNum));
     var oldMesesCobranca = parseInt(rowData[47] || 12, 10) || 12;
     var oldFormaPluri = String(rowData[49] || (ehPeriodicidadePlurianual_(oldPeriodicidade) ? 'Parcela Única' : 'Mensal'));
     var oldQtdPluri = parseInt(rowData[50] || 1, 10) || 1;
@@ -6327,9 +6347,14 @@ function salvarAlteracaoContratoTelefonia(payload) {
     // Novos Valores
     var newObjeto = (payload.objeto !== undefined) ? String(payload.objeto).trim() : oldObjeto;
     var newTipo = (payload.tipo !== undefined && String(payload.tipo).trim() !== '') ? String(payload.tipo).trim() : oldTipo;
+    var newMoeda = (payload.moeda !== undefined) ? String(payload.moeda).trim() : oldMoeda;
+    var newTaxaCambioStr = (newMoeda.toUpperCase() === 'BRL')
+      ? '1,0000'
+      : ((payload.taxaCambio !== undefined && String(payload.taxaCambio).trim() !== '') ? String(payload.taxaCambio).trim() : oldTaxaCambioStr);
+    var newTaxaCambio = obterTaxaCambioNumerica_(newMoeda, newTaxaCambioStr);
     var newQtdServicos = (payload.qtdServicos !== undefined) ? (parseInt(payload.qtdServicos, 10) || 1) : oldQtdServicos;
     var newValorUnitario = (payload.valorUnitario !== undefined) ? normalizarNumero_(payload.valorUnitario) : oldValorUnitario;
-    var newValorMensal = (payload.valorMensal !== undefined) ? normalizarNumero_(payload.valorMensal) : (newValorUnitario * newQtdServicos);
+    var newValorMensal = (payload.valorMensal !== undefined && payload.valorMensal !== '') ? normalizarNumero_(payload.valorMensal) : (newValorUnitario * newQtdServicos * newTaxaCambio);
     var newMesesCobranca = (payload.mesesCobranca !== undefined) ? (parseInt(payload.mesesCobranca, 10) || 12) : oldMesesCobranca;
     var newDataInicio = (payload.dataInicio !== undefined) ? String(payload.dataInicio).trim() : oldDataInicio;
     var newDataFim = (payload.dataFim !== undefined) ? String(payload.dataFim).trim() : oldDataFim;
@@ -6341,8 +6366,6 @@ function salvarAlteracaoContratoTelefonia(payload) {
     var newDataReajuste = (newSemReajuste === 'Sim') ? '' : ((payload.dataReajuste !== undefined) ? String(payload.dataReajuste).trim() : oldDataReajuste);
     var newMesAniversario = (payload.mesAniversario !== undefined) ? (parseInt(payload.mesAniversario, 10) || 1) : oldMesAniversario;
     var newReajusteAplicado = (payload.reajusteAplicado !== undefined) ? String(payload.reajusteAplicado).trim() : oldReajusteAplicado;
-    var newMoeda = (payload.moeda !== undefined) ? String(payload.moeda).trim() : oldMoeda;
-    var newTaxaCambioStr = (payload.taxaCambio !== undefined && String(payload.taxaCambio).trim() !== '') ? String(payload.taxaCambio).trim() : oldTaxaCambioStr;
     var newImpostosEncargos = (payload.impostosEncargos !== undefined) ? String(payload.impostosEncargos).trim() : oldImpostosEncargos;
     var newContingencia = (payload.contingencia !== undefined) ? String(payload.contingencia).trim() : oldContingencia;
     var newContaContabil = (payload.contaContabil !== undefined) ? String(payload.contaContabil).trim() : oldContaContabil;
@@ -6364,8 +6387,8 @@ function salvarAlteracaoContratoTelefonia(payload) {
       alteracoes.push({ campo: 'Tipo de Contrato', de: oldTipo, para: newTipo });
     }
     if (newValorMensal !== oldValorMensal || newQtdServicos !== oldQtdServicos || newValorUnitario !== oldValorUnitario) {
-      var descAnt = 'R$ ' + oldValorMensal.toFixed(2) + ' (' + oldQtdServicos + ' servico(s) x R$ ' + oldValorUnitario.toFixed(2) + ')';
-      var descNovo = 'R$ ' + newValorMensal.toFixed(2) + ' (' + newQtdServicos + ' servico(s) x R$ ' + newValorUnitario.toFixed(2) + ')';
+      var descAnt = 'R$ ' + oldValorMensal.toFixed(2) + ' (' + oldQtdServicos + ' servico(s) x ' + (oldMoeda === 'BRL' ? 'R$ ' : (oldMoeda + ' ')) + oldValorUnitario.toFixed(2) + ')';
+      var descNovo = 'R$ ' + newValorMensal.toFixed(2) + ' (' + newQtdServicos + ' servico(s) x ' + (newMoeda === 'BRL' ? 'R$ ' : (newMoeda + ' ')) + newValorUnitario.toFixed(2) + ')';
       alteracoes.push({ campo: 'Valor Mensal / Servicos', de: descAnt, para: descNovo });
     }
     if (newMoeda !== oldMoeda || normalizarNumero_(newTaxaCambioStr) !== normalizarNumero_(oldTaxaCambioStr)) {
@@ -6452,17 +6475,17 @@ function salvarAlteracaoContratoTelefonia(payload) {
 
     var isPluriAlt = ehPeriodicidadePlurianual_(newPeriodicidade);
     var isAnualAlt = newPeriodicidade.toLowerCase().indexOf('anual') !== -1 && !isPluriAlt;
-    var newTaxaCambio = normalizarNumero_(newTaxaCambioStr) || 1;
+    // newValorMensal ja esta convertido para BRL (Valor Unitario x Qtd x Taxa de Cambio)
     var newDesembolsoAnual = 0;
     if (isPluriAlt) {
       newDesembolsoAnual = 0; // Nao tem todo ano
     } else if (isAnualAlt) {
-      newDesembolsoAnual = newValorMensal * newTaxaCambio;
+      newDesembolsoAnual = newValorMensal;
     } else {
-      newDesembolsoAnual = newValorMensal * newMesesCobranca * newTaxaCambio;
+      newDesembolsoAnual = newValorMensal * newMesesCobranca;
     }
 
-    var valorRegistroCiclo = newValorMensal * newTaxaCambio;
+    var valorRegistroCiclo = newValorMensal;
     sheetContratos.getRange(targetRow, 39).setValue(isPluriAlt ? valorRegistroCiclo : newDesembolsoAnual); // Valor Base em BRL
     sheetContratos.getRange(targetRow, 40).setValue(newContingencia);
     sheetContratos.getRange(targetRow, 41).setValue(isPluriAlt ? valorRegistroCiclo : newDesembolsoAnual); // Valor Orcado
