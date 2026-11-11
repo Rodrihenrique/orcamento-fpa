@@ -453,6 +453,7 @@ function getInitialData() {
     var administrativos = {};
 
 
+    var anoCorrente = new Date().getFullYear();
     var totalContratos = 0;
     var contratosAtivos = 0;
     var contratosRiscoAlto = 0;
@@ -1185,6 +1186,17 @@ function calcularDiasParaVencer_(val) {
   var diffTime = d.getTime() - hojeZerado.getTime();
   var diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
   return diffDays;
+}
+
+/**
+ * Extrai o ano (4 digitos) de uma data em formato Date, DD/MM/AAAA ou YYYY-MM-DD.
+ * @param {*} val
+ * @return {number|null}
+ */
+function extrairAnoData_(val) {
+  var d = converterParaData_(val);
+  if (!d) return null;
+  return d.getFullYear();
 }
 
 
@@ -4893,7 +4905,11 @@ function obterDadosCompletosTelefonia() {
           valorMensalAtual = normalizarNumero_(getCol(row, 'valor_orcado_lancamento', 40, 0));
         }
 
-        var diasRestantes = calcularDiasParaVencer_(getCol(row, 'data_fim_vigencia', 9, null));
+        var rawDataFim = getCol(row, 'data_fim_vigencia', 9, null);
+        var rawDataAtualiz = getCol(row, 'data_atualizacao', 25, null);
+        var diasRestantes = calcularDiasParaVencer_(rawDataFim);
+        var anoFim = extrairAnoData_(rawDataFim);
+        var anoAtualizacao = extrairAnoData_(rawDataAtualiz);
         var isPrazoIndetRow = String(getCol(row, 'vigencia_indeterminada', 10, 'Não')).toLowerCase() === 'sim';
         var situacaoContrato = String(getCol(row, 'situacao_contrato', 6, getCol(row, 'status', 6, 'Vigente'))).trim();
         var statusAlcada = String(getCol(row, 'status_de_aprovacao', 7, getCol(row, 'status_alcada', 7, 'Aprovado'))).trim();
@@ -4903,24 +4919,43 @@ function obterDadosCompletosTelefonia() {
         totalContratos++;
         var sitLower = situacaoContrato.toLowerCase();
         var alcLower = statusAlcada.toLowerCase();
-        var isEncerrado = sitLower.indexOf('cancel') !== -1 ||
+        var isCanceladoOuRejeitado = sitLower.indexOf('cancel') !== -1 ||
+                                     sitLower.indexOf('rejeit') !== -1 ||
+                                     alcLower.indexOf('rejeit') !== -1 ||
+                                     alcLower.indexOf('cancel') !== -1;
+        var isEncerrado = isCanceladoOuRejeitado ||
                           sitLower.indexOf('encerr') !== -1 ||
                           sitLower.indexOf('rescind') !== -1 ||
                           sitLower.indexOf('inativ') !== -1 ||
                           sitLower.indexOf('vencid') !== -1 ||
                           sitLower.indexOf('suspens') !== -1 ||
                           sitLower.indexOf('finaliz') !== -1 ||
-                          sitLower.indexOf('expir') !== -1 ||
-                          alcLower.indexOf('rejeit') !== -1 ||
-                          alcLower.indexOf('cancel') !== -1;
+                          sitLower.indexOf('expir') !== -1;
         var isExpiradoPorPrazo = (!isPrazoIndetRow && diasRestantes !== null && diasRestantes < 0);
         var fornRecCheck = fornecedoresMap[fornNome.toLowerCase()];
         var isFornecedorEncerrado = (fornRecCheck && String(fornRecCheck.status || '').toLowerCase().indexOf('encerr') !== -1);
 
-        // Contratos que ja passaram do prazo de vigencia sem atualizacao, encerrados ou de fornecedor encerrado
-        // ficam salvos apenas para historico, sem contabilizar na soma mensal ou anual.
+        // Regra de vigencia ativa atual (Desembolso Mensal e Contratos Ativos):
         var isAtivo = !isEncerrado && !isExpiradoPorPrazo && !isFornecedorEncerrado &&
                       (sitLower.indexOf('vigen') !== -1 || sitLower.indexOf('ativ') !== -1 || sitLower.indexOf('aprov') !== -1 || sitLower === '' || sitLower === 'sim');
+
+        // Regra de Orcamento Anual (Ano Corrente = 2026):
+        // Contratos que encerraram no ano corrente ainda compoem o orcamento anual daquele ano;
+        // contratos encerrados/vencidos de outros anos (< anoCorrente) ficam apenas para historico.
+        var contabilizaAnual = false;
+        if (isAtivo) {
+          contabilizaAnual = true;
+        } else if (!isCanceladoOuRejeitado) {
+          if (anoFim !== null) {
+            if (anoFim === anoCorrente) {
+              contabilizaAnual = true;
+            } else if (anoFim > anoCorrente && (sitLower.indexOf('encerr') !== -1 || isFornecedorEncerrado) && anoAtualizacao === anoCorrente) {
+              contabilizaAnual = true;
+            }
+          } else if ((sitLower.indexOf('encerr') !== -1 || isFornecedorEncerrado) && anoAtualizacao === anoCorrente) {
+            contabilizaAnual = true;
+          }
+        }
 
         if (isAtivo) {
           contratosAtivos++;
@@ -5020,8 +5055,11 @@ function obterDadosCompletosTelefonia() {
           mesesCobranca: mesesCobranca,
           desembolsoAnual: desembolsoAnualContrato,
           subpastaDestino: subpastaDrive,
+          dataAtualizacao: formatarDataExibicao_(rawDataAtualiz),
+          anoFimVigencia: anoFim,
           isVencidoSemAtualizacao: isExpiradoPorPrazo,
-          contabilizadoNoOrcamento: isAtivo,
+          contabilizadoNoMensal: isAtivo && !isPluriContrato,
+          contabilizadoNoOrcamento: contabilizaAnual && !isPluriContrato,
           isPlurianual: isPluriContrato,
           alertaPeriodicidade: isPluriContrato ? obterTextoAlertaPeriodicidade_(periodicidadeContrato) : '',
           formaPagamentoPlurianual: String(getCol(row, 'forma_de_pagamento_plurianual', 49, getCol(row, 'forma_pagamento', 49, (isPluriContrato ? 'Parcela Única' : 'Mensal')))),
@@ -5029,7 +5067,7 @@ function obterDadosCompletosTelefonia() {
           valorParcelaPlurianual: normalizarNumero_(getCol(row, 'valor_por_parcela', 51, getCol(row, 'valor_parcela', 51, valorMensalAtual)))
         };
 
-        if (isAtivo) {
+        if (contabilizaAnual) {
           somaValorAnual += desembolsoAnualContrato;
         }
 
@@ -5100,6 +5138,8 @@ function obterDadosCompletosTelefonia() {
           if (!isPluriContrato) {
             fornecedoresMap[fKey].valorMensalTotal += valorMensalAtual;
           }
+        }
+        if (contabilizaAnual) {
           fornecedoresMap[fKey].desembolsoAnualTotal = (fornecedoresMap[fKey].desembolsoAnualTotal || 0) + desembolsoAnualContrato;
         }
       }

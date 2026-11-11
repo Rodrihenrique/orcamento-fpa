@@ -3102,8 +3102,19 @@
     }
   }
 
-  // Helper centralizado: define se o contrato e considerado ativo para somas mensais/anuais e KPIs.
-  // Contratos encerrados, vencidos por prazo sem atualizacao ou de fornecedor encerrado permanecem apenas como historico.
+  function extrairAnoDataClient(val) {
+    if (!val) return null;
+    var s = String(val).trim();
+    if (!s || s === '-') return null;
+    var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (mBr) return parseInt(mBr[3], 10);
+    var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (mIso) return parseInt(mIso[1], 10);
+    var mYear = s.match(/(\d{4})/);
+    return mYear ? parseInt(mYear[1], 10) : null;
+  }
+
+  // Helper centralizado: define se o contrato esta vigente agora (Contratos Ativos, Desembolso Mensal e Alertas).
   function contratoContabilizaAtivo(c, fornecedor) {
     if (fornecedor && String(fornecedor.status || '').toLowerCase().indexOf('encerr') !== -1) {
       return false;
@@ -3122,6 +3133,36 @@
     return (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt || cSt === 'sim');
   }
 
+  // Define se o contrato compoe o Orcamento Anual / Desembolso Anual do ano corrente (ex: 2026).
+  // Contratos encerrados/vencidos no proprio ano corrente continuam no orcamento desse ano; valores de outros anos (< anoCorrente) sao ignorados.
+  function contratoContabilizaAnual(c, fornecedor) {
+    if (contratoContabilizaAtivo(c, fornecedor)) {
+      return true;
+    }
+    var cSt = String((c && c.status) || '').toLowerCase();
+    var cAlc = String((c && c.statusAlcada) || '').toLowerCase();
+    var isCancelado = cSt.indexOf('cancel') !== -1 || cSt.indexOf('rejeit') !== -1 ||
+                      cAlc.indexOf('rejeit') !== -1 || cAlc.indexOf('cancel') !== -1;
+    if (isCancelado) return false;
+
+    var anoCorrente = new Date().getFullYear();
+    var anoFim = c.anoFimVigencia || extrairAnoDataClient(c.dataFim);
+    var anoAtualizacao = extrairAnoDataClient(c.dataAtualizacao);
+    var fornEnc = fornecedor && String(fornecedor.status || '').toLowerCase().indexOf('encerr') !== -1;
+
+    if (anoFim !== null) {
+      if (anoFim === anoCorrente) return true;
+      if (anoFim > anoCorrente && (cSt.indexOf('encerr') !== -1 || fornEnc) && anoAtualizacao === anoCorrente) {
+        return true;
+      }
+      return false;
+    }
+    if ((cSt.indexOf('encerr') !== -1 || fornEnc) && anoAtualizacao === anoCorrente) {
+      return true;
+    }
+    return false;
+  }
+
   function recalcularKpisDashboard() {
     var totalMensalCalc = 0;
     var totalAnualCalc = 0;
@@ -3138,34 +3179,39 @@
     (appState.contratos || []).forEach(function(cItem) {
       var fornPai = (cItem.idFornecedor && fornById[String(cItem.idFornecedor)]) ||
                     (cItem.fornecedor && fornByNome[String(cItem.fornecedor).toLowerCase().trim()]) || null;
-      if (contratoContabilizaAtivo(cItem, fornPai)) {
+      var ativoAtual = contratoContabilizaAtivo(cItem, fornPai);
+      var compoeAnual = contratoContabilizaAnual(cItem, fornPai);
+
+      var isPluriKpi = ehPeriodicidadePlurianual(cItem.periodicidade);
+      var isAnualKpi = String(cItem.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriKpi;
+      var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || 0;
+      var msCob = parseInt(cItem.mesesCobranca, 10);
+      if (isNaN(msCob) || msCob <= 0) msCob = 12;
+
+      var valAnual = 0;
+      if (isPluriKpi) {
+        valAnual = 0;
+      } else if (isAnualKpi) {
+        valAnual = valContrato;
+      } else {
+        valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
+      }
+
+      if (ativoAtual) {
         contratosAtivosCalc++;
-        var isPluriKpi = ehPeriodicidadePlurianual(cItem.periodicidade);
-        var isAnualKpi = String(cItem.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriKpi;
-        var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || 0;
-        var msCob = parseInt(cItem.mesesCobranca, 10);
-        if (isNaN(msCob) || msCob <= 0) msCob = 12;
-
-        var valAnual = 0;
-        if (isPluriKpi) {
-          valAnual = 0;
-        } else if (isAnualKpi) {
-          valAnual = valContrato;
-        } else {
-          valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
-        }
-
         if (!isPluriKpi) {
           totalMensalCalc += valContrato;
         }
-        totalAnualCalc += valAnual;
-
         if (!cItem.prazoIndeterminado && cItem.diasRestantes !== null && cItem.diasRestantes !== undefined) {
           var diasK = parseInt(cItem.diasRestantes, 10);
           if (!isNaN(diasK) && diasK >= 0 && diasK <= 60) {
             contratosRisco60Calc++;
           }
         }
+      }
+
+      if (compoeAnual) {
+        totalAnualCalc += valAnual;
       }
     });
 
@@ -3219,6 +3265,7 @@
       if (f.contratos && f.contratos.length > 0) {
         f.contratos.forEach(function(c) {
           var isAt = contratoContabilizaAtivo(c, f);
+          var isAnualComp = contratoContabilizaAnual(c, f);
 
           var isPluriForn = ehPeriodicidadePlurianual(c.periodicidade);
           var isAnualForn = String(c.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriForn;
@@ -3240,6 +3287,8 @@
             if (!isPluriForn) {
               fValorMensal += vMensal;
             }
+          }
+          if (isAnualComp) {
             fValorAnual += vAnual;
           }
 
@@ -3252,10 +3301,10 @@
             }
           }
         });
-      } else if (!isEncerrado) {
-        fValorMensal = f.valorMensalTotal || 0;
-        fValorAnual = f.desembolsoAnualTotal || (fValorMensal * 12);
-        fContratosAtivos = f.contratosAtivos || 0;
+      } else {
+        fValorMensal = isEncerrado ? 0 : (f.valorMensalTotal || 0);
+        fValorAnual = f.desembolsoAnualTotal || 0;
+        fContratosAtivos = isEncerrado ? 0 : (f.contratosAtivos || 0);
       }
 
       html += '<div class="supplier-accordion-card ' + (isExpanded ? 'expanded' : '') + '" id="' + fId + '">';
@@ -3410,15 +3459,33 @@
             }
           }
 
-          var rowHistoricoStyle = isAtivoLinha ? '' : ' style="background:#F8FAFC; color:#64748B;"';
+          var isAnualLinha = contratoContabilizaAnual(c, f);
+          var anoCorrLinha = new Date().getFullYear();
+          var anoFimLinha = c.anoFimVigencia || extrairAnoDataClient(c.dataFim);
+
+          var rowHistoricoStyle = isAtivoLinha ? '' : (isAnualLinha ? ' style="background:#FAFAF9; color:#475569;"' : ' style="background:#F8FAFC; color:#64748B;"');
           var valorColColor = isAtivoLinha ? '' : ' color:#94A3B8;';
-          var anualColColor = isAtivoLinha ? ' color: var(--brisa-blue);' : ' color:#94A3B8;';
-          var notaHistoricoHtml = isAtivoLinha ? '' : '<div style="font-size:10px; font-weight:600; color:#64748B; margin-top:2px;">Histórico · Não somado</div>';
+          var anualColColor = isAnualLinha ? ' color: var(--brisa-blue);' : ' color:#94A3B8;';
+
+          var notaMensalHtml = '';
+          var notaAnualHtml = '';
+          if (!isAtivoLinha) {
+            if (isAnualLinha) {
+              notaMensalHtml = '<div style="font-size:10px; font-weight:600; color:#64748B; margin-top:2px;">Encerrado em ' + anoCorrLinha + ' · Fora do mensal</div>';
+              if (!isPluriContrato) {
+                notaAnualHtml = '<div style="font-size:10px; font-weight:700; color:#1D4ED8; margin-top:2px;">Compõe orçamento ' + anoCorrLinha + '</div>';
+              }
+            } else {
+              var lblAnoHist = anoFimLinha ? String(anoFimLinha) : 'Outro ano';
+              notaMensalHtml = '<div style="font-size:10px; font-weight:600; color:#64748B; margin-top:2px;">Histórico (' + lblAnoHist + ') · Não somado</div>';
+              notaAnualHtml = '<div style="font-size:10px; font-weight:600; color:#64748B; margin-top:2px;">Histórico (' + lblAnoHist + ') · Não somado</div>';
+            }
+          }
 
           var alcadaBadgeHtml = '';
           if (!isAtivoLinha) {
             if (isExpiradoLinha && String(c.status || '').toLowerCase().indexOf('encerr') === -1) {
-              alcadaBadgeHtml = '<span class="badge-alcada" style="background:#FEF2F2; color:#991B1B; border-color:#FECACA;">Vencido (Histórico)</span>';
+              alcadaBadgeHtml = '<span class="badge-alcada" style="background:#FEF2F2; color:#991B1B; border-color:#FECACA;">Vencido (' + (isAnualLinha ? anoCorrLinha : 'Histórico') + ')</span>';
             } else if (isEncerrado) {
               alcadaBadgeHtml = '<span class="badge-alcada" style="background:#F1F5F9; color:#475569; border-color:#CBD5E1;">Forn. Encerrado</span>';
             } else {
@@ -3437,8 +3504,8 @@
           html += '            <div>' + escapeHtml(vigenciaTxt) + '</div>';
           html += '            <span class="badge-urgency ' + urgencyClass + '">' + diasTxt + '</span>';
           html += '          </td>';
-          html += '          <td style="font-weight: 700;' + valorColColor + '">' + labelMensalCol + notaHistoricoHtml + '</td>';
-          html += '          <td style="font-weight: 700;' + anualColColor + '">' + labelAnualCol + notaHistoricoHtml + '</td>';
+          html += '          <td style="font-weight: 700;' + valorColColor + '">' + labelMensalCol + notaMensalHtml + '</td>';
+          html += '          <td style="font-weight: 700;' + anualColColor + '">' + labelAnualCol + notaAnualHtml + '</td>';
           html += '          <td>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</td>';
           html += '          <td>' + alcadaBadgeHtml + '</td>';
           html += '          <td style="text-align: right;">';
