@@ -4280,10 +4280,22 @@ function revogarSubstitutoAusenciaTelefonia() {
 }
 
 /**
- * Atualiza o status operacional do fornecedor (Ativo / Encerrado)
+ * Normaliza o status operacional do fornecedor entre Ativo, Homologacao e Encerrado.
+ * @param {string} rawStatus
+ * @return {string}
+ */
+function normalizarStatusFornecedor_(rawStatus) {
+  var low = String(rawStatus || 'Ativo').trim().toLowerCase();
+  if (low.indexOf('encerr') !== -1) return 'Encerrado';
+  if (low.indexOf('homolog') !== -1 || low.indexOf('negocia') !== -1) return 'Homologação';
+  return 'Ativo';
+}
+
+/**
+ * Atualiza o status operacional do fornecedor (Ativo / Homologacao / Encerrado)
  * gravando na aba Fornecedores e registrando na Trilha Oficial de Auditoria.
  * @param {string} idOuNomeFornecedor
- * @param {string} novoStatus 'Ativo' ou 'Encerrado'
+ * @param {string} novoStatus 'Ativo', 'Homologacao' ou 'Encerrado'
  * @return {Object}
  */
 function atualizarStatusFornecedorTelefonia(idOuNomeFornecedor, novoStatus) {
@@ -4306,12 +4318,7 @@ function atualizarStatusFornecedorTelefonia(idOuNomeFornecedor, novoStatus) {
     var fornRef = String(idOuNomeFornecedor || '').trim().toLowerCase();
     if (!fornRef) throw new Error('Identificador ou Razao Social do fornecedor e obrigatorio.');
 
-    var statusNormalizado = String(novoStatus || 'Ativo').trim();
-    if (statusNormalizado.toLowerCase().indexOf('encerr') !== -1) {
-      statusNormalizado = 'Encerrado';
-    } else {
-      statusNormalizado = 'Ativo';
-    }
+    var statusNormalizado = normalizarStatusFornecedor_(novoStatus);
 
     var data = sheetFornecedores.getDataRange().getValues();
     var headers = data.length > 0 ? data[0].map(function(h) { return String(h).toLowerCase().trim(); }) : [];
@@ -4782,7 +4789,7 @@ function obterDadosCompletosTelefonia() {
         } else if (isCol3Cnpj) {
           // Linha com 9 colunas legadas: Coluna 3 e o CNPJ
           var col8StatusLower = valCol8.toLowerCase();
-          var temStatusEmCol8 = (col8StatusLower === 'ativo' || col8StatusLower === 'encerrado');
+          var temStatusEmCol8 = (col8StatusLower === 'ativo' || col8StatusLower === 'encerrado' || col8StatusLower.indexOf('homolog') !== -1);
           apelidoForn = fantasiaForn || nomeForn;
           cnpjForn = valCol3;
           contatoForn = valCol4;

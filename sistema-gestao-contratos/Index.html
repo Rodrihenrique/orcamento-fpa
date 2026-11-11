@@ -555,6 +555,11 @@
       color: var(--success);
       border-color: #A7F3D0;
     }
+    .badge-status-select.homologacao {
+      background: var(--warning-bg);
+      color: var(--warning);
+      border-color: #FDE68A;
+    }
     .badge-status-select.encerrado {
       background: #F1F5F9;
       color: #475569;
@@ -562,6 +567,78 @@
     }
     .badge-status-select:hover {
       opacity: 0.9;
+    }
+
+    .pagination-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 16px;
+      padding: 12px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pagination-info {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .pagination-info strong {
+      color: var(--brisa-dark-blue);
+    }
+
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .pagination-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+      background: var(--bg-surface);
+      color: var(--text-main);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .pagination-btn:hover:not(:disabled):not(.active) {
+      background: #F8FAFC;
+      border-color: var(--brisa-blue);
+      color: var(--brisa-blue);
+    }
+
+    .pagination-btn.active {
+      background: var(--brisa-blue);
+      border-color: var(--brisa-blue);
+      color: #FFFFFF;
+    }
+
+    .pagination-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .pagination-ellipsis {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 0 4px;
+      user-select: none;
     }
 
     .badge-alerta-vencimento {
@@ -1707,6 +1784,7 @@
         <option value="Vigente">Vigente</option>
         <option value="Aguardando Aprovação">Aguardando Aprovação</option>
         <option value="Em Reajuste">Em Reajuste</option>
+        <option value="Homologação">Em Homologação</option>
         <option value="Encerrado">Encerrado</option>
       </select>
       <select id="filtroTipoContrato" class="filter-select" onchange="filtrarFornecedores()">
@@ -1722,6 +1800,7 @@
 
     <!-- CONTAINER DOS CARTOES DE FORNECEDORES -->
     <div id="containerFornecedoresLista"></div>
+    <div id="paginacaoFornecedoresBar" class="pagination-bar" style="display: none;"></div>
   </div>
 
   <!-- ========================================================================
@@ -2679,6 +2758,9 @@
     contratoSelecionado: null,
     abaFichaAtiva: 'resumo',
     fornecedoresExpandidos: {},
+    fornecedoresPaginaAtual: 1,
+    fornecedoresPorPagina: 10,
+    fornecedoresListaRenderizada: null,
     logsExpandidos: {},
     arquivosModalContrato: []
   };
@@ -3072,7 +3154,7 @@
                          (document.getElementById('filtroStatusContrato') && document.getElementById('filtroStatusContrato').value !== '') ||
                          (document.getElementById('filtroTipoContrato') && document.getElementById('filtroTipoContrato').value !== '');
     if (temFiltroAtivo) {
-      filtrarFornecedores();
+      filtrarFornecedores(false);
     } else {
       renderizarFornecedoresAcordeao(appState.fornecedores);
     }
@@ -3253,26 +3335,64 @@
     if (elAp) elAp.textContent = appState.kpis.minhasAprovacoesPendentes || 0;
   }
 
-  // Renderizacao do Acordeao de Fornecedores
+  function obterMetaStatusFornecedorClient(rawStatus) {
+    var low = String(rawStatus || 'Ativo').trim().toLowerCase();
+    if (low.indexOf('encerr') !== -1) {
+      return { valor: 'Encerrado', cls: 'encerrado', isEncerrado: true, isHomologacao: false };
+    }
+    if (low.indexOf('homolog') !== -1 || low.indexOf('negocia') !== -1) {
+      return { valor: 'Homologação', cls: 'homologacao', isEncerrado: false, isHomologacao: true };
+    }
+    return { valor: 'Ativo', cls: 'ativo', isEncerrado: false, isHomologacao: false };
+  }
+
+  // Renderizacao do Acordeao de Fornecedores (10 fornecedores por pagina)
   function renderizarFornecedoresAcordeao(fornecedores) {
     var container = document.getElementById('containerFornecedoresLista');
+    var pagBar = document.getElementById('paginacaoFornecedoresBar');
     if (!container) return;
 
-    if (!fornecedores || fornecedores.length === 0) {
+    var listaCompleta = Array.isArray(fornecedores) ? fornecedores : [];
+    appState.fornecedoresListaRenderizada = listaCompleta;
+
+    if (listaCompleta.length === 0) {
       container.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-muted); background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px solid var(--border-subtle);">' +
         'Nenhum fornecedor localizado com os filtros aplicados.' +
         '</div>';
+      if (pagBar) {
+        pagBar.style.display = 'none';
+        pagBar.innerHTML = '';
+      }
       return;
     }
 
+    var porPagina = parseInt(appState.fornecedoresPorPagina, 10) || 10;
+    var totalFornecedores = listaCompleta.length;
+    var totalPaginas = Math.max(1, Math.ceil(totalFornecedores / porPagina));
+    var paginaAtual = parseInt(appState.fornecedoresPaginaAtual, 10) || 1;
+    if (paginaAtual < 1) paginaAtual = 1;
+    if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+    appState.fornecedoresPaginaAtual = paginaAtual;
+
+    var inicio = (paginaAtual - 1) * porPagina;
+    var fim = Math.min(inicio + porPagina, totalFornecedores);
+    var fornecedoresPagina = listaCompleta.slice(inicio, fim);
+
     var html = '';
-    fornecedores.forEach(function(f, idx) {
-      var fId = 'forn_' + idx;
+    var usedCardIds = {};
+    fornecedoresPagina.forEach(function(f, idxLocal) {
+      var globalIdx = inicio + idxLocal;
+      var rawKey = String(f.id || f.razaoSocial || globalIdx).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32);
+      var fId = 'forn_' + rawKey;
+      if (usedCardIds[fId]) {
+        fId = fId + '_' + globalIdx;
+      }
+      usedCardIds[fId] = true;
       var isExpanded = appState.fornecedoresExpandidos[fId] || false;
-      var statusRaw = String(f.status || 'Ativo').trim();
-      var isEncerrado = statusRaw.toLowerCase().indexOf('encerr') !== -1;
-      var statusValor = isEncerrado ? 'Encerrado' : 'Ativo';
-      var selectClass = isEncerrado ? 'encerrado' : 'ativo';
+      var statusMeta = obterMetaStatusFornecedorClient(f.status);
+      var isEncerrado = statusMeta.isEncerrado;
+      var statusValor = statusMeta.valor;
+      var selectClass = statusMeta.cls;
 
       // Verificar contratos, valores e alerta discreto de vencimento proximo
       var fValorMensal = 0;
@@ -3333,9 +3453,10 @@
       if (f.cnpj) {
         html += '      <span class="badge-cnpj">' + escapeHtml(f.cnpj) + '</span>';
       }
-      // Status interativo do fornecedor (lista suspensa ATIVO / ENCERRADO)
-      html += '      <select class="badge-status-select ' + selectClass + '" onclick="event.stopPropagation()" onchange="alterarStatusFornecedor(this, \'' + escapeHtml(f.id || '') + '\', \'' + escapeHtml(f.razaoSocial) + '\')" title="Alterar status operacional do fornecedor">';
+      // Status interativo do fornecedor (lista suspensa ATIVO / HOMOLOGACAO / ENCERRADO)
+      html += '      <select class="badge-status-select ' + selectClass + '" data-prev-status="' + statusValor + '" onclick="event.stopPropagation()" onchange="alterarStatusFornecedor(this, \'' + escapeHtml(f.id || '') + '\', \'' + escapeHtml(f.razaoSocial) + '\')" title="Alterar status operacional do fornecedor">';
       html += '        <option value="Ativo"' + (statusValor === 'Ativo' ? ' selected' : '') + '>ATIVO</option>';
+      html += '        <option value="Homologação"' + (statusValor === 'Homologação' ? ' selected' : '') + '>HOMOLOGAÇÃO</option>';
       html += '        <option value="Encerrado"' + (statusValor === 'Encerrado' ? ' selected' : '') + '>ENCERRADO</option>';
       html += '      </select>';
 
@@ -3542,6 +3663,64 @@
     });
 
     container.innerHTML = html;
+    renderizarPaginacaoFornecedores(totalFornecedores, paginaAtual, totalPaginas, inicio, fim);
+  }
+
+  function renderizarPaginacaoFornecedores(totalRegistros, paginaAtual, totalPaginas, inicio, fim) {
+    var pagBar = document.getElementById('paginacaoFornecedoresBar');
+    if (!pagBar) return;
+
+    if (!totalRegistros || totalRegistros <= 0) {
+      pagBar.style.display = 'none';
+      pagBar.innerHTML = '';
+      return;
+    }
+
+    pagBar.style.display = 'flex';
+    var infoHtml = '<div class="pagination-info">' +
+      'Exibindo <strong>' + (inicio + 1) + '–' + fim + '</strong> de <strong>' + totalRegistros + '</strong> fornecedores · Página <strong>' + paginaAtual + '</strong> de <strong>' + totalPaginas + '</strong> (10 por página)' +
+      '</div>';
+
+    var controlsHtml = '<div class="pagination-controls">';
+    controlsHtml += '<button type="button" class="pagination-btn" onclick="irParaPaginaFornecedores(' + (paginaAtual - 1) + ')"' + (paginaAtual <= 1 ? ' disabled' : '') + '>Anterior</button>';
+
+    var paginasParaMostrar = [];
+    for (var p = 1; p <= totalPaginas; p++) {
+      if (p === 1 || p === totalPaginas || Math.abs(p - paginaAtual) <= 1) {
+        paginasParaMostrar.push(p);
+      }
+    }
+
+    var ultimoP = 0;
+    for (var idx = 0; idx < paginasParaMostrar.length; idx++) {
+      var pg = paginasParaMostrar[idx];
+      if (ultimoP && pg - ultimoP > 1) {
+        controlsHtml += '<span class="pagination-ellipsis">...</span>';
+      }
+      controlsHtml += '<button type="button" class="pagination-btn' + (pg === paginaAtual ? ' active' : '') + '" onclick="irParaPaginaFornecedores(' + pg + ')">' + pg + '</button>';
+      ultimoP = pg;
+    }
+
+    controlsHtml += '<button type="button" class="pagination-btn" onclick="irParaPaginaFornecedores(' + (paginaAtual + 1) + ')"' + (paginaAtual >= totalPaginas ? ' disabled' : '') + '>Próxima</button>';
+    controlsHtml += '</div>';
+
+    pagBar.innerHTML = infoHtml + controlsHtml;
+  }
+
+  function irParaPaginaFornecedores(novaPagina) {
+    var lista = appState.fornecedoresListaRenderizada || appState.fornecedores || [];
+    var porPagina = parseInt(appState.fornecedoresPorPagina, 10) || 10;
+    var totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina));
+    var paginaAlvo = parseInt(novaPagina, 10) || 1;
+    if (paginaAlvo < 1) paginaAlvo = 1;
+    if (paginaAlvo > totalPaginas) paginaAlvo = totalPaginas;
+    appState.fornecedoresPaginaAtual = paginaAlvo;
+    renderizarFornecedoresAcordeao(lista);
+
+    var viewEl = document.getElementById('viewFornecedores');
+    if (viewEl && typeof viewEl.scrollIntoView === 'function') {
+      viewEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function alternarFornecedor(fornCardId) {
@@ -3575,16 +3754,22 @@
   }
 
   function alterarStatusFornecedor(selectElem, fornId, fornRazao) {
+    var statusAnterior = (selectElem.dataset && selectElem.dataset.prevStatus) ? selectElem.dataset.prevStatus : 'Ativo';
     var novoStatus = selectElem.value;
     var fornNome = fornRazao || fornId;
+    var metaNovo = obterMetaStatusFornecedorClient(novoStatus);
 
-    if (novoStatus === 'Encerrado') {
-      selectElem.className = 'badge-status-select encerrado';
-    } else {
-      selectElem.className = 'badge-status-select ativo';
-    }
+    selectElem.className = 'badge-status-select ' + metaNovo.cls;
+
+    var reverterStatusSelect = function() {
+      var metaPrev = obterMetaStatusFornecedorClient(statusAnterior);
+      selectElem.value = metaPrev.valor;
+      selectElem.className = 'badge-status-select ' + metaPrev.cls;
+    };
 
     var aplicarAlteracaoLocalFornecedor = function(statusFinal) {
+      var metaFinal = obterMetaStatusFornecedorClient(statusFinal);
+      if (selectElem.dataset) selectElem.dataset.prevStatus = metaFinal.valor;
       if (appState.fornecedores) {
         var idLow = String(fornId || '').trim().toLowerCase();
         var razLow = String(fornRazao || '').trim().toLowerCase();
@@ -3603,41 +3788,43 @@
                       (document.getElementById('filtroStatusContrato') && document.getElementById('filtroStatusContrato').value !== '') ||
                       (document.getElementById('filtroTipoContrato') && document.getElementById('filtroTipoContrato').value !== '');
       if (temFiltro) {
-        filtrarFornecedores();
+        filtrarFornecedores(false);
       } else {
         renderizarFornecedoresAcordeao(appState.fornecedores);
       }
     };
 
-    mostrarToast('Salvando status de ' + fornNome + ' para ' + novoStatus + '...', 'info');
+    mostrarToast('Salvando status de ' + fornNome + ' para ' + metaNovo.valor + '...', 'info');
 
     if (typeof google !== 'undefined' && google.script && google.script.run) {
       google.script.run
         .withSuccessHandler(function(res) {
           if (res && res.success) {
-            mostrarToast('Status de ' + fornNome + ' salvo como ' + (res.novoStatus || novoStatus) + '!', 'success');
-            aplicarAlteracaoLocalFornecedor(res.novoStatus || novoStatus);
+            mostrarToast('Status de ' + fornNome + ' salvo como ' + (res.novoStatus || metaNovo.valor) + '!', 'success');
+            aplicarAlteracaoLocalFornecedor(res.novoStatus || metaNovo.valor);
           } else {
             mostrarToast('Erro ao atualizar status: ' + ((res && res.error) || 'Falha no servidor'), 'error');
-            selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
-            selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
+            reverterStatusSelect();
           }
         })
         .withFailureHandler(function(err) {
           mostrarToast('Erro ao atualizar status: ' + err.message, 'error');
-          selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
-          selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
+          reverterStatusSelect();
         })
-        .atualizarStatusFornecedorTelefonia(fornId || fornRazao, novoStatus);
+        .atualizarStatusFornecedorTelefonia(fornId || fornRazao, metaNovo.valor);
     } else {
       setTimeout(function() {
-        aplicarAlteracaoLocalFornecedor(novoStatus);
-        mostrarToast('Simulação: Status de ' + fornNome + ' atualizado para ' + novoStatus + '.', 'success');
+        aplicarAlteracaoLocalFornecedor(metaNovo.valor);
+        mostrarToast('Simulação: Status de ' + fornNome + ' atualizado para ' + metaNovo.valor + '.', 'success');
       }, 300);
     }
   }
 
-  function filtrarFornecedores() {
+  function filtrarFornecedores(resetarPagina) {
+    if (resetarPagina !== false) {
+      appState.fornecedoresPaginaAtual = 1;
+    }
+
     var termo = (document.getElementById('filtroFornecedoresInput').value || '').toLowerCase().trim();
     var status = (document.getElementById('filtroStatusContrato').value || '').toLowerCase().trim();
     var setor = (document.getElementById('filtroSetorContrato').value || '').toLowerCase().trim();
@@ -3645,27 +3832,45 @@
     var tipo = (tipoEl ? tipoEl.value : '').toLowerCase().trim();
 
     var filtrados = [];
-    appState.fornecedores.forEach(function(f) {
+    (appState.fornecedores || []).forEach(function(f) {
       var fNome = (f.razaoSocial || '').toLowerCase();
+      var fApelido = (f.apelido || '').toLowerCase();
+      var fFantasia = (f.nomeFantasia || '').toLowerCase();
       var fCnpj = (f.cnpj || '').toLowerCase();
+      var fStatusMeta = obterMetaStatusFornecedorClient(f.status);
 
-      var contratosFiltrados = f.contratos.filter(function(c) {
-        var matchTermo = !termo ||
-          fNome.indexOf(termo) !== -1 ||
-          fCnpj.indexOf(termo) !== -1 ||
+      var matchFornTermo = !termo ||
+        fNome.indexOf(termo) !== -1 ||
+        fApelido.indexOf(termo) !== -1 ||
+        fFantasia.indexOf(termo) !== -1 ||
+        fCnpj.indexOf(termo) !== -1;
+
+      var contratosFiltrados = (f.contratos || []).filter(function(c) {
+        var matchTermo = matchFornTermo ||
           (c.objeto || '').toLowerCase().indexOf(termo) !== -1 ||
           (c.setorGerencia || '').toLowerCase().indexOf(termo) !== -1 ||
           (c.tipo || '').toLowerCase().indexOf(termo) !== -1 ||
           (c.protocolo || '').toLowerCase().indexOf(termo) !== -1;
 
-        var matchStatus = !status || (c.status || '').toLowerCase().indexOf(status) !== -1 || (status === 'encerrado' && !contratoContabilizaAtivo(c, f));
+        var cStLow = (c.status || '').toLowerCase();
+        var matchStatus = !status ||
+          cStLow.indexOf(status) !== -1 ||
+          (status.indexOf('homolog') !== -1 && (fStatusMeta.isHomologacao || cStLow.indexOf('homolog') !== -1)) ||
+          (status === 'encerrado' && !contratoContabilizaAtivo(c, f));
         var matchSetor = !setor || (c.setorGerencia || '').toLowerCase().indexOf(setor) !== -1;
         var matchTipo = !tipo || (c.tipo || '').toLowerCase().trim() === tipo;
 
         return matchTermo && matchStatus && matchSetor && matchTipo;
       });
 
-      if (contratosFiltrados.length > 0 || (!status && !setor && !tipo && (fNome.indexOf(termo) !== -1 || fCnpj.indexOf(termo) !== -1))) {
+      var semFiltrosContrato = (!setor && !tipo);
+      var matchFornecedorSemContratos = semFiltrosContrato && matchFornTermo && (
+        !status ||
+        (status.indexOf('homolog') !== -1 && fStatusMeta.isHomologacao) ||
+        (status === 'encerrado' && fStatusMeta.isEncerrado)
+      );
+
+      if (contratosFiltrados.length > 0 || matchFornecedorSemContratos) {
         var fCopia = Object.assign({}, f);
         fCopia.contratos = contratosFiltrados;
         filtrados.push(fCopia);
