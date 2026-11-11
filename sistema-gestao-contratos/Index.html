@@ -1852,11 +1852,9 @@
       </select>
       <select id="filtroStatusContrato" class="filter-select" onchange="filtrarFornecedores()">
         <option value="">Status: Todos</option>
-        <option value="Vigente">Vigente</option>
-        <option value="Aguardando Aprovação">Aguardando Aprovação</option>
-        <option value="Em Reajuste">Em Reajuste</option>
-        <option value="Homologação">Em Homologação</option>
-        <option value="Encerrado">Encerrado</option>
+        <option value="Ativo">ATIVO</option>
+        <option value="Homologação">HOMOLOGAÇÃO</option>
+        <option value="Encerrado">ENCERRADO</option>
       </select>
       <select id="filtroTipoContrato" class="filter-select" onchange="filtrarFornecedores()">
         <option value="">Tipo: Todos</option>
@@ -2741,28 +2739,38 @@
             <input type="text" id="editFornApelido" class="form-control" placeholder="Ex: Huawei, Cirion, Vogel..." required>
           </div>
           <div class="form-group">
+            <label class="form-label required">Setor / Gerência da Telefonia</label>
+            <select id="editFornSetor" class="form-control" required>
+              <option value="GESTAO TELEFONIA">GESTAO TELEFONIA</option>
+              <option value="OPERACAO E MANUTENCAO DE REDES">OPERACAO E MANUTENCAO DE REDES</option>
+              <option value="OPERACOES DE REDES">OPERACOES DE REDES</option>
+              <option value="PROJETOS DE IMPLANTACAO">PROJETOS DE IMPLANTACAO</option>
+              <option value="TELEFONIA">TELEFONIA</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label class="form-label">CNPJ</label>
             <input type="text" id="editFornCnpj" class="form-control" placeholder="00.000.000/0000-00" maxlength="18" oninput="mascaraCnpj(this)">
           </div>
           <div class="form-group">
-            <label class="form-label">Contato Comercial</label>
-            <input type="text" id="editFornContato" class="form-control" placeholder="Nome ou telefone comercial">
+            <label class="form-label">Telefone / Contato Comercial</label>
+            <input type="text" id="editFornContato" class="form-control" placeholder="(00) 00000-0000 ou nome do contato">
           </div>
           <div class="form-group">
             <label class="form-label">E-mail Comercial</label>
             <input type="email" id="editFornEmail" class="form-control" placeholder="comercial@fornecedor.com.br">
           </div>
-          <div class="form-group" style="grid-column: span 2;">
-            <label class="form-label required">Status Operacional</label>
+          <div class="form-group">
+            <label class="form-label required">Status de Homologação</label>
             <select id="editFornStatus" class="form-control" required>
-              <option value="Ativo">Ativo</option>
-              <option value="Homologação">Homologação (Em Negociação)</option>
-              <option value="Encerrado">Encerrado</option>
+              <option value="Ativo">ATIVO</option>
+              <option value="Homologação">HOMOLOGAÇÃO</option>
+              <option value="Encerrado">ENCERRADO</option>
             </select>
           </div>
           <div class="form-group" style="grid-column: span 2;">
-            <label class="form-label">Sobre o Fornecedor / Observações</label>
-            <textarea id="editFornObservacoes" class="form-control" rows="3" placeholder="Descreva informações relevantes sobre o fornecedor, atuação, SLA, histórico comercial ou negociação..."></textarea>
+            <label class="form-label">Observações Internas / Sobre o Fornecedor</label>
+            <textarea id="editFornObservacoes" class="form-control" rows="3" placeholder="Notas sobre a parceria, contas, atuação, SLA ou histórico comercial..."></textarea>
           </div>
         </div>
 
@@ -3688,6 +3696,7 @@
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Razão Social</span><div style="font-weight: 700; color: var(--brisa-dark-blue); margin-top: 2px;">' + escapeHtml(f.razaoSocial) + '</div></div>';
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Nome Fantasia</span><div style="font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.nomeFantasia || '-') + '</div></div>';
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Apelido (Nome Usual)</span><div style="font-weight: 700; color: var(--brisa-blue); margin-top: 2px;">' + escapeHtml(f.apelido || '-') + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Setor / Gerência</span><div style="margin-top: 2px;"><span class="badge-setor">' + escapeHtml(f.setorGerencia || (f.contratos && f.contratos[0] && f.contratos[0].setorGerencia) || 'GESTAO TELEFONIA') + '</span></div></div>';
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">CNPJ</span><div style="font-family: monospace; font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.cnpj || '-') + '</div></div>';
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Contato Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.contato || '-') + '</div></div>';
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">E-mail Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.email || '-') + '</div></div>';
@@ -4034,6 +4043,14 @@
         fFantasia.indexOf(termo) !== -1 ||
         fCnpj.indexOf(termo) !== -1;
 
+      // Filtro de Status focado estritamente nos status dos fornecedores (ATIVO, HOMOLOGACAO, ENCERRADO)
+      var matchStatusFornecedor = !status ||
+        (status === 'ativo' && !fStatusMeta.isEncerrado && !fStatusMeta.isHomologacao) ||
+        (status.indexOf('homolog') !== -1 && fStatusMeta.isHomologacao) ||
+        (status === 'encerrado' && fStatusMeta.isEncerrado);
+
+      if (!matchStatusFornecedor) return;
+
       var contratosFiltrados = (f.contratos || []).filter(function(c) {
         var matchTermo = matchFornTermo ||
           (c.objeto || '').toLowerCase().indexOf(termo) !== -1 ||
@@ -4041,25 +4058,16 @@
           (c.tipo || '').toLowerCase().indexOf(termo) !== -1 ||
           (c.protocolo || '').toLowerCase().indexOf(termo) !== -1;
 
-        var cStLow = (c.status || '').toLowerCase();
-        var matchStatus = !status ||
-          cStLow.indexOf(status) !== -1 ||
-          (status.indexOf('homolog') !== -1 && (fStatusMeta.isHomologacao || cStLow.indexOf('homolog') !== -1)) ||
-          (status === 'encerrado' && !contratoContabilizaAtivo(c, f));
         var matchSetor = !setor || (c.setorGerencia || '').toLowerCase().indexOf(setor) !== -1;
         var matchTipo = !tipo || (c.tipo || '').toLowerCase().trim() === tipo;
 
-        return matchTermo && matchStatus && matchSetor && matchTipo;
+        return matchTermo && matchSetor && matchTipo;
       });
 
-      var semFiltrosContrato = (!setor && !tipo);
-      var matchFornecedorSemContratos = semFiltrosContrato && matchFornTermo && (
-        !status ||
-        (status.indexOf('homolog') !== -1 && fStatusMeta.isHomologacao) ||
-        (status === 'encerrado' && fStatusMeta.isEncerrado)
-      );
+      var fSetorLow = (f.setorGerencia || '').toLowerCase();
+      var matchFornSemContratos = !tipo && matchFornTermo && (!setor || fSetorLow.indexOf(setor) !== -1) && (!f.contratos || f.contratos.length === 0);
 
-      if (contratosFiltrados.length > 0 || matchFornecedorSemContratos) {
+      if (contratosFiltrados.length > 0 || matchFornSemContratos) {
         var fCopia = Object.assign({}, f);
         fCopia.contratos = contratosFiltrados;
         filtrados.push(fCopia);
@@ -4097,6 +4105,19 @@
     document.getElementById('editFornEmail').value = forn.email || '';
     document.getElementById('editFornObservacoes').value = forn.observacoes || '';
 
+    var setorSelect = document.getElementById('editFornSetor');
+    if (setorSelect) {
+      var setorAtual = String(forn.setorGerencia || (forn.contratos && forn.contratos[0] && forn.contratos[0].setorGerencia) || 'GESTAO TELEFONIA').trim().toUpperCase();
+      var temOpcaoSetor = Array.from(setorSelect.options).some(function(o) { return o.value === setorAtual; });
+      if (!temOpcaoSetor && setorAtual) {
+        var optS = document.createElement('option');
+        optS.value = setorAtual;
+        optS.textContent = setorAtual;
+        setorSelect.appendChild(optS);
+      }
+      setorSelect.value = setorAtual || 'GESTAO TELEFONIA';
+    }
+
     var metaStatus = obterMetaStatusFornecedorClient(forn.status);
     document.getElementById('editFornStatus').value = metaStatus.valor;
 
@@ -4131,6 +4152,7 @@
       razaoSocial: document.getElementById('editFornRazaoSocial').value.trim(),
       nomeFantasia: document.getElementById('editFornNomeFantasia').value.trim(),
       apelido: document.getElementById('editFornApelido').value.trim(),
+      setorGerencia: document.getElementById('editFornSetor') ? document.getElementById('editFornSetor').value : 'GESTAO TELEFONIA',
       cnpj: document.getElementById('editFornCnpj').value.trim(),
       contato: document.getElementById('editFornContato').value.trim(),
       email: document.getElementById('editFornEmail').value.trim(),
@@ -4159,6 +4181,7 @@
             item.razaoSocial = atualizado.razaoSocial;
             item.nomeFantasia = atualizado.nomeFantasia;
             item.apelido = atualizado.apelido;
+            if (atualizado.setorGerencia) item.setorGerencia = atualizado.setorGerencia;
             item.cnpj = atualizado.cnpj;
             item.contato = atualizado.contato;
             item.email = atualizado.email;

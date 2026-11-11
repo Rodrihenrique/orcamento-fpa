@@ -4485,7 +4485,8 @@ function normalizarLinhaFornecedorSchema_(row, fallbackNome, nowStr) {
         r[6] || '',
         r[7] || 'Ativo',
         r[8] || nowStr || '',
-        r[9] || ''
+        r[9] || '',
+        r[10] || ''
       ]
     };
   }
@@ -4502,7 +4503,8 @@ function normalizarLinhaFornecedorSchema_(row, fallbackNome, nowStr) {
       r[7] || '',
       r[8] || 'Ativo',
       r[9] || nowStr || '',
-      r[10] || ''
+      r[10] || '',
+      r[11] || ''
     ]
   };
 }
@@ -4540,6 +4542,7 @@ function atualizarPerfilFornecedorTelefonia(payload) {
 
     var newFantasia = String(payload.nomeFantasia || '').trim() || newRazao;
     var newApelido = String(payload.apelido || '').trim() || newFantasia;
+    var newSetor = String(payload.setorGerencia || payload.setor || '').trim().toUpperCase();
     var newCnpj = String(payload.cnpj || '').trim();
     var newContato = String(payload.contato || payload.contatoComercial || '').trim();
     var newEmail = String(payload.email || payload.emailComercial || '').trim();
@@ -4569,6 +4572,7 @@ function atualizarPerfilFornecedorTelefonia(payload) {
     var oldRazao = razaoOriginal || newRazao;
     var oldFantasia = '';
     var oldApelido = '';
+    var oldSetor = '';
     var oldCnpj = '';
     var oldContato = '';
     var oldEmail = '';
@@ -4584,9 +4588,10 @@ function atualizarPerfilFornecedorTelefonia(payload) {
         : ('FORN-' + newRazao.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15));
       oldRazao = metaCont.nomeFornecedor || razaoOriginal || newRazao;
       pastaDriveId = metaCont.pastaDriveId || '';
+      if (!newSetor) newSetor = 'GESTAO TELEFONIA';
       if (!pastaDriveId) {
         try {
-          var folderObj = obterOuCriarPastaFornecedor_(newRazao);
+          var folderObj = obterOuCriarPastaFornecedor_(newRazao, newSetor);
           if (folderObj) pastaDriveId = folderObj.getId();
         } catch (eFld) {}
       }
@@ -4601,7 +4606,8 @@ function atualizarPerfilFornecedorTelefonia(payload) {
         pastaDriveId,
         newStatus,
         nowStrF,
-        newObservacoes
+        newObservacoes,
+        newSetor
       ]);
       oldCnpj = metaCont.cnpj || '';
     } else {
@@ -4618,6 +4624,8 @@ function atualizarPerfilFornecedorTelefonia(payload) {
       oldStatus = normalizarStatusFornecedor_(vals[8] || 'Ativo');
       dataCadastro = vals[9] || nowStrF;
       oldObservacoes = String(vals[10] || '').trim();
+      oldSetor = String(vals[11] || '').trim().toUpperCase();
+      if (!newSetor) newSetor = oldSetor || 'GESTAO TELEFONIA';
 
       if (!pastaDriveId) {
         var metaContRow = buscarMetadadosFornecedorEmContratos_(ss, [fornIdFinal, oldRazao]);
@@ -4635,7 +4643,8 @@ function atualizarPerfilFornecedorTelefonia(payload) {
         pastaDriveId,
         newStatus,
         dataCadastro,
-        newObservacoes
+        newObservacoes,
+        newSetor
       ];
       sheetFornecedores.getRange(rowIndex, 1, 1, updatedRow.length).setValues([updatedRow]);
     }
@@ -4668,12 +4677,22 @@ function atualizarPerfilFornecedorTelefonia(payload) {
       } catch (eSyncCont) {}
     }
 
-    // Tentar renomear a pasta no Google Drive caso Razao Social tenha sido alterada
-    if (razaoMudou && pastaDriveId) {
+    // Tentar renomear ou mover a pasta no Google Drive caso Razao Social ou Setor tenham sido alterados
+    var setorMudou = newSetor && newSetor !== oldSetor;
+    if ((razaoMudou || setorMudou) && pastaDriveId) {
       try {
-        var sanitizedFolderName = newRazao.replace(/[\\/:*?"<>|]/g, '_').trim();
-        if (sanitizedFolderName) {
-          DriveApp.getFolderById(pastaDriveId).setName(sanitizedFolderName);
+        var fldrObj = DriveApp.getFolderById(pastaDriveId);
+        if (razaoMudou) {
+          var sanitizedFolderName = newRazao.replace(/[\\/:*?"<>|]/g, '_').trim();
+          if (sanitizedFolderName) {
+            fldrObj.setName(sanitizedFolderName);
+          }
+        }
+        if (setorMudou && typeof fldrObj.moveTo === 'function') {
+          var pastaGerenciaDestino = obterOuCriarPastaGerencia_(newSetor);
+          if (pastaGerenciaDestino) {
+            fldrObj.moveTo(pastaGerenciaDestino);
+          }
         }
       } catch (eRenameDrv) {}
     }
@@ -4690,6 +4709,7 @@ function atualizarPerfilFornecedorTelefonia(payload) {
     if (newRazao !== oldRazao) diffs.push({ campo: 'Razao Social', de: oldRazao || '-', para: newRazao });
     if (newFantasia !== oldFantasia) diffs.push({ campo: 'Nome Fantasia', de: oldFantasia || '-', para: newFantasia });
     if (newApelido !== oldApelido) diffs.push({ campo: 'Apelido (Nome Usual)', de: oldApelido || '-', para: newApelido });
+    if (newSetor && newSetor !== oldSetor) diffs.push({ campo: 'Setor / Gerencia', de: oldSetor || '-', para: newSetor });
     if (newCnpj !== oldCnpj) diffs.push({ campo: 'CNPJ', de: oldCnpj || '-', para: newCnpj || '-' });
     if (newContato !== oldContato) diffs.push({ campo: 'Contato Comercial', de: oldContato || '-', para: newContato || '-' });
     if (newEmail !== oldEmail) diffs.push({ campo: 'E-mail Comercial', de: oldEmail || '-', para: newEmail || '-' });
@@ -4717,6 +4737,7 @@ function atualizarPerfilFornecedorTelefonia(payload) {
         razaoSocial: newRazao,
         nomeFantasia: newFantasia,
         apelido: newApelido,
+        setorGerencia: newSetor,
         cnpj: newCnpj,
         contato: newContato,
         email: newEmail,
@@ -5217,7 +5238,7 @@ function garantirHeadersFornecedores_(sheetFornecedores) {
   var headersOficiais = [
     'id_fornecedor', 'razao_social', 'nome_fantasia', 'apelido', 'cnpj',
     'contato_comercial', 'email_comercial', 'id_pasta_drive_fornecedor',
-    'status', 'data_cadastro', 'observacoes'
+    'status', 'data_cadastro', 'observacoes', 'setor_gerencia'
   ];
 
   var lastCol = Math.max(sheetFornecedores.getLastColumn(), headersOficiais.length);
@@ -5230,10 +5251,15 @@ function garantirHeadersFornecedores_(sheetFornecedores) {
     sheetFornecedores.getRange(1, 1, 1, headersOficiais.length).setValues([headersOficiais]);
     var hRange = sheetFornecedores.getRange(1, 1, 1, headersOficiais.length);
     hRange.setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
-  } else if (currentHeaders.indexOf('observacoes') === -1) {
-    sheetFornecedores.getRange(1, 11).setValue('observacoes');
-    var hObs = sheetFornecedores.getRange(1, 11);
-    hObs.setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
+  } else {
+    if (currentHeaders.indexOf('observacoes') === -1) {
+      sheetFornecedores.getRange(1, 11).setValue('observacoes')
+        .setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
+    }
+    if (currentHeaders.indexOf('setor_gerencia') === -1) {
+      sheetFornecedores.getRange(1, 12).setValue('setor_gerencia')
+        .setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
+    }
   }
 }
 
@@ -5273,7 +5299,7 @@ function obterDadosCompletosTelefonia() {
     var fornecedoresMap = {};
     if (sheetFornecedores && sheetFornecedores.getLastRow() > 1) {
       garantirHeadersFornecedores_(sheetFornecedores);
-      var numColsF = Math.max(sheetFornecedores.getLastColumn(), 11);
+      var numColsF = Math.max(sheetFornecedores.getLastColumn(), 12);
       var fHeaders = sheetFornecedores.getRange(1, 1, 1, numColsF).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
       var fornData = sheetFornecedores.getRange(2, 1, sheetFornecedores.getLastRow() - 1, numColsF).getValues();
 
@@ -5287,6 +5313,7 @@ function obterDadosCompletosTelefonia() {
       var idxFDrive = fHeaders.indexOf('id_pasta_drive_fornecedor');
       var idxFStatus = fHeaders.indexOf('status');
       var idxFObs = fHeaders.indexOf('observacoes');
+      var idxFSetor = fHeaders.indexOf('setor_gerencia');
 
       for (var f = 0; f < fornData.length; f++) {
         var fRow = fornData[f];
@@ -5305,6 +5332,7 @@ function obterDadosCompletosTelefonia() {
         var valCol8 = String(fRow[8] || '').trim(); // status legado
         var valCol9 = String(fRow[9] || '').trim(); // data cadastro ou observacoes legado
         var valCol10 = String(fRow[10] || '').trim(); // observacoes
+        var valCol11 = String(fRow[11] || '').trim(); // setor gerencia
 
         var apelidoForn = '';
         var cnpjForn = '';
@@ -5313,13 +5341,14 @@ function obterDadosCompletosTelefonia() {
         var pastaForn = '';
         var statusForn = 'Ativo';
         var obsForn = '';
+        var setorForn = String((idxFSetor !== -1 ? fRow[idxFSetor] : valCol11) || '').trim().toUpperCase();
 
         // Checar padrao de CNPJ na coluna 4 (ex: 22.222.222/2222-22)
         var isCol4Cnpj = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(valCol4) || /\d{14}/.test(valCol4.replace(/\D/g, ''));
         var isCol3Cnpj = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(valCol3) || /\d{14}/.test(valCol3.replace(/\D/g, ''));
 
         if (isCol4Cnpj || (valCol3 !== '' && !isCol3Cnpj)) {
-          // Linha com 10/11 colunas: Coluna 3 e o Apelido (ex: G+D) e Coluna 4 e o CNPJ (ex: 22.222.222/2222-22)
+          // Linha com 10/11/12 colunas: Coluna 3 e o Apelido (ex: G+D) e Coluna 4 e o CNPJ (ex: 22.222.222/2222-22)
           apelidoForn = valCol3;
           cnpjForn = valCol4;
           contatoForn = valCol5;
@@ -5357,6 +5386,7 @@ function obterDadosCompletosTelefonia() {
           razaoSocial: nomeForn,
           nomeFantasia: fantasiaForn,
           apelido: apelidoForn,
+          setorGerencia: setorForn,
           cnpj: cnpjForn,
           contato: contatoForn,
           email: emailForn,
@@ -5681,6 +5711,7 @@ function obterDadosCompletosTelefonia() {
             razaoSocial: fornNome,
             nomeFantasia: fornNome,
             apelido: fornNome,
+            setorGerencia: contractItem.setorGerencia || 'TELEFONIA',
             cnpj: '',
             contato: '',
             email: '',
@@ -5693,6 +5724,8 @@ function obterDadosCompletosTelefonia() {
             valorMensalTotal: 0,
             desembolsoAnualTotal: 0
           };
+        } else if (!fornecedoresMap[fKey].setorGerencia && contractItem.setorGerencia) {
+          fornecedoresMap[fKey].setorGerencia = contractItem.setorGerencia;
         }
 
         fornecedoresMap[fKey].contratos.push(contractItem);
@@ -6640,7 +6673,8 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       fornFolderId,
       normalizarStatusFornecedor_(dadosFornecedor.status || 'Ativo'),
       nowStr,
-      String(dadosFornecedor.observacoes || '').trim()
+      String(dadosFornecedor.observacoes || '').trim(),
+      setorGerencia
     ]);
 
     var userEmailForn = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestao.telefonia@grupobrisanet.com.br';
