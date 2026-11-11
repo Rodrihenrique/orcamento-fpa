@@ -6,6 +6,7 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 ---
 
 ## Principais Recursos
+- **Upload Multiplo na Ficha 360°:** Possibilidade de anexar multiplos arquivos simultaneamente nas subpastas padronizadas do contrato no Google Drive (`Contrato`, `Anexos`, `Documentacao`, `NF`), com pre-visualizacao de arquivos selecionados, calculo de peso total e envio em lote otimizado.
 - **Hierarquia por Fornecedor (Drill-down):** Fornecedores exibidos pelo **Apelido (Nome Usual)** como título principal, status operacional interativo (**ATIVO / ENCERRADO**), alerta preventivo discreto de vencimento próximo (60 dias), métricas de **Contratos Ativos**, **Desembolso Mensal** e **Desembolso Anual**, além de perfil formal (Razão Social, Nome Fantasia, CNPJ, Contatos e Pasta no Drive) expandido.
 - **Cálculo de Desembolso Anual:** Exibido no cabeçalho de cada parceiro e na tabela de contratos individuais, projetando o custo anual do contrato (Valor Mensal x 12).
 - **Estrutura por 5 Gerências:** A pasta raiz no Google Drive contém exclusivamente as 5 pastas setoriais da Telefonia (*GESTAO TELEFONIA*, *OPERACAO E MANUTENCAO DE REDES*, *OPERACOES DE REDES*, *PROJETOS DE IMPLANTACAO* e *TELEFONIA*). No formulário de Novo Fornecedor, o campo Setor define em qual gerência a pasta daquele parceiro será criada.

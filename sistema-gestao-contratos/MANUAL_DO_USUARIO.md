@@ -358,3 +358,11 @@ Para contratos com periodicidade plurianual (ex: a cada 2, 3, 4, 5 ou 10 anos):
 ### 11.4 Esclarecimento sobre a Coluna "ID do Usuario" e Abas Residuais
 - **Coluna "ID do Usuario" (Aba Acessos_Alcadas):** Campo legatario facultativo que nao e utilizado pelo sistema de controle de alçadas (a autenticacao baseia-se estritamente no e-mail corporativo). Como a coluna encontra-se vazia, pode ser removida da planilha sem qualquer efeito adverso. O sistema esta programado para operar tanto com a planilha possuindo essa coluna quanto iniciando diretamente em Colaborador.
 - **Abas "Pagina2" e "Pagina3":** Trata-se de copias/rascunhos obsoletos sem vinculacao com as rotinas ativas. Podem ser excluidas manualmente ou pela funcao automatica `limparAbasEEstruturaAcessos()` do Apps Script.
+
+### 11.5 Upload Adicional de Multiplos Arquivos na Ficha 360°
+Na aba **Documentos** da Ficha 360° de qualquer contrato:
+- O campo **Upload Adicional de Documentos** suporta agora selecao multipla simultanea de arquivos (`multiple`).
+- O gestor pode selecionar quantos arquivos desejar em uma unica acao (segurando Ctrl ou Shift, ou selecionando em lote).
+- Os arquivos selecionados sao listados individualmente com nome, tamanho em KB e indicador de tamanho total em MB.
+- O botao de acao ajusta-se dinamicamente (`Fazer Upload de X Arquivo(s) para o Drive`).
+- Todos os arquivos sao transferidos e gravados de forma segura na subpasta escolhida (`Contrato`, `Anexos`, `Documentacao` ou `NF`), gerando os respectivos registros individuais de auditoria.

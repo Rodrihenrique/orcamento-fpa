@@ -4013,17 +4013,21 @@
         '  <div class="drive-folder-item"><span class="drive-folder-name">NF</span><span class="drive-folder-desc">Notas fiscais mensais, boletos e comprovantes de faturamento.</span></div>' +
         '</div>' +
         '<div style="margin-top:20px; padding:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px;">' +
-        '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue); margin-bottom:8px;">Upload Adicional de Documento</div>' +
-        '  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
-        '    <select id="modalUploadSubpasta" class="filter-select" style="font-size:12px; height:32px;">' +
-        '      <option value="Contrato">Contrato</option>' +
-        '      <option value="Anexos">Anexos</option>' +
-        '      <option value="Documentação">Documentação</option>' +
-        '      <option value="NF">NF</option>' +
-        '    </select>' +
-        '    <input type="file" id="modalUploadFileInput" style="font-size:12px;">' +
-        '    <button type="button" class="btn btn-action-primary" onclick="submeterUploadModalFicha()">Fazer Upload para o Drive</button>' +
+        '  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
+        '    <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">Upload Adicional de Documentos (Múltiplos Arquivos)</div>' +
+        '    <span style="font-size:11px; color:var(--text-muted);">Selecione um ou vários arquivos de uma vez</span>' +
         '  </div>' +
+        '  <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">' +
+        '    <select id="modalUploadSubpasta" class="filter-select" style="font-size:12px; height:34px;">' +
+        '      <option value="Contrato">Pasta Destino: Contrato</option>' +
+        '      <option value="Anexos">Pasta Destino: Anexos</option>' +
+        '      <option value="Documentação">Pasta Destino: Documentação</option>' +
+        '      <option value="NF">Pasta Destino: NF</option>' +
+        '    </select>' +
+        '    <input type="file" id="modalUploadFileInput" multiple style="font-size:12px;" onchange="aoSelecionarArquivosFicha(this)">' +
+        '    <button type="button" id="btnUploadModalFicha" class="btn btn-action-primary" onclick="submeterUploadModalFicha()">Fazer Upload para o Drive</button>' +
+        '  </div>' +
+        '  <div id="modalUploadSelectedFilesList" style="margin-top:10px; display:none;"></div>' +
         '</div>';
       footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
     } else if (abaNome === 'logs') {
@@ -4052,6 +4056,42 @@
     }
   }
 
+  function aoSelecionarArquivosFicha(input) {
+    var container = document.getElementById('modalUploadSelectedFilesList');
+    var btn = document.getElementById('btnUploadModalFicha');
+    if (!container) return;
+    if (!input.files || !input.files.length) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      if (btn) btn.textContent = 'Fazer Upload para o Drive';
+      return;
+    }
+
+    var totalBytes = 0;
+    var html = '<div style="background:#FFFFFF; border:1px solid #CBD5E1; border-radius:6px; padding:10px; font-size:11px;">';
+    html += '<div style="font-weight:700; color:var(--brisa-dark-blue); margin-bottom:6px;">Arquivos Selecionados (' + input.files.length + '):</div>';
+    html += '<div style="display:flex; flex-wrap:wrap; gap:6px;">';
+    for (var i = 0; i < input.files.length; i++) {
+      var f = input.files[i];
+      totalBytes += f.size;
+      var kb = (f.size / 1024).toFixed(1) + ' KB';
+      html += '<span style="background:#EEF2FF; color:var(--brisa-blue); padding:3px 8px; border-radius:4px; font-weight:600; display:inline-flex; align-items:center; gap:4px; border:1px solid #C7D2FE;">' +
+        escapeHtml(f.name) + ' (' + kb + ')' +
+        '</span>';
+    }
+    html += '</div>';
+    var totalMb = (totalBytes / (1024 * 1024)).toFixed(2) + ' MB';
+    html += '<div style="margin-top:6px; color:var(--text-muted); font-size:10px; font-weight:600;">Tamanho total: ' + totalMb + '</div>';
+    html += '</div>';
+
+    container.innerHTML = html;
+    container.style.display = 'block';
+
+    if (btn) {
+      btn.textContent = 'Fazer Upload de ' + input.files.length + ' Arquivo' + (input.files.length > 1 ? 's' : '') + ' para o Drive';
+    }
+  }
+
   function submeterUploadModalFicha() {
     var c = appState.contratoSelecionado;
     if (!c || !c.pastaDriveId) {
@@ -4061,37 +4101,80 @@
     var subpasta = document.getElementById('modalUploadSubpasta').value;
     var fileInput = document.getElementById('modalUploadFileInput');
     if (!fileInput.files || !fileInput.files.length) {
-      mostrarToast('Selecione um arquivo para upload.', 'error');
+      mostrarToast('Selecione pelo menos um arquivo para upload.', 'error');
       return;
     }
 
-    var file = fileInput.files[0];
-    var reader = new FileReader();
-    reader.onload = function(evt) {
-      var base64 = evt.target.result.split(',')[1];
-      mostrarLoading('Enviando Arquivo', 'Fazendo upload seguro para a subpasta ' + subpasta + '...');
+    var files = Array.from(fileInput.files);
+    var totalFiles = files.length;
+    mostrarLoading('Lendo Arquivos', 'Preparando upload de ' + totalFiles + ' arquivo(s) para a subpasta ' + subpasta + '...');
 
-      if (typeof google !== 'undefined' && google.script && google.script.run) {
-        google.script.run
-          .withSuccessHandler(function(res) {
+    var filePromises = files.map(function(file) {
+      return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(evt) {
+          var base64 = evt.target.result.split(',')[1];
+          resolve({
+            nome: file.name,
+            base64: base64,
+            mimeType: file.type || 'application/octet-stream',
+            size: file.size
+          });
+        };
+        reader.onerror = function(err) {
+          reject(err);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(filePromises)
+      .then(function(arquivosLidos) {
+        mostrarLoading('Enviando para o Drive', 'Fazendo upload seguro de ' + arquivosLidos.length + ' arquivo(s) para a subpasta ' + subpasta + '...');
+
+        if (typeof google !== 'undefined' && google.script && google.script.run) {
+          google.script.run
+            .withSuccessHandler(function(res) {
+              esconderLoading();
+              if (res && res.success) {
+                var qtd = res.count || arquivosLidos.length;
+                mostrarToast(qtd + ' arquivo(s) salvo(s) no Drive com sucesso na subpasta ' + subpasta + '!', 'success');
+                fileInput.value = '';
+                var listContainer = document.getElementById('modalUploadSelectedFilesList');
+                if (listContainer) {
+                  listContainer.style.display = 'none';
+                  listContainer.innerHTML = '';
+                }
+                var btn = document.getElementById('btnUploadModalFicha');
+                if (btn) btn.textContent = 'Fazer Upload para o Drive';
+              } else {
+                mostrarToast('Erro ao enviar arquivos: ' + (res.error || 'Desconhecido'), 'error');
+              }
+            })
+            .withFailureHandler(function(err) {
+              esconderLoading();
+              mostrarToast('Falha na comunicação com o servidor: ' + err.message, 'error');
+            })
+            .uploadMultiplosArquivosContrato(c.pastaDriveId, subpasta, arquivosLidos);
+        } else {
+          setTimeout(function() {
             esconderLoading();
-            if (res && res.success) {
-              mostrarToast('Arquivo ' + res.fileName + ' salvo no Drive com sucesso!', 'success');
-              fileInput.value = '';
-            } else {
-              mostrarToast('Erro ao enviar arquivo: ' + (res.error || 'Desconhecido'), 'error');
+            mostrarToast('Simulação: ' + arquivosLidos.length + ' arquivo(s) salvos no Drive com sucesso na subpasta ' + subpasta + '!', 'success');
+            fileInput.value = '';
+            var listContainer = document.getElementById('modalUploadSelectedFilesList');
+            if (listContainer) {
+              listContainer.style.display = 'none';
+              listContainer.innerHTML = '';
             }
-          })
-          .uploadArquivoContrato(c.pastaDriveId, subpasta, file.name, base64, file.type);
-      } else {
-        setTimeout(function() {
-          esconderLoading();
-          mostrarToast('Simulação: Arquivo ' + file.name + ' salvo no Drive com sucesso!', 'success');
-          fileInput.value = '';
-        }, 500);
-      }
-    };
-    reader.readAsDataURL(file);
+            var btn = document.getElementById('btnUploadModalFicha');
+            if (btn) btn.textContent = 'Fazer Upload para o Drive';
+          }, 600);
+        }
+      })
+      .catch(function(err) {
+        esconderLoading();
+        mostrarToast('Erro ao processar leitura dos arquivos: ' + (err.message || 'Desconhecido'), 'error');
+      });
   }
 
   // =========================================================================

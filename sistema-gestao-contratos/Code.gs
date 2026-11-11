@@ -3379,6 +3379,66 @@ function listarArquivosPastaContrato(idPastaContrato) {
  * @param {string} mimeType
  * @return {Object}
  */
+/**
+ * Realiza upload de multiplos arquivos para a subpasta indicada no Drive de um contrato.
+ * @param {string} idPastaContrato ID da pasta raiz do contrato no Drive
+ * @param {string} nomeSubpasta Subpasta de destino (Contrato, Anexos, Documentacao, NF)
+ * @param {Array<{nome: string, base64: string, mimeType: string}>} listaArquivos
+ * @return {Object}
+ */
+function uploadMultiplosArquivosContrato(idPastaContrato, nomeSubpasta, listaArquivos) {
+  try {
+    if (!idPastaContrato) throw new Error('ID da pasta nao informado.');
+    if (!listaArquivos || !listaArquivos.length) throw new Error('Nenhum arquivo enviado para upload.');
+
+    var contractFolder = DriveApp.getFolderById(idPastaContrato);
+    var targetFolder = contractFolder;
+
+    if (nomeSubpasta) {
+      var subs = contractFolder.getFoldersByName(nomeSubpasta);
+      if (subs.hasNext()) {
+        targetFolder = subs.next();
+      } else {
+        targetFolder = contractFolder.createFolder(nomeSubpasta);
+      }
+    }
+
+    var arquivosSalvos = [];
+    for (var i = 0; i < listaArquivos.length; i++) {
+      var item = listaArquivos[i];
+      if (!item || !item.base64 || !item.nome) continue;
+      var bytes = Utilities.base64Decode(item.base64);
+      var blob = Utilities.newBlob(bytes, item.mimeType || 'application/octet-stream', item.nome);
+      var file = targetFolder.createFile(blob);
+
+      registrarLogAuditoriaOficial_(
+        'Contrato',
+        idPastaContrato,
+        'Upload de Arquivo',
+        nomeSubpasta,
+        '-',
+        item.nome,
+        'Upload de documento na subpasta ' + nomeSubpasta
+      );
+
+      arquivosSalvos.push({
+        id: file.getId(),
+        nome: file.getName(),
+        url: file.getUrl(),
+        subpasta: nomeSubpasta
+      });
+    }
+
+    return {
+      success: true,
+      count: arquivosSalvos.length,
+      arquivos: arquivosSalvos
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 function uploadArquivoContrato(idPastaContrato, nomeSubpasta, nomeArquivo, base64Data, mimeType) {
   try {
     if (!idPastaContrato) throw new Error('ID da pasta nao informado.');
