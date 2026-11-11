@@ -316,6 +316,9 @@ No formulário de Novo Contrato e no modal de Ficha 360°, o usuário escolhe a 
 47. `Valor Unitário`
 48. `Meses de Cobrança Efetiva`
 49. `Pasta de Destino no Drive`
+50. `Forma de Pagamento (Plurianual)`
+51. `Quantidade de Parcelas`
+52. `Valor por Parcela`
 
 ### 10.3 Estrutura da Aba Acessos_Alcadas (10 Colunas)
 1. `ID do Usuário`
@@ -328,3 +331,30 @@ No formulário de Novo Contrato e no modal de Ficha 360°, o usuário escolhe a 
 8. `Término da Substituição`
 9. `Substituição Indeterminada (Sim/Não)`
 10. `Status`
+
+
+---
+
+## 11. Novas Funcionalidades e Ajustes Estruturais Recentes
+
+### 11.1 Otimizacao Visual da Tabela de Contratos (Remocao da Coluna Protocolo)
+Para proporcionar uma navegacao mais limpa, funcional e focada nos dados criticos de gestao, a coluna **Protocolo** foi removida da tabela expandida de contratos do fornecedor.
+- O espaco horizontal foi redistribuido entre Objeto & Setor, Vigencia, Valor Mensal / Parcela e Desembolso Anual.
+- O Protocolo oficial continua sendo gerado normalmente (ex: `BRISA-TEL-2026-0007`), ficando disponivel para consulta na **Ficha 360°**, nos logs de auditoria e no Google Drive.
+
+### 11.2 Mecanismo de Faixas com Opcao "Acima de" (Sem Limite Superior)
+Nos contratos com criterio de reajuste por **Base de Clientes (Assinantes)**:
+- Foi adicionada a caixa de selecao **Acima de (sem teto)** na coluna "Faixa Ate".
+- Ao marcar esta opcao, o campo superior e desabilitado e marcado como `Sem limite (+)`, formalizando que a partir daquela quantidade de clientes o valor contratado se mantem estavel.
+- O sub-modal de alteracao de faixa e a visualizacao na Ficha 360° reconhecem automaticamente esse padrao e exibem `Acima de X assinantes (sem teto)`.
+
+### 11.3 Condicoes de Pagamento e Parcelamento para Contratos Plurianuais
+Para contratos com periodicidade plurianual (ex: a cada 2, 3, 4, 5 ou 10 anos):
+- **Forma de Pagamento:** Permite selecionar **Parcela Unica**, **Mensal**, **Semestral** ou **Anual**.
+- **Quantidade de Parcelas:** Campo numerico com definicao automatica conforme o ciclo (ex: 10 parcelas semestrais para um contrato quinquenal de 5 anos).
+- **Valor por Parcela:** Calculado automaticamente (`Valor Total do Ciclo / Quantidade de Parcelas`).
+- **Visibilidade:** O parcelamento e exibido claramente na coluna de valor da tabela de contratos (`10x (Semestral) · Ciclo: R$ ...`), no modal de alteracao contratual e na Ficha 360°. O Desembolso Anual mantem o selo explicito **Nao aplicavel** com registro do valor do ciclo, evitando lancamentos indevidos nos anos intermediarios sem desembolso.
+
+### 11.4 Esclarecimento sobre a Coluna "ID do Usuario" e Abas Residuais
+- **Coluna "ID do Usuario" (Aba Acessos_Alcadas):** Campo legatario facultativo que nao e utilizado pelo sistema de controle de alçadas (a autenticacao baseia-se estritamente no e-mail corporativo). Como a coluna encontra-se vazia, pode ser removida da planilha sem qualquer efeito adverso. O sistema esta programado para operar tanto com a planilha possuindo essa coluna quanto iniciando diretamente em Colaborador.
+- **Abas "Pagina2" e "Pagina3":** Trata-se de copias/rascunhos obsoletos sem vinculacao com as rotinas ativas. Podem ser excluidas manualmente ou pela funcao automatica `limparAbasEEstruturaAcessos()` do Apps Script.

@@ -18,7 +18,10 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 - **Alteração Contratual Direta pelo Responsável:** Modal interativo de edição onde o responsável altera valores, serviços, prazos e condições diretamente no contrato, gravando a atualização na base e o registro imutável na trilha de auditoria.
 - **Multiplicador de Serviços & Período de Cobrança Efetiva:** Cálculo de Valor Mensal Total por Quantidade de Serviços x Valor Unitário, e definição de meses de cobrança ativa no ano (ex: 9 meses em contratos de 12 meses) com cálculo proporcional exato do Desembolso Anual.
 - **Padronização de 4 Subpastas no Google Drive:** Criação automática das subpastas `Contrato`, `Anexos`, `Documentação` e `NF` para cada contrato, com seletor de pasta de destino nos formulários.
-- **Base Oficial de Contratos (45 Colunas):** Linha 1 de cabeçalho da aba Contratos formatada com títulos oficiais amigáveis correspondentes a todos os campos do formulário corporativo.
+- **- **Base Oficial de Contratos (52 Colunas):** Linha 1 de cabeçalho da aba Contratos formatada com títulos oficiais amigáveis correspondentes a todos os campos corporativos, incluindo multiplicador de serviços, meses de cobrança efetiva, pasta de destino no Drive e condições de pagamento plurianual (forma de pagamento, quantidade de parcelas e valor por parcela).
+- **Interface Otimizada de Contratos:** Remoção da coluna redundante de Protocolo na listagem principal de contratos do fornecedor para despoluir a visualização e priorizar as informações financeiras e de vigência.
+- **Faixas de Assinantes com Opção "Acima de":** Permite definir faixas abertas sem teto superior (ex: acima de 500.000 clientes) onde o valor se mantém estável a partir de determinado patamar.
+- **Contratos Plurianuais com Condições de Pagamento e Parcelamento:** Suporte a contratos pagos a cada 5 anos ou mais, com definição da forma de pagamento (Parcela Única, Mensal, Semestral ou Anual), quantidade de parcelas e cálculo automático do valor por parcela, sem distorcer o desembolso anual nos anos sem faturamento.
 - **Tabela de Faixas por Base de Clientes:** Seleção de faixa em vigor com radio button ("bolinha") e atualização dinâmica.
 - **Governança de Mudanças (Central de Aprovações):** Contratos cadastrados nascem ativos e validados. A esteira de aprovações é reservada para alterações de escopo, renovações, reajustes extraordinários e migração de faixas.
 - **Identidade Visual brisanet:** Aplicação estrita da paleta oficial (#FF5022, #2242D4, #0B316D, etc.), fontes Figtree/Rubik, "a brisanet" no feminino e ausência total de emojis.
@@ -26,6 +29,6 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 ---
 
 ## Estrutura dos Arquivos
-- `Code.gs`: Backend em Google Apps Script gerenciando Google Sheets relacional (45 colunas na aba Contratos e 10 colunas em Acessos_Alcadas), Google Drive, disparo de e-mails formais e trilha de auditoria.
+- `Code.gs`: Backend em Google Apps Script gerenciando Google Sheets relacional (52 colunas na aba Contratos e 10 colunas em Acessos_Alcadas), Google Drive, disparo de e-mails formais e trilha de auditoria.
 - `Index.html`: Frontend responsivo em HTML5, CSS3 e JavaScript nativo com modais com cantos arredondados (16px), acordeão de fornecedores, máscaras de preenchimento, Ficha 360°, banner de alertas e Log de Alterações em acordeão por contrato com linha do tempo executiva.
 - `MANUAL_DO_USUARIO.md`: Guia detalhado passo a passo de operação para os colaboradores.

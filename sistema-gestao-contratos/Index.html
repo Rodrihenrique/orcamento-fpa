@@ -2056,6 +2056,36 @@
               R$ 0,00
             </div>
             <div id="badgeAlertaPeriodoNovoContrato" style="display: none; margin-top: 8px; padding: 10px 14px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 6px; font-size: 11px; font-weight: 700; color: #C2410C;"></div>
+            <!-- Condicoes de Pagamento Plurianual (Parcelamento) -->
+            <div id="boxCondicoesPagamentoPlurianual" style="display: none; margin-top: 10px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 8px; padding: 12px 14px;">
+              <div style="font-weight: 700; color: #9A3412; font-size: 12px; margin-bottom: 8px;">
+                Condições de Pagamento do Contrato Plurianual
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Forma de Pagamento</label>
+                  <select id="contratoModalFormaPagamentoPlurianual" class="form-control" onchange="aoMudarFormaPagamentoPlurianualNovoContrato()">
+                    <option value="Parcela Única">Parcela Única</option>
+                    <option value="Mensal">Mensal</option>
+                    <option value="Semestral">Semestral</option>
+                    <option value="Anual">Anual</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Quantidade de Parcelas</label>
+                  <input type="number" id="contratoModalQtdParcelasPlurianual" class="form-control" value="1" min="1" max="120" oninput="aoMudarQtdParcelasPlurianualNovoContrato()">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 11px;">Valor por Parcela Estimado</label>
+                  <div id="displayValorParcelaPlurianualNovo" style="height: 38px; display: flex; align-items: center; padding: 0 10px; background: #FFFFFF; border: 1px solid #FDBA74; border-radius: 6px; font-size: 12px; font-weight: 800; color: #C2410C;">
+                    R$ 0,00
+                  </div>
+                </div>
+              </div>
+              <small style="color: #9A3412; font-size: 11px; margin-top: 6px; display: block;">
+                Defina se o valor do ciclo será pago em parcela única ou dividido em parcelas mensais, semestrais ou anuais.
+              </small>
+            </div>
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Valor Orçado por Lançamento</label>
@@ -2134,7 +2164,12 @@
               <tr>
                 <td style="text-align: center;"><input type="radio" name="radioFaixaAtualModal" class="faixa-atual-radio" title="Marcar como faixa em vigor atual" checked onchange="aoSelecionarFaixaAtual(this)"></td>
                 <td><input type="number" class="tier-input faixa-de" placeholder="0" value="0"></td>
-                <td><input type="number" class="tier-input faixa-ate" placeholder="50000" value="50000"></td>
+                <td>
+                  <input type="number" class="tier-input faixa-ate" placeholder="50000" value="50000">
+                  <label style="display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 4px; cursor: pointer; color: var(--text-muted);">
+                    <input type="checkbox" class="faixa-acimade-chk" onchange="aoAlternarFaixaAcimaDe(this)"> Acima de (sem teto)
+                  </label>
+                </td>
                 <td><input type="text" class="tier-input faixa-valor" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></td>
                 <td><input type="text" class="tier-input faixa-desc" placeholder="Ex: Faixa inicial de assinantes"></td>
                 <td style="text-align: center;"><button type="button" class="btn-remove-file" onclick="removerLinhaFaixaCliente(this)">&times;</button></td>
@@ -2313,6 +2348,34 @@
         </div>
       </div>
       <div id="modalAltBadgeCalculoServico" style="font-size: 11px; font-weight: 700; color: var(--brisa-blue); margin-bottom: 12px; display: none;"></div>
+
+      <!-- Box de Condicoes de Pagamento Plurianual na Alteracao -->
+      <div id="modalAltBoxPlurianual" style="display: none; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;">
+        <div style="font-weight: 700; color: #9A3412; font-size: 12px; margin-bottom: 6px;">
+          Condições de Pagamento do Contrato Plurianual
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+          <div>
+            <label class="form-label" style="font-size: 11px;">Forma de Pagamento</label>
+            <select id="solicitacaoFormaPagamentoPlurianual" class="form-control" onchange="aoMudarFormaPagamentoModalAlteracao()">
+              <option value="Parcela Única">Parcela Única</option>
+              <option value="Mensal">Mensal</option>
+              <option value="Semestral">Semestral</option>
+              <option value="Anual">Anual</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="font-size: 11px;">Quantidade de Parcelas</label>
+            <input type="number" id="solicitacaoQtdParcelasPlurianual" class="form-control" value="1" min="1" max="120" oninput="aoMudarQtdParcelasModalAlteracao()">
+          </div>
+          <div>
+            <label class="form-label" style="font-size: 11px;">Valor por Parcela Estimado</label>
+            <div id="solicitacaoValorParcelaDisplay" style="height: 38px; display: flex; align-items: center; padding: 0 10px; background: #FFFFFF; border: 1px solid #FDBA74; border-radius: 6px; font-size: 12px; font-weight: 800; color: #C2410C;">
+              R$ 0,00
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 8px;">
         <div class="form-group">
@@ -3108,7 +3171,6 @@
         html += '    <table class="contracts-table">';
         html += '      <thead>';
         html += '        <tr>';
-        html += '          <th>Protocolo</th>';
         html += '          <th>Objeto & Setor</th>';
         html += '          <th>Vigência</th>';
         html += '          <th>Valor Mensal</th>';
@@ -3146,7 +3208,14 @@
 
           var labelMensalCol = formatarMoedaBRL(vMensalNum);
           if (isPluriContrato) {
-            labelMensalCol += ' <div style="font-size:10px; font-weight:700; color:#C2410C;">' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</div>';
+            var formaPagPluri = c.formaPagamentoPlurianual || 'Parcela Única';
+            var qtdParcPluri = parseInt(c.qtdParcelasPlurianual, 10) || 1;
+            var valParcPluri = c.valorParcelaPlurianual ? parseFloat(c.valorParcelaPlurianual) : (vMensalNum / qtdParcPluri);
+            if (formaPagPluri === 'Parcela Única' || qtdParcPluri <= 1) {
+              labelMensalCol = formatarMoedaBRL(vMensalNum) + ' <div style="font-size:10px; font-weight:700; color:#C2410C;">Parcela Única · ' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</div>';
+            } else {
+              labelMensalCol = formatarMoedaBRL(valParcPluri) + ' <div style="font-size:10px; font-weight:700; color:#C2410C;">' + qtdParcPluri + 'x (' + escapeHtml(formaPagPluri) + ') · Ciclo: ' + formatarMoedaBRL(vMensalNum) + '</div><div style="font-size:9px; color:#9A3412;">' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</div>';
+            }
           } else if (isAnualContrato) {
             labelMensalCol += ' <div style="font-size:10px; font-weight:600; color:var(--brisa-blue);">1x ao ano</div>';
           } else if (qtdSrvNum > 1) {
@@ -3168,7 +3237,6 @@
           }
 
           html += '        <tr>';
-          html += '          <td><span class="protocol-chip">' + escapeHtml(c.protocolo) + '</span></td>';
           html += '          <td>';
           html += '            <div class="contract-obj-text" title="' + escapeHtml(c.objeto) + '">' + escapeHtml(c.objeto) + '</div>';
           html += '            ' + setorBadge;
@@ -3475,11 +3543,32 @@
     var tr = document.createElement('tr');
     tr.innerHTML = '<td style="text-align: center;"><input type="radio" name="radioFaixaAtualModal" class="faixa-atual-radio" title="Marcar como faixa em vigor atual" onchange="aoSelecionarFaixaAtual(this)"></td>' +
       '<td><input type="number" class="tier-input faixa-de" placeholder="0"></td>' +
-      '<td><input type="number" class="tier-input faixa-ate" placeholder="100000"></td>' +
+      '<td><input type="number" class="tier-input faixa-ate" placeholder="100000"><label style="display: flex; align-items: center; gap: 4px; font-size: 11px; margin-top: 4px; cursor: pointer; color: var(--text-muted);"><input type="checkbox" class="faixa-acimade-chk" onchange="aoAlternarFaixaAcimaDe(this)"> Acima de (sem teto)</label></td>' +
       '<td><input type="text" class="tier-input faixa-valor" placeholder="R$ 0,00" oninput="mascaraMoeda(this)"></td>' +
       '<td><input type="text" class="tier-input faixa-desc" placeholder="Descrição"></td>' +
       '<td style="text-align: center;"><button type="button" class="btn-remove-file" onclick="removerLinhaFaixaCliente(this)">&times;</button></td>';
     tbody.appendChild(tr);
+  }
+
+  function aoAlternarFaixaAcimaDe(chk) {
+    var td = chk.closest('td');
+    if (!td) return;
+    var inpAte = td.querySelector('.faixa-ate');
+    if (!inpAte) return;
+    if (chk.checked) {
+      inpAte.dataset.prevVal = inpAte.value;
+      inpAte.value = '';
+      inpAte.disabled = true;
+      inpAte.placeholder = 'Sem limite (+)';
+      inpAte.style.background = '#F1F5F9';
+      inpAte.style.color = '#94A3B8';
+    } else {
+      inpAte.disabled = false;
+      inpAte.placeholder = '100000';
+      inpAte.value = inpAte.dataset.prevVal || '';
+      inpAte.style.background = '#FFFFFF';
+      inpAte.style.color = 'inherit';
+    }
   }
 
   function removerLinhaFaixaCliente(btn) {
@@ -3504,11 +3593,13 @@
       var radio = tr.querySelector('.faixa-atual-radio');
       var isAtual = radio ? radio.checked : false;
       var de = parseInt(tr.querySelector('.faixa-de').value, 10) || 0;
-      var ate = parseInt(tr.querySelector('.faixa-ate').value, 10) || 0;
+      var chkAcima = tr.querySelector('.faixa-acimade-chk');
+      var isAcima = chkAcima ? chkAcima.checked : false;
+      var ate = isAcima ? null : (parseInt(tr.querySelector('.faixa-ate').value, 10) || 0);
       var valor = tr.querySelector('.faixa-valor').value.trim();
       var desc = tr.querySelector('.faixa-desc').value.trim();
-      if (ate > 0 || valor) {
-        faixas.push({ de: de, ate: ate, valor: valor, descricao: desc, atual: isAtual });
+      if (isAcima || ate > 0 || valor) {
+        faixas.push({ de: de, ate: ate, acimaDe: isAcima, valor: valor, descricao: desc, atual: isAtual });
       }
     });
     return faixas;
@@ -3644,6 +3735,9 @@
       valorUnitario: document.getElementById('contratoModalValorUnitario').value.trim(),
       valorMensal: document.getElementById('contratoModalValorMensal').value.trim(),
       subpastaDestino: document.getElementById('contratoModalSubpastaDestino') ? document.getElementById('contratoModalSubpastaDestino').value : 'Contrato',
+      formaPagamentoPlurianual: document.getElementById('contratoModalFormaPagamentoPlurianual') ? document.getElementById('contratoModalFormaPagamentoPlurianual').value : 'Parcela Única',
+      qtdParcelasPlurianual: parseInt(document.getElementById('contratoModalQtdParcelasPlurianual') ? document.getElementById('contratoModalQtdParcelasPlurianual').value : 1, 10) || 1,
+      valorParcelaPlurianual: desformatarNumero(document.getElementById('displayValorParcelaPlurianualNovo') ? document.getElementById('displayValorParcelaPlurianualNovo').textContent : '0'),
       taxaCambio: document.getElementById('contratoModalTaxaCambio').value.trim(),
       valorBaseBrl: document.getElementById('contratoModalValorBaseBrl').value.trim(),
       valorOrcado: document.getElementById('contratoModalValorOrcado').value.trim(),
@@ -3858,9 +3952,12 @@
           '<thead><tr><th style="width:100px; text-align:center;">Situação</th><th>Faixa De</th><th>Faixa Até</th><th>Valor (R$) / Cliente</th><th>Regra</th></tr></thead><tbody>';
         c.tabelaBaseClientes.forEach(function(fx, fIdx) {
           var isAtiva = fx.atual === true || fx.atual === 'true' || fx.ativa === true;
+          var isAcima = fx.acimaDe === true || !fx.ate || fx.ate === 0 || String(fx.ate).toLowerCase().indexOf('acima') !== -1;
           var rowBg = isAtiva ? ' style="background: #F0FDF4; font-weight: 700;"' : '';
           var badgeAtiva = isAtiva ? '<span class="badge-status ativo" style="font-size:10px;">Faixa Vigente</span>' : '<span style="color:var(--text-muted); font-size:11px;">-</span>';
-          faixasHtml += '<tr' + rowBg + '><td style="text-align:center;">' + badgeAtiva + '</td><td>' + fx.de.toLocaleString('pt-BR') + '</td><td>' + fx.ate.toLocaleString('pt-BR') + '</td><td style="font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(fx.valor) + '</td><td>' + escapeHtml(fx.descricao || '-') + '</td></tr>';
+          var deStr = typeof fx.de === 'number' ? fx.de.toLocaleString('pt-BR') : fx.de;
+          var ateStr = isAcima ? 'Acima de (Sem teto)' : (typeof fx.ate === 'number' ? fx.ate.toLocaleString('pt-BR') : (fx.ate || '-'));
+          faixasHtml += '<tr' + rowBg + '><td style="text-align:center;">' + badgeAtiva + '</td><td>' + deStr + '</td><td>' + ateStr + '</td><td style="font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(fx.valor) + '</td><td>' + escapeHtml(fx.descricao || '-') + '</td></tr>';
         });
         faixasHtml += '</tbody></table></div>';
       }
@@ -3870,9 +3967,15 @@
       var isPlurianualFicha = ehPeriodicidadePlurianual(c.periodicidade);
       var alertaPlurianualHtml = '';
       if (isPlurianualFicha) {
+        var formaPgFicha = c.formaPagamentoPlurianual || 'Parcela Única';
+        var qtdPgFicha = parseInt(c.qtdParcelasPlurianual, 10) || 1;
+        var vParcFicha = c.valorParcelaPlurianual ? parseFloat(c.valorParcelaPlurianual) : ((parseFloat(c.valorMensal) || 0) / qtdPgFicha);
+        var parcelasTxt = (formaPgFicha === 'Parcela Única' || qtdPgFicha <= 1) ? 'Parcela Única' : (qtdPgFicha + 'x de ' + formatarMoedaBRL(vParcFicha) + ' (' + formaPgFicha + ')');
+
         alertaPlurianualHtml = '<div style="grid-column: 1 / -1; padding: 12px 16px; background: #FFF7ED; border: 1px solid #FFEDD5; border-radius: 8px; margin-bottom: 12px;">' +
           '<div style="font-weight: 700; color: #C2410C; font-size: 13px; margin-bottom: 3px;">Alerta de Periodicidade de Pagamento (' + escapeHtml(c.periodicidade) + ')</div>' +
-          '<div style="font-size: 12px; color: #9A3412;">Este contrato é pago exclusivamente <strong>' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</strong>. Não possui desembolso anual recorrente porque o pagamento não ocorre todo ano. O valor registrado para visualização e execução no ciclo é de <strong>' + formatarMoedaBRL(c.valorMensal) + '</strong>.</div>' +
+          '<div style="font-size: 12px; color: #9A3412;">Este contrato é pago exclusivamente <strong>' + escapeHtml(obterTextoAlertaPeriodicidade(c.periodicidade)) + '</strong>. Não possui desembolso anual recorrente porque o pagamento não ocorre todo ano. O valor registrado para visualização e execução no ciclo é de <strong>' + formatarMoedaBRL(c.valorMensal) + '</strong>.<br>' +
+          '<strong>Condição de Pagamento:</strong> ' + escapeHtml(formaPgFicha) + ' · <strong>Parcelamento:</strong> ' + escapeHtml(parcelasTxt) + '</div>' +
           '</div>';
       }
 
@@ -4106,7 +4209,25 @@
 
       var inpOrcado = document.getElementById('contratoModalValorOrcado');
       if (inpOrcado) inpOrcado.value = formatarMoedaBRL(vTotal * taxaCambio);
+
+      var boxCondPluri = document.getElementById('boxCondicoesPagamentoPlurianual');
+      if (boxCondPluri) {
+        boxCondPluri.style.display = 'block';
+        var selFormaPluri = document.getElementById('contratoModalFormaPagamentoPlurianual');
+        var formaPluri = selFormaPluri ? selFormaPluri.value : 'Parcela Única';
+        var inpQtdPluri = document.getElementById('contratoModalQtdParcelasPlurianual');
+        var qtdPluri = parseInt(inpQtdPluri ? inpQtdPluri.value : 1, 10) || 1;
+        var valParcEst = (vTotal * taxaCambio) / qtdPluri;
+        var dispValParc = document.getElementById('displayValorParcelaPlurianualNovo');
+        if (dispValParc) {
+          dispValParc.textContent = formatarMoedaBRL(valParcEst);
+        }
+      }
     } else {
+      var boxCondPluri = document.getElementById('boxCondicoesPagamentoPlurianual');
+      if (boxCondPluri) {
+        boxCondPluri.style.display = 'none';
+      }
       if (badgeAlertaPeriodo) {
         badgeAlertaPeriodo.style.display = 'none';
       }
@@ -4123,6 +4244,31 @@
         displayAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (isAnual ? ' (1 parcela anual)' : (meses !== 12 ? ' (' + meses + ' meses)' : ''));
       }
     }
+  }
+
+  function aoMudarFormaPagamentoPlurianualNovoContrato() {
+    var sel = document.getElementById('contratoModalFormaPagamentoPlurianual');
+    var val = sel ? sel.value : 'Parcela Única';
+    var inpQtd = document.getElementById('contratoModalQtdParcelasPlurianual');
+    var periodicidade = obterPeriodicidadeNovoContratoSelecionada();
+    var anos = extrairAnosPeriodicidade(periodicidade) || 5;
+
+    if (inpQtd) {
+      if (val === 'Parcela Única') {
+        inpQtd.value = 1;
+        inpQtd.disabled = true;
+      } else {
+        inpQtd.disabled = false;
+        if (val === 'Semestral') inpQtd.value = anos * 2;
+        else if (val === 'Mensal') inpQtd.value = anos * 12;
+        else if (val === 'Anual') inpQtd.value = anos;
+      }
+    }
+    atualizarCalculosNovoContrato();
+  }
+
+  function aoMudarQtdParcelasPlurianualNovoContrato() {
+    atualizarCalculosNovoContrato();
   }
 
   // =========================================================================
@@ -4188,6 +4334,12 @@
     var elIndice = document.getElementById('solicitacaoIndiceReajuste');
     if (elIndice) elIndice.value = c.indiceReajuste || 'IPCA';
 
+    var elFormaPluriAlt = document.getElementById('solicitacaoFormaPagamentoPlurianual');
+    if (elFormaPluriAlt) elFormaPluriAlt.value = c.formaPagamentoPlurianual || (ehPeriodicidadePlurianual(c.periodicidade) ? 'Parcela Única' : 'Mensal');
+
+    var elQtdPluriAlt = document.getElementById('solicitacaoQtdParcelasPlurianual');
+    if (elQtdPluriAlt) elQtdPluriAlt.value = c.qtdParcelasPlurianual || 1;
+
     var elStatus = document.getElementById('solicitacaoStatusContrato');
     if (elStatus) elStatus.value = c.status || 'Vigente';
 
@@ -4252,6 +4404,7 @@
 
     var dispAnual = document.getElementById('solicitacaoDesembolsoAnualDisplay');
     var badgePluri = document.getElementById('modalAltBadgePlurianual');
+    var boxPluriAlt = document.getElementById('modalAltBoxPlurianual');
 
     if (isPlurianual) {
       if (dispAnual) dispAnual.innerHTML = '<span style="color:#C2410C; font-size:12px; font-weight:700;">Não aplicável (Não tem todo ano)</span>';
@@ -4259,14 +4412,51 @@
         badgePluri.style.display = 'block';
         badgePluri.innerHTML = 'Alerta: Contrato pago exclusivamente ' + escapeHtml(obterTextoAlertaPeriodicidade(periodicidade)) + '. O valor de ' + formatarMoedaBRL(vTotal) + ' fica registrado no ciclo, sem desembolso anual recorrente.';
       }
+      if (boxPluriAlt) {
+        boxPluriAlt.style.display = 'block';
+        var selFormaAlt = document.getElementById('solicitacaoFormaPagamentoPlurianual');
+        var formaAlt = selFormaAlt ? selFormaAlt.value : 'Parcela Única';
+        var inpQtdAlt = document.getElementById('solicitacaoQtdParcelasPlurianual');
+        var qtdAlt = parseInt(inpQtdAlt ? inpQtdAlt.value : 1, 10) || 1;
+        var valParcAlt = vTotal / qtdAlt;
+        var dispValAlt = document.getElementById('solicitacaoValorParcelaDisplay');
+        if (dispValAlt) dispValAlt.textContent = formatarMoedaBRL(valParcAlt);
+      }
     } else {
       if (badgePluri) badgePluri.style.display = 'none';
+      if (boxPluriAlt) boxPluriAlt.style.display = 'none';
       var multMeses = isAnual ? 1 : meses;
       var desembolsoAnual = vTotal * multMeses;
       if (dispAnual) {
         dispAnual.textContent = formatarMoedaBRL(desembolsoAnual) + (isAnual ? ' (1 parcela anual)' : (meses !== 12 ? ' (' + meses + ' meses faturados)' : ''));
       }
     }
+  }
+
+  function aoMudarFormaPagamentoModalAlteracao() {
+    var sel = document.getElementById('solicitacaoFormaPagamentoPlurianual');
+    var val = sel ? sel.value : 'Parcela Única';
+    var inpQtd = document.getElementById('solicitacaoQtdParcelasPlurianual');
+    var elPeriod = document.getElementById('solicitacaoPeriodicidade');
+    var periodicidade = elPeriod ? elPeriod.value : 'Mensal';
+    var anos = extrairAnosPeriodicidade(periodicidade) || 5;
+
+    if (inpQtd) {
+      if (val === 'Parcela Única') {
+        inpQtd.value = 1;
+        inpQtd.disabled = true;
+      } else {
+        inpQtd.disabled = false;
+        if (val === 'Semestral') inpQtd.value = anos * 2;
+        else if (val === 'Mensal') inpQtd.value = anos * 12;
+        else if (val === 'Anual') inpQtd.value = anos;
+      }
+    }
+    recalcularValoresModalAlteracao();
+  }
+
+  function aoMudarQtdParcelasModalAlteracao() {
+    recalcularValoresModalAlteracao();
   }
 
   function aoDigitarValorMensalManualModalAlteracao() {
@@ -4352,6 +4542,9 @@
       dataFim: isIndet ? '' : formatarDataBR(dtFim),
       prazoIndeterminado: isIndet,
       periodicidade: (document.getElementById('solicitacaoPeriodicidade') ? document.getElementById('solicitacaoPeriodicidade').value : 'Mensal'),
+      formaPagamentoPlurianual: document.getElementById('solicitacaoFormaPagamentoPlurianual') ? document.getElementById('solicitacaoFormaPagamentoPlurianual').value : 'Parcela Única',
+      qtdParcelasPlurianual: parseInt(document.getElementById('solicitacaoQtdParcelasPlurianual') ? document.getElementById('solicitacaoQtdParcelasPlurianual').value : 1, 10) || 1,
+      valorParcelaPlurianual: desformatarNumero(document.getElementById('solicitacaoValorParcelaDisplay') ? document.getElementById('solicitacaoValorParcelaDisplay').textContent : '0'),
       indiceReajuste: indice,
       status: statusContrato,
       statusAlcada: statusAlcada,
@@ -5544,13 +5737,15 @@
     }
     contrato.tabelaBaseClientes.forEach(function(fx, idx) {
       var isAtiva = fx.atual === true || fx.atual === 'true' || fx.ativa === true;
+      var isAcima = fx.acimaDe === true || !fx.ate || fx.ate === 0 || String(fx.ate).toLowerCase().indexOf('acima') !== -1;
       var deNum = typeof fx.de === 'number' ? fx.de : (parseInt(fx.de, 10) || 0);
       var ateNum = typeof fx.ate === 'number' ? fx.ate : (parseInt(fx.ate, 10) || 0);
+      var faixaRotulo = isAcima ? ('Acima de ' + deNum.toLocaleString('pt-BR') + ' assinantes (sem limite)') : (deNum.toLocaleString('pt-BR') + ' a ' + ateNum.toLocaleString('pt-BR') + ' assinantes');
       html += '<div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid ' + (isAtiva ? 'var(--brisa-blue)' : '#CBD5E1') + '; background: ' + (isAtiva ? '#EFF6FF' : '#FFFFFF') + '; border-radius: var(--radius-sm); gap: 12px;">';
       html += '  <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; flex: 1;">';
       html += '    <input type="radio" name="radioEscolhaFaixa" value="' + idx + '" ' + (isAtiva ? 'checked' : '') + ' style="cursor: pointer;">';
       html += '    <div>';
-      html += '      <div style="font-weight: 700; color: var(--brisa-dark-blue); font-size: 13px;">Faixa ' + (idx + 1) + ': ' + deNum.toLocaleString('pt-BR') + ' a ' + ateNum.toLocaleString('pt-BR') + ' assinantes ' + (isAtiva ? '<span class="badge-status ativo" style="font-size: 9px; padding: 2px 6px;">Vigente</span>' : '') + '</div>';
+      html += '      <div style="font-weight: 700; color: var(--brisa-dark-blue); font-size: 13px;">Faixa ' + (idx + 1) + ': ' + faixaRotulo + ' ' + (isAtiva ? '<span class="badge-status ativo" style="font-size: 9px; padding: 2px 6px;">Vigente</span>' : '') + '</div>';
       if (fx.descricao) html += '      <div style="font-size: 11px; color: var(--text-muted);">' + escapeHtml(fx.descricao) + '</div>';
       html += '    </div>';
       html += '  </label>';
@@ -5585,10 +5780,12 @@
     var faixasAtualizadas = [];
     for (var f = 0; f < (contrato.tabelaBaseClientes || []).length; f++) {
       var fxOrig = contrato.tabelaBaseClientes[f];
+      var isAcima = fxOrig.acimaDe === true || !fxOrig.ate || fxOrig.ate === 0 || String(fxOrig.ate).toLowerCase().indexOf('acima') !== -1;
       var valInput = inputs[f] ? inputs[f].value.trim() : fxOrig.valor;
       faixasAtualizadas.push({
         de: fxOrig.de,
-        ate: fxOrig.ate,
+        ate: isAcima ? null : fxOrig.ate,
+        acimaDe: isAcima,
         valor: valInput,
         descricao: fxOrig.descricao || '',
         atual: (f === indice)

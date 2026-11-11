@@ -4448,7 +4448,10 @@ function garantirHeadersContratos_(sheetContratos) {
     'Quantidade de Serviços',
     'Valor Unitário',
     'Meses de Cobrança Efetiva',
-    'Pasta de Destino no Drive'
+    'Pasta de Destino no Drive',
+    'Forma de Pagamento (Plurianual)',
+    'Quantidade de Parcelas',
+    'Valor por Parcela'
   ];
 
   // Sempre sincronizar a linha 1 com os cabecalhos oficiais amigaveis
@@ -4797,7 +4800,10 @@ function obterDadosCompletosTelefonia() {
           desembolsoAnual: desembolsoAnualContrato,
           subpastaDestino: subpastaDrive,
           isPlurianual: isPluriContrato,
-          alertaPeriodicidade: isPluriContrato ? obterTextoAlertaPeriodicidade_(periodicidadeContrato) : ''
+          alertaPeriodicidade: isPluriContrato ? obterTextoAlertaPeriodicidade_(periodicidadeContrato) : '',
+          formaPagamentoPlurianual: String(getCol(row, 'forma_de_pagamento_plurianual', 49, getCol(row, 'forma_pagamento', 49, (isPluriContrato ? 'Parcela Única' : 'Mensal')))),
+          qtdParcelasPlurianual: parseInt(getCol(row, 'quantidade_de_parcelas', 50, getCol(row, 'qtd_parcelas', 50, 1)), 10) || 1,
+          valorParcelaPlurianual: normalizarNumero_(getCol(row, 'valor_por_parcela', 51, getCol(row, 'valor_parcela', 51, valorMensalAtual)))
         };
 
         if (isAtivo) {
@@ -5479,7 +5485,10 @@ function salvarNovoContratoTelefonia(dados) {
       parseInt(dados.qtdServicos, 10) || 1,
       normalizarNumero_(dados.valorUnitario || valorBase),
       parseInt(dados.mesesCobranca, 10) || 12,
-      String(dados.subpastaDestino || 'Contrato').trim()
+      String(dados.subpastaDestino || 'Contrato').trim(),
+      String(dados.formaPagamentoPlurianual || (isPl ? 'Parcela Única' : 'Mensal')).trim(),
+      parseInt(dados.qtdParcelasPlurianual, 10) || 1,
+      normalizarNumero_(dados.valorParcelaPlurianual || (valorBase / (parseInt(dados.qtdParcelasPlurianual, 10) || 1)))
     ]);
 
     // Fazer upload dos arquivos anexados na subpasta selecionada (Contrato, Anexos, Documentacao, NF)
@@ -5895,17 +5904,19 @@ function atualizarFaixaBaseClientes(payload) {
       throw new Error('Indice de faixa invalido: ' + indiceFaixa);
     }
 
-    // Atualizar valores editados de cada faixa e definir a faixa ativa
+    // Atualizar valores editados de cada faixa e definir a faixa ativa com suporte a 'Acima de'
     var faixaAtivaNome = '';
     var faixaAtivaValorNum = 0;
     for (var f = 0; f < faixas.length; f++) {
       var fValNum = normalizarNumero_(faixas[f].valor || 0);
+      var isAcima = faixas[f].acimaDe === true || !faixas[f].ate || faixas[f].ate === 0 || String(faixas[f].ate).toLowerCase().indexOf('acima') !== -1;
       faixas[f].de = parseInt(faixas[f].de, 10) || 0;
-      faixas[f].ate = parseInt(faixas[f].ate, 10) || 0;
+      faixas[f].ate = isAcima ? null : (parseInt(faixas[f].ate, 10) || 0);
+      faixas[f].acimaDe = isAcima;
       faixas[f].valor = 'R$ ' + fValNum.toFixed(2);
       if (f === indiceFaixa) {
         faixas[f].atual = true;
-        faixaAtivaNome = faixas[f].de + ' a ' + faixas[f].ate + ' clientes';
+        faixaAtivaNome = isAcima ? ('Acima de ' + faixas[f].de + ' clientes') : (faixas[f].de + ' a ' + faixas[f].ate + ' clientes');
         faixaAtivaValorNum = fValNum;
       } else {
         faixas[f].atual = false;
@@ -5914,7 +5925,10 @@ function atualizarFaixaBaseClientes(payload) {
 
     var taxaCambio = normalizarNumero_(rowValues[idxTaxaCambio] || 1) || 1;
     var mesesCobranca = parseInt(rowValues[idxMesesCobranca] || 12, 10) || 12;
-    var novoDesembolsoAnual = faixaAtivaValorNum * mesesCobranca * taxaCambio;
+    var rowPeriodicidade = String(rowValues[31] || 'Mensal');
+    var isPluriFaixa = ehPeriodicidadePlurianual_(rowPeriodicidade);
+    var novoDesembolsoAnual = isPluriFaixa ? 0 : (faixaAtivaValorNum * mesesCobranca * taxaCambio);
+    var valorRegistroCiclo = faixaAtivaValorNum * taxaCambio;
 
     var nowStr = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
     var userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestor.telefonia@grupobrisanet.com.br';
@@ -5925,8 +5939,8 @@ function atualizarFaixaBaseClientes(payload) {
       sheetContratos.getRange(targetRow, idxValorAtual + 1).setValue(faixaAtivaValorNum);
     }
     sheetContratos.getRange(targetRow, idxDataAtualizacao + 1).setValue(nowStr);
-    sheetContratos.getRange(targetRow, idxValorBaseBrl + 1).setValue(novoDesembolsoAnual);
-    sheetContratos.getRange(targetRow, idxValorOrcado + 1).setValue(novoDesembolsoAnual);
+    sheetContratos.getRange(targetRow, idxValorBaseBrl + 1).setValue(isPluriFaixa ? valorRegistroCiclo : novoDesembolsoAnual);
+    sheetContratos.getRange(targetRow, idxValorOrcado + 1).setValue(isPluriFaixa ? valorRegistroCiclo : novoDesembolsoAnual);
 
     var userPapelFaixa = obterPapelUsuario_(userEmail);
     registrarLogAuditoriaOficial_(
@@ -6089,6 +6103,15 @@ function salvarAlteracaoContratoTelefonia(payload) {
     sheetContratos.getRange(targetRow, 46).setValue(newQtdServicos);
     sheetContratos.getRange(targetRow, 47).setValue(newValorUnitario);
     sheetContratos.getRange(targetRow, 48).setValue(newMesesCobranca);
+    if (payload.formaPagamentoPlurianual !== undefined) {
+      sheetContratos.getRange(targetRow, 50).setValue(String(payload.formaPagamentoPlurianual).trim());
+    }
+    if (payload.qtdParcelasPlurianual !== undefined) {
+      sheetContratos.getRange(targetRow, 51).setValue(parseInt(payload.qtdParcelasPlurianual, 10) || 1);
+    }
+    if (payload.valorParcelaPlurianual !== undefined) {
+      sheetContratos.getRange(targetRow, 52).setValue(normalizarNumero_(payload.valorParcelaPlurianual));
+    }
 
     if (newPeriodicidade !== oldPeriodicidade) {
       alteracoes.push({ campo: 'Periodicidade de Pagamento', de: oldPeriodicidade, para: newPeriodicidade });
