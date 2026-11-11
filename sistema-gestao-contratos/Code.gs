@@ -4735,6 +4735,255 @@ function atualizarPerfilFornecedorTelefonia(payload) {
 }
 
 /**
+ * Remove todas as linhas de uma aba que satisfazem o predicado, percorrendo de baixo para cima.
+ */
+function deletarLinhasCorrespondentes_(sheet, predicateFn) {
+  if (!sheet || sheet.getLastRow() <= 1) return 0;
+  var values = sheet.getDataRange().getValues();
+  var removedCount = 0;
+  for (var i = values.length - 1; i >= 1; i--) {
+    if (predicateFn(values[i], i)) {
+      sheet.deleteRow(i + 1);
+      removedCount++;
+    }
+  }
+  return removedCount;
+}
+
+/**
+ * Exclui um contrato da aba Contratos e limpa aprovacoes/aditivos vinculados,
+ * movendo opcionalmente a pasta do contrato no Google Drive para a Lixeira e registrando auditoria.
+ * @param {string|number} idContrato
+ * @param {boolean} [moverDriveLixeira=true]
+ * @return {Object}
+ */
+function excluirContratoTelefonia(idContrato, moverDriveLixeira) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var targetId = String(idContrato || '').trim();
+    if (!targetId) throw new Error('ID do contrato e obrigatorio.');
+
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    if (!sheetContratos || sheetContratos.getLastRow() <= 1) {
+      throw new Error('Aba Contratos nao localizada ou vazia.');
+    }
+
+    var idReal = targetId;
+    var protocolo = '';
+    var fornecedor = '';
+    var objeto = '';
+    var pastaContratoDriveId = '';
+
+    var cRemoved = deletarLinhasCorrespondentes_(sheetContratos, function(row) {
+      var match = (String(row[0] || '').trim() === targetId || String(row[1] || '').trim() === targetId);
+      if (match) {
+        idReal = String(row[0] || targetId).trim();
+        protocolo = String(row[1] || '').trim();
+        fornecedor = String(row[3] || '').trim();
+        objeto = String(row[4] || '').trim();
+        pastaContratoDriveId = String(row[21] || '').trim();
+      }
+      return match;
+    });
+
+    if (cRemoved === 0) {
+      throw new Error('Contrato nao localizado: ' + targetId);
+    }
+
+    // Remover aprovacoes e aditivos vinculados ao contrato
+    var idSet = {};
+    idSet[String(idReal)] = true;
+    idSet[String(targetId)] = true;
+    var shAp = ss.getSheetByName(CONFIG.SHEET_APROVACOES);
+    deletarLinhasCorrespondentes_(shAp, function(row) {
+      return !!idSet[String(row[1] || '').trim()];
+    });
+    var shAd = ss.getSheetByName(CONFIG.SHEET_ADITIVOS);
+    deletarLinhasCorrespondentes_(shAd, function(row) {
+      return !!idSet[String(row[1] || '').trim()];
+    });
+
+    if (moverDriveLixeira !== false && pastaContratoDriveId) {
+      try {
+        DriveApp.getFolderById(pastaContratoDriveId).setTrashed(true);
+      } catch (eDrv) {}
+    }
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (eU) {}
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userPapel = obterPapelUsuario_(userEmail);
+
+    registrarLogAuditoriaOficial_(
+      'Contrato',
+      idReal,
+      'Exclusao de Contrato',
+      'Registro Completo',
+      (protocolo ? protocolo + ' · ' : '') + fornecedor + (objeto ? ' (' + objeto + ')' : ''),
+      'EXCLUIDO',
+      'Contrato excluido definitivamente pelo usuario' + (moverDriveLixeira !== false && pastaContratoDriveId ? ' (pasta Drive enviada para lixeira).' : '.'),
+      userEmail,
+      userPapel
+    );
+
+    return {
+      success: true,
+      idContrato: idReal,
+      protocolo: protocolo,
+      fornecedor: fornecedor,
+      message: 'Contrato excluido com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch (eL) {}
+  }
+}
+
+/**
+ * Exclui um fornecedor da aba Fornecedores e todos os seus contratos, aprovacoes e aditivos vinculados,
+ * movendo opcionalmente a pasta do fornecedor no Drive para a Lixeira e registrando auditoria.
+ * @param {string} idFornecedor
+ * @param {string} [razaoSocial]
+ * @param {boolean} [moverDriveLixeira=true]
+ * @return {Object}
+ */
+function excluirFornecedorTelefonia(idFornecedor, razaoSocial, moverDriveLixeira) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    var idRef = String(idFornecedor || '').trim();
+    var razaoRef = String(razaoSocial || '').trim();
+    if (!idRef && !razaoRef) throw new Error('Identificador ou Razao Social do fornecedor e obrigatorio.');
+
+    var ss = obterPlanilha_();
+    var sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+
+    var fornIdFinal = idRef;
+    var fornRazaoFinal = razaoRef || idRef;
+    var pastaFornDriveId = '';
+    var fornecedorRemovido = 0;
+
+    if (sheetFornecedores && sheetFornecedores.getLastRow() > 1) {
+      var dataF = sheetFornecedores.getDataRange().getValues();
+      var headersF = dataF[0].map(function(h) { return String(h).toLowerCase().trim(); });
+      var loc = localizarLinhaFornecedor_(dataF, headersF, [idRef, razaoRef]);
+      if (loc.rowIndex !== -1 && loc.rowData) {
+        var prep = normalizarLinhaFornecedorSchema_(loc.rowData, fornRazaoFinal, '');
+        fornIdFinal = String(prep.values[0] || idRef).trim();
+        fornRazaoFinal = String(prep.values[1] || fornRazaoFinal).trim();
+        pastaFornDriveId = String(prep.values[7] || '').trim();
+      }
+      var refsLower = [fornIdFinal, idRef, fornRazaoFinal, razaoRef]
+        .map(function(s) { return String(s || '').trim().toLowerCase(); })
+        .filter(function(s) { return !!s; });
+
+      fornecedorRemovido = deletarLinhasCorrespondentes_(sheetFornecedores, function(row) {
+        var rId = String(row[0] || '').trim().toLowerCase();
+        var rRaz = String(row[1] || '').trim().toLowerCase();
+        return refsLower.some(function(ref) { return (rId && rId === ref) || (rRaz && rRaz === ref); });
+      });
+    }
+
+    var idFornLow = String(fornIdFinal || idRef || '').trim().toLowerCase();
+    var razaoLow = String(fornRazaoFinal || razaoRef || '').trim().toLowerCase();
+    var idsContratosRemovidos = {};
+    var contratosRemovidos = 0;
+    var pastasContratos = [];
+
+    if (sheetContratos && sheetContratos.getLastRow() > 1) {
+      contratosRemovidos = deletarLinhasCorrespondentes_(sheetContratos, function(row) {
+        var cFId = String(row[2] || '').trim().toLowerCase();
+        var cForn = String(row[3] || '').trim().toLowerCase();
+        var match = (idFornLow && cFId === idFornLow) || (razaoLow && cForn === razaoLow);
+        if (match) {
+          var cid = String(row[0] || '').trim();
+          if (cid) idsContratosRemovidos[cid] = true;
+          var pContrato = String(row[21] || '').trim();
+          var pFornRow = String(row[22] || '').trim();
+          if (pContrato) pastasContratos.push(pContrato);
+          if (!pastaFornDriveId && pFornRow) pastaFornDriveId = pFornRow;
+        }
+        return match;
+      });
+    }
+
+    if (fornecedorRemovido === 0 && contratosRemovidos === 0) {
+      throw new Error('Fornecedor nao localizado na planilha.');
+    }
+
+    // Limpar aprovacoes e aditivos dos contratos removidos
+    if (Object.keys(idsContratosRemovidos).length > 0) {
+      deletarLinhasCorrespondentes_(ss.getSheetByName(CONFIG.SHEET_APROVACOES), function(row) {
+        return !!idsContratosRemovidos[String(row[1] || '').trim()];
+      });
+      deletarLinhasCorrespondentes_(ss.getSheetByName(CONFIG.SHEET_ADITIVOS), function(row) {
+        return !!idsContratosRemovidos[String(row[1] || '').trim()];
+      });
+    }
+
+    if (moverDriveLixeira !== false) {
+      if (pastaFornDriveId) {
+        try {
+          DriveApp.getFolderById(pastaFornDriveId).setTrashed(true);
+        } catch (eDrvF) {}
+      }
+      for (var pIdx = 0; pIdx < pastasContratos.length; pIdx++) {
+        try {
+          DriveApp.getFolderById(pastasContratos[pIdx]).setTrashed(true);
+        } catch (eDrvC) {}
+      }
+    }
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (eU) {}
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userPapel = obterPapelUsuario_(userEmail);
+
+    registrarLogAuditoriaOficial_(
+      'Fornecedor',
+      fornIdFinal || fornRazaoFinal,
+      'Exclusao de Fornecedor',
+      'Cadastro e Contratos Vinculados',
+      fornRazaoFinal + ' (' + contratosRemovidos + ' contrato(s))',
+      'EXCLUIDO',
+      'Fornecedor excluido do sistema em conjunto com ' + contratosRemovidos + ' contrato(s) vinculado(s).',
+      userEmail,
+      userPapel
+    );
+
+    return {
+      success: true,
+      idFornecedor: fornIdFinal,
+      razaoSocial: fornRazaoFinal,
+      contratosRemovidos: contratosRemovidos,
+      message: 'Fornecedor ' + fornRazaoFinal + ' excluido com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch (eL) {}
+  }
+}
+
+/**
  * Executa a limpeza operacional da planilha:
  * 1. Remove com seguranca as abas 'Página2' e 'Página3' (ou 'Sheet2'/'Sheet3') se existirem.
  * 2. Verifica a aba 'Acessos_Alcadas'; se a Coluna A for 'ID do Usuário' e estiver vazia, remove a coluna.

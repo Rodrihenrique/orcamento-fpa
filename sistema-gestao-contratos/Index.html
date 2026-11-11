@@ -442,6 +442,77 @@
       background: var(--brisa-dark-blue);
     }
 
+    .btn-action-danger {
+      background: #FEF2F2;
+      color: var(--danger);
+      border: 1px solid #FECACA;
+      height: 30px;
+      padding: 0 10px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s;
+    }
+
+    .btn-action-danger:hover {
+      background: var(--danger);
+      color: #FFFFFF;
+      border-color: var(--danger);
+    }
+
+    .btn-danger-outline {
+      background: #FEF2F2;
+      color: var(--danger);
+      border: 1px solid #FECACA;
+      height: 36px;
+      padding: 0 14px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-danger-outline:hover {
+      background: var(--danger);
+      color: #FFFFFF;
+      border-color: var(--danger);
+    }
+
+    .btn-danger-solid {
+      background: var(--danger);
+      color: #FFFFFF;
+      border: 1px solid var(--danger);
+      height: 38px;
+      padding: 0 18px;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .btn-danger-solid:hover:not(:disabled) {
+      background: #B91C1C;
+      border-color: #B91C1C;
+    }
+
+    .btn-danger-solid:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .btn-add-contract {
       background: #EFF6FF;
       color: var(--brisa-blue);
@@ -2695,11 +2766,39 @@
           </div>
         </div>
 
-        <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: flex-end; gap: 12px; margin: 0 -24px -20px -24px;">
-          <button type="button" class="btn btn-secondary" onclick="fecharModalEditarFornecedor()">Cancelar</button>
-          <button type="submit" class="btn btn-primary" id="btnSalvarEditFornecedor">Salvar Alterações</button>
+        <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 -24px -20px -24px;">
+          <button type="button" class="btn btn-danger-outline" id="btnExcluirFornecedorModal" onclick="excluirFornecedorPeloModal()">Excluir Fornecedor</button>
+          <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn btn-secondary" onclick="fecharModalEditarFornecedor()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" id="btnSalvarEditFornecedor">Salvar Alterações</button>
+          </div>
         </div>
       </form>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+     MODAL CONFIRMAR EXCLUSAO (FORNECEDOR OU CONTRATO)
+     ========================================================================== -->
+<div class="modal-overlay" id="modalConfirmarExclusao">
+  <div class="modal-content" style="max-width: 520px; border-radius: 16px; overflow: hidden;">
+    <div class="modal-header" style="border-top-left-radius: 16px; border-top-right-radius: 16px; background: #FEF2F2; border-bottom: 1px solid #FECACA;">
+      <div class="modal-header-title" style="color: #991B1B;">
+        <span id="modalExclusaoTitulo">Confirmar Exclusão</span>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalConfirmarExclusao()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px;">
+      <div id="modalExclusaoResumo" style="padding: 14px 16px; background: #FFF5F5; border: 1px solid #FECACA; border-radius: 8px; font-size: 13px; color: #7F1D1D; line-height: 1.5; margin-bottom: 14px;"></div>
+      <label style="display: flex; align-items: flex-start; gap: 10px; font-size: 12px; color: var(--text-main); cursor: pointer; padding: 10px 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px;">
+        <input type="checkbox" id="modalExclusaoMoverDrive" checked style="margin-top: 2px;">
+        <span>Mover a pasta correspondente no Google Drive para a Lixeira (poderá ser restaurada em até 30 dias pelo Drive).</span>
+      </label>
+    </div>
+    <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: flex-end; gap: 12px;">
+      <button type="button" class="btn btn-secondary" onclick="fecharModalConfirmarExclusao()">Cancelar</button>
+      <button type="button" class="btn-danger-solid" id="btnConfirmarExclusao" onclick="executarExclusaoConfirmada()">Confirmar Exclusão</button>
     </div>
   </div>
 </div>
@@ -2829,6 +2928,7 @@
     fornecedoresPaginaAtual: 1,
     fornecedoresPorPagina: 10,
     fornecedoresListaRenderizada: null,
+    exclusaoPendente: null,
     logsExpandidos: {},
     arquivosModalContrato: []
   };
@@ -3577,9 +3677,12 @@
 
       // Bloco Perfil Formal do Fornecedor
       html += '    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; font-size: 12px;">';
-      html += '      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">';
+      html += '      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">';
       html += '        <span style="font-size: 11px; font-weight: 700; color: var(--brisa-dark-blue); text-transform: uppercase; letter-spacing: 0.5px;">Perfil Formal do Fornecedor</span>';
-      html += '        <button type="button" class="btn btn-secondary" style="height: 28px; padding: 0 12px; font-size: 11px; font-weight: 700;" onclick="abrirModalEditarFornecedor(\'' + encodeURIComponent(String(f.id || '')) + '\', \'' + encodeURIComponent(String(f.razaoSocial || '')) + '\')">Editar Perfil</button>';
+      html += '        <div style="display: flex; align-items: center; gap: 8px;">';
+      html += '          <button type="button" class="btn btn-secondary" style="height: 28px; padding: 0 12px; font-size: 11px; font-weight: 700;" onclick="abrirModalEditarFornecedor(\'' + encodeURIComponent(String(f.id || '')) + '\', \'' + encodeURIComponent(String(f.razaoSocial || '')) + '\')">Editar Perfil</button>';
+      html += '          <button type="button" class="btn btn-danger-outline" style="height: 28px; padding: 0 12px; font-size: 11px;" onclick="confirmarExclusaoFornecedor(\'' + encodeURIComponent(String(f.id || '')) + '\', \'' + encodeURIComponent(String(f.razaoSocial || '')) + '\')">Excluir Fornecedor</button>';
+      html += '        </div>';
       html += '      </div>';
       html += '      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">';
       html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Razão Social</span><div style="font-weight: 700; color: var(--brisa-dark-blue); margin-top: 2px;">' + escapeHtml(f.razaoSocial) + '</div></div>';
@@ -3729,9 +3832,14 @@
           html += '          <td>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</td>';
           html += '          <td>' + alcadaBadgeHtml + '</td>';
           html += '          <td style="text-align: right;">';
-          html += '            <button type="button" class="btn btn-action-primary" onclick="abrirFicha360(' + c.id + ')">';
-          html += '              Abrir Ficha 360°';
-          html += '            </button>';
+          html += '            <div style="display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px;">';
+          html += '              <button type="button" class="btn btn-action-primary" onclick="abrirFicha360(' + c.id + ')">';
+          html += '                Abrir Ficha 360°';
+          html += '              </button>';
+          html += '              <button type="button" class="btn btn-action-danger" onclick="confirmarExclusaoContrato(\'' + escapeHtml(String(c.id)) + '\')" title="Excluir contrato">';
+          html += '                Excluir';
+          html += '              </button>';
+          html += '            </div>';
           html += '          </td>';
           html += '        </tr>';
         });
@@ -4120,6 +4228,212 @@
         aplicarAtualizacaoLocalPerfil(payload);
         fecharModalEditarFornecedor();
         mostrarToast('Simulação: Perfil de ' + payload.razaoSocial + ' atualizado com sucesso!', 'success');
+      }, 300);
+    }
+  }
+
+  function reaplicarFiltroOuRenderizarFornecedores() {
+    var temFiltro = (document.getElementById('filtroFornecedoresInput') && document.getElementById('filtroFornecedoresInput').value.trim() !== '') ||
+                    (document.getElementById('filtroSetorContrato') && document.getElementById('filtroSetorContrato').value !== '') ||
+                    (document.getElementById('filtroStatusContrato') && document.getElementById('filtroStatusContrato').value !== '') ||
+                    (document.getElementById('filtroTipoContrato') && document.getElementById('filtroTipoContrato').value !== '');
+    if (temFiltro) {
+      filtrarFornecedores(false);
+    } else {
+      renderizarFornecedoresAcordeao(appState.fornecedores);
+    }
+  }
+
+  function abrirModalConfirmarExclusao(opcoes) {
+    appState.exclusaoPendente = opcoes;
+    var titulo = document.getElementById('modalExclusaoTitulo');
+    var resumo = document.getElementById('modalExclusaoResumo');
+    var chkDrive = document.getElementById('modalExclusaoMoverDrive');
+    var btn = document.getElementById('btnConfirmarExclusao');
+
+    if (titulo) titulo.textContent = opcoes.titulo || 'Confirmar Exclusão';
+    if (resumo) resumo.innerHTML = opcoes.resumoHtml || '';
+    if (chkDrive) chkDrive.checked = true;
+    if (btn) btn.disabled = false;
+
+    document.getElementById('modalConfirmarExclusao').style.display = 'flex';
+  }
+
+  function fecharModalConfirmarExclusao() {
+    appState.exclusaoPendente = null;
+    var modal = document.getElementById('modalConfirmarExclusao');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function confirmarExclusaoFornecedor(idEncoded, razaoEncoded) {
+    var fornId = idEncoded ? decodeURIComponent(idEncoded) : '';
+    var fornRazao = razaoEncoded ? decodeURIComponent(razaoEncoded) : '';
+    var idLow = fornId.trim().toLowerCase();
+    var razLow = fornRazao.trim().toLowerCase();
+
+    var lista = (appState.fornecedores || []).concat(appState.fornecedoresListaRenderizada || []);
+    var forn = lista.find(function(item) {
+      var itemId = String(item.id || '').trim().toLowerCase();
+      var itemRaz = String(item.razaoSocial || '').trim().toLowerCase();
+      return (idLow && itemId === idLow) || (razLow && itemRaz === razLow);
+    });
+    if (!forn) {
+      mostrarToast('Fornecedor não localizado para exclusão.', 'error');
+      return;
+    }
+
+    var qtdContratos = (forn.contratos && forn.contratos.length) ? forn.contratos.length : (parseInt(forn.totalContratos, 10) || 0);
+    var nomeDisplay = escapeHtml(forn.apelido || forn.nomeFantasia || forn.razaoSocial);
+    var avisoContratos = qtdContratos > 0
+      ? '<br><br><strong>Atenção:</strong> Este fornecedor possui <strong>' + qtdContratos + ' contrato(s) vinculado(s)</strong>, que também serão excluídos junto com aprovações e aditivos associados.'
+      : '<br><br>Este fornecedor não possui contratos cadastrados.';
+
+    abrirModalConfirmarExclusao({
+      tipo: 'fornecedor',
+      idFornecedor: forn.id || '',
+      razaoSocial: forn.razaoSocial || '',
+      titulo: 'Excluir Fornecedor',
+      resumoHtml: 'Você está prestes a excluir definitivamente o fornecedor <strong>' + nomeDisplay + '</strong> (' + escapeHtml(forn.razaoSocial) + ')' +
+        (forn.cnpj ? ' · CNPJ: <code>' + escapeHtml(forn.cnpj) + '</code>' : '') + '.' + avisoContratos
+    });
+  }
+
+  function excluirFornecedorPeloModal() {
+    var idOrig = document.getElementById('editFornIdOriginal').value.trim();
+    var razOrig = document.getElementById('editFornRazaoOriginal').value.trim();
+    fecharModalEditarFornecedor();
+    confirmarExclusaoFornecedor(encodeURIComponent(idOrig), encodeURIComponent(razOrig));
+  }
+
+  function confirmarExclusaoContrato(idContrato) {
+    var contrato = (appState.contratos || []).find(function(c) { return String(c.id) === String(idContrato); });
+    if (!contrato) {
+      mostrarToast('Contrato não localizado para exclusão.', 'error');
+      return;
+    }
+
+    var vMensal = parseFloat(contrato.valorMensal) || parseFloat(contrato.valorMensalBase) || 0;
+    abrirModalConfirmarExclusao({
+      tipo: 'contrato',
+      idContrato: contrato.id,
+      protocolo: contrato.protocolo || '',
+      fornecedor: contrato.fornecedor || '',
+      titulo: 'Excluir Contrato',
+      resumoHtml: 'Você está prestes a excluir definitivamente o contrato <strong>' + escapeHtml(contrato.objeto || 'Sem objeto') + '</strong><br>' +
+        '<strong>Fornecedor:</strong> ' + escapeHtml(contrato.fornecedor || '-') + '<br>' +
+        '<strong>Valor Mensal / Ciclo:</strong> ' + formatarMoedaBRL(vMensal) + '<br><br>' +
+        'Aprovações e aditivos vinculados a este contrato também serão removidos.'
+    });
+  }
+
+  function confirmarExclusaoContratoSelecionado() {
+    if (!appState.contratoSelecionado) return;
+    confirmarExclusaoContrato(appState.contratoSelecionado.id);
+  }
+
+  function executarExclusaoConfirmada() {
+    var op = appState.exclusaoPendente;
+    if (!op) return;
+
+    var moverDriveLixeira = document.getElementById('modalExclusaoMoverDrive') ? document.getElementById('modalExclusaoMoverDrive').checked : true;
+    var btn = document.getElementById('btnConfirmarExclusao');
+    if (btn) btn.disabled = true;
+
+    var removerContratoLocal = function(idContrato) {
+      var idStr = String(idContrato);
+      appState.contratos = (appState.contratos || []).filter(function(c) { return String(c.id) !== idStr; });
+      (appState.fornecedores || []).forEach(function(f) {
+        if (f.contratos) {
+          f.contratos = f.contratos.filter(function(c) { return String(c.id) !== idStr; });
+          f.totalContratos = f.contratos.length;
+        }
+      });
+      if (appState.aprovacoes) {
+        appState.aprovacoes = appState.aprovacoes.filter(function(ap) { return String(ap.idContrato) !== idStr; });
+      }
+      if (appState.contratoSelecionado && String(appState.contratoSelecionado.id) === idStr) {
+        appState.contratoSelecionado = null;
+        fecharFicha360();
+      }
+    };
+
+    var removerFornecedorLocal = function(idFornecedor, razaoSocial) {
+      var idLow = String(idFornecedor || '').trim().toLowerCase();
+      var razLow = String(razaoSocial || '').trim().toLowerCase();
+      appState.fornecedores = (appState.fornecedores || []).filter(function(f) {
+        var fId = String(f.id || '').trim().toLowerCase();
+        var fRaz = String(f.razaoSocial || '').trim().toLowerCase();
+        return !((idLow && fId === idLow) || (razLow && fRaz === razLow));
+      });
+      appState.contratos = (appState.contratos || []).filter(function(c) {
+        var cFId = String(c.idFornecedor || '').trim().toLowerCase();
+        var cForn = String(c.fornecedor || '').trim().toLowerCase();
+        return !((idLow && cFId === idLow) || (razLow && cForn === razLow));
+      });
+      fecharModalEditarFornecedor();
+      if (appState.contratoSelecionado) {
+        var csFId = String(appState.contratoSelecionado.idFornecedor || '').trim().toLowerCase();
+        var csForn = String(appState.contratoSelecionado.fornecedor || '').trim().toLowerCase();
+        if ((idLow && csFId === idLow) || (razLow && csForn === razLow)) {
+          appState.contratoSelecionado = null;
+          fecharFicha360();
+        }
+      }
+    };
+
+    var finalizarLocal = function() {
+      recalcularKpisDashboard();
+      reaplicarFiltroOuRenderizarFornecedores();
+      fecharModalConfirmarExclusao();
+    };
+
+    var msgLoading = (op.tipo === 'fornecedor')
+      ? 'Removendo fornecedor e contratos vinculados...'
+      : 'Removendo contrato e registros vinculados...';
+    mostrarLoading('Excluindo Registro', msgLoading);
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      var runner = google.script.run
+        .withSuccessHandler(function(res) {
+          esconderLoading();
+          if (btn) btn.disabled = false;
+          if (res && res.success) {
+            if (op.tipo === 'fornecedor') {
+              removerFornecedorLocal(op.idFornecedor, op.razaoSocial);
+              mostrarToast('Fornecedor ' + (op.razaoSocial || '') + ' excluído com sucesso!', 'success');
+            } else {
+              removerContratoLocal(op.idContrato);
+              mostrarToast('Contrato excluído com sucesso!', 'success');
+            }
+            finalizarLocal();
+            carregarDadosServidor(false);
+          } else {
+            mostrarToast('Erro ao excluir: ' + ((res && res.error) || 'Desconhecido'), 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          esconderLoading();
+          if (btn) btn.disabled = false;
+          mostrarToast('Erro de comunicação: ' + err.message, 'error');
+        });
+
+      if (op.tipo === 'fornecedor') {
+        runner.excluirFornecedorTelefonia(op.idFornecedor, op.razaoSocial, moverDriveLixeira);
+      } else {
+        runner.excluirContratoTelefonia(op.idContrato, moverDriveLixeira);
+      }
+    } else {
+      setTimeout(function() {
+        esconderLoading();
+        if (btn) btn.disabled = false;
+        if (op.tipo === 'fornecedor') {
+          removerFornecedorLocal(op.idFornecedor, op.razaoSocial);
+          mostrarToast('Simulação: Fornecedor ' + (op.razaoSocial || '') + ' excluído.', 'success');
+        } else {
+          removerContratoLocal(op.idContrato);
+          mostrarToast('Simulação: Contrato excluído.', 'success');
+        }
+        finalizarLocal();
       }, 300);
     }
   }
@@ -4672,6 +4986,7 @@
 
     var body = document.getElementById('fichaBodyContent');
     var footer = document.getElementById('fichaFooterActions');
+    var btnExcluirFicha = '<button type="button" class="btn btn-danger-outline" style="margin-right: auto;" onclick="confirmarExclusaoContratoSelecionado()">Excluir Contrato</button>';
 
     if (abaNome === 'resumo') {
       body.innerHTML = '<div class="form-grid">' +
@@ -4694,7 +5009,8 @@
         '<div class="form-group col-span-2"><span class="form-label">E-mail do Responsável</span><div style="font-weight:600; color:var(--brisa-blue);">' + escapeHtml(c.emailResponsavel || c.gestor || '-') + '</div></div>' +
         '</div>';
 
-      footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
+      footer.innerHTML = btnExcluirFicha +
+        '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
         '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     } else if (abaNome === 'financeiro') {
       var faixasHtml = '';
@@ -4756,7 +5072,8 @@
         '<div class="form-group col-span-2"><span class="form-label">Observações Gerais</span><div>' + escapeHtml(c.observacoes || '-') + '</div></div>' +
         '</div>' + faixasHtml;
 
-      footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
+      footer.innerHTML = btnExcluirFicha +
+        '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
         '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     } else if (abaNome === 'documentos') {
       body.innerHTML = '<div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">' +
@@ -4786,7 +5103,7 @@
         '  </div>' +
         '  <div id="modalUploadSelectedFilesList" style="margin-top:10px; display:none;"></div>' +
         '</div>';
-      footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
+      footer.innerHTML = btnExcluirFicha + '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
     } else if (abaNome === 'logs') {
       var contractLogs = (appState.logs || []).filter(function(lg) {
         return (String(lg.idContrato) === String(c.id)) ||
@@ -4809,7 +5126,8 @@
           gerarHtmlLinhaDoTempo(contractLogs);
       }
 
-      footer.innerHTML = '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
+      footer.innerHTML = btnExcluirFicha +
+        '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
         '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     }
   }
