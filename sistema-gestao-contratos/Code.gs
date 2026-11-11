@@ -4325,94 +4325,43 @@ function atualizarStatusFornecedorTelefonia(idOuNomeFornecedor, novoStatus) {
     var colStatus = headers.indexOf('status');
     if (colStatus === -1) colStatus = 8; // Coluna 9 (index 8)
 
-    var colId = headers.indexOf('id_fornecedor');
-    var colRazao = headers.indexOf('razao_social');
-    var colFantasia = headers.indexOf('nome_fantasia');
-    var colApelido = headers.indexOf('apelido');
-
-    var rowIndex = -1;
-    var matchedRowData = null;
+    var loc = localizarLinhaFornecedor_(data, headers, [fornRef]);
+    var rowIndex = loc.rowIndex;
+    var matchedRowData = loc.rowData;
     var statusAnterior = 'Ativo';
-    var nomeFornecedor = String(idOuNomeFornecedor || '').trim();
-
-    for (var i = 1; i < data.length; i++) {
-      var row = data[i];
-      var rId = String((colId !== -1 ? row[colId] : row[0]) || '').trim().toLowerCase();
-      var rRazao = String((colRazao !== -1 ? row[colRazao] : row[1]) || '').trim().toLowerCase();
-      var rFantasia = String((colFantasia !== -1 ? row[colFantasia] : row[2]) || '').trim().toLowerCase();
-      var rApelido = String((colApelido !== -1 ? row[colApelido] : row[3]) || '').trim().toLowerCase();
-
-      if (rId === fornRef || rRazao === fornRef || rApelido === fornRef || rFantasia === fornRef) {
-        rowIndex = i + 1;
-        matchedRowData = row;
-        nomeFornecedor = String((colRazao !== -1 ? row[colRazao] : row[1]) || nomeFornecedor);
-        break;
-      }
-    }
+    var nomeFornecedor = loc.nomeFornecedor || String(idOuNomeFornecedor || '').trim();
 
     var nowStrF = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
 
     if (rowIndex === -1) {
       // Caso o fornecedor tenha sido criado apenas via Contratos (sem linha em Fornecedores), criar linha oficial agora
+      var metaCont = buscarMetadadosFornecedorEmContratos_(ss, [fornRef]);
+      nomeFornecedor = metaCont.nomeFornecedor || nomeFornecedor;
       var fornIdNovo = (fornRef.indexOf('forn-') === 0)
         ? String(idOuNomeFornecedor).trim()
         : ('FORN-' + nomeFornecedor.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15));
-      var cnpjBusca = '';
-      var pastaBusca = '';
-      try {
-        var shCont = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
-        if (shCont && shCont.getLastRow() > 1) {
-          var cVals = shCont.getRange(2, 1, shCont.getLastRow() - 1, Math.min(shCont.getLastColumn(), 30)).getValues();
-          for (var cI = 0; cI < cVals.length; cI++) {
-            var cForn = String(cVals[cI][3] || '').trim().toLowerCase();
-            var cFId = String(cVals[cI][2] || '').trim().toLowerCase();
-            if (cForn === fornRef || cFId === fornRef) {
-              nomeFornecedor = String(cVals[cI][3] || nomeFornecedor).trim();
-              if (!cnpjBusca && cVals[cI].length > 28) cnpjBusca = String(cVals[cI][28] || '');
-              if (!pastaBusca && cVals[cI].length > 22) pastaBusca = String(cVals[cI][22] || '');
-              break;
-            }
-          }
-        }
-      } catch (eCBusca) {}
 
       sheetFornecedores.appendRow([
         fornIdNovo,
         nomeFornecedor,
         nomeFornecedor,
         nomeFornecedor,
-        cnpjBusca,
+        metaCont.cnpj,
         '',
         '',
-        pastaBusca,
+        metaCont.pastaDriveId,
         statusNormalizado,
-        nowStrF
+        nowStrF,
+        ''
       ]);
       statusAnterior = 'Ativo';
     } else {
-      // Se for linha legada de 9 colunas (CNPJ ainda na coluna 3), normalizar para 10 colunas antes de gravar status
-      var v3 = String(matchedRowData[3] || '').trim();
-      var v4 = String(matchedRowData[4] || '').trim();
-      var isLegacyCol3Cnpj = (/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(v3) || /\d{14}/.test(v3.replace(/\D/g, ''))) &&
-                             !(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(v4) || /\d{14}/.test(v4.replace(/\D/g, '')));
-      if (isLegacyCol3Cnpj && colStatus === 8) {
-        statusAnterior = String(matchedRowData[7] || 'Ativo');
-        var fantasiaOrig = String(matchedRowData[2] || nomeFornecedor).trim();
-        var linhaNormalizada = [
-          matchedRowData[0] || '',
-          matchedRowData[1] || nomeFornecedor,
-          fantasiaOrig,
-          fantasiaOrig || nomeFornecedor,
-          v3,                 // cnpj
-          matchedRowData[4] || '', // contato
-          matchedRowData[5] || '', // email
-          matchedRowData[6] || '', // pasta drive
-          statusNormalizado,
-          matchedRowData[8] || nowStrF
-        ];
-        sheetFornecedores.getRange(rowIndex, 1, 1, 10).setValues([linhaNormalizada]);
+      var linhaPrep = normalizarLinhaFornecedorSchema_(matchedRowData, nomeFornecedor, nowStrF);
+      statusAnterior = linhaPrep.wasLegacy ? String(matchedRowData[7] || 'Ativo') : String(matchedRowData[colStatus] || 'Ativo');
+      if (linhaPrep.wasLegacy && colStatus === 8) {
+        linhaPrep.values[8] = statusNormalizado;
+        sheetFornecedores.getRange(rowIndex, 1, 1, linhaPrep.values.length).setValues([linhaPrep.values]);
       } else {
-        statusAnterior = String(matchedRowData[colStatus] || 'Ativo');
         sheetFornecedores.getRange(rowIndex, colStatus + 1).setValue(statusNormalizado);
       }
     }
@@ -4448,6 +4397,340 @@ function atualizarStatusFornecedorTelefonia(idOuNomeFornecedor, novoStatus) {
     return { success: false, error: err.message };
   } finally {
     try { lock.releaseLock(); } catch(eL) {}
+  }
+}
+
+/**
+ * Localiza uma linha de fornecedor na aba Fornecedores por qualquer identificador de referencia.
+ * @param {Array<Array>} data
+ * @param {Array<string>} headers
+ * @param {Array<string>} refs
+ * @return {Object}
+ */
+function localizarLinhaFornecedor_(data, headers, refs) {
+  var colId = headers.indexOf('id_fornecedor');
+  var colRazao = headers.indexOf('razao_social');
+  var colFantasia = headers.indexOf('nome_fantasia');
+  var colApelido = headers.indexOf('apelido');
+  var refsClean = (refs || []).map(function(r) { return String(r || '').trim().toLowerCase(); }).filter(function(r) { return !!r; });
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var rId = String((colId !== -1 ? row[colId] : row[0]) || '').trim().toLowerCase();
+    var rRazao = String((colRazao !== -1 ? row[colRazao] : row[1]) || '').trim().toLowerCase();
+    var rFantasia = String((colFantasia !== -1 ? row[colFantasia] : row[2]) || '').trim().toLowerCase();
+    var rApelido = String((colApelido !== -1 ? row[colApelido] : row[3]) || '').trim().toLowerCase();
+
+    var matched = refsClean.some(function(ref) {
+      return (rId && rId === ref) || (rRazao && rRazao === ref) || (rApelido && rApelido === ref) || (rFantasia && rFantasia === ref);
+    });
+    if (matched) {
+      return {
+        rowIndex: i + 1,
+        rowData: row,
+        nomeFornecedor: String((colRazao !== -1 ? row[colRazao] : row[1]) || '').trim()
+      };
+    }
+  }
+  return { rowIndex: -1, rowData: null, nomeFornecedor: '' };
+}
+
+/**
+ * Busca CNPJ e ID de pasta do Drive de um fornecedor na aba Contratos caso ainda nao esteja na aba Fornecedores.
+ */
+function buscarMetadadosFornecedorEmContratos_(ss, refs) {
+  var result = { nomeFornecedor: '', cnpj: '', pastaDriveId: '' };
+  var refsClean = (refs || []).map(function(r) { return String(r || '').trim().toLowerCase(); }).filter(function(r) { return !!r; });
+  try {
+    var shCont = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    if (shCont && shCont.getLastRow() > 1) {
+      var cVals = shCont.getRange(2, 1, shCont.getLastRow() - 1, Math.min(shCont.getLastColumn(), 30)).getValues();
+      for (var cI = 0; cI < cVals.length; cI++) {
+        var cForn = String(cVals[cI][3] || '').trim().toLowerCase();
+        var cFId = String(cVals[cI][2] || '').trim().toLowerCase();
+        var hit = refsClean.some(function(ref) { return (cForn && cForn === ref) || (cFId && cFId === ref); });
+        if (hit) {
+          result.nomeFornecedor = String(cVals[cI][3] || '').trim();
+          if (cVals[cI].length > 28) result.cnpj = String(cVals[cI][28] || '').trim();
+          if (cVals[cI].length > 22) result.pastaDriveId = String(cVals[cI][22] || '').trim();
+          break;
+        }
+      }
+    }
+  } catch (eCBusca) {}
+  return result;
+}
+
+/**
+ * Normaliza uma linha da aba Fornecedores (incluindo linhas legadas de 9 colunas) para as 11 colunas oficiais.
+ */
+function normalizarLinhaFornecedorSchema_(row, fallbackNome, nowStr) {
+  var r = row || [];
+  var v3 = String(r[3] || '').trim();
+  var v4 = String(r[4] || '').trim();
+  var isLegacyCol3Cnpj = (/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(v3) || /\d{14}/.test(v3.replace(/\D/g, ''))) &&
+                         !(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(v4) || /\d{14}/.test(v4.replace(/\D/g, '')));
+  if (isLegacyCol3Cnpj) {
+    var fantasiaOrig = String(r[2] || fallbackNome || '').trim();
+    return {
+      wasLegacy: true,
+      values: [
+        r[0] || '',
+        r[1] || fallbackNome || '',
+        fantasiaOrig,
+        fantasiaOrig || fallbackNome || '',
+        v3,
+        r[4] || '',
+        r[5] || '',
+        r[6] || '',
+        r[7] || 'Ativo',
+        r[8] || nowStr || '',
+        r[9] || ''
+      ]
+    };
+  }
+  return {
+    wasLegacy: false,
+    values: [
+      r[0] || '',
+      r[1] || fallbackNome || '',
+      r[2] || '',
+      r[3] || '',
+      r[4] || '',
+      r[5] || '',
+      r[6] || '',
+      r[7] || '',
+      r[8] || 'Ativo',
+      r[9] || nowStr || '',
+      r[10] || ''
+    ]
+  };
+}
+
+/**
+ * Atualiza todos os dados cadastrais e informacoes sobre o fornecedor ("Sobre / Observacoes"),
+ * sincronizando contratos vinculados, pasta no Drive (se aplicavel) e gravando diffs na Auditoria.
+ * @param {Object} payload
+ * @return {Object}
+ */
+function atualizarPerfilFornecedorTelefonia(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    if (!payload || typeof payload !== 'object') throw new Error('Dados do fornecedor invalidos.');
+
+    var ss = obterPlanilha_();
+    var sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    if (!sheetFornecedores) {
+      inicializarEstruturaRelacionalPlanilha();
+      sheetFornecedores = ss.getSheetByName(CONFIG.SHEET_FORNECEDORES);
+    }
+
+    garantirHeadersFornecedores_(sheetFornecedores);
+
+    var idOriginal = String(payload.idOriginal || payload.idFornecedor || '').trim();
+    var razaoOriginal = String(payload.razaoSocialOriginal || payload.razaoSocial || '').trim();
+    var newRazao = String(payload.razaoSocial || '').trim();
+    if (!newRazao) throw new Error('Razao Social do fornecedor e obrigatoria.');
+
+    var newFantasia = String(payload.nomeFantasia || '').trim() || newRazao;
+    var newApelido = String(payload.apelido || '').trim() || newFantasia;
+    var newCnpj = String(payload.cnpj || '').trim();
+    var newContato = String(payload.contato || payload.contatoComercial || '').trim();
+    var newEmail = String(payload.email || payload.emailComercial || '').trim();
+    var newStatus = normalizarStatusFornecedor_(payload.status || 'Ativo');
+    var newObservacoes = String(payload.observacoes || '').trim();
+
+    var data = sheetFornecedores.getDataRange().getValues();
+    var headers = data.length > 0 ? data[0].map(function(h) { return String(h).toLowerCase().trim(); }) : [];
+    var colRazao = headers.indexOf('razao_social');
+    if (colRazao === -1) colRazao = 1;
+
+    var loc = localizarLinhaFornecedor_(data, headers, [idOriginal, razaoOriginal]);
+    var rowIndex = loc.rowIndex;
+
+    // Bloquear duplicidade de Razao Social em outra linha
+    var newRazaoLow = newRazao.toLowerCase();
+    for (var i = 1; i < data.length; i++) {
+      if ((i + 1) === rowIndex) continue;
+      var otherRazao = String((colRazao !== -1 ? data[i][colRazao] : data[i][1]) || '').trim().toLowerCase();
+      if (otherRazao && otherRazao === newRazaoLow) {
+        throw new Error('Ja existe outro fornecedor cadastrado com a Razao Social: ' + newRazao);
+      }
+    }
+
+    var nowStrF = Utilities.formatDate(new Date(), CONFIG.TIMEZONE, 'dd/MM/yyyy HH:mm:ss');
+    var fornIdFinal = idOriginal;
+    var oldRazao = razaoOriginal || newRazao;
+    var oldFantasia = '';
+    var oldApelido = '';
+    var oldCnpj = '';
+    var oldContato = '';
+    var oldEmail = '';
+    var oldStatus = 'Ativo';
+    var oldObservacoes = '';
+    var pastaDriveId = '';
+    var dataCadastro = nowStrF;
+
+    if (rowIndex === -1) {
+      var metaCont = buscarMetadadosFornecedorEmContratos_(ss, [idOriginal, razaoOriginal]);
+      fornIdFinal = (idOriginal && idOriginal.indexOf('FORN-') === 0)
+        ? idOriginal
+        : ('FORN-' + newRazao.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15));
+      oldRazao = metaCont.nomeFornecedor || razaoOriginal || newRazao;
+      pastaDriveId = metaCont.pastaDriveId || '';
+      if (!pastaDriveId) {
+        try {
+          var folderObj = obterOuCriarPastaFornecedor_(newRazao);
+          if (folderObj) pastaDriveId = folderObj.getId();
+        } catch (eFld) {}
+      }
+      sheetFornecedores.appendRow([
+        fornIdFinal,
+        newRazao,
+        newFantasia,
+        newApelido,
+        newCnpj || metaCont.cnpj,
+        newContato,
+        newEmail,
+        pastaDriveId,
+        newStatus,
+        nowStrF,
+        newObservacoes
+      ]);
+      oldCnpj = metaCont.cnpj || '';
+    } else {
+      var prep = normalizarLinhaFornecedorSchema_(loc.rowData, oldRazao, nowStrF);
+      var vals = prep.values;
+      fornIdFinal = String(vals[0] || '').trim() || idOriginal || ('FORN-' + newRazao.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15));
+      oldRazao = String(vals[1] || '').trim();
+      oldFantasia = String(vals[2] || '').trim();
+      oldApelido = String(vals[3] || '').trim();
+      oldCnpj = String(vals[4] || '').trim();
+      oldContato = String(vals[5] || '').trim();
+      oldEmail = String(vals[6] || '').trim();
+      pastaDriveId = String(vals[7] || '').trim();
+      oldStatus = normalizarStatusFornecedor_(vals[8] || 'Ativo');
+      dataCadastro = vals[9] || nowStrF;
+      oldObservacoes = String(vals[10] || '').trim();
+
+      if (!pastaDriveId) {
+        var metaContRow = buscarMetadadosFornecedorEmContratos_(ss, [fornIdFinal, oldRazao]);
+        pastaDriveId = metaContRow.pastaDriveId || '';
+      }
+
+      var updatedRow = [
+        fornIdFinal,
+        newRazao,
+        newFantasia,
+        newApelido,
+        newCnpj,
+        newContato,
+        newEmail,
+        pastaDriveId,
+        newStatus,
+        dataCadastro,
+        newObservacoes
+      ];
+      sheetFornecedores.getRange(rowIndex, 1, 1, updatedRow.length).setValues([updatedRow]);
+    }
+
+    // Sincronizar contratos vinculados se Razao Social ou CNPJ foram alterados
+    var razaoMudou = oldRazao && newRazao && oldRazao !== newRazao;
+    var cnpjMudou = newCnpj !== oldCnpj;
+    if (razaoMudou || cnpjMudou) {
+      try {
+        var shContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+        if (shContratos && shContratos.getLastRow() > 1) {
+          var numColsC = Math.max(shContratos.getLastColumn(), 29);
+          var cRows = shContratos.getRange(2, 1, shContratos.getLastRow() - 1, numColsC).getValues();
+          var fornIdLow = String(fornIdFinal || '').trim().toLowerCase();
+          var oldRazaoLow = String(oldRazao || '').trim().toLowerCase();
+          for (var c = 0; c < cRows.length; c++) {
+            var cFId = String(cRows[c][2] || '').trim().toLowerCase();
+            var cForn = String(cRows[c][3] || '').trim().toLowerCase();
+            if ((fornIdLow && cFId === fornIdLow) || (oldRazaoLow && cForn === oldRazaoLow)) {
+              if (razaoMudou) {
+                shContratos.getRange(c + 2, 4).setValue(newRazao);
+              }
+              if (cnpjMudou && (String(cRows[c][28] || '').trim() === oldCnpj || String(cRows[c][28] || '').trim() === '')) {
+                shContratos.getRange(c + 2, 29).setValue(newCnpj);
+              }
+              shContratos.getRange(c + 2, 26).setValue(nowStrF);
+            }
+          }
+        }
+      } catch (eSyncCont) {}
+    }
+
+    // Tentar renomear a pasta no Google Drive caso Razao Social tenha sido alterada
+    if (razaoMudou && pastaDriveId) {
+      try {
+        var sanitizedFolderName = newRazao.replace(/[\\/:*?"<>|]/g, '_').trim();
+        if (sanitizedFolderName) {
+          DriveApp.getFolderById(pastaDriveId).setName(sanitizedFolderName);
+        }
+      } catch (eRenameDrv) {}
+    }
+
+    // Registrar alteracoes na Trilha Oficial de Auditoria
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+    } catch (eU) {}
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+    var userPapel = obterPapelUsuario_(userEmail);
+
+    var diffs = [];
+    if (newRazao !== oldRazao) diffs.push({ campo: 'Razao Social', de: oldRazao || '-', para: newRazao });
+    if (newFantasia !== oldFantasia) diffs.push({ campo: 'Nome Fantasia', de: oldFantasia || '-', para: newFantasia });
+    if (newApelido !== oldApelido) diffs.push({ campo: 'Apelido (Nome Usual)', de: oldApelido || '-', para: newApelido });
+    if (newCnpj !== oldCnpj) diffs.push({ campo: 'CNPJ', de: oldCnpj || '-', para: newCnpj || '-' });
+    if (newContato !== oldContato) diffs.push({ campo: 'Contato Comercial', de: oldContato || '-', para: newContato || '-' });
+    if (newEmail !== oldEmail) diffs.push({ campo: 'E-mail Comercial', de: oldEmail || '-', para: newEmail || '-' });
+    if (newStatus !== oldStatus) diffs.push({ campo: 'Status Operacional', de: oldStatus, para: newStatus });
+    if (newObservacoes !== oldObservacoes) diffs.push({ campo: 'Sobre / Observacoes', de: oldObservacoes || '-', para: newObservacoes || '-' });
+
+    for (var d = 0; d < diffs.length; d++) {
+      registrarLogAuditoriaOficial_(
+        'Fornecedor',
+        fornIdFinal || newRazao,
+        'Edicao de Perfil do Fornecedor',
+        diffs[d].campo,
+        diffs[d].de,
+        diffs[d].para,
+        'Atualizacao cadastral do fornecedor ' + newRazao + ' (' + diffs[d].campo + ').',
+        userEmail,
+        userPapel
+      );
+    }
+
+    return {
+      success: true,
+      fornecedor: {
+        id: fornIdFinal,
+        razaoSocial: newRazao,
+        nomeFantasia: newFantasia,
+        apelido: newApelido,
+        cnpj: newCnpj,
+        contato: newContato,
+        email: newEmail,
+        pastaDriveId: pastaDriveId,
+        status: newStatus,
+        observacoes: newObservacoes
+      },
+      alteracoes: diffs.length,
+      message: 'Perfil do fornecedor ' + newRazao + ' atualizado com sucesso.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    try { lock.releaseLock(); } catch (eL) {}
   }
 }
 
@@ -4685,7 +4968,7 @@ function garantirHeadersFornecedores_(sheetFornecedores) {
   var headersOficiais = [
     'id_fornecedor', 'razao_social', 'nome_fantasia', 'apelido', 'cnpj',
     'contato_comercial', 'email_comercial', 'id_pasta_drive_fornecedor',
-    'status', 'data_cadastro'
+    'status', 'data_cadastro', 'observacoes'
   ];
 
   var lastCol = Math.max(sheetFornecedores.getLastColumn(), headersOficiais.length);
@@ -4698,6 +4981,10 @@ function garantirHeadersFornecedores_(sheetFornecedores) {
     sheetFornecedores.getRange(1, 1, 1, headersOficiais.length).setValues([headersOficiais]);
     var hRange = sheetFornecedores.getRange(1, 1, 1, headersOficiais.length);
     hRange.setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
+  } else if (currentHeaders.indexOf('observacoes') === -1) {
+    sheetFornecedores.getRange(1, 11).setValue('observacoes');
+    var hObs = sheetFornecedores.getRange(1, 11);
+    hObs.setBackground('#0B316D').setFontColor('#FFFFFF').setFontWeight('bold').setFontFamily('Figtree');
   }
 }
 
@@ -4737,7 +5024,7 @@ function obterDadosCompletosTelefonia() {
     var fornecedoresMap = {};
     if (sheetFornecedores && sheetFornecedores.getLastRow() > 1) {
       garantirHeadersFornecedores_(sheetFornecedores);
-      var numColsF = Math.max(sheetFornecedores.getLastColumn(), 10);
+      var numColsF = Math.max(sheetFornecedores.getLastColumn(), 11);
       var fHeaders = sheetFornecedores.getRange(1, 1, 1, numColsF).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
       var fornData = sheetFornecedores.getRange(2, 1, sheetFornecedores.getLastRow() - 1, numColsF).getValues();
 
@@ -4750,6 +5037,7 @@ function obterDadosCompletosTelefonia() {
       var idxFEmail = fHeaders.indexOf('email_comercial');
       var idxFDrive = fHeaders.indexOf('id_pasta_drive_fornecedor');
       var idxFStatus = fHeaders.indexOf('status');
+      var idxFObs = fHeaders.indexOf('observacoes');
 
       for (var f = 0; f < fornData.length; f++) {
         var fRow = fornData[f];
@@ -4766,6 +5054,8 @@ function obterDadosCompletosTelefonia() {
         var valCol6 = String(fRow[6] || '').trim(); // pode ser email ou drive legado
         var valCol7 = String(fRow[7] || '').trim(); // drive ou status legado
         var valCol8 = String(fRow[8] || '').trim(); // status legado
+        var valCol9 = String(fRow[9] || '').trim(); // data cadastro ou observacoes legado
+        var valCol10 = String(fRow[10] || '').trim(); // observacoes
 
         var apelidoForn = '';
         var cnpjForn = '';
@@ -4773,19 +5063,21 @@ function obterDadosCompletosTelefonia() {
         var emailForn = '';
         var pastaForn = '';
         var statusForn = 'Ativo';
+        var obsForn = '';
 
         // Checar padrao de CNPJ na coluna 4 (ex: 22.222.222/2222-22)
         var isCol4Cnpj = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(valCol4) || /\d{14}/.test(valCol4.replace(/\D/g, ''));
         var isCol3Cnpj = /\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}/.test(valCol3) || /\d{14}/.test(valCol3.replace(/\D/g, ''));
 
         if (isCol4Cnpj || (valCol3 !== '' && !isCol3Cnpj)) {
-          // Linha com 10 colunas: Coluna 3 e o Apelido (ex: G+D) e Coluna 4 e o CNPJ (ex: 22.222.222/2222-22)
+          // Linha com 10/11 colunas: Coluna 3 e o Apelido (ex: G+D) e Coluna 4 e o CNPJ (ex: 22.222.222/2222-22)
           apelidoForn = valCol3;
           cnpjForn = valCol4;
           contatoForn = valCol5;
           emailForn = valCol6;
           pastaForn = valCol7;
           statusForn = valCol8 || 'Ativo';
+          obsForn = String((idxFObs !== -1 ? fRow[idxFObs] : valCol10) || '').trim();
         } else if (isCol3Cnpj) {
           // Linha com 9 colunas legadas: Coluna 3 e o CNPJ
           var col8StatusLower = valCol8.toLowerCase();
@@ -4796,6 +5088,8 @@ function obterDadosCompletosTelefonia() {
           emailForn = valCol5;
           pastaForn = valCol6;
           statusForn = temStatusEmCol8 ? valCol8 : (valCol7 || 'Ativo');
+          obsForn = String((idxFObs !== -1 ? fRow[idxFObs] : (valCol10 || valCol9)) || '').trim();
+          if (/^\d{2}\/\d{2}\/\d{4}/.test(obsForn)) obsForn = '';
         } else {
           // Fallback por indices de cabecalho
           apelidoForn = String((idxFApelido !== -1 ? fRow[idxFApelido] : '') || fantasiaForn || nomeForn).trim();
@@ -4804,6 +5098,7 @@ function obterDadosCompletosTelefonia() {
           emailForn = String((idxFEmail !== -1 ? fRow[idxFEmail] : '')).trim();
           pastaForn = String((idxFDrive !== -1 ? fRow[idxFDrive] : '')).trim();
           statusForn = String((idxFStatus !== -1 ? fRow[idxFStatus] : 'Ativo')).trim();
+          obsForn = String((idxFObs !== -1 ? fRow[idxFObs] : '') || '').trim();
         }
 
         if (!apelidoForn) apelidoForn = fantasiaForn || nomeForn;
@@ -4818,6 +5113,7 @@ function obterDadosCompletosTelefonia() {
           email: emailForn,
           pastaDriveId: pastaForn,
           status: statusForn,
+          observacoes: obsForn,
           contratos: [],
           totalContratos: 0,
           contratosAtivos: 0,
@@ -5135,11 +5431,13 @@ function obterDadosCompletosTelefonia() {
             id: 'FORN-' + fornNome.toUpperCase().replace(/[^A-Z0-9]/g, '_').substring(0, 15),
             razaoSocial: fornNome,
             nomeFantasia: fornNome,
+            apelido: fornNome,
             cnpj: '',
             contato: '',
             email: '',
             pastaDriveId: '',
             status: 'Ativo',
+            observacoes: '',
             contratos: [],
             totalContratos: 0,
             contratosAtivos: 0,
@@ -5711,7 +6009,8 @@ function salvarNovoContratoTelefonia(dados) {
         dados.email || '',
         driveStructure.supplierFolderId,
         'Ativo',
-        nowStr
+        nowStr,
+        ''
       ]);
     }
 
@@ -6090,8 +6389,9 @@ function salvarNovoFornecedorTelefonia(dadosFornecedor) {
       dadosFornecedor.contatoComercial || '',
       dadosFornecedor.emailComercial || '',
       fornFolderId,
-      dadosFornecedor.status || 'Ativo',
-      nowStr
+      normalizarStatusFornecedor_(dadosFornecedor.status || 'Ativo'),
+      nowStr,
+      String(dadosFornecedor.observacoes || '').trim()
     ]);
 
     var userEmailForn = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || 'gestao.telefonia@grupobrisanet.com.br';

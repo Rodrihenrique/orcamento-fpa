@@ -2637,6 +2637,74 @@
 </div>
 
 <!-- ==========================================================================
+     MODAL EDITAR PERFIL DO FORNECEDOR
+     ========================================================================== -->
+<div class="modal-overlay" id="modalEditarFornecedor">
+  <div class="modal-content" style="max-width: 720px; border-radius: 16px; overflow: hidden;">
+    <div class="modal-header" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+      <div class="modal-header-title">
+        <span>Editar Perfil do Fornecedor</span>
+        <span class="badge-status ativo" id="editFornBadgeTitulo">Fornecedor</span>
+      </div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalEditarFornecedor()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px; max-height: calc(85vh - 130px); overflow-y: auto;">
+      <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+        Atualize os dados cadastrais, informações de contato, status operacional ou notas sobre o fornecedor. Se a Razão Social for alterada, os contratos vinculados e a pasta no Google Drive são sincronizados automaticamente.
+      </p>
+      <form id="formEditarFornecedor" onsubmit="submeterEdicaoPerfilFornecedor(event)">
+        <input type="hidden" id="editFornIdOriginal">
+        <input type="hidden" id="editFornRazaoOriginal">
+
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px;">
+          <div class="form-group">
+            <label class="form-label required">Razão Social</label>
+            <input type="text" id="editFornRazaoSocial" class="form-control" placeholder="Razão Social completa" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nome Fantasia</label>
+            <input type="text" id="editFornNomeFantasia" class="form-control" placeholder="Nome Fantasia">
+          </div>
+          <div class="form-group">
+            <label class="form-label required">Apelido (Nome Usual)</label>
+            <input type="text" id="editFornApelido" class="form-control" placeholder="Ex: Huawei, Cirion, Vogel..." required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">CNPJ</label>
+            <input type="text" id="editFornCnpj" class="form-control" placeholder="00.000.000/0000-00" maxlength="18" oninput="mascaraCnpj(this)">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Contato Comercial</label>
+            <input type="text" id="editFornContato" class="form-control" placeholder="Nome ou telefone comercial">
+          </div>
+          <div class="form-group">
+            <label class="form-label">E-mail Comercial</label>
+            <input type="email" id="editFornEmail" class="form-control" placeholder="comercial@fornecedor.com.br">
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label required">Status Operacional</label>
+            <select id="editFornStatus" class="form-control" required>
+              <option value="Ativo">Ativo</option>
+              <option value="Homologação">Homologação (Em Negociação)</option>
+              <option value="Encerrado">Encerrado</option>
+            </select>
+          </div>
+          <div class="form-group" style="grid-column: span 2;">
+            <label class="form-label">Sobre o Fornecedor / Observações</label>
+            <textarea id="editFornObservacoes" class="form-control" rows="3" placeholder="Descreva informações relevantes sobre o fornecedor, atuação, SLA, histórico comercial ou negociação..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="border-bottom-left-radius: 16px; border-bottom-right-radius: 16px; background: #F8FAFC; border-top: 1px solid var(--border-subtle); padding: 14px 24px; display: flex; justify-content: flex-end; gap: 12px; margin: 0 -24px -20px -24px;">
+          <button type="button" class="btn btn-secondary" onclick="fecharModalEditarFornecedor()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btnSalvarEditFornecedor">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
      MODAL DEFINIR SUBSTITUTO TEMPORARIO (AUSENCIA DE GESTOR)
      ========================================================================== -->
 <div class="modal-overlay" id="modalDefinirSubstituto">
@@ -3488,6 +3556,9 @@
       html += '        <button type="button" class="btn-add-contract" onclick="abrirModalNovoContrato(\'' + escapeHtml(f.id) + '\', \'' + escapeHtml(f.razaoSocial) + '\')">';
       html += '          + Novo Contrato';
       html += '        </button>';
+      html += '        <button type="button" class="btn-folder-drive" onclick="abrirModalEditarFornecedor(\'' + encodeURIComponent(String(f.id || '')) + '\', \'' + encodeURIComponent(String(f.razaoSocial || '')) + '\')" title="Editar perfil e informações do fornecedor">';
+      html += '          Editar Perfil';
+      html += '        </button>';
       if (driveFolderId) {
         html += '        <a href="https://drive.google.com/drive/folders/' + driveFolderId + '" target="_blank" class="btn-folder-drive" title="Abrir pasta no Drive">';
         html += '          <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>';
@@ -3505,14 +3576,24 @@
       html += '  <div class="supplier-body">';
 
       // Bloco Perfil Formal do Fornecedor
-      html += '    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; font-size: 12px;">';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Razão Social</span><div style="font-weight: 700; color: var(--brisa-dark-blue); margin-top: 2px;">' + escapeHtml(f.razaoSocial) + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Nome Fantasia</span><div style="font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.nomeFantasia || '-') + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Apelido (Nome Usual)</span><div style="font-weight: 700; color: var(--brisa-blue); margin-top: 2px;">' + escapeHtml(f.apelido || '-') + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">CNPJ</span><div style="font-family: monospace; font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.cnpj || '-') + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Contato Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.contato || '-') + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">E-mail Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.email || '-') + '</div></div>';
-      html += '      <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Pasta no Google Drive</span><div style="margin-top: 2px;">' + (driveFolderId ? '<a href="https://drive.google.com/drive/folders/' + driveFolderId + '" target="_blank" style="color: var(--brisa-blue); font-weight: 600; text-decoration: none;">Abrir Pasta &rarr;</a>' : '<span style="color: var(--text-muted);">Não provisionada</span>') + '</div></div>';
+      html += '    <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-md); padding: 14px 18px; margin-bottom: 16px; font-size: 12px;">';
+      html += '      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #E2E8F0;">';
+      html += '        <span style="font-size: 11px; font-weight: 700; color: var(--brisa-dark-blue); text-transform: uppercase; letter-spacing: 0.5px;">Perfil Formal do Fornecedor</span>';
+      html += '        <button type="button" class="btn btn-secondary" style="height: 28px; padding: 0 12px; font-size: 11px; font-weight: 700;" onclick="abrirModalEditarFornecedor(\'' + encodeURIComponent(String(f.id || '')) + '\', \'' + encodeURIComponent(String(f.razaoSocial || '')) + '\')">Editar Perfil</button>';
+      html += '      </div>';
+      html += '      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px;">';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Razão Social</span><div style="font-weight: 700; color: var(--brisa-dark-blue); margin-top: 2px;">' + escapeHtml(f.razaoSocial) + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Nome Fantasia</span><div style="font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.nomeFantasia || '-') + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Apelido (Nome Usual)</span><div style="font-weight: 700; color: var(--brisa-blue); margin-top: 2px;">' + escapeHtml(f.apelido || '-') + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">CNPJ</span><div style="font-family: monospace; font-weight: 600; color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.cnpj || '-') + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Contato Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.contato || '-') + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">E-mail Comercial</span><div style="color: var(--text-primary); margin-top: 2px;">' + escapeHtml(f.email || '-') + '</div></div>';
+      html += '        <div><span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Pasta no Google Drive</span><div style="margin-top: 2px;">' + (driveFolderId ? '<a href="https://drive.google.com/drive/folders/' + driveFolderId + '" target="_blank" style="color: var(--brisa-blue); font-weight: 600; text-decoration: none;">Abrir Pasta &rarr;</a>' : '<span style="color: var(--text-muted);">Não provisionada</span>') + '</div></div>';
+      html += '      </div>';
+      html += '      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px dashed #CBD5E1;">';
+      html += '        <span style="font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase;">Sobre o Fornecedor / Observações</span>';
+      html += '        <div style="color: var(--text-primary); margin-top: 3px; line-height: 1.45; white-space: pre-line;">' + escapeHtml(f.observacoes || '-') + '</div>';
+      html += '      </div>';
       html += '    </div>';
 
       html += '    <div class="supplier-body-top">';
@@ -3878,6 +3959,169 @@
     });
 
     renderizarFornecedoresAcordeao(filtrados);
+  }
+
+  // Edicao de Perfil do Fornecedor
+  function abrirModalEditarFornecedor(idEncoded, razaoEncoded) {
+    var fornId = idEncoded ? decodeURIComponent(idEncoded) : '';
+    var fornRazao = razaoEncoded ? decodeURIComponent(razaoEncoded) : '';
+    var idLow = fornId.trim().toLowerCase();
+    var razLow = fornRazao.trim().toLowerCase();
+
+    var listaBusca = (appState.fornecedores || []).concat(appState.fornecedoresListaRenderizada || []);
+    var forn = listaBusca.find(function(item) {
+      var itemId = String(item.id || '').trim().toLowerCase();
+      var itemRaz = String(item.razaoSocial || '').trim().toLowerCase();
+      return (idLow && itemId === idLow) || (razLow && itemRaz === razLow);
+    });
+    if (!forn) {
+      mostrarToast('Fornecedor não localizado para edição.', 'error');
+      return;
+    }
+
+    document.getElementById('editFornIdOriginal').value = forn.id || '';
+    document.getElementById('editFornRazaoOriginal').value = forn.razaoSocial || '';
+    document.getElementById('editFornRazaoSocial').value = forn.razaoSocial || '';
+    document.getElementById('editFornNomeFantasia').value = forn.nomeFantasia || '';
+    document.getElementById('editFornApelido').value = forn.apelido || '';
+    document.getElementById('editFornCnpj').value = forn.cnpj || '';
+    document.getElementById('editFornContato').value = forn.contato || '';
+    document.getElementById('editFornEmail').value = forn.email || '';
+    document.getElementById('editFornObservacoes').value = forn.observacoes || '';
+
+    var metaStatus = obterMetaStatusFornecedorClient(forn.status);
+    document.getElementById('editFornStatus').value = metaStatus.valor;
+
+    var badge = document.getElementById('editFornBadgeTitulo');
+    if (badge) {
+      badge.textContent = forn.apelido || forn.nomeFantasia || forn.razaoSocial || 'Fornecedor';
+      badge.className = 'badge-status ' + (metaStatus.isEncerrado ? 'encerrado' : (metaStatus.isHomologacao ? 'analise' : 'ativo'));
+    }
+
+    var btn = document.getElementById('btnSalvarEditFornecedor');
+    if (btn) btn.disabled = false;
+
+    document.getElementById('modalEditarFornecedor').style.display = 'flex';
+  }
+
+  function fecharModalEditarFornecedor() {
+    var modal = document.getElementById('modalEditarFornecedor');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function submeterEdicaoPerfilFornecedor(e) {
+    e.preventDefault();
+    var btn = document.getElementById('btnSalvarEditFornecedor');
+    if (btn) btn.disabled = true;
+
+    var idOriginal = document.getElementById('editFornIdOriginal').value.trim();
+    var razaoOriginal = document.getElementById('editFornRazaoOriginal').value.trim();
+
+    var payload = {
+      idOriginal: idOriginal,
+      razaoSocialOriginal: razaoOriginal,
+      razaoSocial: document.getElementById('editFornRazaoSocial').value.trim(),
+      nomeFantasia: document.getElementById('editFornNomeFantasia').value.trim(),
+      apelido: document.getElementById('editFornApelido').value.trim(),
+      cnpj: document.getElementById('editFornCnpj').value.trim(),
+      contato: document.getElementById('editFornContato').value.trim(),
+      email: document.getElementById('editFornEmail').value.trim(),
+      status: document.getElementById('editFornStatus').value,
+      observacoes: document.getElementById('editFornObservacoes').value.trim()
+    };
+
+    if (!payload.razaoSocial) {
+      if (btn) btn.disabled = false;
+      mostrarToast('A Razão Social do fornecedor é obrigatória.', 'error');
+      return;
+    }
+    if (!payload.apelido) {
+      payload.apelido = payload.nomeFantasia || payload.razaoSocial;
+    }
+
+    var aplicarAtualizacaoLocalPerfil = function(atualizado) {
+      var idLow = String(idOriginal || '').trim().toLowerCase();
+      var razOrigLow = String(razaoOriginal || '').trim().toLowerCase();
+
+      if (appState.fornecedores) {
+        appState.fornecedores.forEach(function(item) {
+          var itemId = String(item.id || '').trim().toLowerCase();
+          var itemRaz = String(item.razaoSocial || '').trim().toLowerCase();
+          if ((idLow && itemId === idLow) || (razOrigLow && itemRaz === razOrigLow)) {
+            item.razaoSocial = atualizado.razaoSocial;
+            item.nomeFantasia = atualizado.nomeFantasia;
+            item.apelido = atualizado.apelido;
+            item.cnpj = atualizado.cnpj;
+            item.contato = atualizado.contato;
+            item.email = atualizado.email;
+            item.status = atualizado.status;
+            item.observacoes = atualizado.observacoes;
+            if (atualizado.pastaDriveId) item.pastaDriveId = atualizado.pastaDriveId;
+            if (item.contratos) {
+              item.contratos.forEach(function(ct) {
+                ct.fornecedor = atualizado.razaoSocial;
+                if (atualizado.cnpj) ct.cnpj = atualizado.cnpj;
+              });
+            }
+          }
+        });
+      }
+
+      if (appState.contratos) {
+        appState.contratos.forEach(function(ct) {
+          var ctFId = String(ct.idFornecedor || '').trim().toLowerCase();
+          var ctForn = String(ct.fornecedor || '').trim().toLowerCase();
+          if ((idLow && ctFId === idLow) || (razOrigLow && ctForn === razOrigLow)) {
+            ct.fornecedor = atualizado.razaoSocial;
+            if (atualizado.cnpj) ct.cnpj = atualizado.cnpj;
+          }
+        });
+      }
+
+      recalcularKpisDashboard();
+      var temFiltro = (document.getElementById('filtroFornecedoresInput') && document.getElementById('filtroFornecedoresInput').value.trim() !== '') ||
+                      (document.getElementById('filtroSetorContrato') && document.getElementById('filtroSetorContrato').value !== '') ||
+                      (document.getElementById('filtroStatusContrato') && document.getElementById('filtroStatusContrato').value !== '') ||
+                      (document.getElementById('filtroTipoContrato') && document.getElementById('filtroTipoContrato').value !== '');
+      if (temFiltro) {
+        filtrarFornecedores(false);
+      } else {
+        renderizarFornecedoresAcordeao(appState.fornecedores);
+      }
+    };
+
+    mostrarLoading('Salvando Perfil do Fornecedor', 'Atualizando informações cadastrais e registros vinculados...');
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          esconderLoading();
+          if (btn) btn.disabled = false;
+          if (res && res.success) {
+            var fornFinal = res.fornecedor || payload;
+            aplicarAtualizacaoLocalPerfil(fornFinal);
+            fecharModalEditarFornecedor();
+            mostrarToast('Perfil de ' + fornFinal.razaoSocial + ' salvo com sucesso!', 'success');
+            carregarDadosServidor(false);
+          } else {
+            mostrarToast('Erro ao salvar perfil: ' + ((res && res.error) || 'Desconhecido'), 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          esconderLoading();
+          if (btn) btn.disabled = false;
+          mostrarToast('Erro de comunicação: ' + err.message, 'error');
+        })
+        .atualizarPerfilFornecedorTelefonia(payload);
+    } else {
+      setTimeout(function() {
+        esconderLoading();
+        if (btn) btn.disabled = false;
+        aplicarAtualizacaoLocalPerfil(payload);
+        fecharModalEditarFornecedor();
+        mostrarToast('Simulação: Perfil de ' + payload.razaoSocial + ' atualizado com sucesso!', 'success');
+      }, 300);
+    }
   }
 
   // Submissao de Novo Fornecedor
