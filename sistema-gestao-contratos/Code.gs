@@ -453,7 +453,6 @@ function getInitialData() {
     var administrativos = {};
 
 
-    var anoCorrente = new Date().getFullYear();
     var totalContratos = 0;
     var contratosAtivos = 0;
     var contratosRiscoAlto = 0;
@@ -4812,6 +4811,7 @@ function obterDadosCompletosTelefonia() {
     }
 
     // 2. Ler Contratos
+    var anoCorrente = new Date().getFullYear();
     var contractsList = [];
     var allContractsLookup = [];
     var totalContratos = 0;
