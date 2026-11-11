@@ -3371,25 +3371,71 @@ function listarArquivosPastaContrato(idPastaContrato) {
 }
 
 /**
- * Realiza upload de arquivo para uma subpasta especifica do contrato.
+ * Localiza metadados de um contrato na planilha a partir do ID da pasta no Drive ou do ID do contrato.
+ * Evita gravar logs vinculados ao ID da pasta ao inves do ID oficial do contrato.
  * @param {string} idPastaContrato
- * @param {string} nomeSubpasta Ex: 'Contrato'
- * @param {string} nomeArquivo
- * @param {string} base64Data
- * @param {string} mimeType
- * @return {Object}
+ * @param {string|number} [optIdContrato]
+ * @return {Object|null}
  */
+function resolverInfoContratoPorPastaDrive_(idPastaContrato, optIdContrato) {
+  try {
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    if (!sheetContratos || sheetContratos.getLastRow() <= 1) return null;
+
+    var numCols = sheetContratos.getLastColumn();
+    var headers = sheetContratos.getRange(1, 1, 1, numCols).getValues()[0].map(function(h) {
+      return String(h || '').toLowerCase().trim();
+    });
+    var idxPasta = -1;
+    for (var h = 0; h < headers.length; h++) {
+      if (headers[h].indexOf('pasta contrato') !== -1 || headers[h] === 'id_pasta_drive') {
+        idxPasta = h;
+        break;
+      }
+    }
+    if (idxPasta === -1) idxPasta = 21;
+
+    var rows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, numCols).getValues();
+    var targetIdStr = (optIdContrato !== undefined && optIdContrato !== null && String(optIdContrato).trim() !== '') ? String(optIdContrato).trim() : '';
+    var targetPastaStr = idPastaContrato ? String(idPastaContrato).trim() : '';
+
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r];
+      var rowIdStr = String(row[0] || '').trim();
+      var rowPastaStr = idxPasta < row.length ? String(row[idxPasta] || '').trim() : '';
+      if ((targetIdStr && rowIdStr === targetIdStr) || (targetPastaStr && rowPastaStr === targetPastaStr)) {
+        return {
+          id: row[0],
+          protocolo: String(row[1] || '').trim(),
+          fornecedor: String(row[3] || '').trim(),
+          setorGerencia: String((row.length > 26 ? row[26] : '') || '').trim(),
+          pastaDriveId: rowPastaStr
+        };
+      }
+    }
+  } catch (eLookup) {
+    Logger.log('Aviso ao resolver contrato por pasta Drive: ' + eLookup.message);
+  }
+  return null;
+}
+
 /**
  * Realiza upload de multiplos arquivos para a subpasta indicada no Drive de um contrato.
  * @param {string} idPastaContrato ID da pasta raiz do contrato no Drive
  * @param {string} nomeSubpasta Subpasta de destino (Contrato, Anexos, Documentacao, NF)
  * @param {Array<{nome: string, base64: string, mimeType: string}>} listaArquivos
+ * @param {string|number} [optIdContrato] ID oficial do contrato vinculado
  * @return {Object}
  */
-function uploadMultiplosArquivosContrato(idPastaContrato, nomeSubpasta, listaArquivos) {
+function uploadMultiplosArquivosContrato(idPastaContrato, nomeSubpasta, listaArquivos, optIdContrato) {
   try {
     if (!idPastaContrato) throw new Error('ID da pasta nao informado.');
     if (!listaArquivos || !listaArquivos.length) throw new Error('Nenhum arquivo enviado para upload.');
+
+    var contratoInfo = resolverInfoContratoPorPastaDrive_(idPastaContrato, optIdContrato);
+    var idRegistroLog = optIdContrato ? String(optIdContrato) : (contratoInfo && contratoInfo.id ? String(contratoInfo.id) : idPastaContrato);
+    var contextoContrato = contratoInfo ? (' (' + contratoInfo.fornecedor + ' - ' + contratoInfo.protocolo + ')') : '';
 
     var contractFolder = DriveApp.getFolderById(idPastaContrato);
     var targetFolder = contractFolder;
@@ -3413,12 +3459,12 @@ function uploadMultiplosArquivosContrato(idPastaContrato, nomeSubpasta, listaArq
 
       registrarLogAuditoriaOficial_(
         'Contrato',
-        idPastaContrato,
+        idRegistroLog,
         'Upload de Arquivo',
         nomeSubpasta,
         '-',
         item.nome,
-        'Upload de documento na subpasta ' + nomeSubpasta
+        'Upload de documento na subpasta ' + nomeSubpasta + contextoContrato
       );
 
       arquivosSalvos.push({
@@ -3439,9 +3485,23 @@ function uploadMultiplosArquivosContrato(idPastaContrato, nomeSubpasta, listaArq
   }
 }
 
-function uploadArquivoContrato(idPastaContrato, nomeSubpasta, nomeArquivo, base64Data, mimeType) {
+/**
+ * Realiza upload de arquivo para uma subpasta especifica do contrato.
+ * @param {string} idPastaContrato
+ * @param {string} nomeSubpasta Ex: 'Contrato'
+ * @param {string} nomeArquivo
+ * @param {string} base64Data
+ * @param {string} mimeType
+ * @param {string|number} [optIdContrato]
+ * @return {Object}
+ */
+function uploadArquivoContrato(idPastaContrato, nomeSubpasta, nomeArquivo, base64Data, mimeType, optIdContrato) {
   try {
     if (!idPastaContrato) throw new Error('ID da pasta nao informado.');
+    var contratoInfo = resolverInfoContratoPorPastaDrive_(idPastaContrato, optIdContrato);
+    var idRegistroLog = optIdContrato ? String(optIdContrato) : (contratoInfo && contratoInfo.id ? String(contratoInfo.id) : idPastaContrato);
+    var contextoContrato = contratoInfo ? (' (' + contratoInfo.fornecedor + ' - ' + contratoInfo.protocolo + ')') : '';
+
     var contractFolder = DriveApp.getFolderById(idPastaContrato);
     var targetFolder = contractFolder;
 
@@ -3461,12 +3521,12 @@ function uploadArquivoContrato(idPastaContrato, nomeSubpasta, nomeArquivo, base6
     // Registrar na auditoria
     registrarLogAuditoriaOficial_(
       'Contrato',
-      idPastaContrato,
+      idRegistroLog,
       'Upload de Arquivo',
       nomeSubpasta,
       '-',
       nomeArquivo,
-      'Upload de documento na subpasta ' + nomeSubpasta
+      'Upload de documento na subpasta ' + nomeSubpasta + contextoContrato
     );
 
     return {
@@ -4675,6 +4735,7 @@ function obterDadosCompletosTelefonia() {
 
     // 2. Ler Contratos
     var contractsList = [];
+    var allContractsLookup = [];
     var totalContratos = 0;
     var contratosAtivos = 0;
     var somaValorMensal = 0;
@@ -4733,6 +4794,18 @@ function obterDadosCompletosTelefonia() {
 
         var idNum = parseInt(rawId, 10) || (c + 1);
         var setorGerencia = String(getCol(row, 'setor_gerencia', 26, 'TELEFONIA')).trim();
+        var pastaContratoRaw = String(getCol(row, 'id_pasta_contrato_drive', 21, getCol(row, 'id_pasta_drive', 21, ''))).trim();
+        var pastaFornRaw = String(getCol(row, 'id_pasta_fornecedor_drive', 22, '')).trim();
+        var protoLookup = String(getCol(row, 'protocolo_oficial', 1, ('BRISA-TEL-' + new Date().getFullYear() + '-' + String(idNum).padStart(4, '0')))).trim();
+
+        allContractsLookup.push({
+          id: idNum,
+          protocolo: protoLookup,
+          fornecedor: fornNome,
+          setorGerencia: setorGerencia,
+          pastaDriveId: pastaContratoRaw,
+          pastaFornecedorDriveId: pastaFornRaw
+        });
 
         // 2.1 Controle de Acesso por Setor (Gerencia)
         if (!permissoesUsuario.acessoTotal) {
@@ -4832,8 +4905,8 @@ function obterDadosCompletosTelefonia() {
           contaContabil: String(getCol(row, 'conta_contabil', 19, '')),
           gestor: emailResp,
           emailResponsavel: emailResp,
-          pastaDriveId: String(getCol(row, 'id_pasta_drive', 21, '')),
-          pastaFornecedorDriveId: String(getCol(row, 'id_pasta_fornecedor_drive', 22, '')),
+          pastaDriveId: pastaContratoRaw,
+          pastaFornecedorDriveId: pastaFornRaw,
           observacoes: String(getCol(row, 'observacoes', 23, '')),
           diasRestantes: diasRestantes,
           // Novos Campos Oficiais Definidos pelo Usuario:
@@ -5062,11 +5135,15 @@ function obterDadosCompletosTelefonia() {
           }
         }
 
-        var regId = String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-');
+        var regId = String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-').trim();
         var matchingContract = null;
-        for (var mc = 0; mc < contractsList.length; mc++) {
-          if (String(contractsList[mc].id) === regId || String(contractsList[mc].protocolo) === regId) {
-            matchingContract = contractsList[mc];
+        var lookupSource = allContractsLookup.length > 0 ? allContractsLookup : contractsList;
+        for (var mc = 0; mc < lookupSource.length; mc++) {
+          var cand = lookupSource[mc];
+          if (String(cand.id) === regId ||
+              (cand.protocolo && String(cand.protocolo).trim() === regId) ||
+              (cand.pastaDriveId && String(cand.pastaDriveId).trim() === regId)) {
+            matchingContract = cand;
             break;
           }
         }
@@ -5075,9 +5152,22 @@ function obterDadosCompletosTelefonia() {
         var logForn = matchingContract ? matchingContract.fornecedor : '';
         var logProto = matchingContract ? matchingContract.protocolo : (regId.indexOf('BRISA-TEL') !== -1 ? regId : '');
 
+        if (!matchingContract && !logForn && regId !== '-') {
+          for (var fk in fornecedoresMap) {
+            if (fornecedoresMap[fk] && fornecedoresMap[fk].pastaDriveId && String(fornecedoresMap[fk].pastaDriveId).trim() === regId) {
+              logForn = fornecedoresMap[fk].razaoSocial;
+              break;
+            }
+          }
+        }
+
         if (!logForn && String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || '') === 'Fornecedor') {
           logForn = regId.replace('FORN-', '').replace(/_/g, ' ');
         }
+
+        var parsedRegContratoId = matchingContract
+          ? matchingContract.id
+          : (/^\d+$/.test(regId) ? parseInt(regId, 10) : '');
 
         logsList.push({
           idLog: logId,
@@ -5086,7 +5176,7 @@ function obterDadosCompletosTelefonia() {
           papelUsuario: String((idxLogPapel !== -1 ? lRow[idxLogPapel] : lRow[3]) || 'Gestão Telefonia'),
           entidade: String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || 'Contrato'),
           idRegistro: regId,
-          idContrato: matchingContract ? matchingContract.id : (parseInt(regId, 10) || ''),
+          idContrato: parsedRegContratoId,
           protocolo: logProto,
           fornecedor: logForn,
           setorGerencia: logSetor,
@@ -5546,7 +5636,7 @@ function salvarNovoContratoTelefonia(dados) {
       normalizarNumero_(dados.valorUnitario || valorBase),
       parseInt(dados.mesesCobranca, 10) || 12,
       String(dados.subpastaDestino || 'Contrato').trim(),
-      String(dados.formaPagamentoPlurianual || (isPl ? 'Parcela Única' : 'Mensal')).trim(),
+      String(dados.formaPagamentoPlurianual || (ehPeriodicidadePlurianual_(dados.periodicidade) ? 'Parcela Única' : 'Mensal')).trim(),
       parseInt(dados.qtdParcelasPlurianual, 10) || 1,
       normalizarNumero_(dados.valorParcelaPlurianual || (valorBase / (parseInt(dados.qtdParcelasPlurianual, 10) || 1)))
     ]);
@@ -5757,7 +5847,8 @@ function gerarCertificadoAuditoriaContrato(idContrato) {
     if (sheetLogs) {
       var lData = sheetLogs.getDataRange().getValues();
       for (var l = 1; l < lData.length; l++) {
-        if (String(lData[l][5]) === String(idContrato)) {
+        var logRegCell = String(lData[l][5] || '').trim();
+        if (logRegCell === String(idContrato) || (contratoInfo.protocolo && logRegCell === String(contratoInfo.protocolo).trim()) || (contratoInfo.pastaDriveId && logRegCell === String(contratoInfo.pastaDriveId).trim())) {
           timeline.push({
             logId: lData[l][0],
             timestamp: lData[l][1],
@@ -6075,6 +6166,7 @@ function salvarAlteracaoContratoTelefonia(payload) {
 
     // Valores Anteriores
     var oldObjeto = String(rowData[4] || '');
+    var oldTipo = String(rowData[5] || 'Suporte Técnico');
     var oldStatus = String(rowData[6] || 'Vigente');
     var oldStatusAlcada = String(rowData[7] || 'Aprovado');
     var oldDataInicio = formatarDataExibicao_(rowData[8]);
@@ -6082,24 +6174,55 @@ function salvarAlteracaoContratoTelefonia(payload) {
     var oldPrazoIndet = String(rowData[10] || 'Não');
     var oldValorMensal = normalizarNumero_(rowData[13] || rowData[12] || 0);
     var oldIndice = String(rowData[16] || 'IPCA');
+    var oldMesAniversario = parseInt(rowData[17] || 1, 10) || 1;
+    var oldContaContabil = String(rowData[19] || '');
+    var oldObservacoes = String(rowData[23] || '');
+    var oldMoeda = String(rowData[30] || 'BRL');
+    var oldPeriodicidade = String(rowData[31] || 'Mensal');
     var oldDataReajuste = formatarDataExibicao_(rowData[33]);
+    var oldSemReajuste = String(rowData[34] || 'Não');
+    var oldReajusteAplicado = String(rowData[35] || '0,00%');
+    var oldImpostosEncargos = String(rowData[36] || '0,00%');
+    var oldTaxaCambioStr = String(rowData[37] || '1,0000');
+    var oldContingencia = String(rowData[39] || '0,00%');
+    var oldRisco = String(rowData[42] || 'Baixo');
+    var oldDescricaoRisco = String(rowData[43] || '');
+    var oldMemoriaCalculo = String(rowData[44] || '');
     var oldQtdServicos = normalizarNumero_(rowData[45] || 1) || 1;
     var oldValorUnitario = normalizarNumero_(rowData[46] || (oldValorMensal / oldQtdServicos)) || oldValorMensal;
     var oldMesesCobranca = parseInt(rowData[47] || 12, 10) || 12;
+    var oldFormaPluri = String(rowData[49] || (ehPeriodicidadePlurianual_(oldPeriodicidade) ? 'Parcela Única' : 'Mensal'));
+    var oldQtdPluri = parseInt(rowData[50] || 1, 10) || 1;
 
     // Novos Valores
     var newObjeto = (payload.objeto !== undefined) ? String(payload.objeto).trim() : oldObjeto;
+    var newTipo = (payload.tipo !== undefined && String(payload.tipo).trim() !== '') ? String(payload.tipo).trim() : oldTipo;
     var newQtdServicos = (payload.qtdServicos !== undefined) ? (parseInt(payload.qtdServicos, 10) || 1) : oldQtdServicos;
     var newValorUnitario = (payload.valorUnitario !== undefined) ? normalizarNumero_(payload.valorUnitario) : oldValorUnitario;
     var newValorMensal = (payload.valorMensal !== undefined) ? normalizarNumero_(payload.valorMensal) : (newValorUnitario * newQtdServicos);
     var newMesesCobranca = (payload.mesesCobranca !== undefined) ? (parseInt(payload.mesesCobranca, 10) || 12) : oldMesesCobranca;
     var newDataInicio = (payload.dataInicio !== undefined) ? String(payload.dataInicio).trim() : oldDataInicio;
     var newDataFim = (payload.dataFim !== undefined) ? String(payload.dataFim).trim() : oldDataFim;
-    var newPrazoIndet = payload.prazoIndeterminado ? 'Sim' : 'Não';
+    var newPrazoIndet = (payload.prazoIndeterminado !== undefined) ? (payload.prazoIndeterminado ? 'Sim' : 'Não') : oldPrazoIndet;
     var newStatus = (payload.status !== undefined) ? String(payload.status).trim() : oldStatus;
     var newStatusAlcada = (payload.statusAlcada !== undefined) ? String(payload.statusAlcada).trim() : oldStatusAlcada;
     var newIndice = (payload.indiceReajuste !== undefined) ? String(payload.indiceReajuste).trim() : oldIndice;
-    var newDataReajuste = (payload.dataReajuste !== undefined) ? String(payload.dataReajuste).trim() : oldDataReajuste;
+    var newSemReajuste = (payload.semReajuste !== undefined) ? (payload.semReajuste ? 'Sim' : 'Não') : oldSemReajuste;
+    var newDataReajuste = (newSemReajuste === 'Sim') ? '' : ((payload.dataReajuste !== undefined) ? String(payload.dataReajuste).trim() : oldDataReajuste);
+    var newMesAniversario = (payload.mesAniversario !== undefined) ? (parseInt(payload.mesAniversario, 10) || 1) : oldMesAniversario;
+    var newReajusteAplicado = (payload.reajusteAplicado !== undefined) ? String(payload.reajusteAplicado).trim() : oldReajusteAplicado;
+    var newMoeda = (payload.moeda !== undefined) ? String(payload.moeda).trim() : oldMoeda;
+    var newTaxaCambioStr = (payload.taxaCambio !== undefined && String(payload.taxaCambio).trim() !== '') ? String(payload.taxaCambio).trim() : oldTaxaCambioStr;
+    var newImpostosEncargos = (payload.impostosEncargos !== undefined) ? String(payload.impostosEncargos).trim() : oldImpostosEncargos;
+    var newContingencia = (payload.contingencia !== undefined) ? String(payload.contingencia).trim() : oldContingencia;
+    var newContaContabil = (payload.contaContabil !== undefined) ? String(payload.contaContabil).trim() : oldContaContabil;
+    var newRisco = (payload.risco !== undefined) ? String(payload.risco).trim() : oldRisco;
+    var newDescricaoRisco = (payload.descricaoRisco !== undefined) ? String(payload.descricaoRisco).trim() : oldDescricaoRisco;
+    var newMemoriaCalculo = (payload.memoriaCalculo !== undefined) ? String(payload.memoriaCalculo).trim() : oldMemoriaCalculo;
+    var newObservacoes = (payload.observacoes !== undefined) ? String(payload.observacoes).trim() : oldObservacoes;
+    var newPeriodicidade = (payload.periodicidade !== undefined) ? String(payload.periodicidade).trim() : oldPeriodicidade;
+    var newFormaPluri = (payload.formaPagamentoPlurianual !== undefined) ? String(payload.formaPagamentoPlurianual).trim() : oldFormaPluri;
+    var newQtdPluri = (payload.qtdParcelasPlurianual !== undefined) ? (parseInt(payload.qtdParcelasPlurianual, 10) || 1) : oldQtdPluri;
     var justificativa = String(payload.justificativa || 'Alteracao contratual realizada diretamente pelo responsavel').trim();
 
     // Rastrear Diffs para o Log de Auditoria
@@ -6107,18 +6230,39 @@ function salvarAlteracaoContratoTelefonia(payload) {
     if (newObjeto !== oldObjeto) {
       alteracoes.push({ campo: 'Objeto do Contrato', de: oldObjeto, para: newObjeto });
     }
+    if (newTipo !== oldTipo) {
+      alteracoes.push({ campo: 'Tipo de Contrato', de: oldTipo, para: newTipo });
+    }
     if (newValorMensal !== oldValorMensal || newQtdServicos !== oldQtdServicos || newValorUnitario !== oldValorUnitario) {
       var descAnt = 'R$ ' + oldValorMensal.toFixed(2) + ' (' + oldQtdServicos + ' servico(s) x R$ ' + oldValorUnitario.toFixed(2) + ')';
       var descNovo = 'R$ ' + newValorMensal.toFixed(2) + ' (' + newQtdServicos + ' servico(s) x R$ ' + newValorUnitario.toFixed(2) + ')';
       alteracoes.push({ campo: 'Valor Mensal / Servicos', de: descAnt, para: descNovo });
     }
+    if (newMoeda !== oldMoeda || normalizarNumero_(newTaxaCambioStr) !== normalizarNumero_(oldTaxaCambioStr)) {
+      alteracoes.push({ campo: 'Moeda / Cambio', de: oldMoeda + ' (Cambio: ' + oldTaxaCambioStr + ')', para: newMoeda + ' (Cambio: ' + newTaxaCambioStr + ')' });
+    }
+    if (newImpostosEncargos !== oldImpostosEncargos) {
+      alteracoes.push({ campo: 'Impostos / Encargos (%)', de: oldImpostosEncargos || '-', para: newImpostosEncargos || '-' });
+    }
+    if (newContingencia !== oldContingencia) {
+      alteracoes.push({ campo: 'Contingencia (%)', de: oldContingencia || '-', para: newContingencia || '-' });
+    }
     if (newMesesCobranca !== oldMesesCobranca) {
       alteracoes.push({ campo: 'Periodo de Cobranca', de: oldMesesCobranca + ' meses', para: newMesesCobranca + ' meses' });
+    }
+    if (newPeriodicidade !== oldPeriodicidade) {
+      alteracoes.push({ campo: 'Periodicidade de Pagamento', de: oldPeriodicidade, para: newPeriodicidade });
+    }
+    if (newFormaPluri !== oldFormaPluri || newQtdPluri !== oldQtdPluri) {
+      alteracoes.push({ campo: 'Condicoes de Parcelamento', de: oldFormaPluri + ' (' + oldQtdPluri + 'x)', para: newFormaPluri + ' (' + newQtdPluri + 'x)' });
+    }
+    if (newDataInicio !== oldDataInicio) {
+      alteracoes.push({ campo: 'Inicio da Vigencia', de: oldDataInicio || '-', para: newDataInicio || '-' });
     }
     if (newDataFim !== oldDataFim || newPrazoIndet !== oldPrazoIndet) {
       var fimAnt = oldPrazoIndet === 'Sim' ? 'Indeterminado' : oldDataFim;
       var fimNovo = newPrazoIndet === 'Sim' ? 'Indeterminado' : newDataFim;
-      alteracoes.push({ campo: 'Vigencia / Prazo', de: fimAnt, para: fimNovo });
+      alteracoes.push({ campo: 'Vigencia / Prazo', de: fimAnt || '-', para: fimNovo || '-' });
     }
     if (newStatus !== oldStatus) {
       alteracoes.push({ campo: 'Situacao do Contrato', de: oldStatus, para: newStatus });
@@ -6126,12 +6270,36 @@ function salvarAlteracaoContratoTelefonia(payload) {
     if (newStatusAlcada !== oldStatusAlcada) {
       alteracoes.push({ campo: 'Status de Alcada / Aprovacao', de: oldStatusAlcada, para: newStatusAlcada });
     }
-    if (newIndice !== oldIndice || newDataReajuste !== oldDataReajuste) {
-      alteracoes.push({ campo: 'Regra de Reajuste', de: oldIndice + ' (' + oldDataReajuste + ')', para: newIndice + ' (' + newDataReajuste + ')' });
+    if (newIndice !== oldIndice || newDataReajuste !== oldDataReajuste || newSemReajuste !== oldSemReajuste) {
+      var rAnt = oldIndice + (oldSemReajuste === 'Sim' ? ' (Sem Reajuste)' : ' (' + (oldDataReajuste || '-') + ')');
+      var rNov = newIndice + (newSemReajuste === 'Sim' ? ' (Sem Reajuste)' : ' (' + (newDataReajuste || '-') + ')');
+      alteracoes.push({ campo: 'Regra de Reajuste', de: rAnt, para: rNov });
+    }
+    if (newMesAniversario !== oldMesAniversario) {
+      alteracoes.push({ campo: 'Mes Aniversario Reajuste', de: 'Mes ' + oldMesAniversario, para: 'Mes ' + newMesAniversario });
+    }
+    if (newReajusteAplicado !== oldReajusteAplicado) {
+      alteracoes.push({ campo: 'Reajuste Aplicado (%)', de: oldReajusteAplicado || '-', para: newReajusteAplicado || '-' });
+    }
+    if (newContaContabil !== oldContaContabil) {
+      alteracoes.push({ campo: 'Conta Contabil', de: oldContaContabil || '-', para: newContaContabil || '-' });
+    }
+    if (newRisco !== oldRisco) {
+      alteracoes.push({ campo: 'Nivel de Risco', de: oldRisco, para: newRisco });
+    }
+    if (newDescricaoRisco !== oldDescricaoRisco) {
+      alteracoes.push({ campo: 'Descricao do Risco', de: oldDescricaoRisco || '-', para: newDescricaoRisco || '-' });
+    }
+    if (newMemoriaCalculo !== oldMemoriaCalculo) {
+      alteracoes.push({ campo: 'Fonte / Memoria de Calculo', de: oldMemoriaCalculo || '-', para: newMemoriaCalculo || '-' });
+    }
+    if (newObservacoes !== oldObservacoes) {
+      alteracoes.push({ campo: 'Observacoes Gerais', de: oldObservacoes || '-', para: newObservacoes || '-' });
     }
 
     // Gravar Atualizacoes na Aba Contratos
     sheetContratos.getRange(targetRow, 5).setValue(newObjeto);
+    sheetContratos.getRange(targetRow, 6).setValue(newTipo);
     sheetContratos.getRange(targetRow, 7).setValue(newStatus);
     sheetContratos.getRange(targetRow, 8).setValue(newStatusAlcada);
     if (newDataInicio) sheetContratos.getRange(targetRow, 9).setValue(newDataInicio);
@@ -6140,13 +6308,21 @@ function salvarAlteracaoContratoTelefonia(payload) {
     sheetContratos.getRange(targetRow, 13).setValue(newValorMensal); // valor base
     sheetContratos.getRange(targetRow, 14).setValue(newValorMensal); // valor atual
     sheetContratos.getRange(targetRow, 17).setValue(newIndice);
+    sheetContratos.getRange(targetRow, 18).setValue(newMesAniversario);
+    sheetContratos.getRange(targetRow, 20).setValue(newContaContabil);
+    sheetContratos.getRange(targetRow, 24).setValue(newObservacoes);
     sheetContratos.getRange(targetRow, 26).setValue(nowStr); // data atualizacao
-    if (newDataReajuste) sheetContratos.getRange(targetRow, 34).setValue(newDataReajuste);
-    var oldPeriodicidade = String(rowData[31] || 'Mensal');
-    var newPeriodicidade = (payload.periodicidade !== undefined) ? String(payload.periodicidade).trim() : oldPeriodicidade;
+    sheetContratos.getRange(targetRow, 31).setValue(newMoeda);
+    sheetContratos.getRange(targetRow, 32).setValue(newPeriodicidade);
+    sheetContratos.getRange(targetRow, 34).setValue(newDataReajuste);
+    sheetContratos.getRange(targetRow, 35).setValue(newSemReajuste);
+    sheetContratos.getRange(targetRow, 36).setValue(newReajusteAplicado);
+    sheetContratos.getRange(targetRow, 37).setValue(newImpostosEncargos);
+    sheetContratos.getRange(targetRow, 38).setValue(newTaxaCambioStr);
+
     var isPluriAlt = ehPeriodicidadePlurianual_(newPeriodicidade);
     var isAnualAlt = newPeriodicidade.toLowerCase().indexOf('anual') !== -1 && !isPluriAlt;
-    var newTaxaCambio = normalizarNumero_(rowData[37] || 1) || 1;
+    var newTaxaCambio = normalizarNumero_(newTaxaCambioStr) || 1;
     var newDesembolsoAnual = 0;
     if (isPluriAlt) {
       newDesembolsoAnual = 0; // Nao tem todo ano
@@ -6157,24 +6333,23 @@ function salvarAlteracaoContratoTelefonia(payload) {
     }
 
     var valorRegistroCiclo = newValorMensal * newTaxaCambio;
-    sheetContratos.getRange(targetRow, 32).setValue(newPeriodicidade); // Periodicidade (Col 32)
     sheetContratos.getRange(targetRow, 39).setValue(isPluriAlt ? valorRegistroCiclo : newDesembolsoAnual); // Valor Base em BRL
+    sheetContratos.getRange(targetRow, 40).setValue(newContingencia);
     sheetContratos.getRange(targetRow, 41).setValue(isPluriAlt ? valorRegistroCiclo : newDesembolsoAnual); // Valor Orcado
+    sheetContratos.getRange(targetRow, 43).setValue(newRisco);
+    sheetContratos.getRange(targetRow, 44).setValue(newDescricaoRisco);
+    sheetContratos.getRange(targetRow, 45).setValue(newMemoriaCalculo);
     sheetContratos.getRange(targetRow, 46).setValue(newQtdServicos);
     sheetContratos.getRange(targetRow, 47).setValue(newValorUnitario);
     sheetContratos.getRange(targetRow, 48).setValue(newMesesCobranca);
     if (payload.formaPagamentoPlurianual !== undefined) {
-      sheetContratos.getRange(targetRow, 50).setValue(String(payload.formaPagamentoPlurianual).trim());
+      sheetContratos.getRange(targetRow, 50).setValue(newFormaPluri);
     }
     if (payload.qtdParcelasPlurianual !== undefined) {
-      sheetContratos.getRange(targetRow, 51).setValue(parseInt(payload.qtdParcelasPlurianual, 10) || 1);
+      sheetContratos.getRange(targetRow, 51).setValue(newQtdPluri);
     }
     if (payload.valorParcelaPlurianual !== undefined) {
       sheetContratos.getRange(targetRow, 52).setValue(normalizarNumero_(payload.valorParcelaPlurianual));
-    }
-
-    if (newPeriodicidade !== oldPeriodicidade) {
-      alteracoes.push({ campo: 'Periodicidade de Pagamento', de: oldPeriodicidade, para: newPeriodicidade });
     }
 
     // Se houver aprovacao pendente vinculada a este contrato, concluir
