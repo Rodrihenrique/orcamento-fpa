@@ -6,6 +6,7 @@ Sistema corporativo de gestão do ciclo de vida de contratos (Contract Lifecycle
 ---
 
 ## Principais Recursos
+- **Contratos Historicos (Vencidos/Encerrados) & Status de Fornecedor Persistente:** Contratos expirados sem renovacao, encerrados ou vinculados a fornecedores marcados como *ENCERRADO* permanecem visiveis para historico e verificacao, sem contabilizar nas somas mensais ou anuais do painel.
 - **Filtro por Tipo de Contrato & Edicao Financeira Completa na Ficha 360°:** Filtragem dinamica por tipo de contrato na listagem principal e botao *Realizar Alteracao / Aprovacao* disponivel tambem na aba *Financeiro & Reajustes* cobrindo moeda, cambio, encargos, reajustes, riscos, memoria de calculo e rastreabilidade completa em logs.
 - **Upload Multiplo na Ficha 360°:** Possibilidade de anexar multiplos arquivos simultaneamente nas subpastas padronizadas do contrato no Google Drive (`Contrato`, `Anexos`, `Documentacao`, `NF`), com pre-visualizacao de arquivos selecionados, calculo de peso total e envio em lote otimizado.
 - **Hierarquia por Fornecedor (Drill-down):** Fornecedores exibidos pelo **Apelido (Nome Usual)** como título principal, status operacional interativo (**ATIVO / ENCERRADO**), alerta preventivo discreto de vencimento próximo (60 dias), métricas de **Contratos Ativos**, **Desembolso Mensal** e **Desembolso Anual**, além de perfil formal (Razão Social, Nome Fantasia, CNPJ, Contatos e Pasta no Drive) expandido.

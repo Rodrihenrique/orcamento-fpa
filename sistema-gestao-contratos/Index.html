@@ -3038,56 +3038,8 @@
     // Renderizar Banner de Alertas de Reajuste Periodico (5 dias antes)
     renderizarBannerAlertasReajuste();
 
-    // Garantir calculo correto de desembolso mensal e orcamento anual considerando os meses de cobranca efetiva
-    var totalMensalCalc = 0;
-    var totalAnualCalc = 0;
-    var contratosAtivosCalc = 0;
-    if (appState.contratos && appState.contratos.length > 0) {
-      for (var ci = 0; ci < appState.contratos.length; ci++) {
-        var cItem = appState.contratos[ci];
-        var cStatus = String(cItem.status || '').toLowerCase();
-        var cAlcada = String(cItem.statusAlcada || '').toLowerCase();
-        var isEncerrado = cStatus.indexOf('cancel') !== -1 || cStatus.indexOf('encerr') !== -1 || cStatus.indexOf('rescind') !== -1 || cStatus.indexOf('inativ') !== -1;
-        var isAtivo = !isEncerrado && (cStatus.indexOf('vigen') !== -1 || cStatus.indexOf('ativ') !== -1 || cAlcada.indexOf('aprov') !== -1 || !cStatus);
-        if (isAtivo) {
-          contratosAtivosCalc++;
-          var isPluriKpi = ehPeriodicidadePlurianual(cItem.periodicidade);
-          var isAnualKpi = String(cItem.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriKpi;
-          var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || 0;
-          var msCob = parseInt(cItem.mesesCobranca, 10);
-          if (isNaN(msCob) || msCob <= 0) msCob = 12;
-
-          var valAnual = 0;
-          if (isPluriKpi) {
-            valAnual = 0; // Nao entra no orcamento anual 12m porque nao ocorre todo ano
-          } else if (isAnualKpi) {
-            valAnual = valContrato;
-          } else {
-            valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
-          }
-
-          if (!isPluriKpi) {
-            totalMensalCalc += valContrato;
-          }
-          totalAnualCalc += valAnual;
-        }
-      }
-    }
-    if (!appState.kpis.valorMensalTotal || appState.kpis.valorMensalTotal === 0) {
-      appState.kpis.valorMensalTotal = totalMensalCalc;
-    }
-    appState.kpis.valorAnualComprometido = totalAnualCalc;
-    if (!appState.kpis.contratosAtivos || appState.kpis.contratosAtivos === 0) {
-      appState.kpis.contratosAtivos = contratosAtivosCalc;
-    }
-
-    // Atualizar KPIs
-    document.getElementById('statFornecedores').textContent = appState.kpis.totalFornecedores || appState.fornecedores.length;
-    document.getElementById('statContratosAtivos').textContent = appState.kpis.contratosAtivos || 0;
-    document.getElementById('statDesembolsoMensal').textContent = formatarMoedaBRL(appState.kpis.valorMensalTotal || 0);
-    document.getElementById('statOrcamentoAnual').textContent = formatarMoedaBRL(appState.kpis.valorAnualComprometido || 0);
-    document.getElementById('statRisco60').textContent = appState.kpis.contratosRisco60Dias || 0;
-    document.getElementById('statAprovacoesPendentes').textContent = appState.kpis.minhasAprovacoesPendentes || 0;
+    // Recalcular KPIs com base nos contratos vigentes/ativos (excluindo encerrados e vencidos sem renovacao)
+    recalcularKpisDashboard();
 
     var badgeAp = document.getElementById('badgeAprovacoesCount');
     if (badgeAp) badgeAp.textContent = appState.kpis.minhasAprovacoesPendentes || 0;
@@ -3150,6 +3102,93 @@
     }
   }
 
+  // Helper centralizado: define se o contrato e considerado ativo para somas mensais/anuais e KPIs.
+  // Contratos encerrados, vencidos por prazo sem atualizacao ou de fornecedor encerrado permanecem apenas como historico.
+  function contratoContabilizaAtivo(c, fornecedor) {
+    if (fornecedor && String(fornecedor.status || '').toLowerCase().indexOf('encerr') !== -1) {
+      return false;
+    }
+    var cSt = String((c && c.status) || '').toLowerCase();
+    var cAlc = String((c && c.statusAlcada) || '').toLowerCase();
+    var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 ||
+                cSt.indexOf('inativ') !== -1 || cSt.indexOf('vencid') !== -1 || cSt.indexOf('suspens') !== -1 ||
+                cSt.indexOf('finaliz') !== -1 || cSt.indexOf('expir') !== -1 ||
+                cAlc.indexOf('rejeit') !== -1 || cAlc.indexOf('cancel') !== -1;
+    if (isEnc) return false;
+
+    var isExpirado = (!c.prazoIndeterminado && c.diasRestantes !== null && c.diasRestantes !== undefined && parseInt(c.diasRestantes, 10) < 0);
+    if (isExpirado) return false;
+
+    return (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt || cSt === 'sim');
+  }
+
+  function recalcularKpisDashboard() {
+    var totalMensalCalc = 0;
+    var totalAnualCalc = 0;
+    var contratosAtivosCalc = 0;
+    var contratosRisco60Calc = 0;
+
+    var fornById = {};
+    var fornByNome = {};
+    (appState.fornecedores || []).forEach(function(f) {
+      if (f.id) fornById[String(f.id)] = f;
+      if (f.razaoSocial) fornByNome[String(f.razaoSocial).toLowerCase().trim()] = f;
+    });
+
+    (appState.contratos || []).forEach(function(cItem) {
+      var fornPai = (cItem.idFornecedor && fornById[String(cItem.idFornecedor)]) ||
+                    (cItem.fornecedor && fornByNome[String(cItem.fornecedor).toLowerCase().trim()]) || null;
+      if (contratoContabilizaAtivo(cItem, fornPai)) {
+        contratosAtivosCalc++;
+        var isPluriKpi = ehPeriodicidadePlurianual(cItem.periodicidade);
+        var isAnualKpi = String(cItem.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriKpi;
+        var valContrato = parseFloat(cItem.valorMensal) || parseFloat(cItem.valorMensalBase) || 0;
+        var msCob = parseInt(cItem.mesesCobranca, 10);
+        if (isNaN(msCob) || msCob <= 0) msCob = 12;
+
+        var valAnual = 0;
+        if (isPluriKpi) {
+          valAnual = 0;
+        } else if (isAnualKpi) {
+          valAnual = valContrato;
+        } else {
+          valAnual = parseFloat(cItem.desembolsoAnual) || (valContrato * msCob);
+        }
+
+        if (!isPluriKpi) {
+          totalMensalCalc += valContrato;
+        }
+        totalAnualCalc += valAnual;
+
+        if (!cItem.prazoIndeterminado && cItem.diasRestantes !== null && cItem.diasRestantes !== undefined) {
+          var diasK = parseInt(cItem.diasRestantes, 10);
+          if (!isNaN(diasK) && diasK >= 0 && diasK <= 60) {
+            contratosRisco60Calc++;
+          }
+        }
+      }
+    });
+
+    if (!appState.kpis) appState.kpis = {};
+    appState.kpis.valorMensalTotal = totalMensalCalc;
+    appState.kpis.valorAnualComprometido = totalAnualCalc;
+    appState.kpis.contratosAtivos = contratosAtivosCalc;
+    appState.kpis.contratosRisco60Dias = contratosRisco60Calc;
+
+    var elForn = document.getElementById('statFornecedores');
+    if (elForn) elForn.textContent = appState.kpis.totalFornecedores || (appState.fornecedores ? appState.fornecedores.length : 0);
+    var elAtivos = document.getElementById('statContratosAtivos');
+    if (elAtivos) elAtivos.textContent = contratosAtivosCalc;
+    var elMensal = document.getElementById('statDesembolsoMensal');
+    if (elMensal) elMensal.textContent = formatarMoedaBRL(totalMensalCalc);
+    var elAnual = document.getElementById('statOrcamentoAnual');
+    if (elAnual) elAnual.textContent = formatarMoedaBRL(totalAnualCalc);
+    var elRisco = document.getElementById('statRisco60');
+    if (elRisco) elRisco.textContent = contratosRisco60Calc;
+    var elAp = document.getElementById('statAprovacoesPendentes');
+    if (elAp) elAp.textContent = appState.kpis.minhasAprovacoesPendentes || 0;
+  }
+
   // Renderizacao do Acordeao de Fornecedores
   function renderizarFornecedoresAcordeao(fornecedores) {
     var container = document.getElementById('containerFornecedoresLista');
@@ -3179,10 +3218,7 @@
 
       if (f.contratos && f.contratos.length > 0) {
         f.contratos.forEach(function(c) {
-          var cSt = String(c.status || '').toLowerCase();
-          var cAlc = String(c.statusAlcada || '').toLowerCase();
-          var isEnc = cSt.indexOf('cancel') !== -1 || cSt.indexOf('encerr') !== -1 || cSt.indexOf('rescind') !== -1 || cSt.indexOf('inativ') !== -1;
-          var isAt = !isEnc && (cSt.indexOf('vigen') !== -1 || cSt.indexOf('ativ') !== -1 || cAlc.indexOf('aprov') !== -1 || !cSt);
+          var isAt = contratoContabilizaAtivo(c, f);
 
           var isPluriForn = ehPeriodicidadePlurianual(c.periodicidade);
           var isAnualForn = String(c.periodicidade || '').toLowerCase().indexOf('anual') !== -1 && !isPluriForn;
@@ -3216,7 +3252,7 @@
             }
           }
         });
-      } else {
+      } else if (!isEncerrado) {
         fValorMensal = f.valorMensalTotal || 0;
         fValorAnual = f.desembolsoAnualTotal || (fValorMensal * 12);
         fContratosAtivos = f.contratosAtivos || 0;
@@ -3316,6 +3352,8 @@
         html += '      <tbody>';
 
         f.contratos.forEach(function(c) {
+          var isAtivoLinha = contratoContabilizaAtivo(c, f);
+          var isExpiradoLinha = (!c.prazoIndeterminado && c.diasRestantes !== null && c.diasRestantes !== undefined && parseInt(c.diasRestantes, 10) < 0);
           var urgencyClass = 'ok';
           var diasTxt = 'Indeterminada';
           var vigenciaTxt = c.dataFim || 'Indeterminada';
@@ -3325,9 +3363,11 @@
             diasTxt = 'Indeterminada';
             vigenciaTxt = 'Indeterminada';
           } else if (c.diasRestantes !== null && c.diasRestantes !== undefined) {
-            if (c.diasRestantes <= 30) { urgencyClass = 'critical'; diasTxt = c.diasRestantes + ' dias'; }
-            else if (c.diasRestantes <= 60) { urgencyClass = 'warning'; diasTxt = c.diasRestantes + ' dias'; }
-            else { urgencyClass = 'ok'; diasTxt = c.diasRestantes + ' dias'; }
+            var dRestNum = parseInt(c.diasRestantes, 10);
+            if (dRestNum < 0) { urgencyClass = 'critical'; diasTxt = 'Vencido há ' + Math.abs(dRestNum) + ' dias'; }
+            else if (dRestNum <= 30) { urgencyClass = 'critical'; diasTxt = dRestNum + ' dias'; }
+            else if (dRestNum <= 60) { urgencyClass = 'warning'; diasTxt = dRestNum + ' dias'; }
+            else { urgencyClass = 'ok'; diasTxt = dRestNum + ' dias'; }
           }
 
           var setorBadge = c.setorGerencia ? '<span class="badge-setor">' + escapeHtml(c.setorGerencia) + '</span>' : '';
@@ -3370,7 +3410,25 @@
             }
           }
 
-          html += '        <tr>';
+          var rowHistoricoStyle = isAtivoLinha ? '' : ' style="background:#F8FAFC; color:#64748B;"';
+          var valorColColor = isAtivoLinha ? '' : ' color:#94A3B8;';
+          var anualColColor = isAtivoLinha ? ' color: var(--brisa-blue);' : ' color:#94A3B8;';
+          var notaHistoricoHtml = isAtivoLinha ? '' : '<div style="font-size:10px; font-weight:600; color:#64748B; margin-top:2px;">Histórico · Não somado</div>';
+
+          var alcadaBadgeHtml = '';
+          if (!isAtivoLinha) {
+            if (isExpiradoLinha && String(c.status || '').toLowerCase().indexOf('encerr') === -1) {
+              alcadaBadgeHtml = '<span class="badge-alcada" style="background:#FEF2F2; color:#991B1B; border-color:#FECACA;">Vencido (Histórico)</span>';
+            } else if (isEncerrado) {
+              alcadaBadgeHtml = '<span class="badge-alcada" style="background:#F1F5F9; color:#475569; border-color:#CBD5E1;">Forn. Encerrado</span>';
+            } else {
+              alcadaBadgeHtml = '<span class="badge-alcada" style="background:#F1F5F9; color:#475569; border-color:#CBD5E1;">' + escapeHtml(c.status || 'Encerrado') + '</span>';
+            }
+          } else {
+            alcadaBadgeHtml = '<span class="badge-alcada">' + escapeHtml(c.statusAlcada || 'Aprovado') + '</span>';
+          }
+
+          html += '        <tr' + rowHistoricoStyle + '>';
           html += '          <td>';
           html += '            <div class="contract-obj-text" title="' + escapeHtml(c.objeto) + '">' + escapeHtml(c.objeto) + '</div>';
           html += '            ' + setorBadge + tipoBadge;
@@ -3379,10 +3437,10 @@
           html += '            <div>' + escapeHtml(vigenciaTxt) + '</div>';
           html += '            <span class="badge-urgency ' + urgencyClass + '">' + diasTxt + '</span>';
           html += '          </td>';
-          html += '          <td style="font-weight: 700;">' + labelMensalCol + '</td>';
-          html += '          <td style="font-weight: 700; color: var(--brisa-blue);">' + labelAnualCol + '</td>';
+          html += '          <td style="font-weight: 700;' + valorColColor + '">' + labelMensalCol + notaHistoricoHtml + '</td>';
+          html += '          <td style="font-weight: 700;' + anualColColor + '">' + labelAnualCol + notaHistoricoHtml + '</td>';
           html += '          <td>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</td>';
-          html += '          <td><span class="badge-alcada">' + escapeHtml(c.statusAlcada || 'Aprovado') + '</span></td>';
+          html += '          <td>' + alcadaBadgeHtml + '</td>';
           html += '          <td style="text-align: right;">';
           html += '            <button type="button" class="btn btn-action-primary" onclick="abrirFicha360(' + c.id + ')">';
           html += '              Abrir Ficha 360°';
@@ -3441,31 +3499,57 @@
       selectElem.className = 'badge-status-select ativo';
     }
 
-    mostrarFeedback('Atualizando status de ' + fornNome + ' para ' + novoStatus + '...', 'info');
-
-    google.script.run
-      .withSuccessHandler(function(res) {
-        if (res && res.success) {
-          mostrarFeedback('Status de ' + fornNome + ' atualizado para ' + novoStatus + ' com sucesso!', 'success');
-          if (appState.fornecedores) {
-            appState.fornecedores.forEach(function(item) {
-              if (item.id === fornId || item.razaoSocial === fornRazao) {
-                item.status = novoStatus;
-              }
-            });
+    var aplicarAlteracaoLocalFornecedor = function(statusFinal) {
+      if (appState.fornecedores) {
+        var idLow = String(fornId || '').trim().toLowerCase();
+        var razLow = String(fornRazao || '').trim().toLowerCase();
+        appState.fornecedores.forEach(function(item) {
+          var itemId = String(item.id || '').trim().toLowerCase();
+          var itemRaz = String(item.razaoSocial || '').trim().toLowerCase();
+          var itemAp = String(item.apelido || '').trim().toLowerCase();
+          if ((idLow && itemId === idLow) || (razLow && (itemRaz === razLow || itemAp === razLow))) {
+            item.status = statusFinal;
           }
-        } else {
-          mostrarFeedback('Erro ao atualizar status: ' + ((res && res.error) || 'Falha no servidor'), 'danger');
+        });
+      }
+      recalcularKpisDashboard();
+      var temFiltro = (document.getElementById('filtroFornecedoresInput') && document.getElementById('filtroFornecedoresInput').value.trim() !== '') ||
+                      (document.getElementById('filtroSetorContrato') && document.getElementById('filtroSetorContrato').value !== '') ||
+                      (document.getElementById('filtroStatusContrato') && document.getElementById('filtroStatusContrato').value !== '') ||
+                      (document.getElementById('filtroTipoContrato') && document.getElementById('filtroTipoContrato').value !== '');
+      if (temFiltro) {
+        filtrarFornecedores();
+      } else {
+        renderizarFornecedoresAcordeao(appState.fornecedores);
+      }
+    };
+
+    mostrarToast('Salvando status de ' + fornNome + ' para ' + novoStatus + '...', 'info');
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res && res.success) {
+            mostrarToast('Status de ' + fornNome + ' salvo como ' + (res.novoStatus || novoStatus) + '!', 'success');
+            aplicarAlteracaoLocalFornecedor(res.novoStatus || novoStatus);
+          } else {
+            mostrarToast('Erro ao atualizar status: ' + ((res && res.error) || 'Falha no servidor'), 'error');
+            selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
+            selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
+          }
+        })
+        .withFailureHandler(function(err) {
+          mostrarToast('Erro ao atualizar status: ' + err.message, 'error');
           selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
           selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
-        }
-      })
-      .withFailureHandler(function(err) {
-        mostrarFeedback('Erro ao atualizar status: ' + err.message, 'danger');
-        selectElem.value = (novoStatus === 'Ativo') ? 'Encerrado' : 'Ativo';
-        selectElem.className = (selectElem.value === 'Encerrado') ? 'badge-status-select encerrado' : 'badge-status-select ativo';
-      })
-      .atualizarStatusFornecedorTelefonia(fornId || fornRazao, novoStatus);
+        })
+        .atualizarStatusFornecedorTelefonia(fornId || fornRazao, novoStatus);
+    } else {
+      setTimeout(function() {
+        aplicarAlteracaoLocalFornecedor(novoStatus);
+        mostrarToast('Simulação: Status de ' + fornNome + ' atualizado para ' + novoStatus + '.', 'success');
+      }, 300);
+    }
   }
 
   function filtrarFornecedores() {
@@ -3489,7 +3573,7 @@
           (c.tipo || '').toLowerCase().indexOf(termo) !== -1 ||
           (c.protocolo || '').toLowerCase().indexOf(termo) !== -1;
 
-        var matchStatus = !status || (c.status || '').toLowerCase().indexOf(status) !== -1;
+        var matchStatus = !status || (c.status || '').toLowerCase().indexOf(status) !== -1 || (status === 'encerrado' && !contratoContabilizaAtivo(c, f));
         var matchSetor = !setor || (c.setorGerencia || '').toLowerCase().indexOf(setor) !== -1;
         var matchTipo = !tipo || (c.tipo || '').toLowerCase().trim() === tipo;
 
