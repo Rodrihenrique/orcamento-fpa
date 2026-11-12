@@ -372,7 +372,15 @@
     }
 
     .notif-item:hover {
-      background: #F8FAFC;
+      background: #F1F5F9;
+    }
+
+    .notif-item.nao-lida {
+      background: #F8FAFF;
+    }
+
+    .notif-item.lida {
+      background: #FFFFFF;
     }
 
     .notif-item.vencimento-critico {
@@ -6334,7 +6342,6 @@
       if (isNaN(dRest) || dRest > 60) return;
 
       var notifKey = 'venc_' + c.id + '_' + String(c.dataFim || dRest);
-      if (lidas[notifKey]) return;
 
       var prazoTxt = dRest < 0
         ? ('Vencido há ' + Math.abs(dRest) + ' dia(s)')
@@ -6342,6 +6349,7 @@
 
       itens.push({
         key: notifKey,
+        lida: !!lidas[notifKey],
         tipo: 'vencimento',
         cls: dRest <= 30 ? 'vencimento-critico' : 'vencimento-alerta',
         idContrato: c.id,
@@ -6363,11 +6371,11 @@
     (appState.aprovacoes || []).forEach(function(ap) {
       if (String(ap.statusDecisao || '').toLowerCase().trim() !== 'pendente') return;
       var notifKey = 'aprov_' + String(ap.idAprovacao || (ap.idContrato + '_' + ap.dataSolicitacao));
-      if (lidas[notifKey]) return;
 
       var ct = contratosById[String(ap.idContrato)] || null;
       itens.push({
         key: notifKey,
+        lida: !!lidas[notifKey],
         tipo: 'aprovacao',
         cls: 'aprovacao-pendente',
         idAprovacao: ap.idAprovacao,
@@ -6395,10 +6403,11 @@
     var itens = coletarNotificacoesSino();
     appState.notificacoesAtuais = itens;
     var total = itens.length;
+    var naoLidas = itens.filter(function(n) { return !n.lida; }).length;
 
     if (badge) {
-      if (total > 0) {
-        badge.textContent = total > 99 ? '99+' : String(total);
+      if (naoLidas > 0) {
+        badge.textContent = naoLidas > 99 ? '99+' : String(naoLidas);
         badge.style.display = 'inline-block';
       } else {
         badge.textContent = '0';
@@ -6406,10 +6415,16 @@
       }
     }
     if (headerPill) {
-      headerPill.textContent = String(total);
+      if (naoLidas > 0) {
+        headerPill.textContent = String(naoLidas);
+        headerPill.style.display = 'inline-block';
+      } else {
+        headerPill.textContent = '0';
+        headerPill.style.display = 'none';
+      }
     }
     if (btnLerTodas) {
-      btnLerTodas.disabled = (total === 0);
+      btnLerTodas.disabled = (naoLidas === 0);
     }
     if (!body) return;
 
@@ -6421,9 +6436,10 @@
     var html = '';
     itens.forEach(function(n) {
       var keyEnc = encodeURIComponent(n.key);
+      var lidaCls = n.lida ? ' lida' : ' nao-lida';
       if (n.tipo === 'vencimento') {
         var badgeCls = (n.cls === 'vencimento-critico') ? 'badge-status em-risco' : 'badge-status analise';
-        html += '<div class="notif-item ' + n.cls + '" onclick="navegarParaContratoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + keyEnc + '\')">' +
+        html += '<div class="notif-item ' + n.cls + lidaCls + '" onclick="navegarParaContratoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + keyEnc + '\')">' +
           '  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">' +
           '    <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:#991B1B; letter-spacing:0.4px;">Alerta de Vencimento</span>' +
           '    <span class="' + badgeCls + '" style="font-size:10px;">' + escapeHtml(n.prazoTxt) + '</span>' +
@@ -6435,7 +6451,7 @@
       } else {
         var apIdEnc = encodeURIComponent(String(n.idAprovacao || ''));
         var temContrato = (appState.contratos || []).some(function(c) { return String(c.id) === String(n.idContrato); });
-        html += '<div class="notif-item ' + n.cls + '" onclick="navegarParaAprovacaoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + apIdEnc + '\', \'' + keyEnc + '\')">' +
+        html += '<div class="notif-item ' + n.cls + lidaCls + '" onclick="navegarParaAprovacaoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + apIdEnc + '\', \'' + keyEnc + '\')">' +
           '  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">' +
           '    <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:var(--brisa-blue); letter-spacing:0.4px;">Aprovação Pendente</span>' +
           '    <span class="badge-alcada" style="font-size:10px;">' + escapeHtml(n.nivelAlcada) + '</span>' +
