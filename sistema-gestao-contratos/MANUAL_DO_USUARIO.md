@@ -119,7 +119,7 @@ O cadastro contempla 6 blocos organizados:
    - **Setor / Gerência da Telefonia:** Seleção obrigatória entre as 5 gerências. O contrato é automaticamente arquivado na pasta desta gerência no Google Drive.
    - **Tipo de Contrato:** Suporte Técnico, Assessoria e Consultoria Empresarial, Serviços de Terceiros, Interconexão ou personalização via "+ Adicionar outro tipo...".
    - **CNPJ:** Preenchido e validado com máscara automática.
-   - **E-mail do Responsável pelo Contrato:** E-mail do gestor técnico/operacional responsável pelo acompanhamento deste contrato e destinatário de futuros alertas automáticos de reajuste.
+   - **E-mail do Responsável pelo Contrato:** Lista suspensa populada dinamicamente a partir dos responsáveis ativos cadastrados na aba `Acessos_Alcadas` (iniciando sem seleção prévia para evitar preenchimento automático com o e-mail do usuário logado), definindo o gestor destinatário de alertas de reajuste e governança.
    - **Contrato / PO:** Número formal do contrato ou pedido de compra.
    - **Centro de Custo:** Código de centro de custo da telefonia.
    - **Objeto do Contrato:** Descrição sucinta do escopo contratado.

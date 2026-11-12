@@ -3958,6 +3958,57 @@ function mapearIndicesAcessos_(headers) {
 }
 
 /**
+ * Lista os responsaveis ativos cadastrados na aba Acessos_Alcadas para selecao no cadastro de contratos.
+ * @param {Spreadsheet} ss
+ * @return {Array<Object>}
+ */
+function listarResponsaveisAcessos_(ss) {
+  var lista = [];
+  var vistos = {};
+  try {
+    var sheet = ss.getSheetByName(CONFIG.SHEET_ACESSOS);
+    if (!sheet) return lista;
+    garantirHeadersAcessos_(sheet);
+
+    var data = sheet.getDataRange().getValues();
+    if (!data || data.length <= 1) return lista;
+
+    var colMap = mapearIndicesAcessos_(data[0]);
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var email = String((colMap.email !== -1 ? row[colMap.email] : '') || '').trim().toLowerCase();
+      if (!email || email.indexOf('@') === -1) continue;
+
+      var statusRaw = String((colMap.status !== -1 ? row[colMap.status] : 'Ativo') || 'Ativo').trim().toLowerCase();
+      if (statusRaw.indexOf('inativ') !== -1 || statusRaw.indexOf('encerr') !== -1 || statusRaw.indexOf('cancel') !== -1) {
+        continue;
+      }
+
+      if (vistos[email]) continue;
+      vistos[email] = true;
+
+      var nome = String((colMap.colaborador !== -1 ? row[colMap.colaborador] : '') || '').trim();
+      var setor = String((colMap.setor !== -1 ? row[colMap.setor] : '') || '').trim();
+      var papel = String((colMap.papel !== -1 ? row[colMap.papel] : '') || '').trim();
+
+      lista.push({
+        email: email,
+        nome: nome,
+        setor: setor,
+        papel: papel
+      });
+    }
+
+    lista.sort(function(a, b) {
+      var na = (a.nome || a.email).toLowerCase();
+      var nb = (b.nome || b.email).toLowerCase();
+      return na.localeCompare(nb);
+    });
+  } catch (eListResp) {}
+  return lista;
+}
+
+/**
  * Obtem as permissoes de acesso, setor permitido e papel do usuario ativo,
  * avaliando se ele opera como titular ou como substituto temporario ativo.
  * Identificacao dinamica de colunas para suportar com ou sem 'ID do Usuário'.
@@ -5957,7 +6008,8 @@ function obterDadosCompletosTelefonia() {
       logs: logsList,
       centrosCusto: Object.keys(centrosCustoSet),
       categorias: Object.keys(categoriasSet),
-      gerencias: CONFIG.GERENCIAS_TELEFONIA
+      gerencias: CONFIG.GERENCIAS_TELEFONIA,
+      responsaveis: listarResponsaveisAcessos_(ss)
     };
   } catch (err) {
     return {

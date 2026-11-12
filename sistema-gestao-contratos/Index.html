@@ -2265,8 +2265,10 @@
           </div>
           <div class="form-group col-span-2">
             <label class="form-label required">E-mail do Responsável pelo Contrato</label>
-            <input type="email" id="contratoModalEmailResponsavel" class="form-control" placeholder="responsavel@grupobrisanet.com.br" required>
-            <small style="font-size: 11px; color: var(--text-muted);">E-mail do gestor para futuros alertas automáticos de reajuste e governança.</small>
+            <select id="contratoModalEmailResponsavel" class="form-control" autocomplete="off" required>
+              <option value="">Selecione o responsável...</option>
+            </select>
+            <small style="font-size: 11px; color: var(--text-muted);">Selecione um gestor cadastrado na aba Acessos_Alcadas para futuros alertas automáticos de reajuste e governança.</small>
           </div>
           <div class="form-group col-span-2">
             <label class="form-label">Contrato / PO</label>
@@ -3103,6 +3105,7 @@
     contratos: [],
     aprovacoes: [],
     logs: [],
+    responsaveis: [],
     usuarioAtual: { email: '', papel: 'Gestão Telefonia' },
     kpis: {},
     activeTab: 'fornecedores',
@@ -3458,6 +3461,7 @@
     appState.contratos = res.contratos || [];
     appState.aprovacoes = res.aprovacoes || [];
     appState.logs = res.logs || [];
+    appState.responsaveis = Array.isArray(res.responsaveis) ? res.responsaveis : [];
     appState.usuarioAtual = res.usuarioAtual || { email: 'usuario@grupobrisanet.com.br', papel: 'Gestão Telefonia', setorPermitido: 'GESTAO TELEFONIA', acessoTotal: true };
     appState.alertasReajuste = res.alertasReajuste || [];
     appState.kpis = res.kpis || {};
@@ -3514,9 +3518,10 @@
     var badgeAp = document.getElementById('badgeAprovacoesCount');
     if (badgeAp) badgeAp.textContent = appState.kpis.minhasAprovacoesPendentes || 0;
 
-    // Popular filtros de Tipo de Contrato e Log de Alterações
+    // Popular filtros de Tipo de Contrato, Log de Alterações e Responsaveis
     popularFiltroTipoContrato();
     popularFiltrosAuditoria();
+    popularSelectResponsaveisNovoContrato();
 
     // Renderizar Fornecedores respeitando filtros ativos
     var temFiltroAtivo = (document.getElementById('filtroFornecedoresInput') && document.getElementById('filtroFornecedoresInput').value.trim() !== '') ||
@@ -4711,6 +4716,21 @@
     }
   }
 
+  function popularSelectResponsaveisNovoContrato() {
+    var sel = document.getElementById('contratoModalEmailResponsavel');
+    if (!sel) return;
+    var lista = Array.isArray(appState.responsaveis) ? appState.responsaveis : [];
+    var html = '<option value="">Selecione o responsável...</option>';
+    lista.forEach(function(r) {
+      if (!r || !r.email) return;
+      var label = r.nome ? (r.nome + ' (' + r.email + ')') : r.email;
+      if (r.papel) label += ' — ' + r.papel;
+      html += '<option value="' + escapeHtml(r.email) + '">' + escapeHtml(label) + '</option>';
+    });
+    sel.innerHTML = html;
+    sel.value = '';
+  }
+
   // Modal Novo Contrato para Fornecedor
   function abrirModalNovoContrato(fornId, fornNome) {
     document.getElementById('contratoModalFornecedorId').value = fornId;
@@ -4737,10 +4757,11 @@
       cnpjInput.value = fornObj.cnpj;
     }
 
-    // Pre-preencher E-mail do Responsavel pelo Contrato
+    // Popular e limpar selecao de E-mail do Responsavel (sem memoria do usuario logado)
+    popularSelectResponsaveisNovoContrato();
     var emailRespInput = document.getElementById('contratoModalEmailResponsavel');
     if (emailRespInput) {
-      emailRespInput.value = (appState.usuarioAtual && appState.usuarioAtual.email) ? appState.usuarioAtual.email : '';
+      emailRespInput.value = '';
     }
 
     // Aplicar valores padrao
