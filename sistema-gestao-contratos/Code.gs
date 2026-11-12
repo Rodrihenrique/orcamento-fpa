@@ -63,6 +63,13 @@ function obterTimezoneOficial_() {
  */
 function doGet(e) {
   var template = HtmlService.createTemplateFromFile('Index');
+  var rawContratoId = '';
+  try {
+    if (e && e.parameter) {
+      rawContratoId = e.parameter.contratoId || e.parameter.idContrato || e.parameter.contrato || '';
+    }
+  } catch (errParam) {}
+  template.initialContratoId = String(rawContratoId || '').replace(/[^a-zA-Z0-9_-]/g, '');
   return template.evaluate()
     .setTitle('Painel de Contratos | Gestão Telefonia')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1.0')
@@ -162,7 +169,9 @@ function verificarAbaDetectada() {
  * Abre o formulário em janela modal dentro do Google Sheets
  */
 function abrirModalContratos() {
-  var html = HtmlService.createTemplateFromFile('Index').evaluate()
+  var template = HtmlService.createTemplateFromFile('Index');
+  template.initialContratoId = '';
+  var html = template.evaluate()
     .setWidth(1200)
     .setHeight(800)
     .setTitle('Painel de Contratos | Gestão Telefonia');
@@ -174,7 +183,9 @@ function abrirModalContratos() {
  * Abre o formulário na barra lateral do Google Sheets
  */
 function abrirSidebarContratos() {
-  var html = HtmlService.createTemplateFromFile('Index').evaluate()
+  var template = HtmlService.createTemplateFromFile('Index');
+  template.initialContratoId = '';
+  var html = template.evaluate()
     .setTitle('Painel de Contratos');
   SpreadsheetApp.getUi().showSidebar(html);
 }
@@ -1707,6 +1718,87 @@ function obterHistoricoContrato(contractId, protocol) {
  * Envia notificação por e-mail sobre alterações / novos registros no contrato
  * @param {Object} dados - Informações de contrato, destinatários e mensagem
  */
+function escapeHtmlEmail_(texto) {
+  if (texto === undefined || texto === null) return '';
+  return String(texto)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Monta o link direto para abrir um contrato especifico no Web App.
+ * @param {string|number} idContrato
+ * @return {string} URL completa com parametro contratoId ou string vazia se o Web App nao estiver publicado.
+ */
+function obterUrlContratoWebApp_(idContrato) {
+  var baseUrl = '';
+  try {
+    baseUrl = ScriptApp.getService().getUrl() || '';
+  } catch (eUrl) {
+    baseUrl = '';
+  }
+  baseUrl = String(baseUrl || '').trim();
+  if (!baseUrl) return '';
+  var cid = (idContrato !== undefined && idContrato !== null) ? String(idContrato).trim() : '';
+  if (!cid) return baseUrl;
+  var sep = (baseUrl.indexOf('?') !== -1) ? '&' : '?';
+  return baseUrl + sep + 'contratoId=' + encodeURIComponent(cid);
+}
+
+/**
+ * Gera o bloco padronizado de botoes de acao para e-mails contratuais, priorizando o link direto do contrato.
+ * @param {string|number} idContrato
+ * @param {string} textoBotaoPrincipal
+ * @param {string} ssUrl
+ * @param {string} folderUrl
+ * @return {string} HTML do bloco de acoes
+ */
+function gerarBlocoAcoesEmailContrato_(idContrato, textoBotaoPrincipal, ssUrl, folderUrl) {
+  var contractUrl = obterUrlContratoWebApp_(idContrato);
+  var btnLabel = escapeHtmlEmail_(textoBotaoPrincipal || 'Abrir Contrato no Painel');
+  var html = '<div style="text-align:center;margin-top:24px;">';
+
+  if (contractUrl) {
+    html += '<div style="margin-bottom:14px;">' +
+      '<a href="' + contractUrl + '" target="_blank" style="display:inline-block;background:#FF5022;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:12px 24px;border-radius:6px;">' + btnLabel + '</a>' +
+      '</div>';
+  }
+
+  if (ssUrl || folderUrl) {
+    html += '<div>';
+    if (ssUrl) {
+      html += '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:12px;padding:9px 16px;border-radius:6px;margin:4px;">Abrir Planilha de Contratos</a>';
+    }
+    if (folderUrl) {
+      html += '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:12px;padding:9px 16px;border-radius:6px;margin:4px;">Acessar Pasta no Drive</a>';
+    }
+    html += '</div>';
+  }
+
+  if (contractUrl) {
+    html += '<p style="margin:12px 0 0 0;font-size:11px;color:#64748b;word-break:break-all;">Link direto do contrato: <a href="' + contractUrl + '" target="_blank" style="color:#2242D4;">' + contractUrl + '</a></p>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/**
+ * Verifica se o objeto de permissoes pertence ao setor Gestao Telefonia.
+ * @param {Object} perm
+ * @return {boolean}
+ */
+function usuarioEhGestaoTelefonia_(perm) {
+  var setor = String((perm && perm.setorPermitido) || '').toUpperCase().trim();
+  if (typeof setor.normalize === 'function') {
+    setor = setor.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  return setor.indexOf('GESTAO TELEFONIA') !== -1 || setor === 'GESTAO';
+}
+
 function enviarEmailRegistro(dados) {
   try {
     if (!dados || !dados.destinatarios) {
@@ -1808,10 +1900,7 @@ function enviarEmailRegistro(dados) {
             '</p>' +
 
 
-            '<div style="text-align:center;margin-top:24px;">' +
-              '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;margin-right:10px;">Abrir Planilha de Contratos</a>' +
-              '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;">Acessar Pasta no Drive</a>' +
-            '</div>' +
+            gerarBlocoAcoesEmailContrato_((dados.id || dados.contractId), 'Abrir Contrato no Sistema', ssUrl, folderUrl) +
 
 
           '</div>' +
@@ -2221,10 +2310,7 @@ function enviarEmailAlertaVencimento_(dados) {
             '</div>' +
 
 
-            '<div style="text-align:center;margin-top:24px;">' +
-              '<a href="' + ssUrl + '" target="_blank" style="display:inline-block;background:#2242D4;color:#ffffff;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;margin-right:10px;">Abrir Planilha de Contratos</a>' +
-              '<a href="' + folderUrl + '" target="_blank" style="display:inline-block;background:#E8E8E8;color:#0B316D;text-decoration:none;font-weight:700;font-size:13px;padding:10px 20px;border-radius:6px;">Acessar Pasta no Drive</a>' +
-            '</div>' +
+            gerarBlocoAcoesEmailContrato_((dados.id || dados.idContrato), 'Abrir Contrato no Sistema', ssUrl, folderUrl) +
 
 
           '</div>' +
@@ -6111,16 +6197,17 @@ function solicitarAprovacaoContrato(payload) {
       var subject = '[brisanet] Solicitacao de Aprovacao de Contrato - ' + nivelAlcada + ' (CT #' + idContrato + ')';
       var bodyHtml = '<div style="font-family: Figtree, Arial, sans-serif; color: #0B316D;">' +
         '<h2 style="color: #FF5022;">Solicitacao de Aprovacao - Gerencia Executiva de Telefonia</h2>' +
-        '<p>Uma nova solicitacao de aprovacao contratual foi atribuida a sua alcada de <strong>' + nivelAlcada + '</strong>.</p>' +
+        '<p>Uma nova solicitacao de aprovacao contratual foi atribuida a sua alcada de <strong>' + escapeHtmlEmail_(nivelAlcada) + '</strong>.</p>' +
         '<ul>' +
-        '<li><strong>ID do Contrato:</strong> #' + idContrato + '</li>' +
-        '<li><strong>Tipo de Solicitacao:</strong> ' + tipoSolicitacao + '</li>' +
-        '<li><strong>Solicitante:</strong> ' + userEmail + '</li>' +
-        '<li><strong>Data de Envio:</strong> ' + nowStr + '</li>' +
-        '<li><strong>Justificativa:</strong> ' + justificativa + '</li>' +
+        '<li><strong>ID do Contrato:</strong> #' + escapeHtmlEmail_(idContrato) + '</li>' +
+        '<li><strong>Tipo de Solicitacao:</strong> ' + escapeHtmlEmail_(tipoSolicitacaoFinal) + '</li>' +
+        '<li><strong>Solicitante:</strong> ' + escapeHtmlEmail_(userEmail) + '</li>' +
+        '<li><strong>Data de Envio:</strong> ' + escapeHtmlEmail_(nowStr) + '</li>' +
+        '<li><strong>Justificativa:</strong> ' + escapeHtmlEmail_(justificativaCompleta) + '</li>' +
         '</ul>' +
-        '<p>Acesse o Painel de Gestao de Contratos da Telefonia para revisar os documentos e registrar seu parecer digital.</p>' +
-        '<hr style="border: 0; border-top: 1px solid #E8E8E8;" />' +
+        '<p>Acesse diretamente o contrato no Painel de Gestao de Contratos da Telefonia pelo botao abaixo para revisar os documentos e registrar seu parecer digital:</p>' +
+        gerarBlocoAcoesEmailContrato_(idContrato, 'Abrir Contrato para Aprovação', '', '') +
+        '<hr style="border: 0; border-top: 1px solid #E8E8E8; margin-top: 20px;" />' +
         '<small style="color: #64748B;">a brisanet - Gerencia Executiva de Telefonia | Registro Oficial Imutavel</small>' +
         '</div>';
 
@@ -6233,14 +6320,15 @@ function registrarDecisaoAprovacao(payload) {
       if (solicitanteEmail) {
         var subject = '[brisanet] ' + (decisao === 'APROVADO' ? 'Contrato Aprovado' : 'Ajustes Solicitados') + ' - CT #' + idContrato;
         var bodyHtml = '<div style="font-family: Figtree, Arial, sans-serif; color: #0B316D;">' +
-          '<h2 style="color: ' + (decisao === 'APROVADO' ? '#2242D4' : '#FF5022') + ';">Decisao Registrada - Alçada ' + nivelAlcada + '</h2>' +
-          '<p>O aprovador <strong>' + userEmail + '</strong> registrou a seguinte decisao para o Contrato #' + idContrato + ':</p>' +
+          '<h2 style="color: ' + (decisao === 'APROVADO' ? '#2242D4' : '#FF5022') + ';">Decisao Registrada - Alcada ' + escapeHtmlEmail_(nivelAlcada) + '</h2>' +
+          '<p>O aprovador <strong>' + escapeHtmlEmail_(userEmail) + '</strong> registrou a seguinte decisao para o Contrato #' + escapeHtmlEmail_(idContrato) + ':</p>' +
           '<ul>' +
-          '<li><strong>Decisao:</strong> ' + statusDecisaoFinal + '</li>' +
-          '<li><strong>Data/Hora:</strong> ' + nowStr + '</li>' +
-          '<li><strong>Parecer Oficial:</strong> ' + (parecer || 'Nao informado') + '</li>' +
+          '<li><strong>Decisao:</strong> ' + escapeHtmlEmail_(statusDecisaoFinal) + '</li>' +
+          '<li><strong>Data/Hora:</strong> ' + escapeHtmlEmail_(nowStr) + '</li>' +
+          '<li><strong>Parecer Oficial:</strong> ' + escapeHtmlEmail_(parecer || 'Nao informado') + '</li>' +
           '</ul>' +
-          '<hr style="border: 0; border-top: 1px solid #E8E8E8;" />' +
+          gerarBlocoAcoesEmailContrato_(idContrato, (decisao === 'APROVADO' ? 'Abrir Contrato no Sistema' : 'Abrir Contrato para Ajustes'), '', '') +
+          '<hr style="border: 0; border-top: 1px solid #E8E8E8; margin-top: 20px;" />' +
           '<small style="color: #64748B;">a brisanet - Gerencia Executiva de Telefonia</small>' +
           '</div>';
 
@@ -7197,6 +7285,192 @@ function salvarAlteracaoContratoTelefonia(payload) {
       idContrato: idContrato,
       alteracoes: alteracoes,
       message: 'Alteracao salva no contrato com sucesso e registrada no log de auditoria.'
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Permite ao setor Gestao Telefonia solicitar formalmente uma alteracao contratual
+ * indicando o que precisa ser alterado e designando o responsavel que executara o processo.
+ * Registra na trilha de auditoria e envia e-mail com link direto para o contrato exato.
+ * @param {Object} payload { idContrato, responsavelEmail, responsavelNome, descricaoAlteracao }
+ * @return {Object}
+ */
+function solicitarAlteracaoContratoGestao(payload) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000);
+  } catch (e) {
+    return { success: false, error: 'Concorrencia ativa. Tente novamente em instantes.' };
+  }
+
+  try {
+    if (!payload) throw new Error('Dados da solicitacao nao informados.');
+
+    var idContratoInput = String(payload.idContrato || '').trim();
+    var responsavelEmail = String(payload.responsavelEmail || '').trim().toLowerCase();
+    var responsavelNome = String(payload.responsavelNome || '').trim();
+    var descricaoAlteracao = String(payload.descricaoAlteracao || '').trim();
+
+    if (!idContratoInput) {
+      throw new Error('ID do contrato e obrigatorio.');
+    }
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!responsavelEmail || !emailRegex.test(responsavelEmail)) {
+      throw new Error('Selecione ou informe um e-mail valido para o responsavel pela alteracao.');
+    }
+    if (!descricaoAlteracao) {
+      throw new Error('Descreva qual alteracao precisa ser realizada no contrato.');
+    }
+
+    var userEmail = '';
+    try {
+      userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail() || '';
+    } catch (eUser) {
+      userEmail = '';
+    }
+    if (!userEmail) userEmail = 'gestao.telefonia@grupobrisanet.com.br';
+
+    var perm = obterPermissoesUsuario_(userEmail);
+    if (!usuarioEhGestaoTelefonia_(perm)) {
+      throw new Error('Acesso restrito: apenas usuarios do setor Gestao Telefonia podem solicitar alteracoes contratuais.');
+    }
+
+    var ss = obterPlanilha_();
+    var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+    if (!sheetContratos) throw new Error('Aba de contratos nao localizada.');
+    garantirHeadersContratos_(sheetContratos);
+
+    var cData = sheetContratos.getDataRange().getValues();
+    var cHeaders = cData[0] || [];
+    var findCol = function(nomes, fallbackIdx) {
+      for (var i = 0; i < cHeaders.length; i++) {
+        var h = String(cHeaders[i] || '').toLowerCase().trim();
+        for (var j = 0; j < nomes.length; j++) {
+          if (h === nomes[j] || h.replace(/\s+/g, '_') === nomes[j]) return i;
+        }
+      }
+      return fallbackIdx;
+    };
+
+    var colId = findCol(['id_contrato', 'id'], 0);
+    var colProtocolo = findCol(['protocolo'], 1);
+    var colFornecedor = findCol(['fornecedor'], 3);
+    var colObjeto = findCol(['objeto'], 4);
+    var colStatus = findCol(['status_contrato', 'status'], 6);
+    var colSetor = findCol(['setor_gerencia', 'setor'], 29);
+
+    var targetRow = null;
+    for (var r = 1; r < cData.length; r++) {
+      var row = cData[r];
+      if (String(row[colId]) === idContratoInput || String(row[colProtocolo]) === idContratoInput) {
+        targetRow = row;
+        break;
+      }
+    }
+
+    if (!targetRow) {
+      throw new Error('Contrato nao localizado: ' + idContratoInput);
+    }
+
+    var realIdContrato = targetRow[colId];
+    var protocolo = String(targetRow[colProtocolo] || formatarProtocolo_(realIdContrato));
+    var fornecedor = String(targetRow[colFornecedor] || 'Fornecedor');
+    var objeto = String(targetRow[colObjeto] || 'Contrato');
+    var statusContrato = String(targetRow[colStatus] || 'Vigente');
+    var setorContrato = String(targetRow[colSetor] || 'TELEFONIA');
+
+    // Resolver nome do responsavel na aba Acessos_Alcadas, se nao enviado
+    if (!responsavelNome) {
+      try {
+        var listaResp = listarResponsaveisAcessos_(ss);
+        for (var lr = 0; lr < listaResp.length; lr++) {
+          if (String(listaResp[lr].email || '').toLowerCase() === responsavelEmail) {
+            responsavelNome = listaResp[lr].nome || '';
+            break;
+          }
+        }
+      } catch (eResp) {}
+    }
+
+    var solicitanteNome = (perm && perm.nome) ? perm.nome : userEmail;
+    var nowStr = Utilities.formatDate(new Date(), obterTimezoneOficial_(), 'dd/MM/yyyy HH:mm:ss');
+
+    // Registrar na trilha de auditoria oficial
+    registrarLogAuditoriaOficial_(
+      'Contrato',
+      realIdContrato,
+      'Solicitacao de Alteracao',
+      'responsavel_designado',
+      '-',
+      responsavelEmail,
+      'Alteracao solicitada por Gestao Telefonia: ' + descricaoAlteracao,
+      userEmail,
+      (perm && perm.papel) ? perm.papel : 'Gestao Telefonia'
+    );
+
+    // Enviar e-mail para o responsavel designado com link direto para o contrato exato
+    var subject = '[brisanet] Solicitacao de Alteracao Contratual - ' + protocolo + ' (' + fornecedor + ')';
+    var respDisplay = responsavelNome ? (responsavelNome + ' (' + responsavelEmail + ')') : responsavelEmail;
+    var bodyHtml =
+      '<div style="font-family:\'Figtree\',Arial,sans-serif;background-color:#f8fafc;padding:24px;color:#0B316D;">' +
+        '<div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #E8E8E8;border-radius:12px;overflow:hidden;box-shadow:0 4px 12px rgba(11,49,109,0.06);">' +
+          '<div style="background:#2242D4;padding:20px 24px;">' +
+            '<span style="background:#FF5022;color:#ffffff;font-size:12px;font-weight:800;padding:4px 10px;border-radius:6px;letter-spacing:0.5px;text-transform:lowercase;">brisanet</span>' +
+            '<h2 style="color:#ffffff;margin:8px 0 0 0;font-size:18px;font-weight:700;">Solicitacao de Alteracao Contratual</h2>' +
+            '<p style="color:#bfdbfe;margin:2px 0 0 0;font-size:11px;letter-spacing:0.8px;">GESTAO TELEFONIA · DESIGNACAO DE RESPONSAVEL</p>' +
+          '</div>' +
+          '<div style="padding:24px;">' +
+            '<p style="font-size:14px;line-height:1.6;color:#334155;margin-top:0;">' +
+              'Ola <strong>' + escapeHtmlEmail_(responsavelNome || responsavelEmail) + '</strong>,<br><br>' +
+              'O setor de <strong>Gestao Telefonia</strong> solicitou uma alteracao no contrato abaixo e indicou voce como responsavel para realizar o processo no sistema.' +
+            '</p>' +
+            '<div style="background:#f0f3ff;border-left:4px solid #2242D4;border-radius:6px;padding:16px;margin:18px 0;">' +
+              '<table style="width:100%;font-size:13px;border-collapse:collapse;">' +
+                '<tr><td style="padding:4px 0;color:#64748b;font-weight:600;width:140px;">Contrato:</td><td style="padding:4px 0;color:#0B316D;font-weight:700;">#' + escapeHtmlEmail_(realIdContrato) + ' (' + escapeHtmlEmail_(protocolo) + ')</td></tr>' +
+                '<tr><td style="padding:4px 0;color:#64748b;font-weight:600;">Fornecedor:</td><td style="padding:4px 0;color:#0B316D;font-weight:700;">' + escapeHtmlEmail_(fornecedor) + '</td></tr>' +
+                '<tr><td style="padding:4px 0;color:#64748b;font-weight:600;">Objeto:</td><td style="padding:4px 0;color:#334155;">' + escapeHtmlEmail_(objeto) + '</td></tr>' +
+                '<tr><td style="padding:4px 0;color:#64748b;font-weight:600;">Setor / Gerencia:</td><td style="padding:4px 0;color:#334155;">' + escapeHtmlEmail_(setorContrato) + '</td></tr>' +
+                '<tr><td style="padding:4px 0;color:#64748b;font-weight:600;">Status Atual:</td><td style="padding:4px 0;color:#0B316D;font-weight:700;">' + escapeHtmlEmail_(statusContrato) + '</td></tr>' +
+              '</table>' +
+            '</div>' +
+            '<div style="background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid #FF5022;border-radius:8px;padding:16px;margin:18px 0;">' +
+              '<h4 style="margin:0 0 8px 0;font-size:12px;font-weight:800;color:#FF5022;text-transform:uppercase;letter-spacing:0.5px;">Alteracao Solicitada (O que precisa ser feito):</h4>' +
+              '<p style="margin:0;font-size:13px;color:#0B316D;white-space:pre-wrap;line-height:1.6;">' + escapeHtmlEmail_(descricaoAlteracao) + '</p>' +
+            '</div>' +
+            '<p style="font-size:12px;color:#64748b;margin:16px 0 8px 0;">' +
+              '<strong>Solicitado por:</strong> ' + escapeHtmlEmail_(solicitanteNome) + ' (' + escapeHtmlEmail_(userEmail) + ')<br>' +
+              '<strong>Responsavel designado:</strong> ' + escapeHtmlEmail_(respDisplay) + '<br>' +
+              '<strong>Data/Hora:</strong> ' + escapeHtmlEmail_(nowStr) +
+            '</p>' +
+            '<p style="font-size:13px;color:#334155;margin:12px 0 0 0;">' +
+              'Clique no botao abaixo para abrir diretamente a Ficha 360 do contrato e executar a atualizacao em <strong>Realizar Alteracao / Aprovacao</strong>:' +
+            '</p>' +
+            gerarBlocoAcoesEmailContrato_(realIdContrato, 'Abrir Contrato para Realizar Alteracao', '', '') +
+          '</div>' +
+          '<div style="background:#f8fafc;border-top:1px solid #E8E8E8;padding:14px 24px;text-align:center;font-size:11px;color:#94a3b8;">' +
+            'Comunicado oficial · Sistema de Gestao de Contratos · a brisanet' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    MailApp.sendEmail({
+      to: responsavelEmail,
+      subject: subject,
+      htmlBody: bodyHtml
+    });
+
+    return {
+      success: true,
+      idContrato: realIdContrato,
+      protocolo: protocolo,
+      responsavelEmail: responsavelEmail,
+      contractUrl: obterUrlContratoWebApp_(realIdContrato),
+      message: 'Solicitacao de alteracao enviada por e-mail para ' + responsavelEmail + '.'
     };
   } catch (err) {
     return { success: false, error: err.message };

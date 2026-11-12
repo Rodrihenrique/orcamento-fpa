@@ -1336,6 +1336,7 @@
     #modalAlterarFaixaBaseClientes,
     #modalDecisaoAprovacao,
     #modalSolicitarAprovacao,
+    #modalSolicitarAlteracaoGestao,
     #modalDefinirSubstituto {
       z-index: 1200 !important;
     }
@@ -1877,7 +1878,7 @@
     }
   </style>
 </head>
-<body>
+<body data-initial-contrato="<?= initialContratoId ?>">
 
 <!-- OVERLAY DE CARREGAMENTO -->
 <div id="appLoadingOverlay" class="loading-overlay">
@@ -3076,6 +3077,40 @@
 </div>
 
 <!-- ==========================================================================
+     MODAL SOLICITAR ALTERACAO CONTRATUAL (EXCLUSIVO GESTAO TELEFONIA)
+     ========================================================================== -->
+<div class="modal-overlay" id="modalSolicitarAlteracaoGestao">
+  <div class="modal-content" style="max-width: 580px; border-radius: 16px; overflow: hidden;">
+    <div class="modal-header" style="border-top-left-radius: 16px; border-top-right-radius: 16px;">
+      <div class="modal-header-title">Solicitar Alteração no Contrato</div>
+      <button type="button" class="modal-close-btn" onclick="fecharModalSolicitarAlteracaoGestao()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding: 20px 24px;">
+      <div style="margin-bottom: 14px; padding: 12px 14px; background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; font-size: 12px; color: var(--brisa-dark-blue); line-height: 1.5;">
+        <strong>Fluxo exclusivo Gestão Telefonia:</strong> Indique qual alteração precisa ser realizada neste contrato e selecione quem ficará responsável por executá-la. O responsável indicado receberá um e-mail com o link direto para abrir o contrato.
+      </div>
+      <div id="solAltGestaoContratoResumo" style="margin-bottom: 14px; padding: 10px 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: var(--text-body);"></div>
+      <input type="hidden" id="solAltGestaoContratoId">
+      <div class="form-group" style="margin-bottom: 14px;">
+        <label class="form-label required" for="solAltGestaoResponsavelEmail">Responsável por Realizar a Alteração</label>
+        <select id="solAltGestaoResponsavelEmail" class="form-control" required>
+          <option value="">Selecione o responsável...</option>
+        </select>
+        <span class="form-helper">Lista carregada dos colaboradores cadastrados na aba Acessos_Alcadas.</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="solAltGestaoDescricao">Qual alteração precisa ser feita</label>
+        <textarea id="solAltGestaoDescricao" class="form-control" rows="4" placeholder="Descreva detalhadamente o que precisa ser alterado neste contrato..." required></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" onclick="fecharModalSolicitarAlteracaoGestao()">Cancelar</button>
+      <button type="button" class="btn btn-primary" id="btnEnviarSolicitacaoAlteracaoGestao" onclick="submeterSolicitacaoAlteracaoGestao()">Enviar Solicitação por E-mail</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
      MODAL CERTIFICADO OFICIAL DE AUDITORIA
      ========================================================================== -->
 <div class="modal-overlay" id="modalCertificadoAuditoria">
@@ -3118,6 +3153,7 @@
     exclusaoPendente: null,
     notificacoesLidas: {},
     notificacoesAtuais: [],
+    initialDeepLinkHandled: false,
     logsExpandidos: {},
     arquivosModalContrato: []
   };
@@ -3548,6 +3584,92 @@
         trocarAbaFicha(appState.abaFichaAtiva || 'resumo');
       }
     }
+
+    // Se houver link direto (?contratoId=...) na URL de acesso, abrir exatamente esse contrato
+    if (!appState.initialDeepLinkHandled) {
+      var deepLinkId = obterContratoIdInicialUrl();
+      if (deepLinkId) {
+        appState.initialDeepLinkHandled = true;
+        navegarParaContratoPorLinkDireto(deepLinkId);
+      }
+    }
+  }
+
+  function obterContratoIdInicialUrl() {
+    try {
+      if (document && document.body && typeof document.body.getAttribute === 'function') {
+        var attr = String(document.body.getAttribute('data-initial-contrato') || '').trim();
+        if (attr && attr.indexOf('<?=') === -1 && attr.indexOf('?>') === -1) {
+          return attr;
+        }
+      }
+    } catch (eBody) {}
+    try {
+      if (typeof window !== 'undefined' && window.location && window.location.search) {
+        var qs = String(window.location.search || '');
+        var m = qs.match(/[?&](?:contratoId|idContrato|contrato)=([^&#]+)/i);
+        if (m && m[1]) {
+          return decodeURIComponent(m[1]).trim();
+        }
+      }
+    } catch (eQs) {}
+    return '';
+  }
+
+  function navegarParaContratoPorLinkDireto(targetId) {
+    var alvo = String(targetId || '').trim();
+    if (!alvo) return false;
+
+    var contratos = Array.isArray(appState.contratos) ? appState.contratos : [];
+    var contrato = contratos.find(function(c) {
+      return String(c.id) === alvo || String(c.protocolo || '').trim() === alvo;
+    });
+
+    if (!contrato) {
+      mostrarToast('Contrato indicado no link (' + alvo + ') não foi encontrado ou está fora da sua alçada de visualização.', 'error');
+      return false;
+    }
+
+    if (appState.activeTab !== 'fornecedores') {
+      trocarAbaPrincipal('fornecedores');
+    }
+
+    // Limpar filtros caso o contrato esteja oculto pelos filtros ativos
+    var elSearch = document.getElementById('filtroFornecedoresInput');
+    var elSetor = document.getElementById('filtroSetorContrato');
+    var elStatus = document.getElementById('filtroStatusContrato');
+    var elTipo = document.getElementById('filtroTipoContrato');
+    var precisouLimpar = false;
+    if (elSearch && elSearch.value) { elSearch.value = ''; precisouLimpar = true; }
+    if (elSetor && elSetor.value) { elSetor.value = ''; precisouLimpar = true; }
+    if (elStatus && elStatus.value) { elStatus.value = ''; precisouLimpar = true; }
+    if (elTipo && elTipo.value) { elTipo.value = ''; precisouLimpar = true; }
+    if (precisouLimpar) {
+      renderizarFornecedoresAcordeao(appState.fornecedores);
+    }
+
+    // Posicionar paginacao e expandir o card do fornecedor correspondente
+    var lista = Array.isArray(appState.fornecedoresListaRenderizada) && appState.fornecedoresListaRenderizada.length
+      ? appState.fornecedoresListaRenderizada
+      : (appState.fornecedores || []);
+    var porPagina = parseInt(appState.fornecedoresPorPagina, 10) || 10;
+    for (var i = 0; i < lista.length; i++) {
+      var forn = lista[i];
+      var possui = (forn.contratos || []).some(function(ct) { return String(ct.id) === String(contrato.id); });
+      if (possui) {
+        var rawKey = String(forn.id || forn.razaoSocial || i).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32);
+        var fId = 'forn_' + rawKey;
+        if (!appState.fornecedoresExpandidos) appState.fornecedoresExpandidos = {};
+        appState.fornecedoresExpandidos[fId] = true;
+        appState.fornecedoresPaginaAtual = Math.floor(i / porPagina) + 1;
+        renderizarFornecedoresAcordeao(lista);
+        break;
+      }
+    }
+
+    abrirFicha360(contrato.id);
+    mostrarToast('Contrato ' + (contrato.protocolo || ('#' + contrato.id)) + ' aberto pelo link direto.', 'success');
+    return true;
   }
 
   function popularFiltroTipoContrato() {
@@ -4716,19 +4838,38 @@
     }
   }
 
-  function popularSelectResponsaveisNovoContrato() {
-    var sel = document.getElementById('contratoModalEmailResponsavel');
+  function popularSelectResponsaveisEm(selectId, valorPreferido) {
+    var sel = document.getElementById(selectId);
     if (!sel) return;
     var lista = Array.isArray(appState.responsaveis) ? appState.responsaveis : [];
     var html = '<option value="">Selecione o responsável...</option>';
+    var encontrado = false;
+    var pref = String(valorPreferido || '').trim();
+    var prefLower = pref.toLowerCase();
+
     lista.forEach(function(r) {
       if (!r || !r.email) return;
       var label = r.nome ? (r.nome + ' (' + r.email + ')') : r.email;
       if (r.papel) label += ' — ' + r.papel;
-      html += '<option value="' + escapeHtml(r.email) + '">' + escapeHtml(label) + '</option>';
+      var emailStr = String(r.email);
+      if (prefLower && emailStr.toLowerCase() === prefLower) {
+        encontrado = true;
+        pref = emailStr;
+      }
+      html += '<option value="' + escapeHtml(emailStr) + '">' + escapeHtml(label) + '</option>';
     });
+
+    if (pref && !encontrado && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pref)) {
+      html += '<option value="' + escapeHtml(pref) + '">' + escapeHtml(pref) + ' (Responsável Atual)</option>';
+      encontrado = true;
+    }
+
     sel.innerHTML = html;
-    sel.value = '';
+    sel.value = encontrado ? pref : '';
+  }
+
+  function popularSelectResponsaveisNovoContrato() {
+    popularSelectResponsaveisEm('contratoModalEmailResponsavel', '');
   }
 
   // Modal Novo Contrato para Fornecedor
@@ -5191,6 +5332,120 @@
     }
   }
 
+  function normalizarTextoSimplesClient(txt) {
+    var s = String(txt || '').toUpperCase().trim();
+    if (typeof s.normalize === 'function') {
+      s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+    return s;
+  }
+
+  function usuarioEhGestaoTelefonia(u) {
+    var user = u || appState.usuarioAtual || {};
+    var setor = normalizarTextoSimplesClient(user.setorPermitido || '');
+    return setor.indexOf('GESTAO TELEFONIA') !== -1 || setor === 'GESTAO';
+  }
+
+  function abrirModalSolicitarAlteracaoGestao() {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Apenas usuários do setor Gestão Telefonia podem solicitar alterações.', 'error');
+      return;
+    }
+    var c = appState.contratoSelecionado;
+    if (!c || !c.id) {
+      mostrarToast('Selecione um contrato para solicitar alteração.', 'error');
+      return;
+    }
+
+    var elId = document.getElementById('solAltGestaoContratoId');
+    var elResumo = document.getElementById('solAltGestaoContratoResumo');
+    var elDesc = document.getElementById('solAltGestaoDescricao');
+    if (elId) elId.value = c.id;
+    if (elResumo) {
+      elResumo.innerHTML = '<strong>Contrato:</strong> ' + escapeHtml(c.protocolo || ('#' + c.id)) +
+        ' · <strong>Fornecedor:</strong> ' + escapeHtml(c.fornecedor || '-') +
+        '<br><strong>Objeto:</strong> ' + escapeHtml(c.objeto || '-');
+    }
+    if (elDesc) elDesc.value = '';
+
+    popularSelectResponsaveisEm('solAltGestaoResponsavelEmail', c.emailResponsavel || '');
+
+    var modal = document.getElementById('modalSolicitarAlteracaoGestao');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function fecharModalSolicitarAlteracaoGestao() {
+    var modal = document.getElementById('modalSolicitarAlteracaoGestao');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function submeterSolicitacaoAlteracaoGestao() {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Acesso restrito ao setor Gestão Telefonia.', 'error');
+      return;
+    }
+
+    var idContrato = (document.getElementById('solAltGestaoContratoId') || {}).value || '';
+    var selResp = document.getElementById('solAltGestaoResponsavelEmail');
+    var responsavelEmail = selResp ? String(selResp.value || '').trim() : '';
+    var descricaoAlteracao = (document.getElementById('solAltGestaoDescricao') || {}).value || '';
+    descricaoAlteracao = String(descricaoAlteracao).trim();
+
+    if (!responsavelEmail) {
+      mostrarToast('Selecione quem irá realizar a alteração.', 'error');
+      return;
+    }
+    if (!descricaoAlteracao) {
+      mostrarToast('Informe qual alteração precisa ser feita no contrato.', 'error');
+      return;
+    }
+
+    var listaResp = Array.isArray(appState.responsaveis) ? appState.responsaveis : [];
+    var respObj = listaResp.find(function(r) {
+      return String(r.email || '').toLowerCase() === responsavelEmail.toLowerCase();
+    });
+    var responsavelNome = (respObj && respObj.nome) ? respObj.nome : '';
+
+    var btn = document.getElementById('btnEnviarSolicitacaoAlteracaoGestao');
+    if (btn) btn.disabled = true;
+    mostrarLoading('Enviando Solicitação', 'Registrando histórico e enviando e-mail com link direto para ' + responsavelEmail + '...');
+
+    var payload = {
+      idContrato: idContrato,
+      responsavelEmail: responsavelEmail,
+      responsavelNome: responsavelNome,
+      descricaoAlteracao: descricaoAlteracao
+    };
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          esconderLoading();
+          if (btn) btn.disabled = false;
+          if (res && res.success) {
+            fecharModalSolicitarAlteracaoGestao();
+            mostrarToast('Solicitação enviada por e-mail para ' + responsavelEmail + '!', 'success');
+            carregarDadosServidor(false);
+          } else {
+            mostrarToast('Erro ao enviar solicitação: ' + ((res && res.error) || 'Desconhecido'), 'error');
+          }
+        })
+        .withFailureHandler(function(err) {
+          esconderLoading();
+          if (btn) btn.disabled = false;
+          mostrarToast('Erro de comunicação: ' + err.message, 'error');
+        })
+        .solicitarAlteracaoContratoGestao(payload);
+    } else {
+      setTimeout(function() {
+        esconderLoading();
+        if (btn) btn.disabled = false;
+        fecharModalSolicitarAlteracaoGestao();
+        mostrarToast('Simulação: Solicitação enviada por e-mail para ' + responsavelEmail + '.', 'success');
+      }, 400);
+    }
+  }
+
   // Ficha 360 do Contrato
   function abrirFicha360(idContrato) {
     var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); });
@@ -5229,6 +5484,9 @@
     var body = document.getElementById('fichaBodyContent');
     var footer = document.getElementById('fichaFooterActions');
     var btnExcluirFicha = '<button type="button" class="btn btn-danger-outline" style="margin-right: auto;" onclick="confirmarExclusaoContratoSelecionado()">Excluir Contrato</button>';
+    var btnSolicitarAltGestao = usuarioEhGestaoTelefonia()
+      ? '<button type="button" class="btn btn-secondary" id="btnFichaSolicitarAlteracaoGestao" style="border-color: var(--brisa-blue); color: var(--brisa-blue); font-weight: 700;" onclick="abrirModalSolicitarAlteracaoGestao()">Solicitar Alteração</button>'
+      : '';
 
     if (abaNome === 'resumo') {
       body.innerHTML = '<div class="form-grid">' +
@@ -5253,6 +5511,7 @@
 
       footer.innerHTML = btnExcluirFicha +
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
+        btnSolicitarAltGestao +
         '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     } else if (abaNome === 'financeiro') {
       var faixasHtml = '';
@@ -5316,6 +5575,7 @@
 
       footer.innerHTML = btnExcluirFicha +
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
+        btnSolicitarAltGestao +
         '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     } else if (abaNome === 'documentos') {
       body.innerHTML = '<div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">' +
@@ -5345,7 +5605,7 @@
         '  </div>' +
         '  <div id="modalUploadSelectedFilesList" style="margin-top:10px; display:none;"></div>' +
         '</div>';
-      footer.innerHTML = btnExcluirFicha + '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>';
+      footer.innerHTML = btnExcluirFicha + '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' + btnSolicitarAltGestao;
     } else if (abaNome === 'logs') {
       var contractLogs = (appState.logs || []).filter(function(lg) {
         return (String(lg.idContrato) === String(c.id)) ||
@@ -5370,6 +5630,7 @@
 
       footer.innerHTML = btnExcluirFicha +
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
+        btnSolicitarAltGestao +
         '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
     }
   }

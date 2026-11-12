@@ -382,3 +382,14 @@ Na aba **Documentos** da Ficha 360° de qualquer contrato:
 ### 11.8 Regra Orcamentaria por Exercicio Fiscal (Contratos Encerrados no Ano Corrente)
 - **Contratos encerrados/vencidos no ano corrente (ex: 2026):** Permanecem fora da contagem de *Contratos Ativos* e do *Desembolso Mensal* (por nao haver faturamento futuro continuo), mas **compoem normalmente o Orcamento / Desembolso Anual do ano corrente**, exibindo a identificacao `Compoe orcamento 2026`.
 - **Contratos encerrados/vencidos em anos anteriores (ex: 2025, 2024):** Sao preservados apenas para historico e auditoria (`Historico - Nao somado`), sem somar em mensal nem anual.
+
+### 11.9 Links Diretos para o Contrato Exato nos E-mails de Alteracao e Aprovacao
+- Todos os e-mails de registro/alteracao contratual, solicitacao de aprovacao, decisao de aprovacao/ajustes, alerta de vencimento e solicitacao de alteracao da Gestao Telefonia incluem um botao e link direto (`?contratoId=<id>`) gerados automaticamente para o contrato especifico que exige acao.
+- Ao abrir o link recebido no e-mail, o sistema navega automaticamente para o fornecedor correspondente, posiciona a paginacao correta e abre diretamente a **Ficha 360°** do contrato exato.
+
+### 11.10 Solicitacao de Alteracao na Ficha 360° (Exclusivo Gestao Telefonia)
+- Dentro do rodape da **Ficha 360°** do contrato, usuarios pertencentes ao setor **Gestao Telefonia** (`GESTAO TELEFONIA`) visualizam o botao **Solicitar Alteracao** (oculto para usuarios de outros setores).
+- Ao clicar no botao, o modal permite:
+  1. Selecionar na lista de colaboradores cadastrados em `Acessos_Alcadas` **quem ira realizar a alteracao**.
+  2. Descrever exatamente **qual alteracao precisa ser feita** no contrato.
+- Ao confirmar, o sistema registra o evento na trilha de auditoria do contrato (`Auditoria_Logs`) e dispara um e-mail formal para o responsavel designado contendo as instrucoes da alteracao solicitada e o link direto (`?contratoId=<id>`) para abrir aquele contrato especifico e concluir o processo.
