@@ -6610,6 +6610,44 @@
     } catch (eLs) {}
   }
 
+  function parseTimestampEpochNotificacao(val) {
+    if (!val) return 0;
+    if (typeof val === 'number') return isNaN(val) ? 0 : val;
+    if (val instanceof Date) return isNaN(val.getTime()) ? 0 : val.getTime();
+
+    var s = String(val).trim();
+    if (!s || s === '-') return 0;
+
+    // Formato brasileiro com data e hora opcional: dd/MM/yyyy [-] HH:mm[:ss]
+    var mBrDateTime = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s*[-–]?\s*(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (mBrDateTime) {
+      var dia = parseInt(mBrDateTime[1], 10);
+      var mes = parseInt(mBrDateTime[2], 10) - 1;
+      var ano = parseInt(mBrDateTime[3], 10);
+      var hora = mBrDateTime[4] ? parseInt(mBrDateTime[4], 10) : 0;
+      var min = mBrDateTime[5] ? parseInt(mBrDateTime[5], 10) : 0;
+      var seg = mBrDateTime[6] ? parseInt(mBrDateTime[6], 10) : 0;
+      var d = new Date(ano, mes, dia, hora, min, seg);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    }
+
+    // Formato ISO: yyyy-MM-dd...
+    var mIso = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+    if (mIso) {
+      var y = parseInt(mIso[1], 10);
+      var mo = parseInt(mIso[2], 10) - 1;
+      var day = parseInt(mIso[3], 10);
+      var h = mIso[4] ? parseInt(mIso[4], 10) : 0;
+      var mi = mIso[5] ? parseInt(mIso[5], 10) : 0;
+      var se = mIso[6] ? parseInt(mIso[6], 10) : 0;
+      var dIso = new Date(y, mo, day, h, mi, se);
+      return isNaN(dIso.getTime()) ? 0 : dIso.getTime();
+    }
+
+    var dParsed = new Date(s);
+    return isNaN(dParsed.getTime()) ? 0 : dParsed.getTime();
+  }
+
   function coletarNotificacoesSino() {
     var lidas = appState.notificacoesLidas || {};
     var itens = [];
@@ -6643,6 +6681,19 @@
         ? ('Vencido há ' + Math.abs(dRest) + ' dia(s)')
         : (dRest === 0 ? 'Vence hoje!' : ('Vence em ' + dRest + ' dia(s)'));
 
+      // Timestamp cronologico do alerta:
+      // Prioridade: data de atualizacao/cadastro do contrato; se ausente, inicio de vigencia; se ausente, estimativa baseada em data de fim
+      var rawDataRef = c.dataAtualizacao || c.dataInicio || '';
+      var tsEpoch = parseTimestampEpochNotificacao(rawDataRef);
+      if (!tsEpoch && c.dataFim) {
+        var tsFim = parseTimestampEpochNotificacao(c.dataFim);
+        if (tsFim) {
+          tsEpoch = dRest < 0 ? tsFim : (tsFim - (60 * 24 * 60 * 60 * 1000));
+        }
+      }
+
+      var dataFmt = rawDataRef ? String(rawDataRef) : (c.dataFim ? ('Venc. ' + c.dataFim) : '');
+
       itens.push({
         key: notifKey,
         lida: !!lidas[notifKey],
@@ -6653,8 +6704,12 @@
         objeto: c.objeto || 'Contrato sem objeto',
         prazoTxt: prazoTxt,
         dataFim: c.dataFim || '',
+        dataReferencia: rawDataRef || '',
+        dataFormatada: dataFmt,
         setorGerencia: c.setorGerencia || '',
-        sortOrder: dRest
+        diasRestantes: dRest,
+        sortOrder: dRest,
+        timestampEpoch: tsEpoch || 0
       });
     });
 
@@ -6669,6 +6724,8 @@
       var notifKey = 'aprov_' + String(ap.idAprovacao || (ap.idContrato + '_' + ap.dataSolicitacao));
 
       var ct = contratosById[String(ap.idContrato)] || null;
+      var tsEpochAp = parseTimestampEpochNotificacao(ap.dataSolicitacao);
+
       itens.push({
         key: notifKey,
         lida: !!lidas[notifKey],
@@ -6679,14 +6736,30 @@
         nivelAlcada: ap.nivelAlcada || 'Aprovação',
         solicitanteEmail: ap.solicitanteEmail || '',
         dataSolicitacao: ap.dataSolicitacao || '',
+        dataFormatada: ap.dataSolicitacao || '',
         justificativa: ap.justificativa || '',
         fornecedor: ct ? ct.fornecedor : '',
         objeto: ct ? ct.objeto : ('Contrato #' + ap.idContrato),
-        sortOrder: -500
+        sortOrder: -1,
+        timestampEpoch: tsEpochAp || 0
       });
     });
 
-    itens.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
+    // Ordenacao cronologica decrescente rigorosa: os mais recentes ficam em cima
+    itens.sort(function(a, b) {
+      var diffTs = (b.timestampEpoch || 0) - (a.timestampEpoch || 0);
+      if (diffTs !== 0) return diffTs;
+
+      // Desempate para mesma data/horario:
+      if (a.tipo === 'vencimento' && b.tipo === 'vencimento') {
+        return (a.diasRestantes || 0) - (b.diasRestantes || 0);
+      }
+      if (a.tipo !== b.tipo) {
+        return a.tipo === 'aprovacao' ? -1 : 1;
+      }
+      return String(a.key).localeCompare(String(b.key));
+    });
+
     return itens;
   }
 
@@ -6742,7 +6815,10 @@
           '  </div>' +
           '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(n.fornecedor) + '</div>' +
           '  <div style="font-size:11px; color:var(--text-main);">' + escapeHtml(n.objeto) + '</div>' +
-          '  <div style="font-size:10px; color:var(--text-muted);">Vigência até ' + escapeHtml(n.dataFim || '-') + (n.setorGerencia ? ' · ' + escapeHtml(n.setorGerencia) : '') + ' · Clique para abrir</div>' +
+          '  <div style="font-size:10px; color:var(--text-muted); display:flex; justify-content:space-between; align-items:center; gap:6px;">' +
+          '    <span>Vigência até ' + escapeHtml(n.dataFim || '-') + (n.setorGerencia ? ' · ' + escapeHtml(n.setorGerencia) : '') + '</span>' +
+          (n.dataFormatada ? ('    <span style="color:#6B7280; font-weight:600;">' + escapeHtml(n.dataFormatada) + '</span>') : '') +
+          '  </div>' +
           '</div>';
       } else {
         var apIdEnc = encodeURIComponent(String(n.idAprovacao || ''));
@@ -6755,7 +6831,7 @@
           '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(n.fornecedor ? (n.fornecedor + ' — ' + n.objeto) : n.objeto) + '</div>' +
           (n.justificativa ? '  <div style="font-size:11px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(n.justificativa) + '</div>' : '') +
           '  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:2px;">' +
-          '    <span style="font-size:10px; color:var(--text-muted);">Solicitante: ' + escapeHtml(n.solicitanteEmail || '-') + '</span>' +
+          '    <span style="font-size:10px; color:var(--text-muted);">' + (n.dataSolicitacao ? ('Solicitado em ' + escapeHtml(n.dataSolicitacao) + (n.solicitanteEmail ? ' por ' + escapeHtml(n.solicitanteEmail) : '')) : ('Solicitante: ' + escapeHtml(n.solicitanteEmail || '-'))) + '</span>' +
           (temContrato ? '    <button type="button" onclick="event.stopPropagation(); navegarParaContratoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + keyEnc + '\')" style="background:#EFF6FF; border:1px solid #BFDBFE; color:var(--brisa-blue); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; cursor:pointer;">Ver Contrato</button>' : '') +
           '  </div>' +
           '</div>';

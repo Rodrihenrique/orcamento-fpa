@@ -5971,7 +5971,7 @@ function obterDadosCompletosTelefonia() {
           mesesCobranca: mesesCobranca,
           desembolsoAnual: desembolsoAnualContrato,
           subpastaDestino: subpastaDrive,
-          dataAtualizacao: formatarDataExibicao_(rawDataAtualiz),
+          dataAtualizacao: formatarDataHoraExibicao_(rawDataAtualiz) || formatarDataExibicao_(rawDataAtualiz),
           anoFimVigencia: anoFim,
           isVencidoSemAtualizacao: isExpiradoPorPrazo,
           contabilizadoNoMensal: isAtivo && !isPluriContrato,
