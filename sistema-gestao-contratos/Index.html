@@ -2378,7 +2378,7 @@
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Valor Base em BRL</label>
-            <input type="text" id="contratoModalValorBaseBrl" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)">
+            <input type="text" id="contratoModalValorBaseBrl" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this); aoDigitarValorBaseBrlNovoContrato();">
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Desembolso Anual Estimado</label>
@@ -2419,7 +2419,8 @@
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Valor Orçado por Lançamento</label>
-            <input type="text" id="contratoModalValorOrcado" class="form-control" placeholder="R$ 0,00" oninput="mascaraMoeda(this)">
+            <input type="text" id="contratoModalValorOrcado" class="form-control" placeholder="R$ 0,00" readonly style="background: #F8FAFC; color: var(--brisa-dark-blue); font-weight: 700;">
+            <span class="form-helper">Definido automaticamente igual ao Valor Base em BRL.</span>
           </div>
           <div class="form-group col-span-1">
             <label class="form-label">Conta Contábil</label>
@@ -3394,6 +3395,14 @@
   function atualizarCalculoValorBaseBrl() {
     if (typeof atualizarCalculosNovoContrato === 'function') {
       atualizarCalculosNovoContrato();
+    }
+  }
+
+  function aoDigitarValorBaseBrlNovoContrato() {
+    var inpBase = document.getElementById('contratoModalValorBaseBrl');
+    var inpOrcado = document.getElementById('contratoModalValorOrcado');
+    if (inpBase && inpOrcado) {
+      inpOrcado.value = inpBase.value;
     }
   }
 
@@ -5193,7 +5202,7 @@
       valorParcelaPlurianual: desformatarNumero(document.getElementById('displayValorParcelaPlurianualNovo') ? document.getElementById('displayValorParcelaPlurianualNovo').textContent : '0'),
       taxaCambio: document.getElementById('contratoModalTaxaCambio').value.trim(),
       valorBaseBrl: document.getElementById('contratoModalValorBaseBrl').value.trim(),
-      valorOrcado: document.getElementById('contratoModalValorOrcado').value.trim(),
+      valorOrcado: document.getElementById('contratoModalValorBaseBrl').value.trim(),
       impostosEncargos: document.getElementById('contratoModalImpostosEncargos').value.trim(),
       contingencia: document.getElementById('contratoModalContingencia').value.trim(),
       contaContabil: document.getElementById('contratoModalContaContabil').value.trim(),
@@ -5560,7 +5569,7 @@
         '<div class="form-group"><span class="form-label">Desembolso Anual (12m)</span><div style="font-size:18px; font-weight:800; color:var(--brisa-blue);">' + (isPlurianualFicha ? '<span style="color:#C2410C; font-size:13px; font-weight:700;">Não aplicável (Não tem todo ano)</span>' : formatarMoedaBRL(c.desembolsoAnual || ((parseFloat(c.valorMensal) || 0) * (parseInt(c.mesesCobranca, 10) || 12)))) + '</div></div>' +
         '<div class="form-group"><span class="form-label">Moeda</span><div>' + escapeHtml(c.moeda || 'BRL') + ' (Câmbio: ' + escapeHtml(c.taxaCambio || '1,0000') + ')</div></div>' +
         '<div class="form-group"><span class="form-label">Valor Base em BRL</span><div>' + formatarValorFinanceiroExibicao(c.valorBaseBrl, (isPlurianualFicha ? c.valorMensal : (c.desembolsoAnual || c.valorMensal))) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
-        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + formatarValorFinanceiroExibicao(c.valorOrcado, (isPlurianualFicha ? c.valorMensal : (c.desembolsoAnual || c.valorMensal))) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
+        '<div class="form-group"><span class="form-label">Valor Orçado / Lançamento</span><div>' + formatarValorFinanceiroExibicao(c.valorBaseBrl, (isPlurianualFicha ? c.valorMensal : (c.desembolsoAnual || c.valorMensal))) + (isPlurianualFicha ? ' (no ciclo)' : '') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Impostos / Encargos</span><div>' + (c.impostosEncargos || '0,00%') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Contingência</span><div>' + (c.contingencia || '0,00%') + '</div></div>' +
         '<div class="form-group"><span class="form-label">Critério de Reajuste</span><div>' + escapeHtml(c.indiceReajuste || 'IPCA') + '</div></div>' +

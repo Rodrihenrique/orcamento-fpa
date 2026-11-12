@@ -632,7 +632,7 @@ function getInitialData() {
           taxaCambio: row[22] || 1,
           valorBaseBRL: row[23] || valorLancamento,
           contingencia: row[24] || '',
-          valorOrcado: valorOrçado,
+          valorOrcado: row[23] || valorLancamento,
           contaContabil: row[26] || '',
           contratoPo: row[27] || '',
           risco: risco || 'Baixo',
@@ -820,9 +820,6 @@ function salvarContrato(data, files) {
     var contingencia = normalizarPorcentagem_(data.contingencia);
     var valorBaseBRL = valorLancamento * taxaCambio;
     var valorOrcado = valorBaseBRL;
-    if (contingencia !== '' && typeof contingencia === 'number') {
-      valorOrcado = valorBaseBRL * (1 + contingencia);
-    }
 
 
     // 5. Mapeamento das 32 Colunas (A até AF)
@@ -2568,9 +2565,6 @@ function atualizarCampoIndividual(contractId, rowNumber, chaveCampo, novoValor) 
 
     var valorBaseBRL = valorLanc * taxaCambio;
     var valorOrcado = valorBaseBRL;
-    if (conting !== '' && typeof conting === 'number') {
-      valorOrcado = valorBaseBRL * (1 + conting);
-    }
 
 
     // Verificar se as células têm fórmulas antes de sobrepor
@@ -2742,9 +2736,6 @@ function atualizarContratoCompleto(dados) {
     var contingencia = dados.contingencia !== undefined ? normalizarPorcentagem_(dados.contingencia) : valoresAtuais[24];
     var valorBaseBRL = valorLancamento * taxaCambio;
     var valorOrcado = valorBaseBRL;
-    if (contingencia !== '' && typeof contingencia === 'number') {
-      valorOrcado = valorBaseBRL * (1 + contingencia);
-    }
 
 
     // 4. Montar nova linha com dados formatados
@@ -5556,6 +5547,7 @@ function obterDadosCompletosTelefonia() {
       var numColsC = Math.max(sheetContratos.getLastColumn(), 45);
       var cHeaders = sheetContratos.getRange(1, 1, 1, numColsC).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
       var cRows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, numColsC).getValues();
+      sincronizarValorOrcadoComValorBaseBrl_(sheetContratos, cHeaders, cRows);
 
       function getCol(row, colName, fallbackIdx, defVal) {
         var target = String(colName || '').toLowerCase().trim();
@@ -5736,6 +5728,7 @@ function obterDadosCompletosTelefonia() {
           desembolsoAnualContrato = valorMensalAtual * mesesCobranca;
         }
 
+        var valorBaseBrlContrato = String(getCol(row, 'valor_base_brl', 38, '')).trim();
         var contractItem = {
           id: idNum,
           protocolo: String(getCol(row, 'protocolo_oficial', 1, ('BRISA-TEL-' + new Date().getFullYear() + '-' + String(idNum).padStart(4, '0')))),
@@ -5776,9 +5769,9 @@ function obterDadosCompletosTelefonia() {
           reajusteAplicado: String(getCol(row, 'reajuste_aplicado_pct', 35, '0,00%')),
           impostosEncargos: String(getCol(row, 'impostos_encargos_pct', 36, '0,00%')),
           taxaCambio: String(getCol(row, 'taxa_cambio', 37, '1,0000')),
-          valorBaseBrl: String(getCol(row, 'valor_base_brl', 38, '')),
+          valorBaseBrl: valorBaseBrlContrato,
           contingencia: String(getCol(row, 'contingencia_pct', 39, '0,00%')),
-          valorOrcado: String(getCol(row, 'valor_orcado_lancamento', 40, '')),
+          valorOrcado: valorBaseBrlContrato,
           contratoPo: String(getCol(row, 'contrato_po', 41, '')),
           risco: String(getCol(row, 'risco', 42, 'Baixo')),
           descricaoRisco: String(getCol(row, 'descricao_risco', 43, '')),
@@ -6457,7 +6450,10 @@ function salvarNovoContratoTelefonia(dados) {
     var isPluriNovo = ehPeriodicidadePlurianual_(periodicidadeNovo);
     var isAnualNovo = periodicidadeNovo.toLowerCase().indexOf('anual') !== -1 && !isPluriNovo;
     var mesesCobrancaNovo = parseInt(dados.mesesCobranca, 10) || 12;
-    var valorBaseOuAnualBrl = (isPluriNovo || isAnualNovo) ? valorBase : (valorBase * mesesCobrancaNovo);
+    var valorBaseBrlInformado = normalizarNumero_(dados.valorBaseBrl || 0);
+    var valorBaseOuAnualBrl = valorBaseBrlInformado > 0
+      ? valorBaseBrlInformado
+      : ((isPluriNovo || isAnualNovo) ? valorBase : (valorBase * mesesCobrancaNovo));
 
     var tabelaBaseClientesJson = (dados.tabelaBaseClientes && Array.isArray(dados.tabelaBaseClientes))
       ? JSON.stringify(dados.tabelaBaseClientes)
@@ -7477,4 +7473,88 @@ function solicitarAlteracaoContratoGestao(payload) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * Sincroniza a coluna Valor Orcado por Lancamento com Valor Base em BRL para todos os contratos.
+ * Mantem intactas eventuais celulas com formula na planilha.
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheetContratos
+ * @param {Array<string>} cHeaders
+ * @param {Array<Array>} cRows
+ * @return {number} Quantidade de linhas corrigidas
+ */
+function sincronizarValorOrcadoComValorBaseBrl_(sheetContratos, cHeaders, cRows) {
+  if (!sheetContratos || !cHeaders || !cRows || cRows.length === 0) return 0;
+
+  var findHeaderIdx = function(targetClean, fallback) {
+    for (var h = 0; h < cHeaders.length; h++) {
+      var clean = String(cHeaders[h] || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '');
+      if (clean === targetClean) return h;
+    }
+    return fallback;
+  };
+
+  var idxValorBaseBrl = findHeaderIdx('valorbaseembrl', 38);
+  var idxValorOrcado = findHeaderIdx('valororcadoporlancamento', -1);
+  if (idxValorOrcado === -1) idxValorOrcado = findHeaderIdx('valororcado', 40);
+
+  if (idxValorBaseBrl < 0 || idxValorOrcado < 0) return 0;
+
+  var mismatchedRows = [];
+  for (var i = 0; i < cRows.length; i++) {
+    var row = cRows[i];
+    if (!row || !row[0]) continue;
+    var rawBase = (idxValorBaseBrl < row.length && row[idxValorBaseBrl] !== undefined && row[idxValorBaseBrl] !== null) ? row[idxValorBaseBrl] : '';
+    var rawOrc = (idxValorOrcado < row.length && row[idxValorOrcado] !== undefined && row[idxValorOrcado] !== null) ? row[idxValorOrcado] : '';
+    if (String(rawBase).trim() !== String(rawOrc).trim()) {
+      mismatchedRows.push(i);
+    }
+  }
+
+  if (mismatchedRows.length === 0) return 0;
+
+  var formulasCol = null;
+  try {
+    if (typeof sheetContratos.getRange === 'function') {
+      var rangeCol = sheetContratos.getRange(2, idxValorOrcado + 1, cRows.length, 1);
+      if (rangeCol && typeof rangeCol.getFormulas === 'function') {
+        formulasCol = rangeCol.getFormulas();
+      }
+    }
+  } catch (eFrm) {
+    formulasCol = null;
+  }
+
+  var corrigidos = 0;
+  for (var m = 0; m < mismatchedRows.length; m++) {
+    var rowIdx = mismatchedRows[m];
+    var hasFormula = formulasCol && formulasCol[rowIdx] && formulasCol[rowIdx][0];
+    var valBase = (idxValorBaseBrl < cRows[rowIdx].length) ? cRows[rowIdx][idxValorBaseBrl] : '';
+    cRows[rowIdx][idxValorOrcado] = valBase;
+    if (!hasFormula) {
+      try {
+        sheetContratos.getRange(rowIdx + 2, idxValorOrcado + 1).setValue(valBase);
+        corrigidos++;
+      } catch (eWrite) {}
+    }
+  }
+  return corrigidos;
+}
+
+/**
+ * Rotina administrativa para corrigir o Valor Orcado / Lancamento de todos os contratos na planilha,
+ * igualando-o ao Valor Base em BRL.
+ * @return {Object}
+ */
+function corrigirValorOrcadoTodosContratos() {
+  var ss = obterPlanilha_();
+  var sheetContratos = ss.getSheetByName(CONFIG.SHEET_CONTRATOS);
+  if (!sheetContratos || sheetContratos.getLastRow() <= 1) {
+    return { success: true, updated: 0 };
+  }
+  var numColsC = Math.max(sheetContratos.getLastColumn(), 45);
+  var cHeaders = sheetContratos.getRange(1, 1, 1, numColsC).getValues()[0].map(function(h) { return String(h).toLowerCase().trim(); });
+  var cRows = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, numColsC).getValues();
+  var updated = sincronizarValorOrcadoComValorBaseBrl_(sheetContratos, cHeaders, cRows);
+  return { success: true, updated: updated };
 }
