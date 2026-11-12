@@ -16,7 +16,7 @@ O sistema opera no modelo relacional fornecedor-contrato, no qual cada fornecedo
 A interface segue rigorosamente a identidade visual da brisanet, estruturada com a paleta oficial (#FF5022, #2242D4, #0B316D, #D0FF60, #E47D20, #9F4016, #DA2468, #E8E8E8), tipografia Figtree e ausência de emojis.
 
 A tela principal é composta por:
-1. **Cabeçalho Institucional:** Identificação do sistema, badge de e-mail do usuário logado, papel, setor permitido com indicador de acesso (Acesso Total ou Acesso Restrito), badge de substituto ativo (quando aplicável), botão de designação de substituto temporário e links diretos para a Planilha Oficial e para o Google Drive da Telefonia.
+1. **Cabeçalho Institucional:** Identificação do sistema, badge de e-mail do usuário logado, papel, setor permitido com indicador de acesso (Acesso Total ou Acesso Restrito), badge de substituto ativo (quando aplicável), **sininho de notificações** (alertas clicáveis de contratos próximos do vencimento/vencidos e aprovações solicitadas pendentes, com barra de rolagem lateral e opção **Ler todas**), botão de designação de substituto temporário e links diretos para a Planilha Oficial e para o Google Drive da Telefonia.
 2. **Banner de Alertas de Reajuste Periódico:** Notificação visual destacada em laranja (#FF5022) exibindo contratos com previsão de reajuste periódico nos próximos 5 dias.
 3. **Painel de Indicadores (KPIs):** Fornecedores Homologados, Contratos Ativos, Desembolso Mensal, Orçamento Anual (12m), Vencimento em até 60 dias e Aprovações Pendentes (calculados com base no escopo permitido ao usuário).
 4. **Navegação por Abas:**

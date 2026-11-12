@@ -245,6 +245,156 @@
     }
 
     /* ==========================================================================
+       SININHO DE NOTIFICACOES E DROPDOWN COM SCROLL
+       ========================================================================== */
+    .notif-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+    }
+
+    .notif-bell-btn {
+      position: relative;
+      padding: 7px 10px;
+      cursor: pointer;
+      background: #FFFFFF;
+      border: 1px solid #D0D7E3;
+      color: var(--brisa-dark-blue);
+    }
+
+    .notif-bell-btn.active {
+      background: #EFF6FF;
+      border-color: var(--brisa-blue);
+      color: var(--brisa-blue);
+    }
+
+    .notif-badge {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      border-radius: 999px;
+      background: #DC2626;
+      color: #FFFFFF;
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 18px;
+      text-align: center;
+      box-shadow: 0 0 0 2px #FFFFFF;
+    }
+
+    .notif-dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      right: 0;
+      width: 390px;
+      max-width: calc(100vw - 24px);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+      z-index: 1500;
+      overflow: hidden;
+    }
+
+    .notif-header {
+      padding: 12px 16px;
+      background: #F8FAFC;
+      border-bottom: 1px solid var(--border-subtle);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .notif-read-all-btn {
+      background: transparent;
+      border: 1px solid #CBD5E1;
+      border-radius: var(--radius-sm);
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--brisa-blue);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .notif-read-all-btn:hover:not(:disabled) {
+      background: #EFF6FF;
+      border-color: var(--brisa-blue);
+    }
+
+    .notif-read-all-btn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    .notif-list {
+      max-height: 360px;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      scrollbar-width: thin;
+      scrollbar-color: #CBD5E1 #F8FAFC;
+    }
+
+    .notif-list::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .notif-list::-webkit-scrollbar-track {
+      background: #F8FAFC;
+    }
+
+    .notif-list::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 999px;
+    }
+
+    .notif-list::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+
+    .notif-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #F1F5F9;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .notif-item:last-child {
+      border-bottom: none;
+    }
+
+    .notif-item:hover {
+      background: #F8FAFC;
+    }
+
+    .notif-item.vencimento-critico {
+      border-left: 3px solid #DC2626;
+    }
+
+    .notif-item.vencimento-alerta {
+      border-left: 3px solid #D97706;
+    }
+
+    .notif-item.aprovacao-pendente {
+      border-left: 3px solid var(--brisa-blue);
+    }
+
+    .notif-empty {
+      padding: 28px 18px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* ==========================================================================
        KPIS EXECUTIVOS (STATS ROW)
        ========================================================================== */
     .stats-row {
@@ -1755,6 +1905,24 @@
         <span class="user-profile-sector" id="userSectorBadge" style="display:inline-block; font-size:11px; font-weight:700; color:#0B316D; background:#EBF3FF; padding:2px 8px; border-radius:999px; margin-left:4px;">Acesso Total</span>
         <span class="user-profile-sub" id="userSubstitutoBadge" style="display:none; font-size:11px; font-weight:700; color:#92400E; background:#FEF3C7; padding:2px 8px; border-radius:999px; margin-left:4px;"></span>
       </div>
+      <div class="notif-wrapper" id="notifWrapper">
+        <button type="button" class="header-link-btn notif-bell-btn" id="btnSinoNotificacoes" onclick="alternarPainelNotificacoes(event)" title="Notificações de Vencimento e Aprovações" aria-label="Notificações">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+          <span class="notif-badge" id="badgeNotificacoesCount" style="display: none;">0</span>
+        </button>
+        <div class="notif-dropdown" id="painelNotificacoes" style="display: none;" onclick="event.stopPropagation()">
+          <div class="notif-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 13px; font-weight: 800; color: var(--brisa-dark-blue);">Notificações</span>
+              <span id="notifHeaderCountPill" style="font-size: 11px; font-weight: 700; color: var(--brisa-blue); background: #EFF6FF; padding: 1px 8px; border-radius: 999px;">0</span>
+            </div>
+            <button type="button" class="notif-read-all-btn" id="btnLerTodasNotificacoes" onclick="marcarTodasNotificacoesLidas(event)">Ler todas</button>
+          </div>
+          <div class="notif-list" id="listaNotificacoesBody"></div>
+        </div>
+      </div>
       <button type="button" class="header-link-btn" id="btnDefinirSubstituto" onclick="abrirModalDefinirSubstituto()" title="Definir responsável substituto durante ausência" style="cursor:pointer; background:#fff; border:1px solid #D0D7E3; color:#0B316D; font-weight:600;">
         <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -2937,6 +3105,8 @@
     fornecedoresPorPagina: 10,
     fornecedoresListaRenderizada: null,
     exclusaoPendente: null,
+    notificacoesLidas: {},
+    notificacoesAtuais: [],
     logsExpandidos: {},
     arquivosModalContrato: []
   };
@@ -2945,6 +3115,21 @@
   window.addEventListener('DOMContentLoaded', function() {
     configurarDropzoneModalContrato();
     configurarPrevencaoEnterFormContrato();
+    carregarNotificacoesLidas();
+    if (document && typeof document.addEventListener === 'function') {
+      document.addEventListener('click', function(e) {
+        var wrapper = document.getElementById('notifWrapper');
+        var painel = document.getElementById('painelNotificacoes');
+        if (painel && painel.style.display !== 'none' && wrapper && typeof wrapper.contains === 'function' && !wrapper.contains(e.target)) {
+          fecharPainelNotificacoes();
+        }
+      });
+      document.addEventListener('keydown', function(e) {
+        if (e && e.key === 'Escape') {
+          fecharPainelNotificacoes();
+        }
+      });
+    }
     carregarDadosServidor(false);
   });
 
@@ -3311,7 +3496,8 @@
       if (driveLink) driveLink.href = res.driveRootUrl;
     }
 
-    // Renderizar Banner de Alertas de Reajuste Periodico (5 dias antes)
+    // Renderizar Banner de Alertas de Reajuste Periodico (5 dias antes) e carregar leituras de notificacoes
+    carregarNotificacoesLidas();
     renderizarBannerAlertasReajuste();
 
     // Recalcular KPIs com base nos contratos vigentes/ativos (excluindo encerrados e vencidos sem renovacao)
@@ -3509,6 +3695,10 @@
     if (elRisco) elRisco.textContent = contratosRisco60Calc;
     var elAp = document.getElementById('statAprovacoesPendentes');
     if (elAp) elAp.textContent = appState.kpis.minhasAprovacoesPendentes || 0;
+
+    if (typeof renderizarNotificacoesSino === 'function') {
+      renderizarNotificacoesSino();
+    }
   }
 
   function obterMetaStatusFornecedorClient(rawStatus) {
@@ -4904,7 +5094,7 @@
     var html = '';
     lista.forEach(function(ap) {
       var isPendente = (ap.statusDecisao || '').toLowerCase() === 'pendente';
-      html += '<tr>';
+      html += '<tr data-aprovacao-id="' + escapeHtml(ap.idAprovacao) + '">';
       html += '  <td><span class="protocol-chip">' + escapeHtml(ap.idAprovacao) + '</span></td>';
       html += '  <td><strong>#' + ap.idContrato + '</strong></td>';
       html += '  <td><span class="badge-alcada">' + escapeHtml(ap.nivelAlcada) + '</span></td>';
@@ -6082,6 +6272,264 @@
 
     html += '</div></div>';
     container.innerHTML = html;
+  }
+
+  // =========================================================================
+  // SININHO DE NOTIFICACOES (VENCIMENTO DE CONTRATOS & APROVACOES PENDENTES)
+  // =========================================================================
+  function obterChaveStorageNotificacoes() {
+    var email = (appState.usuarioAtual && appState.usuarioAtual.email) ? String(appState.usuarioAtual.email).trim().toLowerCase() : 'default';
+    return 'telefonia_notif_lidas_' + email;
+  }
+
+  function carregarNotificacoesLidas() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        var raw = localStorage.getItem(obterChaveStorageNotificacoes());
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object') {
+            appState.notificacoesLidas = parsed;
+            return;
+          }
+        }
+      }
+    } catch (eLs) {}
+    if (!appState.notificacoesLidas) appState.notificacoesLidas = {};
+  }
+
+  function salvarNotificacoesLidas() {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(obterChaveStorageNotificacoes(), JSON.stringify(appState.notificacoesLidas || {}));
+      }
+    } catch (eLs) {}
+  }
+
+  function coletarNotificacoesSino() {
+    var lidas = appState.notificacoesLidas || {};
+    var itens = [];
+
+    var fornById = {};
+    var fornByNome = {};
+    (appState.fornecedores || []).forEach(function(f) {
+      if (f.id) fornById[String(f.id)] = f;
+      if (f.razaoSocial) fornByNome[String(f.razaoSocial).toLowerCase().trim()] = f;
+    });
+
+    // 1. Alertas de Vencimento (contratos vigentes/ativos com prazo <= 60 dias ou vencidos ainda em aberto)
+    (appState.contratos || []).forEach(function(c) {
+      if (c.prazoIndeterminado || c.diasRestantes === null || c.diasRestantes === undefined) return;
+      var fornPai = (c.idFornecedor && fornById[String(c.idFornecedor)]) ||
+                    (c.fornecedor && fornByNome[String(c.fornecedor).toLowerCase().trim()]) || null;
+      var cStLow = String(c.status || '').toLowerCase();
+      var cAlcLow = String(c.statusAlcada || '').toLowerCase();
+      var fornEnc = fornPai && String(fornPai.status || '').toLowerCase().indexOf('encerr') !== -1;
+      var isExplicitamenteEncerrado = fornEnc || cStLow.indexOf('encerr') !== -1 || cStLow.indexOf('cancel') !== -1 ||
+        cStLow.indexOf('rescind') !== -1 || cStLow.indexOf('inativ') !== -1 ||
+        cAlcLow.indexOf('rejeit') !== -1 || cAlcLow.indexOf('cancel') !== -1;
+      if (isExplicitamenteEncerrado) return;
+
+      var dRest = parseInt(c.diasRestantes, 10);
+      if (isNaN(dRest) || dRest > 60) return;
+
+      var notifKey = 'venc_' + c.id + '_' + String(c.dataFim || dRest);
+      if (lidas[notifKey]) return;
+
+      var prazoTxt = dRest < 0
+        ? ('Vencido há ' + Math.abs(dRest) + ' dia(s)')
+        : (dRest === 0 ? 'Vence hoje!' : ('Vence em ' + dRest + ' dia(s)'));
+
+      itens.push({
+        key: notifKey,
+        tipo: 'vencimento',
+        cls: dRest <= 30 ? 'vencimento-critico' : 'vencimento-alerta',
+        idContrato: c.id,
+        fornecedor: c.fornecedor || '-',
+        objeto: c.objeto || 'Contrato sem objeto',
+        prazoTxt: prazoTxt,
+        dataFim: c.dataFim || '',
+        setorGerencia: c.setorGerencia || '',
+        sortOrder: dRest
+      });
+    });
+
+    // 2. Alertas de Aprovacoes Solicitadas Pendentes
+    var contratosById = {};
+    (appState.contratos || []).forEach(function(c) {
+      contratosById[String(c.id)] = c;
+    });
+
+    (appState.aprovacoes || []).forEach(function(ap) {
+      if (String(ap.statusDecisao || '').toLowerCase().trim() !== 'pendente') return;
+      var notifKey = 'aprov_' + String(ap.idAprovacao || (ap.idContrato + '_' + ap.dataSolicitacao));
+      if (lidas[notifKey]) return;
+
+      var ct = contratosById[String(ap.idContrato)] || null;
+      itens.push({
+        key: notifKey,
+        tipo: 'aprovacao',
+        cls: 'aprovacao-pendente',
+        idAprovacao: ap.idAprovacao,
+        idContrato: ap.idContrato,
+        nivelAlcada: ap.nivelAlcada || 'Aprovação',
+        solicitanteEmail: ap.solicitanteEmail || '',
+        dataSolicitacao: ap.dataSolicitacao || '',
+        justificativa: ap.justificativa || '',
+        fornecedor: ct ? ct.fornecedor : '',
+        objeto: ct ? ct.objeto : ('Contrato #' + ap.idContrato),
+        sortOrder: -500
+      });
+    });
+
+    itens.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
+    return itens;
+  }
+
+  function renderizarNotificacoesSino() {
+    var badge = document.getElementById('badgeNotificacoesCount');
+    var headerPill = document.getElementById('notifHeaderCountPill');
+    var btnLerTodas = document.getElementById('btnLerTodasNotificacoes');
+    var body = document.getElementById('listaNotificacoesBody');
+
+    var itens = coletarNotificacoesSino();
+    appState.notificacoesAtuais = itens;
+    var total = itens.length;
+
+    if (badge) {
+      if (total > 0) {
+        badge.textContent = total > 99 ? '99+' : String(total);
+        badge.style.display = 'inline-block';
+      } else {
+        badge.textContent = '0';
+        badge.style.display = 'none';
+      }
+    }
+    if (headerPill) {
+      headerPill.textContent = String(total);
+    }
+    if (btnLerTodas) {
+      btnLerTodas.disabled = (total === 0);
+    }
+    if (!body) return;
+
+    if (total === 0) {
+      body.innerHTML = '<div class="notif-empty">Nenhuma notificação pendente no momento.</div>';
+      return;
+    }
+
+    var html = '';
+    itens.forEach(function(n) {
+      var keyEnc = encodeURIComponent(n.key);
+      if (n.tipo === 'vencimento') {
+        var badgeCls = (n.cls === 'vencimento-critico') ? 'badge-status em-risco' : 'badge-status analise';
+        html += '<div class="notif-item ' + n.cls + '" onclick="navegarParaContratoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + keyEnc + '\')">' +
+          '  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">' +
+          '    <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:#991B1B; letter-spacing:0.4px;">Alerta de Vencimento</span>' +
+          '    <span class="' + badgeCls + '" style="font-size:10px;">' + escapeHtml(n.prazoTxt) + '</span>' +
+          '  </div>' +
+          '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(n.fornecedor) + '</div>' +
+          '  <div style="font-size:11px; color:var(--text-main);">' + escapeHtml(n.objeto) + '</div>' +
+          '  <div style="font-size:10px; color:var(--text-muted);">Vigência até ' + escapeHtml(n.dataFim || '-') + (n.setorGerencia ? ' · ' + escapeHtml(n.setorGerencia) : '') + ' · Clique para abrir</div>' +
+          '</div>';
+      } else {
+        var apIdEnc = encodeURIComponent(String(n.idAprovacao || ''));
+        var temContrato = (appState.contratos || []).some(function(c) { return String(c.id) === String(n.idContrato); });
+        html += '<div class="notif-item ' + n.cls + '" onclick="navegarParaAprovacaoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + apIdEnc + '\', \'' + keyEnc + '\')">' +
+          '  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">' +
+          '    <span style="font-size:10px; font-weight:800; text-transform:uppercase; color:var(--brisa-blue); letter-spacing:0.4px;">Aprovação Pendente</span>' +
+          '    <span class="badge-alcada" style="font-size:10px;">' + escapeHtml(n.nivelAlcada) + '</span>' +
+          '  </div>' +
+          '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">' + escapeHtml(n.fornecedor ? (n.fornecedor + ' — ' + n.objeto) : n.objeto) + '</div>' +
+          (n.justificativa ? '  <div style="font-size:11px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(n.justificativa) + '</div>' : '') +
+          '  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-top:2px;">' +
+          '    <span style="font-size:10px; color:var(--text-muted);">Solicitante: ' + escapeHtml(n.solicitanteEmail || '-') + '</span>' +
+          (temContrato ? '    <button type="button" onclick="event.stopPropagation(); navegarParaContratoNotificacao(\'' + escapeHtml(String(n.idContrato)) + '\', \'' + keyEnc + '\')" style="background:#EFF6FF; border:1px solid #BFDBFE; color:var(--brisa-blue); border-radius:4px; padding:2px 6px; font-size:10px; font-weight:700; cursor:pointer;">Ver Contrato</button>' : '') +
+          '  </div>' +
+          '</div>';
+      }
+    });
+
+    body.innerHTML = html;
+  }
+
+  function alternarPainelNotificacoes(event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    var painel = document.getElementById('painelNotificacoes');
+    var btn = document.getElementById('btnSinoNotificacoes');
+    if (!painel) return;
+
+    var aberto = painel.style.display === 'block';
+    if (aberto) {
+      fecharPainelNotificacoes();
+    } else {
+      renderizarNotificacoesSino();
+      painel.style.display = 'block';
+      if (btn && btn.classList) btn.classList.add('active');
+    }
+  }
+
+  function fecharPainelNotificacoes() {
+    var painel = document.getElementById('painelNotificacoes');
+    var btn = document.getElementById('btnSinoNotificacoes');
+    if (painel) painel.style.display = 'none';
+    if (btn && btn.classList) btn.classList.remove('active');
+  }
+
+  function marcarNotificacaoComoLida(notifKey) {
+    if (!notifKey) return;
+    if (!appState.notificacoesLidas) appState.notificacoesLidas = {};
+    appState.notificacoesLidas[notifKey] = true;
+    salvarNotificacoesLidas();
+    renderizarNotificacoesSino();
+  }
+
+  function marcarTodasNotificacoesLidas(event) {
+    if (event && typeof event.stopPropagation === 'function') event.stopPropagation();
+    if (!appState.notificacoesLidas) appState.notificacoesLidas = {};
+    (appState.notificacoesAtuais || []).forEach(function(n) {
+      if (n && n.key) appState.notificacoesLidas[n.key] = true;
+    });
+    salvarNotificacoesLidas();
+    renderizarNotificacoesSino();
+  }
+
+  function navegarParaContratoNotificacao(idContrato, notifKeyEncoded) {
+    var notifKey = notifKeyEncoded ? decodeURIComponent(notifKeyEncoded) : '';
+    if (notifKey) marcarNotificacaoComoLida(notifKey);
+    fecharPainelNotificacoes();
+    if (appState.activeTab !== 'fornecedores') {
+      trocarAbaPrincipal('fornecedores');
+    }
+    var idNum = isNaN(Number(idContrato)) ? idContrato : Number(idContrato);
+    abrirFicha360(idNum);
+  }
+
+  function navegarParaAprovacaoNotificacao(idContrato, idAprovacaoEncoded, notifKeyEncoded) {
+    var notifKey = notifKeyEncoded ? decodeURIComponent(notifKeyEncoded) : '';
+    var idAprovacao = idAprovacaoEncoded ? decodeURIComponent(idAprovacaoEncoded) : '';
+    if (notifKey) marcarNotificacaoComoLida(notifKey);
+    fecharPainelNotificacoes();
+
+    var fAlc = document.getElementById('filtroAlcadaDecisao');
+    if (fAlc) fAlc.value = '';
+    var fSt = document.getElementById('filtroStatusAprovacao');
+    if (fSt) fSt.value = 'Pendente';
+
+    trocarAbaPrincipal('aprovacoes');
+
+    if (idAprovacao && typeof document.querySelector === 'function') {
+      var safeId = String(idAprovacao).replace(/"/g, '\\"');
+      var rowEl = document.querySelector('#tabelaAprovacoesBody tr[data-aprovacao-id="' + safeId + '"]');
+      if (rowEl) {
+        if (typeof rowEl.scrollIntoView === 'function') {
+          rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        if (rowEl.style) {
+          rowEl.style.backgroundColor = '#EFF6FF';
+        }
+      }
+    }
   }
 
   // Controle de Substituto Temporario durante Ausencia
