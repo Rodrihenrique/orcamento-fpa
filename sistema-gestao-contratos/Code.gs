@@ -644,8 +644,9 @@ function getInitialData() {
     }
 
 
-    var nextId = maxId > 0 ? (maxId + 1) : 1;
-    var nextProtocol = formatarProtocolo_(nextId);
+    var seqContrato = obterProximoIdEProtocoloContrato_(ss, sheet);
+    var nextId = seqContrato.nextId;
+    var nextProtocol = seqContrato.protocolo;
 
 
     return {
@@ -3928,6 +3929,195 @@ function registrarLogAuditoriaOficial_(entidade, idRegistro, acao, campoAfetado,
 }
 
 /**
+ * Normaliza textos para comparacao imune a acentos, diferencas de caixa e espacamento duplicado.
+ * @param {string} txt
+ * @return {string}
+ */
+function normalizarTextoSimples_(txt) {
+  var s = String(txt || '').toUpperCase().trim();
+  if (typeof s.normalize === 'function') {
+    s = s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+  return s.replace(/\s+/g, ' ');
+}
+
+/**
+ * Extrai metadados completos (protocolo, fornecedor, setor) de registros de auditoria,
+ * analisando o payload textual original para prevenir atribuicao cruzada e desvios de ID.
+ * @param {string} entidade
+ * @param {string} acao
+ * @param {string} idRegistro
+ * @param {string} campoAfetado
+ * @param {string} valorAnterior
+ * @param {string} novoValor
+ * @param {string} justificativa
+ * @return {{protocolo: string, fornecedor: string, setor: string}}
+ */
+function extrairMetadadosLogTexto_(entidade, acao, idRegistro, campoAfetado, valorAnterior, novoValor, justificativa) {
+  var textoUnificado = [
+    String(idRegistro || ''),
+    String(campoAfetado || ''),
+    String(valorAnterior || ''),
+    String(novoValor || ''),
+    String(justificativa || '')
+  ].join(' ');
+
+  var protocolo = '';
+  var mProto = textoUnificado.match(/BRISA-TEL-\d{4}-\d+/i);
+  if (mProto) {
+    protocolo = mProto[0].toUpperCase().trim();
+  } else if (/^BRISA-TEL-/i.test(String(idRegistro || '').trim())) {
+    protocolo = String(idRegistro).toUpperCase().trim();
+  }
+
+  var fornecedor = '';
+  var setor = '';
+
+  // 1. Padrao de Cadastro Inicial: 'BRISA-TEL-2026-0016 | GIESECKE... (TELEFONIA)'
+  var mCad = String(novoValor || '').match(/(?:BRISA-TEL-\d{4}-\d+\s*\|\s*)([^(\n\r]+?)(?:\s*\(([^)]+)\))?$/);
+  if (mCad) {
+    fornecedor = mCad[1].trim();
+    if (mCad[2]) setor = mCad[2].trim().toUpperCase();
+  }
+
+  // 2. Padrao de Exclusao de Contrato: 'BRISA-TEL-2026-0016 · GIESECKE... (Objeto)'
+  if (!fornecedor) {
+    var mExc = String(valorAnterior || '').match(/(?:BRISA-TEL-\d{4}-\d+\s*·\s*)([^(·\n\r]+?)(?:\s*\(([^)]+)\))?$/);
+    if (mExc) {
+      fornecedor = mExc[1].trim();
+    }
+  }
+
+  // 3. Padrao com colchetes: '[BRISA-TEL-2026-0016 - FORNECEDOR]' ou '[#16 - FORNECEDOR]'
+  if (!fornecedor) {
+    var mCtx = textoUnificado.match(/\[(?:BRISA-TEL-\d{4}-\d+|#\d+)\s*-\s*([^\]]+)\]/i);
+    if (mCtx) {
+      fornecedor = mCtx[1].trim();
+    }
+  }
+
+  // 4. Padrao com parenteses: '(FORNECEDOR - BRISA-TEL-2026-0016)'
+  if (!fornecedor) {
+    var mPar = textoUnificado.match(/\(([^)]+?)\s*-\s*BRISA-TEL-\d{4}-\d+\)/i);
+    if (mPar) {
+      fornecedor = mPar[1].trim();
+    }
+  }
+
+  // 5. Padrao de fornecedor em texto descritivo
+  if (!fornecedor && String(entidade || '').toLowerCase() === 'fornecedor') {
+    var mFornText = textoUnificado.match(/fornecedor\s+([^.(]+)/i);
+    if (mFornText) {
+      fornecedor = mFornText[1].trim();
+    } else if (String(idRegistro || '').indexOf('FORN-') !== -1) {
+      fornecedor = String(idRegistro).replace('FORN-', '').replace(/_/g, ' ').trim();
+    } else if (String(idRegistro || '').trim() && !/^\d+$/.test(String(idRegistro).trim())) {
+      fornecedor = String(idRegistro).trim();
+    }
+  }
+
+  // 6. Setor em justificativa: 'no setor TELEFONIA com'
+  if (!setor) {
+    var mSet = textoUnificado.match(/no setor\s+([A-Z0-9_\- ]+?)\s+com/i);
+    if (mSet) {
+      setor = mSet[1].trim().toUpperCase();
+    }
+  }
+
+  return {
+    protocolo: protocolo,
+    fornecedor: fornecedor,
+    setor: setor
+  };
+}
+
+/**
+ * Gerador de ID e Protocolo estritamente monotonico para novos contratos.
+ * Inspeciona a aba Contratos, a aba Auditoria_Logs e a memoria persistente (ScriptProperties)
+ * para garantir que nenhum ID seja reciclado mesmo se contratos anteriores forem excluidos.
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss]
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} [optSheetContratos]
+ * @return {{nextId: number, protocolo: string}}
+ */
+function obterProximoIdEProtocoloContrato_(ss, optSheetContratos) {
+  var activeSs = ss || obterPlanilha_();
+  var sheetContratos = optSheetContratos;
+  if (!sheetContratos && activeSs) {
+    sheetContratos = activeSs.getSheetByName(CONFIG.SHEET_CONTRATOS);
+  }
+
+  var maxId = 0;
+
+  // 1. Varrer a aba Contratos ativa
+  if (sheetContratos && sheetContratos.getLastRow() > 1) {
+    var numCols = Math.min(sheetContratos.getLastColumn(), 2);
+    var cData = sheetContratos.getRange(2, 1, sheetContratos.getLastRow() - 1, numCols).getValues();
+    for (var i = 0; i < cData.length; i++) {
+      var nVal = parseInt(cData[i][0], 10);
+      if (!isNaN(nVal) && nVal > maxId) maxId = nVal;
+
+      var pVal = String(cData[i][1] || '');
+      var mP = pVal.match(/BRISA-TEL-\d{4}-(\d+)/i);
+      if (mP) {
+        var pNum = parseInt(mP[1], 10);
+        if (!isNaN(pNum) && pNum > maxId) maxId = pNum;
+      }
+    }
+  }
+
+  // 2. Varrer Auditoria_Logs (id_registro, novo_valor, valor_anterior, justificativa_parecer)
+  var sheetLogs = activeSs ? activeSs.getSheetByName(CONFIG.SHEET_LOGS) : null;
+  if (sheetLogs && sheetLogs.getLastRow() > 1) {
+    var numColsL = Math.min(sheetLogs.getLastColumn(), 11);
+    var lData = sheetLogs.getRange(2, 1, sheetLogs.getLastRow() - 1, numColsL).getValues();
+    for (var l = 0; l < lData.length; l++) {
+      var row = lData[l];
+      var regId = String(row[5] || '').trim();
+      if (/^\d+$/.test(regId)) {
+        var numReg = parseInt(regId, 10);
+        if (!isNaN(numReg) && numReg > maxId) maxId = numReg;
+      }
+
+      var textLog = String(row[5] || '') + ' ' + String(row[8] || '') + ' ' + String(row[9] || '') + ' ' + String(row[10] || '');
+      var mMatches = textLog.match(/BRISA-TEL-\d{4}-(\d+)/gi);
+      if (mMatches) {
+        for (var m = 0; m < mMatches.length; m++) {
+          var subM = mMatches[m].match(/BRISA-TEL-\d{4}-(\d+)/i);
+          if (subM) {
+            var nProtoLog = parseInt(subM[1], 10);
+            if (!isNaN(nProtoLog) && nProtoLog > maxId) maxId = nProtoLog;
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Varrer ScriptProperties para monotonicidade permanente
+  var propService = PropertiesService.getScriptProperties();
+  if (propService) {
+    try {
+      var propVal = parseInt(propService.getProperty('ULTIMO_ID_CONTRATO_TELEFONIA') || '0', 10);
+      if (!isNaN(propVal) && propVal > maxId) maxId = propVal;
+    } catch (eProp) {}
+  }
+
+  var nextId = maxId > 0 ? (maxId + 1) : 1;
+  var ano = new Date().getFullYear();
+  var nextProtocol = 'BRISA-TEL-' + ano + '-' + String(nextId).padStart(4, '0');
+
+  if (propService) {
+    try {
+      propService.setProperty('ULTIMO_ID_CONTRATO_TELEFONIA', String(nextId));
+    } catch (ePropSet) {}
+  }
+
+  return {
+    nextId: nextId,
+    protocolo: nextProtocol
+  };
+}
+
+/**
  * Garante que a aba Acessos_Alcadas tenha as colunas necessarias de controle de acessos
  * por gerencia e gestao de substituto temporario em ausencias.
  * Respeita a decisao do usuario: suporta tanto 9 colunas (sem ID) quanto 10 colunas (com ID).
@@ -4979,7 +5169,7 @@ function excluirContratoTelefonia(idContrato, moverDriveLixeira) {
       'Registro Completo',
       (protocolo ? protocolo + ' · ' : '') + fornecedor + (objeto ? ' (' + objeto + ')' : ''),
       'EXCLUIDO',
-      'Contrato excluido definitivamente pelo usuario' + (moverDriveLixeira !== false && pastaContratoDriveId ? ' (pasta Drive enviada para lixeira).' : '.'),
+      'Contrato excluido definitivamente pelo usuario [' + (protocolo || ('#' + idReal)) + ' - ' + fornecedor + ']' + (moverDriveLixeira !== false && pastaContratoDriveId ? ' (pasta Drive enviada para lixeira).' : '.'),
       userEmail,
       userPapel
     );
@@ -5997,21 +6187,42 @@ function obterDadosCompletosTelefonia() {
         }
 
         var regId = String((idxLogReg !== -1 ? lRow[idxLogReg] : lRow[5]) || '-').trim();
+        var rawCampo = String((idxLogCampo !== -1 ? lRow[idxLogCampo] : lRow[7]) || '-');
+        var rawAntes = String((idxLogAntes !== -1 ? lRow[idxLogAntes] : lRow[8]) || '-');
+        var rawDepois = String((idxLogDepois !== -1 ? lRow[idxLogDepois] : lRow[9]) || '-');
+        var rawJust = String((idxLogJust !== -1 ? lRow[idxLogJust] : lRow[10]) || '-');
+        var rawEntidade = String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || 'Contrato');
+        var rawAcao = String((idxLogAcao !== -1 ? lRow[idxLogAcao] : lRow[6]) || 'Alteração');
+
+        var meta = extrairMetadadosLogTexto_(rawEntidade, rawAcao, regId, rawCampo, rawAntes, rawDepois, rawJust);
+
         var matchingContract = null;
         var lookupSource = allContractsLookup.length > 0 ? allContractsLookup : contractsList;
         for (var mc = 0; mc < lookupSource.length; mc++) {
           var cand = lookupSource[mc];
-          if (String(cand.id) === regId ||
+          var matchIdOuProto = (String(cand.id) === regId ||
               (cand.protocolo && String(cand.protocolo).trim() === regId) ||
-              (cand.pastaDriveId && String(cand.pastaDriveId).trim() === regId)) {
+              (cand.pastaDriveId && String(cand.pastaDriveId).trim() === regId) ||
+              (meta.protocolo && cand.protocolo && String(cand.protocolo).trim().toLowerCase() === meta.protocolo.toLowerCase()));
+          if (matchIdOuProto) {
+            // Isolamento rigoroso: se o log possui fornecedor identificado nos metadados,
+            // ele so pode casar com o contrato ativo se os nomes de fornecedor forem compativeis.
+            // Caso contrario, trata-se de colisao de ID com contrato excluido.
+            if (meta.fornecedor && cand.fornecedor) {
+              var fMetaNorm = normalizarTextoSimples_(meta.fornecedor);
+              var fCandNorm = normalizarTextoSimples_(cand.fornecedor);
+              if (fMetaNorm !== fCandNorm && fMetaNorm.indexOf(fCandNorm) === -1 && fCandNorm.indexOf(fMetaNorm) === -1) {
+                continue;
+              }
+            }
             matchingContract = cand;
             break;
           }
         }
 
-        var logSetor = matchingContract ? matchingContract.setorGerencia : '';
-        var logForn = matchingContract ? matchingContract.fornecedor : '';
-        var logProto = matchingContract ? matchingContract.protocolo : (regId.indexOf('BRISA-TEL') !== -1 ? regId : '');
+        var logSetor = matchingContract ? matchingContract.setorGerencia : (meta.setor || '');
+        var logForn = matchingContract ? matchingContract.fornecedor : (meta.fornecedor || '');
+        var logProto = matchingContract ? matchingContract.protocolo : (meta.protocolo || (regId.indexOf('BRISA-TEL') !== -1 ? regId : ''));
 
         if (!matchingContract && !logForn && regId !== '-') {
           for (var fk in fornecedoresMap) {
@@ -6022,30 +6233,34 @@ function obterDadosCompletosTelefonia() {
           }
         }
 
-        if (!logForn && String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || '') === 'Fornecedor') {
-          logForn = regId.replace('FORN-', '').replace(/_/g, ' ');
+        if (!logForn && String(rawEntidade).toLowerCase() === 'fornecedor') {
+          if (regId.indexOf('FORN-') !== -1) {
+            logForn = regId.replace('FORN-', '').replace(/_/g, ' ');
+          } else {
+            logForn = regId;
+          }
         }
 
         var parsedRegContratoId = matchingContract
           ? matchingContract.id
-          : (/^\d+$/.test(regId) ? parseInt(regId, 10) : '');
+          : (/^\d+$/.test(regId) && !meta.fornecedor ? parseInt(regId, 10) : '');
 
         logsList.push({
           idLog: logId,
           timestamp: formatarDataHoraExibicao_(idxLogTime !== -1 ? lRow[idxLogTime] : lRow[1]),
           usuarioEmail: String((idxLogEmail !== -1 ? lRow[idxLogEmail] : lRow[2]) || 'gestao.telefonia@grupobrisanet.com.br'),
           papelUsuario: String((idxLogPapel !== -1 ? lRow[idxLogPapel] : lRow[3]) || 'Gestão Telefonia'),
-          entidade: String((idxLogEntidade !== -1 ? lRow[idxLogEntidade] : lRow[4]) || 'Contrato'),
+          entidade: rawEntidade,
           idRegistro: regId,
           idContrato: parsedRegContratoId,
           protocolo: logProto,
           fornecedor: logForn,
           setorGerencia: logSetor,
-          acao: String((idxLogAcao !== -1 ? lRow[idxLogAcao] : lRow[6]) || 'Alteração'),
-          campoAfetado: String((idxLogCampo !== -1 ? lRow[idxLogCampo] : lRow[7]) || '-'),
-          valorAnterior: String((idxLogAntes !== -1 ? lRow[idxLogAntes] : lRow[8]) || '-'),
-          novoValor: String((idxLogDepois !== -1 ? lRow[idxLogDepois] : lRow[9]) || '-'),
-          justificativa: String((idxLogJust !== -1 ? lRow[idxLogJust] : lRow[10]) || '-')
+          acao: rawAcao,
+          campoAfetado: rawCampo,
+          valorAnterior: rawAntes,
+          novoValor: rawDepois,
+          justificativa: rawJust
         });
       }
     }
@@ -6163,9 +6378,13 @@ function solicitarAprovacaoContrato(payload) {
     ]);
 
     // Atualizar Contrato
+    var protoContrato = '';
+    var fornContrato = '';
     var cData = sheetContratos.getDataRange().getValues();
     for (var i = 1; i < cData.length; i++) {
       if (String(cData[i][0]) === String(idContrato)) {
+        protoContrato = String(cData[i][1] || '').trim();
+        fornContrato = String(cData[i][3] || '').trim();
         sheetContratos.getRange(i + 1, 7).setValue('Em Alteração (Aguardando Aprovação)'); // status
         sheetContratos.getRange(i + 1, 8).setValue('Pendente ' + nivelAlcada); // status_alcada
         sheetContratos.getRange(i + 1, 26).setValue(nowStr); // data_atualizacao
@@ -6174,14 +6393,15 @@ function solicitarAprovacaoContrato(payload) {
     }
 
     // Registrar log de auditoria oficial
+    var justAprov = 'Submetido para ' + aprovadorEmail + ' (' + nivelAlcada + ') [' + (protoContrato || ('#' + idContrato)) + ' - ' + (fornContrato || 'Fornecedor') + ']: ' + justificativa;
     registrarLogAuditoriaOficial_(
       'Aprovacao',
-      idContrato,
+      protoContrato || idContrato,
       'Solicitacao de Aprovacao',
       'status_alcada',
       'Rascunho / Em Analise',
       'Pendente ' + nivelAlcada,
-      'Submetido para ' + aprovadorEmail + ' (' + nivelAlcada + '): ' + justificativa,
+      justAprov,
       userEmail
     );
 
@@ -6285,9 +6505,13 @@ function registrarDecisaoAprovacao(payload) {
     var novoStatusContrato = (decisao === 'APROVADO') ? 'Vigente' : 'Devolvido para Ajustes';
     var novoStatusAlcada = (decisao === 'APROVADO') ? 'Aprovado (' + nivelAlcada + ')' : 'Devolvido (' + nivelAlcada + ')';
 
+    var protoContrato = '';
+    var fornContrato = '';
     var cData = sheetContratos.getDataRange().getValues();
     for (var c = 1; c < cData.length; c++) {
       if (String(cData[c][0]) === String(idContrato)) {
+        protoContrato = String(cData[c][1] || '').trim();
+        fornContrato = String(cData[c][3] || '').trim();
         sheetContratos.getRange(c + 1, 7).setValue(novoStatusContrato);
         sheetContratos.getRange(c + 1, 8).setValue(novoStatusAlcada);
         sheetContratos.getRange(c + 1, 26).setValue(nowStr);
@@ -6296,14 +6520,15 @@ function registrarDecisaoAprovacao(payload) {
     }
 
     // Registrar na Auditoria Oficial
+    var justDecisao = 'Decisao de ' + nivelAlcada + ' [' + (protoContrato || ('#' + idContrato)) + ' - ' + (fornContrato || 'Fornecedor') + ']: ' + (parecer || 'Sem observacoes adicionais');
     registrarLogAuditoriaOficial_(
       'Aprovacao',
-      idContrato,
+      protoContrato || idContrato,
       (decisao === 'APROVADO') ? 'Aprovacao Concluida' : 'Ajustes Solicitados',
       'status_decisao',
       'Pendente',
       statusDecisaoFinal,
-      'Decisao de ' + nivelAlcada + ': ' + (parecer || 'Sem observacoes adicionais'),
+      justDecisao,
       userEmail,
       nivelAlcada
     );
@@ -6377,19 +6602,10 @@ function salvarNovoContratoTelefonia(dados) {
 
     var setorGerencia = String(dados.setorGerencia || 'TELEFONIA').trim().toUpperCase();
 
-    // Descobrir proximo ID sequencial
-    var lastRow = sheetContratos.getLastRow();
-    var nextId = 1;
-    if (lastRow > 1) {
-      var ids = sheetContratos.getRange(2, 1, lastRow - 1, 1).getValues();
-      for (var i = 0; i < ids.length; i++) {
-        var val = parseInt(ids[i][0], 10);
-        if (!isNaN(val) && val >= nextId) nextId = val + 1;
-      }
-    }
-
-    var ano = new Date().getFullYear();
-    var protocolo = 'BRISA-TEL-' + ano + '-' + String(nextId).padStart(4, '0');
+    // Gerador de ID e Protocolo estritamente monotonico (sem reciclagem de IDs mesmo apos exclusao)
+    var seqContrato = obterProximoIdEProtocoloContrato_(ss, sheetContratos);
+    var nextId = seqContrato.nextId;
+    var protocolo = seqContrato.protocolo;
 
     // Provisionar estrutura no Drive dentro da Gerencia correspondente
     var driveStructure = obterOuCriarEstruturaContrato_(fornNome, nextId, dados.objeto, setorGerencia);
@@ -6549,7 +6765,7 @@ function salvarNovoContratoTelefonia(dados) {
               subpastaNome,
               '-',
               file.getName(),
-              'Arquivo arquivado na subpasta ' + subpastaNome + ' da gerencia ' + setorGerencia,
+              'Arquivo arquivado na subpasta ' + subpastaNome + ' [' + protocolo + ' - ' + fornNome + '] da gerencia ' + setorGerencia,
               Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail()
             );
           } catch (eArq) {
@@ -6968,15 +7184,17 @@ function atualizarFaixaBaseClientes(payload) {
     sheetContratos.getRange(targetRow, idxValorBaseBrl + 1).setValue(isPluriFaixa ? valorRegistroCiclo : novoDesembolsoAnual);
     sheetContratos.getRange(targetRow, idxValorOrcado + 1).setValue(isPluriFaixa ? valorRegistroCiclo : novoDesembolsoAnual);
 
+    var protoFaixa = String(rowValues[1] || '').trim();
+    var fornFaixa = String(rowValues[3] || '').trim();
     var userPapelFaixa = obterPapelUsuario_(userEmail);
     registrarLogAuditoriaOficial_(
       'Contrato',
-      idContrato,
+      protoFaixa || idContrato,
       'Reajuste de Valores de Faixas / Faixa Vigente',
       'Tabela Base de Clientes',
       'R$ ' + valorAnterior.toFixed(2),
       'R$ ' + faixaAtivaValorNum.toFixed(2) + ' (' + faixaAtivaNome + ')',
-      'Reajuste de valores e atualizacao operacional de faixa vigente na base de clientes pelo gestor responsavel.',
+      'Reajuste de valores e atualizacao operacional de faixa vigente na base de clientes [' + (protoFaixa || ('#' + idContrato)) + ' - ' + (fornFaixa || 'Fornecedor') + '] pelo gestor responsavel.',
       userEmail,
       userPapelFaixa
     );
@@ -7246,16 +7464,22 @@ function salvarAlteracaoContratoTelefonia(payload) {
       }
     } catch (eAp) {}
 
+    var protocoloContrato = String(rowData[1] || '').trim();
+    var fornecedorContrato = String(rowData[3] || '').trim();
+    var contextoLogContrato = ' [' + (protocoloContrato || ('#' + idContrato)) + ' - ' + (fornecedorContrato || 'Fornecedor') + ']';
+    var justPadrao = justificativa ? (justificativa + contextoLogContrato) : ('Alteracao realizada' + contextoLogContrato);
+    var regIdLog = protocoloContrato || idContrato;
+
     // Registrar Logs de Auditoria Oficial
     if (alteracoes.length === 0) {
       registrarLogAuditoriaOficial_(
         'Contrato',
-        idContrato,
+        regIdLog,
         'Confirmacao Cadastral',
         'Contrato',
         '-',
         'Atualizado',
-        justificativa,
+        justPadrao,
         userEmail,
         papelUsuario
       );
@@ -7264,12 +7488,12 @@ function salvarAlteracaoContratoTelefonia(payload) {
         var alt = alteracoes[l];
         registrarLogAuditoriaOficial_(
           'Contrato',
-          idContrato,
+          regIdLog,
           'Alteracao Contratual',
           alt.campo,
           alt.de,
           alt.para,
-          justificativa,
+          justPadrao,
           userEmail,
           papelUsuario
         );
@@ -7399,12 +7623,12 @@ function solicitarAlteracaoContratoGestao(payload) {
     // Registrar na trilha de auditoria oficial
     registrarLogAuditoriaOficial_(
       'Contrato',
-      realIdContrato,
+      protocolo || realIdContrato,
       'Solicitacao de Alteracao',
       'responsavel_designado',
       '-',
       responsavelEmail,
-      'Alteracao solicitada por Gestao Telefonia: ' + descricaoAlteracao,
+      'Alteracao solicitada por Gestao Telefonia [' + (protocolo || ('#' + realIdContrato)) + ' - ' + fornecedor + ']: ' + descricaoAlteracao,
       userEmail,
       (perm && perm.papel) ? perm.papel : 'Gestao Telefonia'
     );

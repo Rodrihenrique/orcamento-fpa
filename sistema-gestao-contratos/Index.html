@@ -5616,10 +5616,15 @@
         '</div>';
       footer.innerHTML = btnExcluirFicha + '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' + btnSolicitarAltGestao;
     } else if (abaNome === 'logs') {
+      var fNormContrato = normalizarTextoSimplesClient(c.fornecedor || '');
       var contractLogs = (appState.logs || []).filter(function(lg) {
+        var fNormLog = normalizarTextoSimplesClient(lg.fornecedor || '');
+        var mesmoFornecedor = (!fNormLog || !fNormContrato || fNormLog === fNormContrato || fNormContrato.indexOf(fNormLog) !== -1 || fNormLog.indexOf(fNormContrato) !== -1);
+        if (!mesmoFornecedor) return false;
+
         return (String(lg.idContrato) === String(c.id)) ||
                (String(lg.idRegistro) === String(c.id)) ||
-               (lg.protocolo && c.protocolo && String(lg.protocolo) === String(c.protocolo)) ||
+               (lg.protocolo && c.protocolo && String(lg.protocolo).trim().toLowerCase() === String(c.protocolo).trim().toLowerCase()) ||
                (String(lg.idRegistro) === String(c.protocolo)) ||
                (c.pastaDriveId && String(lg.idRegistro) === String(c.pastaDriveId));
       });
@@ -6997,10 +7002,21 @@
     var fornAtual = selForn.value;
     var contratoAtual = selContrato.value;
 
-    var fornsHtml = '<option value="">Fornecedor: Todos</option>';
+    var knownFornsMap = {};
     (appState.fornecedores || []).forEach(function(f) {
-      var label = f.apelido ? (f.apelido + ' (' + f.razaoSocial + ')') : f.razaoSocial;
-      fornsHtml += '<option value="' + escapeHtml(f.razaoSocial) + '">' + escapeHtml(label) + '</option>';
+      if (f.razaoSocial) {
+        knownFornsMap[f.razaoSocial] = f.apelido ? (f.apelido + ' (' + f.razaoSocial + ')') : f.razaoSocial;
+      }
+    });
+    (appState.logs || []).forEach(function(l) {
+      if (l.fornecedor && !knownFornsMap[l.fornecedor]) {
+        knownFornsMap[l.fornecedor] = l.fornecedor;
+      }
+    });
+
+    var fornsHtml = '<option value="">Fornecedor: Todos</option>';
+    Object.keys(knownFornsMap).sort().forEach(function(fRazao) {
+      fornsHtml += '<option value="' + escapeHtml(fRazao) + '">' + escapeHtml(knownFornsMap[fRazao]) + '</option>';
     });
     selForn.innerHTML = fornsHtml;
     if (fornAtual) selForn.value = fornAtual;
@@ -7207,44 +7223,63 @@
       return;
     }
 
-    // Agrupar logs por contrato
+    // Agrupar logs por contrato com isolamento estrito por fornecedor e protocolo
     var contractsGroupMap = {};
     var generalLogs = [];
-
-    // Mapeamento de contratos conhecidos para informacoes ricas
-    var knownContracts = {};
-    (appState.contratos || []).forEach(function(ct) {
-      var key = String(ct.protocolo || ct.id);
-      knownContracts[key] = ct;
-      knownContracts[String(ct.id)] = ct;
-      if (ct.protocolo) knownContracts[String(ct.protocolo).toLowerCase()] = ct;
-      if (ct.pastaDriveId) knownContracts[String(ct.pastaDriveId)] = ct;
-    });
+    var knownContractsList = appState.contratos || [];
 
     logs.forEach(function(l) {
-      var cKey = '';
-      if (l.protocolo && knownContracts[l.protocolo]) {
-        cKey = knownContracts[l.protocolo].protocolo;
-      } else if (l.idContrato && knownContracts[String(l.idContrato)]) {
-        cKey = knownContracts[String(l.idContrato)].protocolo;
-      } else if (l.idRegistro && knownContracts[String(l.idRegistro)]) {
-        cKey = knownContracts[String(l.idRegistro)].protocolo;
-      } else if (l.protocolo) {
-        cKey = l.protocolo;
-      } else if (l.idContrato) {
-        cKey = 'Contrato #' + l.idContrato;
-      }
+      var fName = String(l.fornecedor || '').trim();
+      var fNorm = normalizarTextoSimplesClient(fName);
+      var proto = String(l.protocolo || '').trim();
+      var idCt = String(l.idContrato || '').trim();
+      var regId = String(l.idRegistro || '').trim();
 
-      if (cKey) {
+      var ehLogContrato = (l.entidade === 'Contrato' || l.entidade === 'Aprovacao' || proto || idCt || /^\d+$/.test(regId) || /^BRISA-TEL-/i.test(regId));
+
+      if (ehLogContrato) {
+        // Encontrar contrato ativo correspondente validando estritamente o fornecedor
+        var matched = null;
+        for (var mc = 0; mc < knownContractsList.length; mc++) {
+          var candCt = knownContractsList[mc];
+          var matchIdOuProto = (proto && candCt.protocolo && candCt.protocolo.toLowerCase() === proto.toLowerCase()) ||
+                               (idCt && String(candCt.id) === idCt) ||
+                               (regId && (String(candCt.id) === regId || (candCt.protocolo && candCt.protocolo.toLowerCase() === regId.toLowerCase())));
+          if (matchIdOuProto) {
+            if (fNorm && candCt.fornecedor) {
+              var candFNorm = normalizarTextoSimplesClient(candCt.fornecedor);
+              if (candFNorm !== fNorm && candFNorm.indexOf(fNorm) === -1 && fNorm.indexOf(candFNorm) === -1) {
+                // Fornecedores diferentes -> evitar atribuicao cruzada por reaproveitamento de ID
+                continue;
+              }
+            }
+            matched = candCt;
+            break;
+          }
+        }
+
+        var protoBase = (matched && matched.protocolo) ? matched.protocolo : (proto || (idCt ? ('Contrato #' + idCt) : regId));
+        var fornFinal = (matched && matched.fornecedor) ? matched.fornecedor : (fName || 'Fornecedor');
+        // Chave composta unindo identificador contratual e fornecedor normalizado
+        var cKey = protoBase + '___' + normalizarTextoSimplesClient(fornFinal);
+
         if (!contractsGroupMap[cKey]) {
-          var matched = knownContracts[cKey] || knownContracts[String(l.idContrato)] || null;
+          var statusFinal = 'Vigente';
+          if (matched && matched.status) {
+            statusFinal = matched.status;
+          } else if (l.acao === 'Exclusao de Contrato' || l.novoValor === 'EXCLUIDO') {
+            statusFinal = 'Excluído';
+          } else {
+            statusFinal = 'Histórico';
+          }
+
           contractsGroupMap[cKey] = {
             key: cKey,
-            protocolo: (matched && matched.protocolo) ? matched.protocolo : (l.protocolo || cKey),
-            fornecedor: (matched && matched.fornecedor) ? matched.fornecedor : (l.fornecedor || 'Fornecedor'),
+            protocolo: protoBase,
+            fornecedor: fornFinal,
             objeto: (matched && matched.objeto) ? matched.objeto : '',
             setorGerencia: (matched && matched.setorGerencia) ? matched.setorGerencia : (l.setorGerencia || ''),
-            status: (matched && matched.status) ? matched.status : 'Vigente',
+            status: statusFinal,
             logs: []
           };
         }
@@ -7274,6 +7309,13 @@
       var cardId = 'log_card_' + idx;
       var isCollapsed = (appState.logsExpandidos && appState.logsExpandidos[cardId] === false);
 
+      var badgeStatusClass = 'ativo';
+      if (grp.status === 'Histórico' || grp.status === 'Excluído' || grp.status === 'Encerrado') {
+        badgeStatusClass = 'encerrado';
+      } else if (grp.status === 'Em Alteração' || grp.status.indexOf('Pendente') !== -1) {
+        badgeStatusClass = 'pendente';
+      }
+
       html += '<div class="log-accordion-card ' + (isCollapsed ? 'collapsed' : '') + '" id="' + cardId + '">';
       html += '  <div class="log-accordion-header" onclick="alternarAcordeaoLog(\'' + cardId + '\')">';
       html += '    <div class="log-accordion-info">';
@@ -7284,7 +7326,7 @@
         html += '        <span class="badge-setor">' + escapeHtml(grp.setorGerencia) + '</span>';
       }
       if (grp.status) {
-        html += '        <span class="badge-status ativo">' + escapeHtml(grp.status) + '</span>';
+        html += '        <span class="badge-status ' + badgeStatusClass + '">' + escapeHtml(grp.status) + '</span>';
       }
       html += '      </div>';
       if (grp.objeto) {
