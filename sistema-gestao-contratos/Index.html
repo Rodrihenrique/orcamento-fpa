@@ -3078,7 +3078,7 @@
 </div>
 
 <!-- ==========================================================================
-     MODAL SOLICITAR ALTERACAO CONTRATUAL (EXCLUSIVO GESTAO TELEFONIA)
+     MODAL SOLICITAR ALTERACAO CONTRATUAL (ENVIAR PARA GESTAO TELEFONIA)
      ========================================================================== -->
 <div class="modal-overlay" id="modalSolicitarAlteracaoGestao">
   <div class="modal-content" style="max-width: 580px; border-radius: 16px; overflow: hidden;">
@@ -3088,25 +3088,35 @@
     </div>
     <div class="modal-body" style="padding: 20px 24px;">
       <div style="margin-bottom: 14px; padding: 12px 14px; background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; font-size: 12px; color: var(--brisa-dark-blue); line-height: 1.5;">
-        <strong>Fluxo exclusivo Gestão Telefonia:</strong> Indique qual alteração precisa ser realizada neste contrato e selecione quem ficará responsável por executá-la. O responsável indicado receberá um e-mail com o link direto para abrir o contrato.
+        <strong>Fluxo de Governança Contratual:</strong> Caso identifique a necessidade de alteração neste contrato, descreva os ajustes necessários abaixo. A solicitação será encaminhada para o setor de <strong>Gestão Telefonia</strong>, que efetuará as alterações técnicas no sistema e encaminhará de volta para a aprovação formal do responsável.
       </div>
       <div id="solAltGestaoContratoResumo" style="margin-bottom: 14px; padding: 10px 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-size: 12px; color: var(--text-body);"></div>
+      <div class="form-group" id="solAltGestaoContratoSelectContainer" style="display: none; margin-bottom: 14px;">
+        <label class="form-label required" for="solAltGestaoContratoSelect">Contrato que precisa de alteração</label>
+        <select id="solAltGestaoContratoSelect" class="form-control" onchange="aoSelecionarContratoSolAlt(this.value)">
+          <option value="">Selecione o contrato...</option>
+        </select>
+      </div>
       <input type="hidden" id="solAltGestaoContratoId">
       <div class="form-group" style="margin-bottom: 14px;">
-        <label class="form-label required" for="solAltGestaoResponsavelEmail">Responsável por Realizar a Alteração</label>
-        <select id="solAltGestaoResponsavelEmail" class="form-control" required>
-          <option value="">Selecione o responsável...</option>
+        <label class="form-label" for="solAltGestaoResponsavelEmail">Destinatário da Solicitação</label>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 6px;">
+          <span style="font-size: 13px; font-weight: 700; color: var(--brisa-dark-blue);">Setor Gestão Telefonia</span>
+          <span class="badge-setor" style="background: #2242D4; color: #FFFFFF; font-size: 10px; padding: 2px 8px; border-radius: 4px;">TELEFONIA</span>
+        </div>
+        <select id="solAltGestaoResponsavelEmail" class="form-control" style="display: none;">
+          <option value="gestao.telefonia@grupobrisanet.com.br" selected>Setor Gestão Telefonia (gestao.telefonia@grupobrisanet.com.br)</option>
         </select>
-        <span class="form-helper">Lista carregada dos colaboradores cadastrados na aba Acessos_Alcadas.</span>
+        <span class="form-helper" style="margin-top: 4px;">O alerta com a sua solicitação será enviado diretamente para a equipe técnica de Gestão Telefonia.</span>
       </div>
       <div class="form-group">
         <label class="form-label required" for="solAltGestaoDescricao">Qual alteração precisa ser feita</label>
-        <textarea id="solAltGestaoDescricao" class="form-control" rows="4" placeholder="Descreva detalhadamente o que precisa ser alterado neste contrato..." required></textarea>
+        <textarea id="solAltGestaoDescricao" class="form-control" rows="4" placeholder="Descreva detalhadamente qual alteração precisa ser feita neste contrato..." required></textarea>
       </div>
     </div>
     <div class="modal-footer">
       <button type="button" class="btn btn-secondary" onclick="fecharModalSolicitarAlteracaoGestao()">Cancelar</button>
-      <button type="button" class="btn btn-primary" id="btnEnviarSolicitacaoAlteracaoGestao" onclick="submeterSolicitacaoAlteracaoGestao()">Enviar Solicitação por E-mail</button>
+      <button type="button" class="btn btn-primary" id="btnEnviarSolicitacaoAlteracaoGestao" onclick="submeterSolicitacaoAlteracaoGestao()">Enviar Solicitação para Gestão Telefonia</button>
     </div>
   </div>
 </div>
@@ -5355,29 +5365,65 @@
     return setor.indexOf('GESTAO TELEFONIA') !== -1 || setor === 'GESTAO';
   }
 
-  function abrirModalSolicitarAlteracaoGestao() {
-    if (!usuarioEhGestaoTelefonia()) {
-      mostrarToast('Apenas usuários do setor Gestão Telefonia podem solicitar alterações.', 'error');
-      return;
-    }
-    var c = appState.contratoSelecionado;
-    if (!c || !c.id) {
-      mostrarToast('Selecione um contrato para solicitar alteração.', 'error');
-      return;
-    }
-
+  function aoSelecionarContratoSolAlt(id) {
+    var c = (appState.contratos || []).find(function(item) { return String(item.id) === String(id); });
     var elId = document.getElementById('solAltGestaoContratoId');
+    if (elId) elId.value = id || '';
     var elResumo = document.getElementById('solAltGestaoContratoResumo');
-    var elDesc = document.getElementById('solAltGestaoDescricao');
-    if (elId) elId.value = c.id;
-    if (elResumo) {
+    if (c && elResumo) {
       elResumo.innerHTML = '<strong>Contrato:</strong> ' + escapeHtml(c.protocolo || ('#' + c.id)) +
         ' · <strong>Fornecedor:</strong> ' + escapeHtml(c.fornecedor || '-') +
         '<br><strong>Objeto:</strong> ' + escapeHtml(c.objeto || '-');
+      elResumo.style.display = 'block';
+    } else if (elResumo) {
+      elResumo.style.display = 'none';
     }
+  }
+
+  function popularSelectContratosSolAlt(idPreSelecionado) {
+    var sel = document.getElementById('solAltGestaoContratoSelect');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Selecione o contrato...</option>';
+    (appState.contratos || []).forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = '#' + c.id + ' - ' + c.fornecedor + ' (' + (c.protocolo || ('#' + c.id)) + ')';
+      if (String(c.id) === String(idPreSelecionado)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  function abrirModalSolicitarAlteracaoGestao(idContratoOpcional) {
+    var targetId = idContratoOpcional || (appState.contratoSelecionado ? appState.contratoSelecionado.id : null);
+    var c = targetId ? (appState.contratos || []).find(function(item) { return String(item.id) === String(targetId); }) : appState.contratoSelecionado;
+
+    var elId = document.getElementById('solAltGestaoContratoId');
+    var elResumo = document.getElementById('solAltGestaoContratoResumo');
+    var elSelectCont = document.getElementById('solAltGestaoContratoSelectContainer');
+    var elDesc = document.getElementById('solAltGestaoDescricao');
+
     if (elDesc) elDesc.value = '';
 
-    popularSelectResponsaveisEm('solAltGestaoResponsavelEmail', c.emailResponsavel || '');
+    if (c && c.id) {
+      if (elId) elId.value = c.id;
+      if (elResumo) {
+        elResumo.innerHTML = '<strong>Contrato:</strong> ' + escapeHtml(c.protocolo || ('#' + c.id)) +
+          ' · <strong>Fornecedor:</strong> ' + escapeHtml(c.fornecedor || '-') +
+          '<br><strong>Objeto:</strong> ' + escapeHtml(c.objeto || '-');
+        elResumo.style.display = 'block';
+      }
+      if (elSelectCont) elSelectCont.style.display = 'none';
+    } else {
+      popularSelectContratosSolAlt();
+      if (elId) elId.value = '';
+      if (elResumo) elResumo.style.display = 'none';
+      if (elSelectCont) elSelectCont.style.display = 'block';
+    }
+
+    var selResp = document.getElementById('solAltGestaoResponsavelEmail');
+    if (selResp) {
+      selResp.value = 'gestao.telefonia@grupobrisanet.com.br';
+    }
 
     var modal = document.getElementById('modalSolicitarAlteracaoGestao');
     if (modal) modal.style.display = 'flex';
@@ -5389,19 +5435,19 @@
   }
 
   function submeterSolicitacaoAlteracaoGestao() {
-    if (!usuarioEhGestaoTelefonia()) {
-      mostrarToast('Acesso restrito ao setor Gestão Telefonia.', 'error');
-      return;
-    }
-
     var idContrato = (document.getElementById('solAltGestaoContratoId') || {}).value || '';
+    if (!idContrato) {
+      var selCont = document.getElementById('solAltGestaoContratoSelect');
+      if (selCont && selCont.value) idContrato = selCont.value;
+    }
     var selResp = document.getElementById('solAltGestaoResponsavelEmail');
     var responsavelEmail = selResp ? String(selResp.value || '').trim() : '';
+    if (!responsavelEmail) responsavelEmail = 'gestao.telefonia@grupobrisanet.com.br';
     var descricaoAlteracao = (document.getElementById('solAltGestaoDescricao') || {}).value || '';
     descricaoAlteracao = String(descricaoAlteracao).trim();
 
-    if (!responsavelEmail) {
-      mostrarToast('Selecione quem irá realizar a alteração.', 'error');
+    if (!idContrato) {
+      mostrarToast('Selecione o contrato que precisa de alteração.', 'error');
       return;
     }
     if (!descricaoAlteracao) {
@@ -5409,20 +5455,14 @@
       return;
     }
 
-    var listaResp = Array.isArray(appState.responsaveis) ? appState.responsaveis : [];
-    var respObj = listaResp.find(function(r) {
-      return String(r.email || '').toLowerCase() === responsavelEmail.toLowerCase();
-    });
-    var responsavelNome = (respObj && respObj.nome) ? respObj.nome : '';
-
     var btn = document.getElementById('btnEnviarSolicitacaoAlteracaoGestao');
     if (btn) btn.disabled = true;
-    mostrarLoading('Enviando Solicitação', 'Registrando histórico e enviando e-mail com link direto para ' + responsavelEmail + '...');
+    mostrarLoading('Enviando Solicitação', 'Registrando histórico e enviando e-mail para o setor Gestão Telefonia...');
 
     var payload = {
       idContrato: idContrato,
       responsavelEmail: responsavelEmail,
-      responsavelNome: responsavelNome,
+      responsavelNome: 'Setor Gestão Telefonia',
       descricaoAlteracao: descricaoAlteracao
     };
 
@@ -5433,7 +5473,7 @@
           if (btn) btn.disabled = false;
           if (res && res.success) {
             fecharModalSolicitarAlteracaoGestao();
-            mostrarToast('Solicitação enviada por e-mail para ' + responsavelEmail + '!', 'success');
+            mostrarToast('Solicitação de alteração enviada com sucesso para o setor Gestão Telefonia!', 'success');
             carregarDadosServidor(false);
           } else {
             mostrarToast('Erro ao enviar solicitação: ' + ((res && res.error) || 'Desconhecido'), 'error');
@@ -5450,7 +5490,7 @@
         esconderLoading();
         if (btn) btn.disabled = false;
         fecharModalSolicitarAlteracaoGestao();
-        mostrarToast('Simulação: Solicitação enviada por e-mail para ' + responsavelEmail + '.', 'success');
+        mostrarToast('Simulação: Solicitação enviada para o setor Gestão Telefonia.', 'success');
       }, 400);
     }
   }
@@ -5493,9 +5533,15 @@
     var body = document.getElementById('fichaBodyContent');
     var footer = document.getElementById('fichaFooterActions');
     var btnExcluirFicha = '<button type="button" class="btn btn-danger-outline" style="margin-right: auto;" onclick="confirmarExclusaoContratoSelecionado()">Excluir Contrato</button>';
-    var btnSolicitarAltGestao = usuarioEhGestaoTelefonia()
-      ? '<button type="button" class="btn btn-secondary" id="btnFichaSolicitarAlteracaoGestao" style="border-color: var(--brisa-blue); color: var(--brisa-blue); font-weight: 700;" onclick="abrirModalSolicitarAlteracaoGestao()">Solicitar Alteração</button>'
-      : '';
+
+    function gerarBotoesAlteracaoFichaFooter() {
+      if (usuarioEhGestaoTelefonia()) {
+        return '<button type="button" class="btn btn-secondary" id="btnFichaSolicitarAlteracaoGestao" style="border-color: var(--brisa-blue); color: var(--brisa-blue); font-weight: 700;" onclick="abrirModalSolicitarAlteracaoGestao()">Solicitar Alteração</button>' +
+               '<button type="button" class="btn btn-primary" id="btnFichaRealizarAlteracao" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração</button>';
+      } else {
+        return '<button type="button" class="btn btn-primary" id="btnFichaSolicitarAlteracaoGestao" style="background: var(--brisa-blue); border-color: var(--brisa-blue); font-weight: 700;" onclick="abrirModalSolicitarAlteracaoGestao()">Solicitar Alteração</button>';
+      }
+    }
 
     if (abaNome === 'resumo') {
       body.innerHTML = '<div class="form-grid">' +
@@ -5520,15 +5566,14 @@
 
       footer.innerHTML = btnExcluirFicha +
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
-        btnSolicitarAltGestao +
-        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
+        gerarBotoesAlteracaoFichaFooter();
     } else if (abaNome === 'financeiro') {
       var faixasHtml = '';
       if (c.tabelaBaseClientes && c.tabelaBaseClientes.length > 0) {
         faixasHtml = '<div style="margin-top:16px; border-top:1px solid #E2E8F0; padding-top:12px;">' +
           '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">' +
           '  <div style="font-size:12px; font-weight:700; color:var(--brisa-dark-blue);">Tabela de Reajuste por Base de Clientes (Assinantes)</div>' +
-          '  <button type="button" class="btn btn-secondary" style="height: 28px; font-size: 11px;" onclick="abrirModalAlterarFaixaBaseClientes(\'' + c.id + '\')">Reajustar Valores e Faixa Vigente</button>' +
+          (usuarioEhGestaoTelefonia() ? '  <button type="button" class="btn btn-secondary" style="height: 28px; font-size: 11px;" onclick="abrirModalAlterarFaixaBaseClientes(\'' + c.id + '\')">Reajustar Valores e Faixa Vigente</button>' : '') +
           '</div>' +
           '<table class="tier-table">' +
           '<thead><tr><th style="width:100px; text-align:center;">Situação</th><th>Faixa De</th><th>Faixa Até</th><th>Valor (R$) / Cliente</th><th>Regra</th></tr></thead><tbody>';
@@ -5584,8 +5629,7 @@
 
       footer.innerHTML = btnExcluirFicha +
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
-        btnSolicitarAltGestao +
-        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
+        gerarBotoesAlteracaoFichaFooter();
     } else if (abaNome === 'documentos') {
       body.innerHTML = '<div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">' +
         '<div><strong>Estrutura de Arquivos no Drive (4 Pastas Padronizadas)</strong></div>' +
@@ -5614,7 +5658,7 @@
         '  </div>' +
         '  <div id="modalUploadSelectedFilesList" style="margin-top:10px; display:none;"></div>' +
         '</div>';
-      footer.innerHTML = btnExcluirFicha + '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' + btnSolicitarAltGestao;
+      footer.innerHTML = btnExcluirFicha + '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' + gerarBotoesAlteracaoFichaFooter();
     } else if (abaNome === 'logs') {
       var fNormContrato = normalizarTextoSimplesClient(c.fornecedor || '');
       var contractLogs = (appState.logs || []).filter(function(lg) {
@@ -5644,8 +5688,7 @@
 
       footer.innerHTML = btnExcluirFicha +
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
-        btnSolicitarAltGestao +
-        '<button type="button" class="btn btn-primary" onclick="abrirModalSolicitarAprovacaoParaContrato()">Realizar Alteração / Aprovação</button>';
+        gerarBotoesAlteracaoFichaFooter();
     }
   }
 
@@ -6300,16 +6343,30 @@
   }
 
   function abrirModalSolicitarAprovacao() {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Acesso restrito: apenas o setor Gestão Telefonia tem permissão para realizar alterações diretamente. Encaminhe uma solicitação de alteração.', 'warning');
+      abrirModalSolicitarAlteracaoGestao();
+      return;
+    }
     popularSelectContratosSolicitacao();
     document.getElementById('solicitacaoJustificativa').value = '';
     document.getElementById('modalSolicitarAprovacao').style.display = 'flex';
   }
 
   function abrirModalNovaSolicitacaoAprovacao() {
+    if (!usuarioEhGestaoTelefonia()) {
+      abrirModalSolicitarAlteracaoGestao();
+      return;
+    }
     abrirModalSolicitarAprovacao();
   }
 
   function abrirModalSolicitarAprovacaoParaContrato() {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Acesso restrito: apenas o setor Gestão Telefonia tem permissão para realizar alterações diretamente. Encaminhe uma solicitação de alteração.', 'warning');
+      abrirModalSolicitarAlteracaoGestao();
+      return;
+    }
     try {
       var c = appState.contratoSelecionado;
       if (c && c.id) {
@@ -6330,6 +6387,10 @@
   }
 
   function submeterAlteracaoDiretaContrato() {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Acesso restrito: apenas o setor Gestão Telefonia tem permissão para realizar alterações diretamente.', 'error');
+      return;
+    }
     var idContrato = document.getElementById('solicitacaoContratoSelect').value;
     var objeto = document.getElementById('solicitacaoObjetoContrato').value.trim();
     var elTipoSel = document.getElementById('solicitacaoTipoContrato');
@@ -7949,6 +8010,10 @@
   }
 
   function abrirModalAlterarFaixaBaseClientes(idContrato) {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Acesso restrito: apenas o setor Gestão Telefonia tem permissão para reajustar faixas vigentes de contratos.', 'error');
+      return;
+    }
     var contrato = appState.contratos.find(function(c) { return String(c.id) === String(idContrato); }) || appState.contratoSelecionado;
     if (!contrato || !contrato.tabelaBaseClientes || contrato.tabelaBaseClientes.length === 0) {
       mostrarToast('Contrato não possui faixas de base de clientes cadastradas.', 'error');
@@ -7992,6 +8057,10 @@
   }
 
   function salvarNovaFaixaVigente() {
+    if (!usuarioEhGestaoTelefonia()) {
+      mostrarToast('Acesso restrito: apenas o setor Gestão Telefonia tem permissão para reajustar faixas vigentes de contratos.', 'error');
+      return;
+    }
     var idContrato = document.getElementById('alterarFaixaContratoId').value;
     var radioSelecionado = document.querySelector('input[name="radioEscolhaFaixa"]:checked');
     if (!radioSelecionado) {

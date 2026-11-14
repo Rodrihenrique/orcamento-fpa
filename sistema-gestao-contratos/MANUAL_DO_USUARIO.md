@@ -387,9 +387,16 @@ Na aba **Documentos** da Ficha 360° de qualquer contrato:
 - Todos os e-mails de registro/alteracao contratual, solicitacao de aprovacao, decisao de aprovacao/ajustes, alerta de vencimento e solicitacao de alteracao da Gestao Telefonia incluem um botao e link direto (`?contratoId=<id>`) gerados automaticamente para o contrato especifico que exige acao.
 - Ao abrir o link recebido no e-mail, o sistema navega automaticamente para o fornecedor correspondente, posiciona a paginacao correta e abre diretamente a **Ficha 360°** do contrato exato.
 
-### 11.10 Solicitacao de Alteracao na Ficha 360° (Exclusivo Gestao Telefonia)
-- Dentro do rodape da **Ficha 360°** do contrato, usuarios pertencentes ao setor **Gestao Telefonia** (`GESTAO TELEFONIA`) visualizam o botao **Solicitar Alteracao** (oculto para usuarios de outros setores).
-- Ao clicar no botao, o modal permite:
-  1. Selecionar na lista de colaboradores cadastrados em `Acessos_Alcadas` **quem ira realizar a alteracao**.
-  2. Descrever exatamente **qual alteracao precisa ser feita** no contrato.
-- Ao confirmar, o sistema registra o evento na trilha de auditoria do contrato (`Auditoria_Logs`) e dispara um e-mail formal para o responsavel designado contendo as instrucoes da alteracao solicitada e o link direto (`?contratoId=<id>`) para abrir aquele contrato especifico e concluir o processo.
+### 11.10 Governança de Alterações Contratuais: Solicitação por Gestores e Execução Exclusiva pela Gestão Telefonia
+- **Segregação de Papéis e Permissões:**
+  - **Setor Gestão Telefonia:** É o único setor autorizado a executar alterações diretamente na base de dados de contratos e reajustar faixas vigentes de assinantes. O botão **Realizar Alteração** é exibido exclusivamente para usuários deste setor.
+  - **Demais Setores (Gerências Técnicas, Analistas, Coordenadores):** Possuem acesso restrito a **Solicitar Alteração**, não podendo editar valores ou cláusulas diretamente.
+- **Fluxo Operacional de Solicitação:**
+  1. O gestor identifica a necessidade de ajuste em um contrato e clica em **Solicitar Alteração** (no rodapé da *Ficha 360°* ou na *Central de Aprovações*).
+  2. No modal, descreve detalhadamente o que precisa ser alterado e confirma o envio.
+  3. A demanda é direcionada para o setor **Gestão Telefonia** (`gestao.telefonia@grupobrisanet.com.br` e equipe técnica) via e-mail formal contendo os dados do contrato, a justificativa e o botão com link direto para o contrato exato.
+  4. O contrato recebe a sinalização `Solicitação de Alteração Pendente` e o log de auditoria é registrado.
+- **Execução Técnica e Envio para Aprovação do Responsável:**
+  1. A equipe de Gestão Telefonia abre o contrato e realiza os ajustes técnicos no sistema.
+  2. Ao salvar, o sistema altera o status do contrato para `Em Alteração (Aguardando Aprovação)`, cria a pendência na *Central de Aprovações* vinculada ao **Responsável pelo Contrato** e dispara um e-mail para o gestor com os detalhes das mudanças e o botão **Avaliar e Aprovar Alteração Contratual**.
+  3. Todas as etapas ficam registradas na linha do tempo da *Ficha 360°* e no *Log de Alterações*.
