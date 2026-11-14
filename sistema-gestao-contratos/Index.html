@@ -1509,7 +1509,7 @@
     /* Subpastas Drive no Modal */
     .drive-folders-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 12px;
       margin-top: 14px;
     }
@@ -2547,8 +2547,9 @@
             <option value="Anexos">Anexos (Propostas, Memórias e Anexos Técnicos)</option>
             <option value="Documentação">Documentação (Certidões e Habilitação)</option>
             <option value="NF">NF (Notas Fiscais e Faturamento)</option>
+            <option value="Tickets">Tickets (Chamados, OS e Atendimentos)</option>
           </select>
-          <small style="color: var(--text-muted); font-size: 11px;">Selecione para qual das 4 pastas padronizadas do contrato os arquivos serão enviados.</small>
+          <small style="color: var(--text-muted); font-size: 11px;">Selecione para qual das 5 pastas padronizadas do contrato os arquivos serão enviados.</small>
         </div>
         <div class="file-dropzone" id="dropzoneModalContrato" onclick="document.getElementById('inputArquivoContratoModal').click()">
           <input type="file" id="inputArquivoContratoModal" style="display: none;" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.zip" onchange="manipularSelecaoArquivosModal(this.files)">
@@ -2556,7 +2557,7 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
           </svg>
           <div class="dropzone-text">Arraste e solte o arquivo do contrato aqui, ou clique para selecionar</div>
-          <div class="dropzone-hint">Formatos suportados: PDF, PNG, JPG, JPEG, DOCX, XLSX (Arquivamento direto na pasta selecionada: Contrato, Anexos, Documentação ou NF)</div>
+          <div class="dropzone-hint">Formatos suportados: PDF, PNG, JPG, JPEG, DOCX, XLSX (Arquivamento direto na pasta selecionada: Contrato, Anexos, Documentação, NF ou Tickets)</div>
         </div>
         <div class="files-list-container" id="listaArquivosModalContrato"></div>
 
@@ -5631,15 +5632,21 @@
         '<button type="button" class="btn btn-secondary" onclick="fecharFicha360()">Fechar</button>' +
         gerarBotoesAlteracaoFichaFooter();
     } else if (abaNome === 'documentos') {
+      if (c.pastaDriveId && typeof google !== 'undefined' && google.script && google.script.run) {
+        try {
+          google.script.run.garantirSubpastasContratoDriveId(c.pastaDriveId);
+        } catch (eGarantir) {}
+      }
       body.innerHTML = '<div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">' +
-        '<div><strong>Estrutura de Arquivos no Drive (4 Pastas Padronizadas)</strong></div>' +
+        '<div><strong>Estrutura de Arquivos no Drive (5 Pastas Padronizadas)</strong></div>' +
         (c.pastaDriveId ? '<a href="https://drive.google.com/drive/folders/' + c.pastaDriveId + '" target="_blank" class="btn btn-secondary" style="height:30px; font-size:11px;">Abrir Pasta no Drive</a>' : '') +
         '</div>' +
-        '<div class="drive-folders-grid" style="grid-template-columns: repeat(2, 1fr); gap: 12px;">' +
+        '<div class="drive-folders-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px;">' +
         '  <div class="drive-folder-item"><span class="drive-folder-name">Contrato</span><span class="drive-folder-desc">Minuta aprovada, instrumento contratual assinado e aditivos.</span></div>' +
         '  <div class="drive-folder-item"><span class="drive-folder-name">Anexos</span><span class="drive-folder-desc">Anexos técnicos, propostas comerciais e memórias de cálculo.</span></div>' +
         '  <div class="drive-folder-item"><span class="drive-folder-name">Documentação</span><span class="drive-folder-desc">Certidões negativas, habilitação jurídica e procurações.</span></div>' +
         '  <div class="drive-folder-item"><span class="drive-folder-name">NF</span><span class="drive-folder-desc">Notas fiscais mensais, boletos e comprovantes de faturamento.</span></div>' +
+        '  <div class="drive-folder-item"><span class="drive-folder-name">Tickets</span><span class="drive-folder-desc">Chamados técnicos, tickets abertos e evidências de atendimento.</span></div>' +
         '</div>' +
         '<div style="margin-top:20px; padding:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px;">' +
         '  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">' +
@@ -5652,6 +5659,7 @@
         '      <option value="Anexos">Pasta Destino: Anexos</option>' +
         '      <option value="Documentação">Pasta Destino: Documentação</option>' +
         '      <option value="NF">Pasta Destino: NF</option>' +
+        '      <option value="Tickets">Pasta Destino: Tickets</option>' +
         '    </select>' +
         '    <input type="file" id="modalUploadFileInput" multiple style="font-size:12px;" onchange="aoSelecionarArquivosFicha(this)">' +
         '    <button type="button" id="btnUploadModalFicha" class="btn btn-action-primary" onclick="submeterUploadModalFicha()">Fazer Upload para o Drive</button>' +

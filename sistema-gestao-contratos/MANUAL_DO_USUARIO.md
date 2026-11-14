@@ -184,7 +184,7 @@ Para contratos cujo faturamento ou pagamento ocorra apenas uma vez a cada múlti
 Ao clicar em **Abrir Ficha 360°** em qualquer contrato, o modal executivo apresenta quatro abas temáticas:
 1. **Resumo & Cadastro:** Dados cadastrais, objeto, prazos, e-mail do gestor responsável e datas formatadas.
 2. **Financeiro & Reajustes:** Desembolso, moeda, reajustes e tabela de faixas de base de clientes com indicação destacada da faixa vigente.
-3. **Documentos no Drive:** Link direto para a pasta do contrato e interface de visualização e upload direto para as 4 pastas oficiais padronizadas (`Contrato`, `Anexos`, `Documentação` e `NF`).
+3. **Documentos no Drive:** Link direto para a pasta do contrato e interface de visualização e upload direto para as 5 pastas oficiais padronizadas (`Contrato`, `Anexos`, `Documentação`, `NF` e `Tickets`).
 4. **Log de Alterações (Individual do Contrato):**
    - Exibe a cronologia completa e imutável de todas as modificações realizadas especificamente naquele contrato.
    - Detalha data e horário (DD/MM/AAAA - HH:MM:SS), e-mail do responsável, papel/alçada, ação realizada, campo afetado, valor anterior versus novo valor e justificativa operacional ou parecer de aprovação.
@@ -261,11 +261,12 @@ A pasta raiz `Contratos - Gerência Executiva de Telefonia` contém exclusivamen
 Cada fornecedor e seus respectivos contratos são organizados dentro da gerência correspondente selecionada:
 `[SETOR] / [Fornecedor] / CT-{ANO}-{ID} - {Objeto} / [Subpastas]`
 
-Cada contrato conta com **4 subpastas padronizadas**:
+Cada contrato conta com **5 subpastas padronizadas**:
 1. `Contrato`: Minuta aprovada, instrumento contratual assinado e aditivos.
 2. `Anexos`: Anexos técnicos, propostas comerciais, escopo e memórias de cálculo.
 3. `Documentação`: Certidões negativas, habilitação jurídica e procurações.
 4. `NF`: Notas fiscais mensais, boletos de cobrança e comprovantes de faturamento.
+5. `Tickets`: Chamados técnicos, tickets abertos e evidências de atendimento.
 
 No formulário de Novo Contrato e no modal de Ficha 360°, o usuário escolhe a pasta de destino de cada arquivo anexado.
 

@@ -90,7 +90,7 @@ function onOpen() {
       .addItem('Inicializar / Verificar Base Relacional', 'inicializarEstruturaRelacionalPlanilha')
       .addItem('Criar Nova Planilha Oficial Dedicada', 'criarNovaPlanilhaOficialTelefonia')
       .addItem('Configurar Pasta Raiz no Drive', 'abrirPastaAnexosDrive')
-      .addItem('Padronizar Pastas Drive (4 Pastas)', 'padronizarPastasDriveTelefonia')
+      .addItem('Padronizar Pastas Drive (5 Pastas com Tickets)', 'padronizarPastasDriveTelefonia')
       .addSeparator()
       .addItem('Verificar Vencimentos e Alertas', 'verificarVencimentosManualmente')
       .addItem('Autorizar Permissões do Sistema', 'autorizarPermissoes')
@@ -3309,8 +3309,8 @@ function obterOuCriarPastaFornecedor_(nomeFornecedor, nomeGerencia) {
  * @return {Object} Metadados da pasta e subpasta criada
  */
 /**
- * Padroniza as subpastas do contrato para conter estritamente as 4 pastas oficiais:
- * Contrato, Anexos, Documentação e NF.
+ * Padroniza as subpastas do contrato para conter estritamente as 5 pastas oficiais:
+ * Contrato, Anexos, Documentação, NF e Tickets.
  * Renomeia 01_Contrato_Principal para Contrato e remove pastas Contrato duplicadas/anteriores vazias.
  * @param {Folder} contractFolder
  */
@@ -3343,7 +3343,7 @@ function padronizarSubpastasContratoDrive_(contractFolder) {
       contratoFolder = contractFolder.createFolder('Contrato');
     }
 
-    // 3. Garantir pastas oficiais Anexos, Documentacao e NF
+    // 3. Garantir pastas oficiais Anexos, Documentacao, NF e Tickets
     var anMatches = contractFolder.getFoldersByName('Anexos');
     var anexosFolder = anMatches.hasNext() ? anMatches.next() : contractFolder.createFolder('Anexos');
 
@@ -3353,17 +3353,22 @@ function padronizarSubpastasContratoDrive_(contractFolder) {
     var nfMatches = contractFolder.getFoldersByName('NF');
     var nfFolder = nfMatches.hasNext() ? nfMatches.next() : contractFolder.createFolder('NF');
 
+    var tickMatches = contractFolder.getFoldersByName('Tickets');
+    var ticketsFolder = tickMatches.hasNext() ? tickMatches.next() : contractFolder.createFolder('Tickets');
+
     // 4. Mover arquivos de pastas nao padronizadas e descarta-las
     var allSubs = contractFolder.getFolders();
     var toTrash = [];
     while (allSubs.hasNext()) {
       var sub = allSubs.next();
       var sName = sub.getName();
-      if (sName === 'Contrato' || sName === 'Anexos' || sName === 'Documentação' || sName === 'NF') {
+      if (sName === 'Contrato' || sName === 'Anexos' || sName === 'Documentação' || sName === 'NF' || sName === 'Tickets') {
         continue;
       }
       var dest = anexosFolder;
-      if (/03_|nota|fiscal|faturam|nf/i.test(sName)) {
+      if (/ticket|chamad|ordem.*servi|os/i.test(sName)) {
+        dest = ticketsFolder;
+      } else if (/03_|nota|fiscal|faturam|nf/i.test(sName)) {
         dest = nfFolder;
       } else if (/04_|certid|habilita|doc/i.test(sName)) {
         dest = docFolder;
@@ -3387,7 +3392,26 @@ function padronizarSubpastasContratoDrive_(contractFolder) {
 }
 
 /**
- * Varre todos os setores, fornecedores e contratos no Drive padronizando para as 4 pastas oficiais.
+ * Garante a existencia das 5 subpastas padronizadas (Contrato, Anexos, Documentacao, NF e Tickets)
+ * para a pasta de um contrato especifico informada pelo seu ID do Google Drive.
+ * @param {string} pastaDriveId
+ * @return {Object}
+ */
+function garantirSubpastasContratoDriveId(pastaDriveId) {
+  try {
+    if (!pastaDriveId) throw new Error('ID da pasta nao informado.');
+    var folder = DriveApp.getFolderById(pastaDriveId);
+    padronizarSubpastasContratoDrive_(folder);
+    return { success: true };
+  } catch (e) {
+    Logger.log('Aviso ao garantir subpastas por ID de pasta: ' + e.message);
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Varre todos os setores, fornecedores e contratos no Drive padronizando para as 5 pastas oficiais
+ * (Contrato, Anexos, Documentacao, NF e Tickets).
  * @return {Object}
  */
 function padronizarPastasDriveTelefonia() {
@@ -3407,7 +3431,7 @@ function padronizarPastasDriveTelefonia() {
       }
     }
   }
-  return { success: true, totalContratosPadronizados: count, message: count + ' pastas de contratos padronizadas com sucesso.' };
+  return { success: true, totalContratosPadronizados: count, message: count + ' pastas de contratos padronizadas com sucesso (5 pastas oficiais incluindo Tickets).' };
 }
 
 function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nomeGerencia) {
@@ -3428,14 +3452,15 @@ function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nome
     contractFolder = supplierFolder.createFolder(folderContractName);
   }
 
-  // Padronizacao estrita das 4 pastas
+  // Padronizacao estrita das 5 pastas
   padronizarSubpastasContratoDrive_(contractFolder);
 
   var standardSubfolders = [
     'Contrato',
     'Anexos',
     'Documentação',
-    'NF'
+    'NF',
+    'Tickets'
   ];
 
   var subfoldersMap = {};
@@ -3463,6 +3488,7 @@ function obterOuCriarEstruturaContrato_(nomeFornecedor, idContrato, objeto, nome
     supplierFolderUrl: supplierFolder.getUrl(),
     subfolders: subfoldersMap
   };
+}
 }
 
 /**
@@ -3565,7 +3591,7 @@ function resolverInfoContratoPorPastaDrive_(idPastaContrato, optIdContrato) {
 /**
  * Realiza upload de multiplos arquivos para a subpasta indicada no Drive de um contrato.
  * @param {string} idPastaContrato ID da pasta raiz do contrato no Drive
- * @param {string} nomeSubpasta Subpasta de destino (Contrato, Anexos, Documentacao, NF)
+ * @param {string} nomeSubpasta Subpasta de destino (Contrato, Anexos, Documentacao, NF, Tickets)
  * @param {Array<{nome: string, base64: string, mimeType: string}>} listaArquivos
  * @param {string|number} [optIdContrato] ID oficial do contrato vinculado
  * @return {Object}
@@ -3580,6 +3606,7 @@ function uploadMultiplosArquivosContrato(idPastaContrato, nomeSubpasta, listaArq
     var contextoContrato = contratoInfo ? (' (' + contratoInfo.fornecedor + ' - ' + contratoInfo.protocolo + ')') : '';
 
     var contractFolder = DriveApp.getFolderById(idPastaContrato);
+    padronizarSubpastasContratoDrive_(contractFolder);
     var targetFolder = contractFolder;
 
     if (nomeSubpasta) {
@@ -6773,7 +6800,7 @@ function salvarNovoContratoTelefonia(dados) {
       normalizarNumero_(dados.valorParcelaPlurianual || (valorBase / (parseInt(dados.qtdParcelasPlurianual, 10) || 1)))
     ]);
 
-    // Fazer upload dos arquivos anexados na subpasta selecionada (Contrato, Anexos, Documentacao, NF)
+    // Fazer upload dos arquivos anexados na subpasta selecionada (Contrato, Anexos, Documentacao, NF, Tickets)
     var arquivosSalvos = [];
     if (dados.arquivos && dados.arquivos.length > 0 && driveStructure.contractFolderId) {
       var contractFolder = DriveApp.getFolderById(driveStructure.contractFolderId);
