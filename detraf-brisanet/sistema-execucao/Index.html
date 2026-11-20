@@ -455,7 +455,7 @@
         if (!r.ok) { $('estadoAprovacao').textContent = r.erro; atualizarAprovacao(); return; }
         $('resultado').hidden = true; $('sucesso').hidden = false; fila = []; desenharFila(); ultimoResultado = null;
         $('sucessoTexto').textContent = 'Lote ' + r.lote + ' gravado: ' + r.lancamentos + ' lançamento(s), ' + r.linhasDetalhe + ' linha(s) no detalhe mensal, total ' + brl(r.total) +
-          '. Controle: ' + (r.controle || []).join(' | ') + ' Guarde o número do lote para um eventual estorno.';
+          '. Controle: ' + (r.controle || []).join(' | ') + ' Devedor: ' + (r.devedor || []).join(' | ') + ' Guarde o número do lote para um eventual estorno.';
       })
       .withFailureHandler(function (e) { $('estadoAprovacao').textContent = 'Falha ao gravar: ' + e.message; atualizarAprovacao(); })
       .api_aprovar({ arquivos: fila, aceites: aceites, periodoEsperado: $('periodo').value.trim() });

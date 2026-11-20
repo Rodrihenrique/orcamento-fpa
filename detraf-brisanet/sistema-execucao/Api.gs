@@ -40,7 +40,23 @@ function Api_analisar(payload) {
   var contexto = Persist_contextoValidacao(periodo);
   contexto.periodoEsperado = payload.periodoEsperado || '';
   var validacao = Validacao_executar(leituras, agrupado, contexto);
-  return { uploads: uploads, leituras: leituras, agrupado: agrupado, validacao: validacao, periodo: periodo };
+
+  // Destinos originais: simula a gravação no Controle (sem gravar) e confere acesso ao Devedor.
+  var plano = null;
+  if (agrupado.grupos.length) {
+    try { plano = Controle_planejar(agrupado.grupos, contexto.ativos); }
+    catch (e) { validacao.erros.push({ codigo: 'CONTROLE_ILEGIVEL', detalhe: null, mensagem: 'Não consegui ler o Controle: ' + e.message }); }
+    if (plano) {
+      plano.erros.forEach(function (x) { validacao.erros.push(x); });
+      plano.avisos.forEach(function (x) { validacao.avisos.push(x); });
+    }
+    if (agrupado.grupos.some(function (g) { return g.direcao === 'RECEBIMENTO'; })) {
+      var falhaDevedor = Devedor_verificar();
+      if (falhaDevedor) validacao.erros.push({ codigo: 'DEVEDOR_INACESSIVEL', detalhe: null, mensagem: falhaDevedor });
+    }
+    validacao.podeAprovar = validacao.erros.length === 0;
+  }
+  return { uploads: uploads, leituras: leituras, agrupado: agrupado, validacao: validacao, periodo: periodo, plano: plano };
 }
 
 /** Linha de EOT para a tela (valor em reais). */
@@ -115,13 +131,18 @@ function api_aprovar(payload) {
     // Ordem: Lancamentos (versão) → detalhe → Controle → originais. Cada etapa é lote.
     var lanc = Persist_gravarLote(loteId, r.agrupado.grupos, hashes, nomes, parserId, email);
     var nDet = Persist_gravarDetalhe(r.periodo, r.agrupado.grupos, loteId, lanc.versaoPorChave, lanc.loteAnteriorPorChave);
-    var logsControle = Persist_atualizarControle(r.agrupado.grupos);
+    var logsControle, logsDevedor;
+    try { logsControle = Controle_aplicar(r.plano); } catch (e) { logsControle = ['Controle NÃO atualizado: ' + e.message + ' (lançamentos já gravados; corrija e use o estorno do lote se precisar refazer).']; }
+    try {
+      var itensNovos = r.agrupado.grupos.map(function (g) { return { chave: g.chave, periodo: g.periodo, tipoBrisa: g.tipoBrisa, tipoParceiro: g.tipoParceiro, holding: g.holding, direcao: g.direcao }; });
+      logsDevedor = Devedor_republicar(itensNovos);
+    } catch (e) { logsDevedor = ['Devedor NÃO atualizado: ' + e.message]; }
     r.uploads.forEach(function (u) { Persist_guardarOriginal(r.periodo, u); });
 
     Log_registrar('APROVAR', loteId, nomes, hashes, 'GRAVADO',
       lanc.n + ' lançamento(s), ' + nDet + ' linha(s) de detalhe, total ' + Modelo_centavosParaReais(somaGrupos).toFixed(2));
     return { ok: true, lote: loteId, lancamentos: lanc.n, linhasDetalhe: nDet, total: Modelo_centavosParaReais(somaGrupos),
-             controle: logsControle.map(function (x) { return x.log; }) };
+             controle: logsControle, devedor: logsDevedor };
   } catch (e) {
     Log_registrar('APROVAR', '', [], [], 'ERRO', e.message);
     return { ok: false, erro: e.message };
@@ -140,8 +161,8 @@ function api_estornar(loteId, motivo) {
     temLock = true;
     var res = Persist_estornarLote(String(loteId).trim(), String(motivo).trim());
     Log_registrar('ESTORNAR', loteId, [], [], res.n ? 'ESTORNADO' : 'NADA_A_ESTORNAR',
-      res.n ? res.n + ' lançamento(s); ' + res.controle.join(' ') : String(motivo));
-    return res.n ? { ok: true, estornados: res.n, linhasDetalhe: res.linhasDetalhe, controle: res.controle }
+      res.n ? res.n + ' lançamento(s); ' + res.controle.concat(res.devedor || []).join(' ') : String(motivo));
+    return res.n ? { ok: true, estornados: res.n, linhasDetalhe: res.linhasDetalhe, controle: res.controle, devedor: res.devedor }
                  : { ok: false, erro: 'Nenhum lançamento ATIVO no lote ' + loteId + '.' };
   } catch (e) {
     return { ok: false, erro: e.message };
