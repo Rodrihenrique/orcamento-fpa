@@ -4,9 +4,10 @@
 //
 // Destinos:
 //  1) Controle › Lancamentos  : histórico versionado (ATIVO / SUBSTITUIDO / ESTORNADO)
-//  2) Controle › Controle     : valor consolidado por período+tipo+operadora (colunas I/J)
-//  3) Detalhe mensal › AAAAMM : linhas do arquivo (tabela única, com bloco/lote/versão/status)
-//  4) Drive › Originais/AAAAMM: arquivo original intacto
+//  2) Controle (original) › "Controle - DETRAF E DEROAM": colunas I/J das linhas já existentes (Controle.gs)
+//  3) Sistema › AAAAMM        : registro completo das linhas (bloco/lote/versão/status) — fonte da verdade
+//  4) DETRAF Devedor (original) › AAAAMM: projeção das versões vigentes no modelo da planilha (Devedor.gs)
+//  5) Drive › Originais/AAAAMM: arquivo original intacto
 // Nunca apagamos linha. Gravação sempre em lote (setValues por faixa).
 // ==============================================================================
 
@@ -24,11 +25,17 @@ var DET_LOTE_LINHAS = 5000;                                      // linhas por e
 
 var MESES_PT = ['JANEIRO', 'FEVEREIRO', 'MARÇO', 'ABRIL', 'MAIO', 'JUNHO', 'JULHO', 'AGOSTO', 'SETEMBRO', 'OUTUBRO', 'NOVEMBRO', 'DEZEMBRO'];
 
+/** Planilha ORIGINAL de Controle (só a aba de controle é tocada; nunca criamos abas nela). */
 function Persist_controle() { return SpreadsheetApp.openById(Config_obter('ID_PLANILHA_CONTROLE')); }
-function Persist_detalhe() { return SpreadsheetApp.openById(Config_obter('ID_PLANILHA_DETALHE')); }
+/** Planilha do sistema: abas Lancamentos, Log e AAAAMM. Sem ID próprio, usa a do detalhe. */
+function Persist_sistema() { return SpreadsheetApp.openById(Config_obter('ID_PLANILHA_SISTEMA') || Config_obter('ID_PLANILHA_DETALHE')); }
+function Persist_detalhe() { return Persist_sistema(); }
+
+/** Nome do mês em português ('202610' → 'OUTUBRO'). */
+function Persist_nomeMes(aaaamm) { return MESES_PT[parseInt(String(aaaamm).substring(4, 6), 10) - 1] || ''; }
 
 function Persist_aba(nome, cabecalho) {
-  var ss = Persist_controle();
+  var ss = Persist_sistema();
   var aba = ss.getSheetByName(nome);
   if (!aba) {
     aba = ss.insertSheet(nome);
@@ -50,11 +57,17 @@ function Persist_lerLancamentos() {
   return { aba: aba, dados: aba.getLastRow() > 1 ? aba.getRange(2, 1, aba.getLastRow() - 1, LANC_CAB.length).getValues() : [] };
 }
 
+/** Linha de Lancamentos → item enxuto usado por Controle.gs e Devedor.gs (valor em reais). */
+function Persist_itemAtivo(r) {
+  return { chave: r[LANC_COL.chave], lote: r[LANC_COL.lote], periodo: String(r[LANC_COL.periodo]), tipoBrisa: r[LANC_COL.tipo_brisanet],
+    tipoParceiro: r[LANC_COL.tipo_parceiro], holding: r[LANC_COL.holding], direcao: r[LANC_COL.direcao], valor: Number(r[LANC_COL.valor]) };
+}
+
 /** Lê Lancamentos uma vez e monta o contexto da validação. */
 function Persist_contextoValidacao(periodo) {
   var dados = Persist_lerLancamentos().dados;
   var ctx = {
-    periodoEsperado: '', hashesAprovados: {}, ativosPorChave: {}, anteriorPorSerie: {},
+    periodoEsperado: '', hashesAprovados: {}, ativosPorChave: {}, anteriorPorSerie: {}, ativos: [],
     limiteVariacaoPct: Config_obter('LIMITE_VARIACAO_PCT'),
     toleranciaTotalCentavos: Config_obter('TOLERANCIA_TOTAL_CENTAVOS')
   };
@@ -63,6 +76,7 @@ function Persist_contextoValidacao(periodo) {
     if (r[LANC_COL.status] !== 'ATIVO') return;
     var centavos = Math.round(Number(r[LANC_COL.valor]) * 100);
     ctx.ativosPorChave[r[LANC_COL.chave]] = { valorCentavos: centavos, hash: r[LANC_COL.hash_arquivos], lote: r[LANC_COL.lote] };
+    ctx.ativos.push(Persist_itemAtivo(r));
     String(r[LANC_COL.hash_arquivos]).split(',').forEach(function (h) {
       if (h) ctx.hashesAprovados[h] = { lote: r[LANC_COL.lote], data: Utilities.formatDate(new Date(r[LANC_COL.data]), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm') };
     });
@@ -127,73 +141,6 @@ function Persist_gravarLote(loteId, grupos, hashes, nomesArquivos, parserId, usu
   return { n: novas.length, versaoPorChave: novaVersao, loteAnteriorPorChave: loteAnteriorPorChave };
 }
 
-// ---- Controle (valor consolidado) ---------------------------------------------
-// Colunas do Controle: A owner, B tipo brisanet, C operadora, D tipo relacionada,
-// G período, H mês, I detraf brisanet (EMISSAO), J detraf relacionada (RECEBIMENTO, negativo).
-// Colunas E, Q, S e T têm fórmula: nunca são escritas. Escrevemos só A:D e G:J,
-// preservando fórmulas digitadas pelo usuário em I/J (getFormulas).
-
-function Persist_nomeMes(aaaamm) { return MESES_PT[parseInt(String(aaaamm).substring(4, 6), 10) - 1] || ''; }
-
-/** Atualiza (ou cria) a linha de cada grupo. Devolve um log por grupo. */
-function Persist_atualizarControle(grupos) {
-  var aba = Persist_controle().getSheetByName(Config_obter('ABA_CONTROLE'));
-  if (!aba) throw new Error("Aba '" + Config_obter('ABA_CONTROLE') + "' não existe na planilha Controle.");
-  var PRIM = 3, ULT = aba.getMaxRows();
-  var n = ULT - PRIM + 1;
-  var rAD = aba.getRange(PRIM, 1, n, 4), rGJ = aba.getRange(PRIM, 7, n, 4);
-  var AD = rAD.getValues(), GJ = rGJ.getValues(), GJf = rGJ.getFormulas();
-  var logs = [];
-
-  grupos.forEach(function (g) {
-    var op = Calculo_nomeOperadora(g.holding), idx = -1;
-    for (var i = 0; i < n; i++) {
-      var tb = String(AD[i][1]).trim().toUpperCase(), o = String(AD[i][2]).trim().toUpperCase(), tr = String(AD[i][3]).trim().toUpperCase();
-      if (String(GJ[i][0]).trim() === g.periodo && tb === g.tipoBrisa && o === op &&
-          (tr === g.tipoParceiro || tr.indexOf(g.tipoParceiro) !== -1 || g.tipoParceiro.indexOf(tr) !== -1)) { idx = i; break; }
-    }
-    var criou = false;
-    if (idx === -1) {
-      for (var j = 0; j < n; j++) if (String(AD[j][2]).trim() === '') { idx = j; break; }
-      if (idx === -1) { logs.push({ chave: g.chave, ok: false, log: 'Controle cheio: sem linha livre para ' + g.chave }); return; }
-      AD[idx] = ['BRISANET', g.tipoBrisa, op, g.tipoParceiro];
-      GJ[idx][0] = Number(g.periodo); GJ[idx][1] = Persist_nomeMes(g.periodo);
-      GJf[idx] = ['', '', '', '']; GJ[idx][2] = 0; GJ[idx][3] = 0; criou = true;
-    }
-    var valor = Modelo_centavosParaReais(g.totalCentavos);
-    if (g.direcao === 'EMISSAO') { GJ[idx][2] = Math.abs(valor); GJf[idx][2] = ''; }
-    else { GJ[idx][3] = -Math.abs(valor); GJf[idx][3] = ''; }
-    logs.push({ chave: g.chave, ok: true, linha: PRIM + idx,
-      log: (criou ? 'Linha criada' : 'Linha atualizada') + ' (' + (PRIM + idx) + '): coluna ' + (g.direcao === 'EMISSAO' ? 'I' : 'J') + ' = ' + valor.toFixed(2) });
-  });
-
-  // Escrita em lote: fórmula do usuário (quando preservada) ou valor.
-  var saidaGJ = GJ.map(function (linha, i) { return linha.map(function (v, k) { return GJf[i][k] ? GJf[i][k] : v; }); });
-  rAD.setValues(AD); rGJ.setValues(saidaGJ);
-  return logs;
-}
-
-/** Desfaz no Controle o valor de um lote estornado, só se a célula ainda tiver aquele valor. */
-function Persist_desfazerControle(linhasLote) {
-  var aba = Persist_controle().getSheetByName(Config_obter('ABA_CONTROLE'));
-  var out = [];
-  linhasLote.forEach(function (r) {
-    var op = Calculo_nomeOperadora(r[LANC_COL.holding]), col = r[LANC_COL.direcao] === 'EMISSAO' ? 9 : 10;
-    var PRIM = 3, n = aba.getMaxRows() - PRIM + 1;
-    var AD = aba.getRange(PRIM, 1, n, 4).getValues(), G = aba.getRange(PRIM, 7, n, 1).getValues();
-    for (var i = 0; i < n; i++) {
-      if (String(G[i][0]).trim() === String(r[LANC_COL.periodo]) && String(AD[i][1]).toUpperCase() === r[LANC_COL.tipo_brisanet] &&
-          String(AD[i][2]).toUpperCase() === op) {
-        var cel = aba.getRange(PRIM + i, col), esperado = (col === 10 ? -1 : 1) * Number(r[LANC_COL.valor]);
-        if (Math.abs(Number(cel.getValue()) - esperado) < 0.005) { cel.setValue(0); out.push('Linha ' + (PRIM + i) + ' zerada.'); }
-        else out.push('Linha ' + (PRIM + i) + ' mudou depois da carga: não alterada.');
-        return;
-      }
-    }
-  });
-  return out;
-}
-
 // ---- Detalhe mensal -----------------------------------------------------------
 
 /** Aba AAAAMM; criada copiando o Modelo (mantém formatação e cabeçalho). */
@@ -201,11 +148,15 @@ function Persist_abaDetalhe(periodo) {
   var ss = Persist_detalhe(), aba = ss.getSheetByName(periodo);
   if (aba) return aba;
   var modelo = ss.getSheetByName(Config_obter('ABA_MODELO_DETALHE'));
-  if (!modelo) throw new Error("Aba '" + Config_obter('ABA_MODELO_DETALHE') + "' não existe no Detalhe mensal.");
-  aba = modelo.copyTo(ss).setName(periodo);
-  aba.getRange(2, 1, Math.max(aba.getMaxRows() - 1, 1), DET_CAB.length).clearContent();
-  aba.setTabColor('#FF5022');
-  ss.setActiveSheet(aba); ss.moveActiveSheet(ss.getNumSheets());
+  if (modelo) {
+    aba = modelo.copyTo(ss).setName(periodo);
+    aba.getRange(2, 1, Math.max(aba.getMaxRows() - 1, 1), DET_CAB.length).clearContent();
+    ss.setActiveSheet(aba); ss.moveActiveSheet(ss.getNumSheets());
+  } else {   // sem aba Modelo: cria em branco com o cabeçalho padrão
+    aba = ss.insertSheet(periodo);
+    aba.getRange(1, 1, 1, DET_CAB.length).setValues([DET_CAB]).setFontWeight('bold');
+    aba.setFrozenRows(1);
+  }
   return aba;
 }
 
@@ -259,9 +210,10 @@ function Persist_estornarDetalhe(periodo, loteId) {
   return n;
 }
 
-/** Estorna um lote: Lancamentos + detalhe + Controle. Não apaga nada. Devolve resumo. */
+/** Estorna um lote: Lancamentos + detalhe + Controle + Devedor. Não apaga histórico. Devolve resumo. */
 function Persist_estornarLote(loteId, motivo) {
   var l = Persist_lerLancamentos(), dados = l.dados, afetadas = [];
+  var antes = dados.filter(function (r) { return r[LANC_COL.status] === 'ATIVO'; }).map(Persist_itemAtivo);
   dados.forEach(function (r) {
     if (r[LANC_COL.lote] === loteId && r[LANC_COL.status] === 'ATIVO') {
       r[LANC_COL.status] = 'ESTORNADO'; r[LANC_COL.obs] = motivo; afetadas.push(r.slice());
@@ -272,8 +224,11 @@ function Persist_estornarLote(loteId, motivo) {
   var periodos = {}; afetadas.forEach(function (r) { periodos[String(r[LANC_COL.periodo])] = true; });
   var linhasDetalhe = 0;
   Object.keys(periodos).forEach(function (p) { linhasDetalhe += Persist_estornarDetalhe(p, loteId); });
-  var controle = Persist_desfazerControle(afetadas);
-  return { n: afetadas.length, linhasDetalhe: linhasDetalhe, controle: controle };
+  var depois = dados.filter(function (r) { return r[LANC_COL.status] === 'ATIVO'; }).map(Persist_itemAtivo);
+  var itens = afetadas.map(Persist_itemAtivo), controle, devedor;
+  try { controle = Controle_desfazer(itens, antes, depois); } catch (e) { controle = ['Controle não ajustado: ' + e.message]; }
+  try { devedor = Devedor_republicar(itens); } catch (e) { devedor = ['Devedor não ajustado: ' + e.message]; }
+  return { n: afetadas.length, linhasDetalhe: linhasDetalhe, controle: controle, devedor: devedor };
 }
 
 // ---- Mapa EOT (Anexo 5) -------------------------------------------------------
@@ -282,9 +237,12 @@ function Eot_carregarMapa() {
   var cache = CacheService.getScriptCache();
   var salvo = cache.get('MAPA_EOT');
   if (salvo) return JSON.parse(salvo);
-  var aba = SpreadsheetApp.openById(Config_obter('ID_PLANILHA_EOT')).getSheets()[0];
+  var ss = SpreadsheetApp.openById(Config_obter('ID_PLANILHA_EOT')), aba = null;
+  var gid = Config_obter('GID_ABA_EOT');           // opcional: aba específica (gid do link da planilha)
+  if (gid) ss.getSheets().forEach(function (s) { if (String(s.getSheetId()) === String(gid)) aba = s; });
+  if (!aba) aba = ss.getSheets()[0];
   var dados = aba.getDataRange().getValues();
-  var mapa = {};
+  var mapa = {}, n = 0;
   for (var i = 1; i < dados.length; i++) {
     var eot = Modelo_normalizarEot(dados[i][0]);
     if (!eot) continue;
@@ -292,7 +250,10 @@ function Eot_carregarMapa() {
     var area = String(dados[i][6]).trim().toUpperCase();
     if (!uf || uf === '-') uf = area.indexOf('NACIONAL') !== -1 ? 'NACIONAL/INTERNACIONAL' : area;
     mapa[eot] = { operadora: Calculo_operadoraDoMapa(dados[i][1]), uf: uf, tipo: String(dados[i][4]).trim().toUpperCase(), mapeada: true };
+    n++;
   }
+  // Guarda de layout: o Anexo 5 tem milhares de EOTs; poucas significa aba/colunas erradas.
+  if (n < 50) throw new Error("Anexo 5: só " + n + " EOT(s) lidas na aba '" + aba.getName() + "'. Confira GID_ABA_EOT e as colunas (A=EOT, B=operadora, E=tipo, G=área, M=UF).");
   try { cache.put('MAPA_EOT', JSON.stringify(mapa), 3600); } catch (e) { /* mapa grande demais para o cache: segue sem */ }
   return mapa;
 }
