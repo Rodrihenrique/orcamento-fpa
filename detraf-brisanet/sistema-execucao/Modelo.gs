@@ -31,6 +31,22 @@ function Modelo_centavosParaReais(c) {
   return Math.round(c) / 100;
 }
 
+/** Número vindo de texto BR ("1.234,5", "0000000009,15") ou de célula numérica. NaN se inválido. */
+function Modelo_numeroBR(valor) {
+  if (typeof valor === 'number') return valor;
+  var s = String(valor === null || valor === undefined ? '' : valor).replace(/['"\s]/g, '');
+  if (s === '') return 0;
+  if (s.indexOf('.') !== -1 && s.indexOf(',') !== -1) s = s.replace(/\./g, '');
+  return parseFloat(s.replace(',', '.'));
+}
+
+/** Número → texto com vírgula decimal e N casas (padrão das 16 colunas). */
+function Modelo_numeroParaBR(n, casas) {
+  var x = Number(n);
+  if (isNaN(x)) return '';
+  return x.toFixed(casas).replace('.', ',');
+}
+
 function Modelo_normalizarEot(eot) {
   var s = String(eot === null || eot === undefined ? '' : eot).trim().toUpperCase();
   if (/^\d+$/.test(s)) while (s.length < 3) s = '0' + s;

@@ -3,7 +3,7 @@
 // Os dados abaixo são sintéticos; layout das colunas segue o Auditor (0,1,2,5,7,8,9,14).
 const fs = require('fs'), vm = require('vm'), path = require('path'), assert = require('assert');
 const ctx = vm.createContext({ console });
-['Modelo.gs', 'Parsers.gs', 'Calculo.gs', 'Validacao.gs'].forEach(f =>
+['Modelo.gs', 'CtTotal.gs', 'Parsers.gs', 'Calculo.gs', 'Validacao.gs'].forEach(f =>
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), ctx, { filename: f }));
 const run = code => vm.runInContext(code, ctx);
 
@@ -115,6 +115,77 @@ t('parser: formato não reconhecido não derruba (erro isolado)', () => {
   const r = run('Parsers_ler(arq4)');
   assert.strictEqual(r.ok, false);
   assert.ok(/não reconhecido/.test(r.erro));
+});
+
+// ---- formatos reais (layouts vistos em out/2026, dados sintéticos) ----------------
+t('CT: texto de PDF e RTF → centavos', () => {
+  ctx.ct1 = 'Estamos encaminhando ... com a BRISANET SMP, no valor de R$ 2.238,30 (dois mil duzentos)';
+  assert.strictEqual(run('CtTotal_extrairDeTexto(ct1)'), 223830);
+  ctx.rtf = '{\\rtf1 Estamos encaminhando, no valor de R$ 1.480,45 (um mil quatrocentos e oitenta)\\par }';
+  assert.strictEqual(run('CtTotal_extrairDeRtf(rtf)'), 148045);
+  assert.strictEqual(run('CtTotal_extrairDeTexto("sem valor")'), null);
+});
+
+t('CSV Vivo (21 colunas, cabeçalho, linha 01 = total) → total declarado do próprio arquivo', () => {
+  const cab = 'Credora;Devedora;Referencia;Trafego;POI;Rel;DESC;GH;Chamadas;Minutos;Tarifa;R$_Liq;PIS_Cofins;ICMS;R$_Bruto;CN;CBS;IBS_M;IBS_E;EOT_Ponta;Corredor';
+  const d = (b) => ['454', 'J71', '202610', '202608', 'BRI012I', '00', 'LENV', 'N', '000000000569', '000000000588,6', '0,01499', '0', '0', '0', b, '84', '', '', '', '', ''].join(';');
+  const tot = 'VIVO;BRISANET;202610;;;01;;;000000000569;000000000588,6;;0;0;0;0000000000018,00;;;;;;';
+  ctx.v = { nome: 'VIVO.csv', texto: [cab, d('0000000000009,15'), d('0000000000008,85'), tot].join('\n'), hash: 'v' };
+  const r = run('Parsers_ler(v)');
+  assert.strictEqual(r.registros.length, 2);
+  assert.strictEqual(r.totalDeclaradoCentavos, 1800);
+  assert.strictEqual(r.fonteTotal, 'arquivo');
+  assert.strictEqual(r.registros.reduce((s, x) => s + x.valorCentavos, 0), 1800);
+});
+
+t('CSV SURF: subtotais por EOT + linha final sem EOT → usa a final', () => {
+  const l = ['A47;J72;202610;202610;SMS;00; LENS;N;155;0,0;0,05000;7,75000;0,00000;0,00000;7,75000',
+    'A47;;;;;01;;;155;0,0;;7,75000;0,00000;0,00000;7,75000', 'A58;;;;;01;;;167;0,0;;8,35000;0,00000;0,00000;8,35000',
+    ';;;;;01;;;322;0,0;;16,10000;0,00000;0,00000;16,10000'];
+  ctx.s = { nome: 'RELAM_SMS_SURF.csv', texto: l.join('\n'), hash: 's' };
+  const r = run('Parsers_ler(s)');
+  assert.strictEqual(r.totalDeclaradoCentavos, 1610);
+  assert.strictEqual(r.registros[0].tipoServico, 'SMS');
+});
+
+t('CSV OI sem cabeçalho: primeira linha não se perde; total vem da carta CT', () => {
+  ctx.o = { nome: 'OI.csv', texto: '084;J71;202609;202609;RNTIE46B;0;LENC;R;1108;2602,4;0,00211;5,49;0,21;0;5,7;84;\n085;J72;202609;202609;CETII494;0;LENP;N;36;235,4;0,01577;0,57;0,02;0;0,59;80;',
+    hash: 'o', totalDeclaradoCentavos: 629, fonteTotal: 'carta CT (rtf)' };
+  const r = run('Parsers_ler(o)');
+  assert.strictEqual(r.registros.length, 2);
+  assert.strictEqual(r.registros[0].valorCentavos, 570);
+  assert.strictEqual(r.totalDeclaradoCentavos, 629);
+  assert.strictEqual(r.fonteTotal, 'carta CT (rtf)');
+});
+
+t('XLS Claro (aba DETRAF + RESUMO › Total Geral) → mesmo modelo padrão', () => {
+  const cab = ['EOT Credora', 'EOT Devedora', 'Período de Referência', 'Período de Tráfego', 'Ponto de Interconexão', 'Tipo Relatório', 'Descritor de CDR', 'Grupo Horário', 'Chamadas', 'Duração em Minutos', 'Tarifa Aplicável', 'Valor Líquido', 'Valor COFINS e PIS', 'Valor ICMS', 'Valor Bruto'];
+  const l1 = ['001', 'J71', '202610', '202609', 'HRCB7024', '00', 'LENI', 'D', 3453, 4194.2, 0.00715, 29.99, 1.43, 7.86, 39.28];
+  const l2 = ['001', 'J71', '202610', '202609', 'HRCB7024', '00', 'LENI', 'SR', 132, 121.7, 0.00715, 0.87, 0.04, 0.23, 1.14];
+  ctx.x = { nome: 'DETRAF CLARO STFC LD X BRISANET SMP 202610.xls', hash: 'x', planilha: { abas: {
+    RESUMO: [[], ['Valores'], ['EOT Credora', 'EOT Devedora', 'Soma de Chamadas', 'Soma de Duração', 'Soma de Valor Bruto'], ['001', 'J71', 3585, 4315.9, 40.42], ['Total Geral', '', 3585, 4315.9, 40.42]],
+    DETRAF: [cab, l1, l2] } } };
+  const r = run('Parsers_ler(x)');
+  assert.strictEqual(r.parserId, 'detraf-planilha');
+  assert.strictEqual(r.registros.length, 2);
+  assert.strictEqual(r.registros[1].grupoHorario, 'S');          // SR → S
+  assert.strictEqual(r.registros[0].colunas.length, 16);
+  assert.strictEqual(r.totalDeclaradoCentavos, 4042);
+  assert.strictEqual(r.registros.reduce((s, x) => s + x.valorCentavos, 0), 4042);
+});
+
+t('título de bloco: credora primeiro', () => {
+  ctx.gg = { direcao: 'RECEBIMENTO', tipoBrisa: 'STFC', tipoParceiro: 'STFC', holding: 'TIM_SA' };
+  assert.strictEqual(run('Calculo_tituloBloco(gg)'), 'TIM STFC - brisanet STFC');
+  ctx.gg = { direcao: 'EMISSAO', tipoBrisa: 'SMP', tipoParceiro: 'SMS', holding: 'TELEFONICA_MOVEL' };
+  assert.strictEqual(run('Calculo_tituloBloco(gg)'), 'brisanet SMP - VIVO SMS');
+});
+
+t('entrada com erro vira erro do arquivo, não derruba os demais', () => {
+  ctx.e = { nome: 'x.zip', hash: 'e', erroEntrada: 'ZIP sem CSV de bilhetagem.' };
+  const r = run('Parsers_ler(e)');
+  assert.strictEqual(r.ok, false);
+  assert.ok(/ZIP sem CSV/.test(r.erro));
 });
 
 console.log('\n' + ok + ' testes passaram');

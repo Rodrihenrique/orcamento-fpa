@@ -49,7 +49,7 @@ function Validacao_executar(leituras, agrupado, contexto) {
   });
   var semTotal = leituras.filter(function (l) { return l.ok && (l.totalDeclaradoCentavos === null || l.totalDeclaradoCentavos === undefined); });
   if (semTotal.length) A('SEM_TOTAL_DECLARADO', 'Não foi possível conferir o total contra o arquivo: ' +
-    semTotal.map(function (l) { return l.arquivo; }).join(', ') + ' (o parser ainda não lê o total declarado).');
+    semTotal.map(function (l) { return l.arquivo; }).join(', ') + ' (o arquivo não traz total e a carta CT não foi lida).');
 
   // 4) linhas rejeitadas — nunca somem em silêncio
   var rej = 0; leituras.forEach(function (l) { rej += (l.rejeitadas || []).length; });

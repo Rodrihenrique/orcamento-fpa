@@ -52,6 +52,20 @@ function Calculo_holding(operadora, tipoParceiro) {
   return op;
 }
 
+/** Nome curto da operadora como aparece na planilha Controle (coluna C). */
+function Calculo_nomeOperadora(holding) {
+  return String(holding || '').replace('_FIXA', '').replace('_MOVEL', '').replace('_SA', '')
+    .replace('TELEFONICA', 'VIVO').replace('SURF_TELECOM', 'SURF').trim();
+}
+
+/** Título do bloco no detalhe mensal: credora primeiro (EMISSAO = brisanet credora). */
+function Calculo_tituloBloco(g) {
+  var op = Calculo_nomeOperadora(g.holding);
+  return g.direcao === 'EMISSAO'
+    ? 'brisanet ' + g.tipoBrisa + ' - ' + op + ' ' + g.tipoParceiro
+    : op + ' ' + g.tipoParceiro + ' - brisanet ' + g.tipoBrisa;
+}
+
 /**
  * Agrupa registros em projeções. Cada grupo tem chave única:
  *   AAAAMM|tipoBrisa|tipoParceiro|holding|direcao
