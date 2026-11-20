@@ -5,6 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Execução DETRAF</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;800&display=swap" rel="stylesheet">
 <style>
@@ -80,8 +83,8 @@
 
   <div id="drop" tabindex="0" role="button" aria-label="Escolher arquivos">
     <strong>Escolha os arquivos</strong> ou arraste aqui
-    <div style="font-size:13px;margin-top:4px">Por enquanto: CSV de bilhetagem. Um período por vez.</div>
-    <input id="arquivo" type="file" multiple accept=".csv" hidden>
+    <div style="font-size:13px;margin-top:4px">CSV, ZIP (com a carta da operadora), XLS e XLSX. Um período por vez.</div>
+    <input id="arquivo" type="file" multiple accept=".csv,.zip,.xls,.xlsx" hidden>
   </div>
   <ul id="fila"></ul>
 
@@ -95,7 +98,7 @@
     <h2>Resumo do lote</h2>
     <div class="total"><span class="valor" id="totalGeral"></span><span id="infoPeriodo"></span></div>
     <table>
-      <thead><tr><th>Tipo brisanet</th><th>Tipo parceiro</th><th>Operadora</th><th>Direção</th><th class="num">Linhas</th><th class="num">Minutos</th><th class="num">Valor (R$)</th></tr></thead>
+      <thead><tr><th>Bloco no detalhe</th><th>Tipo parceiro</th><th>Operadora</th><th>Direção</th><th class="num">Linhas</th><th class="num">Minutos</th><th class="num">Valor (R$)</th></tr></thead>
       <tbody id="grupos"></tbody>
     </table>
 
@@ -147,16 +150,61 @@
   $('drop').addEventListener('drop', function (e) { adicionar(e.dataTransfer.files); });
   $('arquivo').addEventListener('change', function (e) { adicionar(e.target.files); e.target.value = ''; });
 
+  // ---- leitura no navegador (só o que o servidor não consegue) -------------------
+  // XLS/XLSX: SheetJS converte as abas DETRAF e RESUMO em linhas.
+  // ZIP: se a carta CT for PDF, pdf.js lê o texto e extrai "valor de R$ X".
+  // O servidor reabre o ZIP sozinho e lê CSV e carta RTF; do navegador só vem o que ele não lê.
+  function paraCentavos(txt) {
+    var m = /valor\s+de\s+R\$\s*([\d.]+,\d{2})/i.exec(txt) || /R\$\s*([\d.]+,\d{2})/i.exec(txt);
+    return m ? Math.round(parseFloat(m[1].replace(/\./g, '').replace(',', '.')) * 100) : null;
+  }
+  function lerPlanilha(buf) {
+    var wb = XLSX.read(buf, { type: 'array' }), abas = {};
+    var alvo = wb.SheetNames.filter(function (n) { return /^(DETRAF|RESUMO)/i.test(n); });
+    if (!alvo.length) alvo = wb.SheetNames.slice(0, 1);
+    alvo.forEach(function (n) { abas[n] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }); });
+    return { abas: abas };
+  }
+  async function totalDaCartaPdf(buf) {
+    var zip = await JSZip.loadAsync(buf);
+    var nome = Object.keys(zip.files).filter(function (n) { return /_CT\.pdf$/i.test(n) || /^CT.*\.pdf$/i.test(n.split('/').pop()); })[0];
+    if (!nome) return null;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    var pdf = await pdfjsLib.getDocument({ data: await zip.files[nome].async('uint8array') }).promise;
+    var texto = '';
+    for (var p = 1; p <= Math.min(pdf.numPages, 3); p++) {
+      var pg = await pdf.getPage(p), tc = await pg.getTextContent();
+      texto += tc.items.map(function (i) { return i.str; }).join(' ') + ' ';
+    }
+    return paraCentavos(texto);
+  }
+  async function extrasDe(f, buf) {
+    try {
+      if (/\.(xls|xlsx)$/i.test(f.name)) return { planilha: lerPlanilha(buf) };
+      if (/\.zip$/i.test(f.name)) {
+        var t = await totalDaCartaPdf(buf);
+        return t === null ? {} : { totalCT: t, fonteTotal: 'carta CT (pdf, lida no navegador)' };
+      }
+    } catch (e) { return { erroLeitura: e.message }; }
+    return {};
+  }
+  function bufParaBase64(buf) {
+    var bin = '', bytes = new Uint8Array(buf), N = 0x8000;
+    for (var i = 0; i < bytes.length; i += N) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + N));
+    return btoa(bin);
+  }
+
   function adicionar(lista) {
     Array.prototype.forEach.call(lista, function (f) {
       var r = new FileReader();
-      r.onload = function () {
-        var b64 = String(r.result).split(',')[1] || '';
-        fila.push({ nome: f.name, base64: b64 });
+      r.onload = async function () {
+        var buf = r.result;
+        var extras = await extrasDe(f, buf);
+        fila.push({ nome: f.name, base64: bufParaBase64(buf), extras: extras });
         desenharFila();
       };
       r.onerror = function () { $('msg').textContent = 'Não foi possível ler ' + f.name + '.'; };
-      r.readAsDataURL(f);
+      r.readAsArrayBuffer(f);
     });
   }
   function desenharFila() {
@@ -188,7 +236,7 @@
     var tb = $('grupos'); tb.textContent = '';
     r.grupos.forEach(function (g) {
       tb.appendChild(el('tr', {}, [
-        el('td', { text: g.tipoBrisa }), el('td', { text: g.tipoParceiro }), el('td', { text: g.holding }),
+        el('td', { text: g.bloco }), el('td', { text: g.tipoParceiro }), el('td', { text: g.holding }),
         el('td', { text: g.direcao === 'EMISSAO' ? 'Emissão' : 'Recebimento' }),
         el('td', { class: 'num', text: g.linhas }), el('td', { class: 'num', text: g.minutos.toLocaleString('pt-BR') }),
         el('td', { class: 'num', text: g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) })
@@ -197,8 +245,10 @@
 
     var arq = $('arquivos'); arq.textContent = '';
     r.arquivos.forEach(function (a) {
+      var conf = a.totalDeclarado === null ? 'sem total para conferir'
+        : (Math.abs(a.totalDeclarado - a.somaLinhas) < 0.015 ? 'total confere: ' : 'total NÃO confere: ') + brl(a.somaLinhas) + ' × ' + brl(a.totalDeclarado) + ' (' + a.fonteTotal + ')';
       var corpo = [el('strong', { text: a.nome }),
-        el('span', { text: a.ok ? ' — ' + a.linhas + ' linhas lidas, ' + a.totalRejeitadas + ' descartadas' : ' — ' + a.erro })];
+        el('span', { text: a.ok ? ' — ' + a.linhas + ' linhas, ' + a.totalRejeitadas + ' descartadas; ' + conf : ' — ' + a.erro })];
       var bloco = el('div', { class: 'bloco ' + (a.ok ? 'ok' : 'erro') }, corpo);
       if (a.rejeitadas && a.rejeitadas.length) {
         var pre = el('pre', { text: a.rejeitadas.map(function (x) { return 'linha ' + x.linha + ': ' + x.motivo; }).join('\n') });
@@ -243,7 +293,8 @@
       .withSuccessHandler(function (r) {
         if (!r.ok) { $('estadoAprovacao').textContent = r.erro; atualizarAprovacao(); return; }
         $('resultado').hidden = true; $('sucesso').hidden = false; fila = []; desenharFila(); ultimoResultado = null;
-        $('sucessoTexto').textContent = 'Lote ' + r.lote + ' gravado: ' + r.lancamentos + ' lançamento(s), total ' + brl(r.total) + '. Guarde o número do lote para um eventual estorno.';
+        $('sucessoTexto').textContent = 'Lote ' + r.lote + ' gravado: ' + r.lancamentos + ' lançamento(s), ' + r.linhasDetalhe + ' linha(s) no detalhe mensal, total ' + brl(r.total) +
+          '. Controle: ' + (r.controle || []).join(' | ') + ' Guarde o número do lote para um eventual estorno.';
       })
       .withFailureHandler(function (e) { $('estadoAprovacao').textContent = 'Falha ao gravar: ' + e.message; atualizarAprovacao(); })
       .api_aprovar({ arquivos: fila, aceites: aceites, periodoEsperado: $('periodo').value.trim() });
