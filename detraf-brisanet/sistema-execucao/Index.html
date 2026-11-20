@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Execução DETRAF</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --laranja: #FF5022;
+    --laranja-escuro: #E47D20;
+    --cinza: #E8E8E8;
+    --texto: #5E5E5E;       /* [inferido] cinza de texto: o template não define o HEX */
+    --titulo: #3F3F3F;
+    --alerta: #DA2468;
+    --apoio: #2242D4;
+    --ok: #1F7A4D;
+    --raio: 14px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Figtree, Rubik, system-ui, sans-serif; color: var(--texto); background: #fff; line-height: 1.5; }
+  main { max-width: 980px; margin: 0 auto; padding: 28px 20px 80px; }
+  h1 { font-size: 28px; font-weight: 800; color: var(--titulo); margin: 12px 0 4px; }
+  h2 { font-size: 18px; font-weight: 600; color: var(--titulo); margin: 32px 0 10px; }
+  p.sub { margin: 0 0 24px; max-width: 62ch; }
+  .tag { display: inline-block; background: var(--laranja); color: #fff; font-weight: 600; font-size: 13px; padding: 3px 12px; border-radius: 6px; }
+
+  /* Área de envio */
+  #drop { border: 2px dashed var(--laranja); border-radius: var(--raio); padding: 28px; text-align: center; cursor: pointer; background: #fff; }
+  #drop.sobre { background: #FFF1EC; }
+  #drop strong { color: var(--laranja); }
+  #fila { list-style: none; padding: 0; margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
+  #fila li { background: var(--cinza); border-radius: 999px; padding: 4px 6px 4px 14px; font-size: 14px; display: flex; gap: 8px; align-items: center; }
+  #fila button { border: 0; background: transparent; cursor: pointer; font-size: 16px; color: var(--texto); }
+  .linha-acoes { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+  label.campo { font-size: 14px; display: flex; gap: 8px; align-items: center; }
+  input[type=text] { font: inherit; padding: 8px 10px; border: 1px solid #C9C9C9; border-radius: 8px; width: 9em; }
+
+  button.principal { font: inherit; font-weight: 600; background: var(--laranja); color: #fff; border: 0; border-radius: 10px; padding: 11px 22px; cursor: pointer; }
+  button.principal:disabled { background: var(--cinza); color: #9a9a9a; cursor: not-allowed; }
+  button.secundario { font: inherit; background: #fff; color: var(--titulo); border: 1px solid #BDBDBD; border-radius: 10px; padding: 10px 18px; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--apoio); outline-offset: 2px; }
+
+  /* Conferência */
+  #resultado[hidden] { display: none; }
+  .total { display: flex; gap: 28px; flex-wrap: wrap; align-items: baseline; margin: 8px 0 4px; }
+  .total .valor { font-size: 34px; font-weight: 800; color: var(--titulo); font-variant-numeric: tabular-nums; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--cinza); }
+  th { background: var(--laranja); color: #fff; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #F6F6F6; }
+  td.num, th.num { text-align: right; }
+
+  .bloco { border-radius: var(--raio); padding: 14px 16px; margin: 10px 0; }
+  .bloco.erro { background: #FDE9F0; border-left: 6px solid var(--alerta); }
+  .bloco.aviso { background: #FFF4E8; border-left: 6px solid var(--laranja-escuro); }
+  .bloco.ok { background: #E9F6EF; border-left: 6px solid var(--ok); }
+  .bloco strong { color: var(--titulo); }
+  .bloco label { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  details { margin-top: 6px; font-size: 13px; }
+  details pre { white-space: pre-wrap; word-break: break-all; background: #fff; padding: 8px; border-radius: 8px; max-height: 180px; overflow: auto; }
+
+  #aprovacao { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--cinza); padding: 14px 0; margin-top: 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+  #aprovacao .estado { flex: 1; min-width: 220px; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    #aprovacao.liberado button { transition: transform .15s; }
+    #aprovacao.liberado button:active { transform: scale(.98); }
+  }
+  @media (max-width: 640px) { main { padding: 18px 14px 80px; } .total .valor { font-size: 28px; } table { font-size: 13px; } }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">DETRAF</span>
+  <h1>Conferência de faturamento</h1>
+  <p class="sub">Envie os arquivos do período, confira os valores e aprove. Nada é gravado antes da sua aprovação.</p>
+
+  <div id="drop" tabindex="0" role="button" aria-label="Escolher arquivos">
+    <strong>Escolha os arquivos</strong> ou arraste aqui
+    <div style="font-size:13px;margin-top:4px">Por enquanto: CSV de bilhetagem. Um período por vez.</div>
+    <input id="arquivo" type="file" multiple accept=".csv" hidden>
+  </div>
+  <ul id="fila"></ul>
+
+  <div class="linha-acoes">
+    <label class="campo">Período esperado <input id="periodo" type="text" inputmode="numeric" maxlength="6" placeholder="AAAAMM"></label>
+    <button id="btnConferir" class="principal" disabled>Conferir arquivos</button>
+    <span id="msg" role="status"></span>
+  </div>
+
+  <section id="resultado" hidden>
+    <h2>Resumo do lote</h2>
+    <div class="total"><span class="valor" id="totalGeral"></span><span id="infoPeriodo"></span></div>
+    <table>
+      <thead><tr><th>Tipo brisanet</th><th>Tipo parceiro</th><th>Operadora</th><th>Direção</th><th class="num">Linhas</th><th class="num">Minutos</th><th class="num">Valor (R$)</th></tr></thead>
+      <tbody id="grupos"></tbody>
+    </table>
+
+    <h2>Arquivos lidos</h2>
+    <div id="arquivos"></div>
+
+    <h2>Erros e avisos</h2>
+    <div id="checagens"></div>
+
+    <div id="aprovacao">
+      <div class="estado" id="estadoAprovacao"></div>
+      <button id="btnAprovar" class="principal" disabled>Aprovar e gravar</button>
+    </div>
+  </section>
+
+  <section id="sucesso" hidden>
+    <h2>Gravado</h2>
+    <div class="bloco ok" id="sucessoTexto"></div>
+  </section>
+
+  <h2>Estornar um lote</h2>
+  <p class="sub">Marca os lançamentos do lote como estornados e registra o motivo. O histórico é mantido.</p>
+  <div class="linha-acoes">
+    <label class="campo">Lote <input id="loteEstorno" type="text" placeholder="20261119-153000" style="width:13em"></label>
+    <label class="campo">Motivo <input id="motivoEstorno" type="text" style="width:22em"></label>
+    <button id="btnEstornar" class="secundario">Estornar lote</button>
+    <span id="msgEstorno" role="status"></span>
+  </div>
+</main>
+
+<script>
+(function () {
+  var fila = [];            // [{nome, base64}]
+  var ultimoResultado = null;
+  var $ = function (id) { return document.getElementById(id); };
+  var brl = function (n) { return Number(n).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+  function el(tag, props, filhos) {
+    var e = document.createElement(tag);
+    Object.keys(props || {}).forEach(function (k) { if (k === 'text') e.textContent = props[k]; else e.setAttribute(k, props[k]); });
+    (filhos || []).forEach(function (f) { e.appendChild(f); });
+    return e;
+  }
+
+  // ---- fila de arquivos
+  $('drop').addEventListener('click', function () { $('arquivo').click(); });
+  $('drop').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('arquivo').click(); } });
+  ['dragover', 'dragenter'].forEach(function (ev) { $('drop').addEventListener(ev, function (e) { e.preventDefault(); $('drop').classList.add('sobre'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { $('drop').addEventListener(ev, function (e) { e.preventDefault(); $('drop').classList.remove('sobre'); }); });
+  $('drop').addEventListener('drop', function (e) { adicionar(e.dataTransfer.files); });
+  $('arquivo').addEventListener('change', function (e) { adicionar(e.target.files); e.target.value = ''; });
+
+  function adicionar(lista) {
+    Array.prototype.forEach.call(lista, function (f) {
+      var r = new FileReader();
+      r.onload = function () {
+        var b64 = String(r.result).split(',')[1] || '';
+        fila.push({ nome: f.name, base64: b64 });
+        desenharFila();
+      };
+      r.onerror = function () { $('msg').textContent = 'Não foi possível ler ' + f.name + '.'; };
+      r.readAsDataURL(f);
+    });
+  }
+  function desenharFila() {
+    var ul = $('fila'); ul.textContent = '';
+    fila.forEach(function (a, i) {
+      var b = el('button', { type: 'button', 'aria-label': 'Remover ' + a.nome, text: '×' });
+      b.addEventListener('click', function () { fila.splice(i, 1); desenharFila(); });
+      ul.appendChild(el('li', {}, [el('span', { text: a.nome }), b]));
+    });
+    $('btnConferir').disabled = fila.length === 0;
+  }
+
+  // ---- conferir
+  $('btnConferir').addEventListener('click', function () {
+    $('btnConferir').disabled = true; $('msg').textContent = 'Conferindo…'; $('sucesso').hidden = true;
+    google.script.run
+      .withSuccessHandler(function (r) { $('msg').textContent = ''; $('btnConferir').disabled = false; mostrar(r); })
+      .withFailureHandler(function (e) { $('msg').textContent = 'Falha na conferência: ' + e.message; $('btnConferir').disabled = false; })
+      .api_conferir({ arquivos: fila, periodoEsperado: $('periodo').value.trim() });
+  });
+
+  function mostrar(r) {
+    if (!r.ok) { $('msg').textContent = r.erro; return; }
+    ultimoResultado = r;
+    $('resultado').hidden = false;
+    $('totalGeral').textContent = brl(r.totalGeral);
+    $('infoPeriodo').textContent = r.periodo ? 'Período ' + r.periodo : 'Período não identificado';
+
+    var tb = $('grupos'); tb.textContent = '';
+    r.grupos.forEach(function (g) {
+      tb.appendChild(el('tr', {}, [
+        el('td', { text: g.tipoBrisa }), el('td', { text: g.tipoParceiro }), el('td', { text: g.holding }),
+        el('td', { text: g.direcao === 'EMISSAO' ? 'Emissão' : 'Recebimento' }),
+        el('td', { class: 'num', text: g.linhas }), el('td', { class: 'num', text: g.minutos.toLocaleString('pt-BR') }),
+        el('td', { class: 'num', text: g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) })
+      ]));
+    });
+
+    var arq = $('arquivos'); arq.textContent = '';
+    r.arquivos.forEach(function (a) {
+      var corpo = [el('strong', { text: a.nome }),
+        el('span', { text: a.ok ? ' — ' + a.linhas + ' linhas lidas, ' + a.totalRejeitadas + ' descartadas' : ' — ' + a.erro })];
+      var bloco = el('div', { class: 'bloco ' + (a.ok ? 'ok' : 'erro') }, corpo);
+      if (a.rejeitadas && a.rejeitadas.length) {
+        var pre = el('pre', { text: a.rejeitadas.map(function (x) { return 'linha ' + x.linha + ': ' + x.motivo; }).join('\n') });
+        bloco.appendChild(el('details', {}, [el('summary', { text: 'Ver linhas descartadas' }), pre]));
+      }
+      arq.appendChild(bloco);
+    });
+
+    var ch = $('checagens'); ch.textContent = '';
+    r.erros.forEach(function (e) { ch.appendChild(el('div', { class: 'bloco erro' }, [el('strong', { text: 'Erro: ' }), el('span', { text: e.mensagem })])); });
+    r.avisos.forEach(function (a) {
+      var cb = el('input', { type: 'checkbox', 'data-aviso': a.id });
+      cb.addEventListener('change', atualizarAprovacao);
+      var txt = el('span', {}, [el('strong', { text: 'Aviso: ' }), document.createTextNode(a.mensagem + ' ')]);
+      var lab = el('label', {}, [cb, el('span', {}, [txt, el('em', { text: ' Li e aceito.' })])]);
+      var bloco = el('div', { class: 'bloco aviso' }, [lab]);
+      if (a.detalhe) bloco.appendChild(el('details', {}, [el('summary', { text: 'Detalhes' }), el('pre', { text: JSON.stringify(a.detalhe, null, 2) })]));
+      ch.appendChild(bloco);
+    });
+    if (!r.erros.length && !r.avisos.length) ch.appendChild(el('div', { class: 'bloco ok', text: 'Nenhum erro ou aviso.' }));
+    atualizarAprovacao();
+    $('resultado').scrollIntoView({ behavior: 'auto' });
+  }
+
+  function atualizarAprovacao() {
+    var r = ultimoResultado; if (!r) return;
+    var cbs = document.querySelectorAll('[data-aviso]');
+    var pendentes = Array.prototype.filter.call(cbs, function (c) { return !c.checked; }).length;
+    var pode = r.podeAprovar && pendentes === 0;
+    $('btnAprovar').disabled = !pode;
+    $('aprovacao').className = pode ? 'liberado' : '';
+    $('estadoAprovacao').textContent = !r.podeAprovar
+      ? 'Há erros: corrija os arquivos e confira de novo.'
+      : pendentes ? pendentes + ' aviso(s) esperando "li e aceito".' : 'Tudo conferido. Pronto para gravar.';
+  }
+
+  // ---- aprovar
+  $('btnAprovar').addEventListener('click', function () {
+    var aceites = Array.prototype.map.call(document.querySelectorAll('[data-aviso]:checked'), function (c) { return c.getAttribute('data-aviso'); });
+    $('btnAprovar').disabled = true; $('estadoAprovacao').textContent = 'Gravando…';
+    google.script.run
+      .withSuccessHandler(function (r) {
+        if (!r.ok) { $('estadoAprovacao').textContent = r.erro; atualizarAprovacao(); return; }
+        $('resultado').hidden = true; $('sucesso').hidden = false; fila = []; desenharFila(); ultimoResultado = null;
+        $('sucessoTexto').textContent = 'Lote ' + r.lote + ' gravado: ' + r.lancamentos + ' lançamento(s), total ' + brl(r.total) + '. Guarde o número do lote para um eventual estorno.';
+      })
+      .withFailureHandler(function (e) { $('estadoAprovacao').textContent = 'Falha ao gravar: ' + e.message; atualizarAprovacao(); })
+      .api_aprovar({ arquivos: fila, aceites: aceites, periodoEsperado: $('periodo').value.trim() });
+  });
+
+  // ---- estornar
+  $('btnEstornar').addEventListener('click', function () {
+    var lote = $('loteEstorno').value.trim(), motivo = $('motivoEstorno').value.trim();
+    if (!confirm('Estornar o lote ' + lote + '?')) return;
+    google.script.run
+      .withSuccessHandler(function (r) { $('msgEstorno').textContent = r.ok ? r.estornados + ' lançamento(s) estornado(s).' : r.erro; })
+      .withFailureHandler(function (e) { $('msgEstorno').textContent = 'Falha: ' + e.message; })
+      .api_estornar(lote, motivo);
+  });
+})();
+</script>
+</body>
+</html>
