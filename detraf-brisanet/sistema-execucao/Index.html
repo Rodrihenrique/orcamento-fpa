@@ -48,8 +48,30 @@
 
   /* Conferência */
   #resultado[hidden] { display: none; }
-  .total { display: flex; gap: 28px; flex-wrap: wrap; align-items: baseline; margin: 8px 0 4px; }
-  .total .valor { font-size: 34px; font-weight: 800; color: var(--titulo); font-variant-numeric: tabular-nums; }
+  /* Cartões da revisão (arquivos lidos, visão global, projeções) */
+  .cartao { border: 1px solid var(--cinza); border-radius: var(--raio); padding: 18px 20px; margin: 14px 0; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+  .cartao.topo { border-top: 5px solid var(--laranja); }
+  .cartao.proj { border-left: 6px solid var(--laranja); }
+  .cartao h3 { font-size: 16px; font-weight: 800; color: var(--titulo); margin: 0; }
+  .cartao-cab { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .chip-periodo { background: var(--cinza); color: var(--titulo); font-weight: 600; font-size: 13px; padding: 3px 12px; border-radius: 999px; }
+  .pontos { margin: 8px 0 12px; padding-left: 20px; }
+  .pontos li { margin: 4px 0; }
+  .pontos strong { color: var(--titulo); }
+  .meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0 4px; font-size: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 12px 0 8px; }
+  .kpi { border: 1px solid var(--cinza); border-radius: 12px; padding: 12px 14px; text-align: center; background: #fff; }
+  .kpi .rot { display: block; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+  .kpi .val { display: block; font-size: 26px; font-weight: 800; color: var(--titulo); font-variant-numeric: tabular-nums; }
+  .cartao h4 { font-size: 14px; font-weight: 600; color: var(--titulo); margin: 18px 0 6px; }
+  .rolagem { overflow-x: auto; }
+  tfoot td { font-weight: 800; color: var(--titulo); border-top: 2px solid var(--laranja); border-bottom: 0; }
+  .tipo { display: inline-block; font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 6px; background: var(--cinza); color: var(--titulo); }
+  .tipo-stfc { background: #E3EAF6; color: #0B316D; }
+  .tipo-smp { background: #FFF1EC; color: #9F4016; }
+  .tipo-sms, .tipo-sme { background: #FDE9F0; color: #DA2468; }
+  .tipo.alerta { background: #FDE9F0; color: #DA2468; margin-left: 6px; }
+  .direcao { font-weight: 600; }
   table { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--cinza); }
   th { background: var(--laranja); color: #fff; font-weight: 600; }
@@ -72,7 +94,7 @@
     #aprovacao.liberado button { transition: transform .15s; }
     #aprovacao.liberado button:active { transform: scale(.98); }
   }
-  @media (max-width: 640px) { main { padding: 18px 14px 80px; } .total .valor { font-size: 28px; } table { font-size: 13px; } }
+  @media (max-width: 640px) { main { padding: 18px 14px 80px; } .kpis { grid-template-columns: 1fr; } .kpi .val { font-size: 22px; } table { font-size: 13px; } }
 </style>
 </head>
 <body>
@@ -95,15 +117,26 @@
   </div>
 
   <section id="resultado" hidden>
-    <h2>Resumo do lote</h2>
-    <div class="total"><span class="valor" id="totalGeral"></span><span id="infoPeriodo"></span></div>
-    <table>
-      <thead><tr><th>Bloco no detalhe</th><th>Tipo parceiro</th><th>Operadora</th><th>Direção</th><th class="num">Linhas</th><th class="num">Minutos</th><th class="num">Valor (R$)</th></tr></thead>
-      <tbody id="grupos"></tbody>
-    </table>
+    <h2>Revisão do lote</h2>
+    <p class="sub">A brisanet leu os seus arquivos. Abaixo estão as projeções do faturamento.</p>
 
-    <h2>Arquivos lidos</h2>
-    <div id="arquivos"></div>
+    <div class="cartao topo">
+      <div class="cartao-cab"><h3>Arquivos lidos</h3><span class="chip-periodo" id="infoPeriodo"></span></div>
+      <ul class="pontos" id="resumoLote"></ul>
+      <div id="arquivos"></div>
+    </div>
+
+    <div class="cartao">
+      <h3>Visão global (todo o lote)</h3>
+      <div class="kpis">
+        <div class="kpi"><span class="rot">Valor total</span><span class="val" id="totalGeral"></span></div>
+        <div class="kpi"><span class="rot">Chamadas</span><span class="val" id="chamadasGeral"></span></div>
+        <div class="kpi"><span class="rot">Minutos</span><span class="val" id="minutosGeral"></span></div>
+      </div>
+    </div>
+
+    <h2>Projeções</h2>
+    <div id="projecoes"></div>
 
     <h2>Erros e avisos</h2>
     <div id="checagens"></div>
@@ -231,16 +264,51 @@
     ultimoResultado = r;
     $('resultado').hidden = false;
     $('totalGeral').textContent = brl(r.totalGeral);
-    $('infoPeriodo').textContent = r.periodo ? 'Período ' + r.periodo : 'Período não identificado';
+    $('chamadasGeral').textContent = (r.chamadasGeral || 0).toLocaleString('pt-BR');
+    $('minutosGeral').textContent = (r.minutosGeral || 0).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    $('infoPeriodo').textContent = r.periodo ? 'Período: ' + r.periodo : 'Período não identificado';
 
-    var tb = $('grupos'); tb.textContent = '';
+    var linhasOk = 0, descartadas = 0, lidos = 0;
+    r.arquivos.forEach(function (a) { if (a.ok) { lidos++; linhasOk += a.linhas; descartadas += a.totalRejeitadas; } });
+    var rel = {};
+    r.grupos.forEach(function (g) { rel[g.holding + ' ' + (g.direcao === 'EMISSAO' ? '→ brisanet devedora' : '→ brisanet credora')] = 1; });
+    var res = $('resumoLote'); res.textContent = '';
+    res.appendChild(el('li', {}, [el('strong', { text: linhasOk.toLocaleString('pt-BR') + ' linhas validadas' }), document.createTextNode(' em ' + lidos + ' arquivo(s) lido(s).')]));
+    res.appendChild(el('li', {}, [el('strong', { text: 'Relação: ' }), document.createTextNode(Object.keys(rel).join(' · ') || '—')]));
+    res.appendChild(el('li', {}, [el('strong', { text: descartadas + ' linha(s) descartada(s)' }), document.createTextNode(' (cabeçalho/soma) — detalhe em cada arquivo.')]));
+    res.appendChild(el('li', { text: r.eotsNaoMapeadas && r.eotsNaoMapeadas.length ? r.eotsNaoMapeadas.length + ' EOT(s) fora do mapa: ' + r.eotsNaoMapeadas.slice(0, 15).join(', ') : 'Nenhuma EOT nova identificada.' }));
+
+    function fmt2(n) { return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+    function tabelaEots(titulo, lista) {
+      var tc = 0, tm = 0, tv = 0;
+      var corpo = el('tbody');
+      lista.forEach(function (e) {
+        tc += e.chamadas; tm += e.minutos; tv += e.valor;
+        var t = el('span', { class: 'tipo tipo-' + String(e.tipo || '').toLowerCase(), text: e.tipo || '—' });
+        var cel = el('td', {}, [t]);
+        if (!e.mapeada) cel.appendChild(el('span', { class: 'tipo alerta', text: 'fora do mapa' }));
+        corpo.appendChild(el('tr', {}, [el('td', { text: e.eot }), el('td', { text: e.operadora || '—' }), el('td', { text: e.uf || '—' }), cel,
+          el('td', { class: 'num', text: e.chamadas.toLocaleString('pt-BR') }), el('td', { class: 'num', text: e.minutos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }),
+          el('td', { class: 'num', text: fmt2(e.valor) })]));
+      });
+      var rod = el('tfoot', {}, [el('tr', {}, [el('td', { text: 'Total', colspan: 4 }), el('td', { class: 'num', text: tc.toLocaleString('pt-BR') }),
+        el('td', { class: 'num', text: tm.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }), el('td', { class: 'num', text: fmt2(tv) })])]);
+      var tab = el('table', {}, [el('thead', {}, [el('tr', {}, ['EOT', 'Operadora', 'UF', 'Tipo', 'Chamadas', 'Minutos', 'Valor total (R$)'].map(function (h, i) { return el('th', { class: i > 3 ? 'num' : '', text: h }); }))]), corpo, rod]);
+      return [el('h4', { text: titulo + ' (' + lista.length + ')' }), el('div', { class: 'rolagem' }, [tab])];
+    }
+
+    var pj = $('projecoes'); pj.textContent = '';
     r.grupos.forEach(function (g) {
-      tb.appendChild(el('tr', {}, [
-        el('td', { text: g.bloco }), el('td', { text: g.tipoParceiro }), el('td', { text: g.holding }),
-        el('td', { text: g.direcao === 'EMISSAO' ? 'Emissão' : 'Recebimento' }),
-        el('td', { class: 'num', text: g.linhas }), el('td', { class: 'num', text: g.minutos.toLocaleString('pt-BR') }),
-        el('td', { class: 'num', text: g.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) })
-      ]));
+      var cab = el('div', { class: 'cartao-cab' }, [el('h3', { text: 'Projeção: ' + g.tipoBrisa + ' (' + g.holding + ')' }),
+        el('span', { class: 'direcao', text: g.direcao === 'EMISSAO' ? 'Emissão' : 'Recebimento' })]);
+      var meta = el('div', { class: 'meta' }, [el('span', { class: 'tipo', text: g.bloco }), el('span', { text: 'Parceiro: ' + g.tipoParceiro + ' · ' + g.linhas + ' linha(s)' })]);
+      var kp = el('div', { class: 'kpis' }, [
+        el('div', { class: 'kpi' }, [el('span', { class: 'rot', text: 'Subtotal' }), el('span', { class: 'val', text: brl(g.total) })]),
+        el('div', { class: 'kpi' }, [el('span', { class: 'rot', text: 'Chamadas' }), el('span', { class: 'val', text: g.chamadas.toLocaleString('pt-BR') })]),
+        el('div', { class: 'kpi' }, [el('span', { class: 'rot', text: 'Minutos' }), el('span', { class: 'val', text: g.minutos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) })])]);
+      var c = el('div', { class: 'cartao proj' }, [cab, meta, kp]);
+      tabelaEots('EOT credora', g.credoras || []).concat(tabelaEots('EOT devedora', g.devedoras || [])).forEach(function (n) { c.appendChild(n); });
+      pj.appendChild(c);
     });
 
     var arq = $('arquivos'); arq.textContent = '';

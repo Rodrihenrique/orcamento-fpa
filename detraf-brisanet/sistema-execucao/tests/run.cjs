@@ -181,6 +181,31 @@ t('título de bloco: credora primeiro', () => {
   assert.strictEqual(run('Calculo_tituloBloco(gg)'), 'brisanet SMP - VIVO SMS');
 });
 
+t('detalhe por EOT: credoras e devedoras somam o grupo, com operadora/UF/tipo do mapa', () => {
+  const g = run('Calculo_agrupar(leit.registros, mapa)').grupos[0];
+  const soma = l => l.reduce((s, e) => s + e.valorCentavos, 0);
+  assert.strictEqual(soma(g.credoras), g.totalCentavos);
+  assert.strictEqual(soma(g.devedoras), g.totalCentavos);
+  assert.strictEqual(g.credoras.length, 1);
+  assert.strictEqual(g.credoras[0].eot, '001');
+  assert.strictEqual(g.credoras[0].operadora, 'BRISANET');
+  assert.strictEqual(g.credoras[0].uf, 'CE');
+  assert.strictEqual(g.devedoras[0].eot, '100');
+  assert.strictEqual(g.devedoras[0].operadora, 'CLARO');
+  assert.strictEqual(g.credoras[0].chamadas, g.chamadas);
+});
+
+t('detalhe por EOT: EOT fora do mapa aparece marcada como não mapeada', () => {
+  ctx.regs = [{ eotBilhetagem: '999', eotRelacionada: '001', chamadas: 3, minutos: 1.25, valorCentavos: 500, tipoServico: 'FIXA' },
+              { eotBilhetagem: '999', eotRelacionada: '001', chamadas: 2, minutos: 0.5, valorCentavos: 250, tipoServico: 'FIXA' }];
+  const l = run("Calculo_resumoEots(regs, 'eotBilhetagem', mapa, 'CLARO')");
+  assert.strictEqual(l.length, 1);
+  assert.strictEqual(l[0].mapeada, false);
+  assert.strictEqual(l[0].chamadas, 5);
+  assert.strictEqual(l[0].minutos, 1.8);   // 1,75 arredondado a 1 casa
+  assert.strictEqual(l[0].valorCentavos, 750);
+});
+
 t('entrada com erro vira erro do arquivo, não derruba os demais', () => {
   ctx.e = { nome: 'x.zip', hash: 'e', erroEntrada: 'ZIP sem CSV de bilhetagem.' };
   const r = run('Parsers_ler(e)');

@@ -43,6 +43,12 @@ function Api_analisar(payload) {
   return { uploads: uploads, leituras: leituras, agrupado: agrupado, validacao: validacao, periodo: periodo };
 }
 
+/** Linha de EOT para a tela (valor em reais). */
+function Api_linhaEot(e) {
+  return { eot: e.eot, operadora: e.operadora, uf: e.uf, tipo: e.tipo, mapeada: e.mapeada,
+           chamadas: e.chamadas, minutos: e.minutos, valor: Modelo_centavosParaReais(e.valorCentavos) };
+}
+
 function api_conferir(payload) {
   try {
     var email = Api_exigirAutorizado();
@@ -63,8 +69,11 @@ function api_conferir(payload) {
       grupos: r.agrupado.grupos.map(function (g) {
         return { chave: g.chave, tipoBrisa: g.tipoBrisa, tipoParceiro: g.tipoParceiro, holding: g.holding, direcao: g.direcao,
           bloco: Calculo_tituloBloco(g),
-          linhas: g.linhas, chamadas: g.chamadas, minutos: Math.round(g.minutos * 10) / 10, total: Modelo_centavosParaReais(g.totalCentavos) };
+          linhas: g.linhas, chamadas: g.chamadas, minutos: Math.round(g.minutos * 10) / 10, total: Modelo_centavosParaReais(g.totalCentavos),
+          credoras: g.credoras.map(Api_linhaEot), devedoras: g.devedoras.map(Api_linhaEot) };
       }),
+      chamadasGeral: r.agrupado.grupos.reduce(function (s, g) { return s + g.chamadas; }, 0),
+      minutosGeral: Math.round(r.agrupado.grupos.reduce(function (s, g) { return s + g.minutos; }, 0) * 10) / 10,
       totalGeral: Modelo_centavosParaReais(r.agrupado.totalCentavos),
       eotsNaoMapeadas: r.agrupado.eotsNaoMapeadas,
       erros: r.validacao.erros, avisos: r.validacao.avisos, podeAprovar: r.validacao.podeAprovar

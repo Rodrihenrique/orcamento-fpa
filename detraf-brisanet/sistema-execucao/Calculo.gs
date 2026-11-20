@@ -117,9 +117,39 @@ function Calculo_agrupar(registros, mapa) {
     g.registros.push(r);
   });
 
+  var lista = Object.keys(grupos).map(function (k) { return grupos[k]; });
+  lista.forEach(function (g) {
+    g.credoras = Calculo_resumoEots(g.registros, 'eotBilhetagem', mapa, base);
+    g.devedoras = Calculo_resumoEots(g.registros, 'eotRelacionada', mapa, base);
+  });
+
   return {
-    grupos: Object.keys(grupos).map(function (k) { return grupos[k]; }),
+    grupos: lista,
     eotsNaoMapeadas: Object.keys(naoMapeadas),
     totalCentavos: total
   };
+}
+
+/**
+ * Soma por EOT de um lado do relacionamento (campoEot: 'eotBilhetagem' = credora,
+ * 'eotRelacionada' = devedora). Devolve [{eot, operadora, uf, tipo, mapeada, chamadas,
+ * minutos, valorCentavos}] em ordem de EOT. Usado só para a tela de conferência.
+ */
+function Calculo_resumoEots(registros, campoEot, mapa, base) {
+  var por = {};
+  registros.forEach(function (r) {
+    var eot = r[campoEot], e = por[eot];
+    if (!e) {
+      var d = Calculo_dadosEot(eot, mapa, base, r.tipoServico);
+      e = por[eot] = { eot: eot, operadora: d.operadora, uf: d.uf, tipo: d.tipo, mapeada: d.mapeada !== false,
+                       chamadas: 0, minutos: 0, valorCentavos: 0 };
+    }
+    e.chamadas += r.chamadas;
+    e.minutos += r.minutos;
+    e.valorCentavos += r.valorCentavos;
+  });
+  return Object.keys(por).sort(function (a, b) { return a.localeCompare(b); }).map(function (k) {
+    por[k].minutos = Math.round(por[k].minutos * 10) / 10;
+    return por[k];
+  });
 }
