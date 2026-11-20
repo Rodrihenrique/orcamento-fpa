@@ -90,19 +90,70 @@
   #aprovacao { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--cinza); padding: 14px 0; margin-top: 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
   #aprovacao .estado { flex: 1; min-width: 220px; }
 
+  [hidden] { display: none !important; }
+  /* Abas */
+  .abas { display: flex; gap: 6px; margin: 18px 0 8px; border-bottom: 2px solid var(--cinza); flex-wrap: wrap; }
+  .aba { font: inherit; font-weight: 600; background: transparent; color: var(--texto); border: 0; border-bottom: 4px solid transparent; padding: 10px 18px; margin-bottom: -2px; cursor: pointer; }
+  .aba.ativa { color: var(--titulo); border-bottom-color: var(--laranja); }
+  .aba:hover:not(.ativa) { color: var(--titulo); }
+  .barra { display: flex; gap: 10px 14px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+  .barra .msg { font-size: 14px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; gap: 6px; align-items: center; background: var(--cinza); color: var(--titulo); border-radius: 999px; padding: 3px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .chip input { accent-color: var(--laranja); margin: 0; }
+  .chip.off { background: #fff; border: 1px solid #C9C9C9; color: var(--texto); }
+  .kpis4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 12px 0; }
+  .kpi small { display: block; font-size: 12px; margin-top: 2px; }
+  .kpi .pto { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: baseline; }
+  .grafico { width: 100%; height: auto; display: block; }
+  .grafico text { font-family: inherit; fill: var(--texto); font-size: 12px; }
+  .grafico .eixo { stroke: #C9C9C9; stroke-width: 1; }
+  .grafico .grade { stroke: var(--cinza); stroke-width: 1; }
+  .grafico .rotulo { fill: var(--titulo); font-weight: 600; }
+  .grafico .hit { fill: transparent; }
+  .grafico .hit:hover { fill: rgba(255, 80, 34, .06); }
+  .legenda { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; margin: 4px 0 8px; }
+  .legenda span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--c); }
+  #tip { position: fixed; z-index: 50; pointer-events: none; background: #fff; color: var(--titulo); border: 1px solid #C9C9C9; border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 14px rgba(0,0,0,.15); max-width: 260px; }
+  #tip b { display: block; margin-bottom: 2px; }
+  .var-alta { font-weight: 600; } .var-baixa { font-weight: 600; }
+  .grade2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .st { display: inline-block; font-size: 12px; font-weight: 800; padding: 1px 8px; border-radius: 6px; }
+  .st-ativo { background: #E9F6EF; color: #1F7A4D; }
+  .st-substituido { background: var(--cinza); color: var(--titulo); }
+  .st-estornado { background: #FDE9F0; color: #DA2468; }
+  select, input.busca { font: inherit; padding: 7px 10px; border: 1px solid #C9C9C9; border-radius: 8px; background: #fff; color: var(--titulo); }
+  input.busca { width: 15em; }
+  table.clicavel { font-size: 13px; } table.clicavel th, table.clicavel td { padding: 6px 7px; white-space: nowrap; }
+  table.clicavel tbody tr { cursor: pointer; }
+  table.clicavel tbody tr:hover { background: #FFF1EC; }
+  #gaveta { position: fixed; top: 0; right: 0; bottom: 0; width: min(640px, 100%); background: #fff; z-index: 40; box-shadow: -8px 0 28px rgba(0,0,0,.18); padding: 20px 22px 40px; overflow-y: auto; border-top: 5px solid var(--laranja); }
+  #gaveta h3 { margin: 0 0 4px; font-size: 18px; color: var(--titulo); font-weight: 800; }
+  #gaveta .fechar { float: right; }
+  .ficha { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 12px 0; font-size: 14px; }
+  .ficha dt { font-weight: 600; color: var(--titulo); } .ficha dd { margin: 0; word-break: break-word; }
+
   @media (prefers-reduced-motion: no-preference) {
     #aprovacao.liberado button { transition: transform .15s; }
     #aprovacao.liberado button:active { transform: scale(.98); }
   }
-  @media (max-width: 640px) { main { padding: 18px 14px 80px; } .kpis { grid-template-columns: 1fr; } .kpi .val { font-size: 22px; } table { font-size: 13px; } }
+  @media (max-width: 640px) { main { padding: 18px 14px 80px; } .kpis, .kpis4, .grade2 { grid-template-columns: 1fr; } .kpi .val { font-size: 22px; } table { font-size: 13px; } }
 </style>
 </head>
 <body>
 <main>
   <span class="tag">DETRAF</span>
-  <h1>Conferência de faturamento</h1>
-  <p class="sub">Envie os arquivos do período, confira os valores e aprove. Nada é gravado antes da sua aprovação.</p>
+  <h1>Execução DETRAF</h1>
 
+  <div class="abas" role="tablist">
+    <button class="aba ativa" role="tab" id="tab-conferir" aria-selected="true">Conferência</button>
+    <button class="aba" role="tab" id="tab-dashboard" aria-selected="false">Dashboard</button>
+    <button class="aba" role="tab" id="tab-consulta" aria-selected="false">Consultar relatórios</button>
+  </div>
+
+  <section id="vConferir">
+  <h2>Conferência de faturamento</h2>
+  <p class="sub">Envie os arquivos do período, confira os valores e aprove. Nada é gravado antes da sua aprovação.</p>
   <div id="drop" tabindex="0" role="button" aria-label="Escolher arquivos">
     <strong>Escolha os arquivos</strong> ou arraste aqui
     <div style="font-size:13px;margin-top:4px">CSV, ZIP (com a carta da operadora), XLS e XLSX. Um período por vez.</div>
@@ -160,6 +211,48 @@
     <button id="btnEstornar" class="secundario">Estornar lote</button>
     <span id="msgEstorno" role="status"></span>
   </div>
+  </section>
+
+  <section id="vDashboard" hidden>
+    <h2>Dashboard</h2>
+    <p class="sub">Valores das versões vigentes de cada projeção aprovada. Lotes estornados e versões substituídas não entram.</p>
+    <div class="barra">
+      <button id="dashAtualizar" class="secundario">Atualizar</button>
+      <span id="dashMsg" class="msg" role="status"></span>
+    </div>
+    <div id="dashConteudo" hidden>
+      <div class="barra"><strong style="color:var(--titulo)">Meses</strong><div class="chips" id="dashMeses"></div>
+        <button id="dashTodos" class="secundario" style="padding:4px 12px">Todos</button><button id="dashNenhum" class="secundario" style="padding:4px 12px">Limpar</button></div>
+      <div class="kpis4" id="dashKpis"></div>
+      <div class="cartao"><h3>Evolução mensal</h3><div class="legenda" id="legMensal"></div><div id="gMensal"></div>
+        <details open><summary>Ver como tabela</summary><div class="rolagem" id="tMensal"></div></details></div>
+      <div class="grade2">
+        <div class="cartao"><h3>Por operadora</h3><div class="legenda" id="legOp"></div><div id="gOp"></div></div>
+        <div class="cartao"><h3>Por tipo de serviço (brisanet)</h3><div class="legenda" id="legTipo"></div><div id="gTipo"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="vConsulta" hidden>
+    <h2>Consultar relatórios</h2>
+    <p class="sub">Todos os lançamentos aprovados, inclusive versões substituídas e lotes estornados. Clique numa linha para ver o detalhe por EOT, as versões e os arquivos originais.</p>
+    <div class="barra">
+      <label class="campo">Período <select id="fPeriodo"></select></label>
+      <label class="campo">Operadora <select id="fOperadora"></select></label>
+      <label class="campo">Tipo <select id="fTipo"></select></label>
+      <label class="campo">Direção <select id="fDirecao"><option value="">Todas</option><option value="EMISSAO">Emissão</option><option value="RECEBIMENTO">Recebimento</option></select></label>
+      <label class="campo">Situação <select id="fStatus"><option value="ATIVO">Vigentes</option><option value="">Todas</option><option value="SUBSTITUIDO">Substituídas</option><option value="ESTORNADO">Estornadas</option></select></label>
+      <label class="campo">Busca <input id="fBusca" class="busca" type="text" placeholder="lote, arquivo ou usuário"></label>
+    </div>
+    <div class="barra"><button id="consAtualizar" class="secundario">Atualizar</button><button id="consCsv" class="secundario">Baixar CSV</button><span id="consMsg" class="msg" role="status"></span></div>
+    <div class="rolagem"><table class="clicavel">
+      <thead><tr><th>Período</th><th>Operadora</th><th>Tipo</th><th>Direção</th><th class="num">Chamadas</th><th class="num">Minutos</th><th class="num">Valor (R$)</th><th class="num">Versão</th><th>Situação</th><th>Lote</th><th>Data</th></tr></thead>
+      <tbody id="consLinhas"></tbody>
+    </table></div>
+  </section>
+
+  <aside id="gaveta" hidden aria-label="Detalhe do lançamento"></aside>
+  <div id="tip" hidden></div>
 </main>
 
 <script>
@@ -259,6 +352,25 @@
       .api_conferir({ arquivos: fila, periodoEsperado: $('periodo').value.trim() });
   });
 
+  function fmt2(n) { return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function tabelaEots(titulo, lista) {
+    var tc = 0, tm = 0, tv = 0;
+    var corpo = el('tbody');
+    lista.forEach(function (e) {
+      tc += e.chamadas; tm += e.minutos; tv += e.valor;
+      var t = el('span', { class: 'tipo tipo-' + String(e.tipo || '').toLowerCase(), text: e.tipo || '—' });
+      var cel = el('td', {}, [t]);
+      if (!e.mapeada) cel.appendChild(el('span', { class: 'tipo alerta', text: 'fora do mapa' }));
+      corpo.appendChild(el('tr', {}, [el('td', { text: e.eot }), el('td', { text: e.operadora || '—' }), el('td', { text: e.uf || '—' }), cel,
+        el('td', { class: 'num', text: e.chamadas.toLocaleString('pt-BR') }), el('td', { class: 'num', text: e.minutos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }),
+        el('td', { class: 'num', text: fmt2(e.valor) })]));
+    });
+    var rod = el('tfoot', {}, [el('tr', {}, [el('td', { text: 'Total', colspan: 4 }), el('td', { class: 'num', text: tc.toLocaleString('pt-BR') }),
+      el('td', { class: 'num', text: tm.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }), el('td', { class: 'num', text: fmt2(tv) })])]);
+    var tab = el('table', {}, [el('thead', {}, [el('tr', {}, ['EOT', 'Operadora', 'UF', 'Tipo', 'Chamadas', 'Minutos', 'Valor total (R$)'].map(function (h, i) { return el('th', { class: i > 3 ? 'num' : '', text: h }); }))]), corpo, rod]);
+    return [el('h4', { text: titulo + ' (' + lista.length + ')' }), el('div', { class: 'rolagem' }, [tab])];
+  }
+
   function mostrar(r) {
     if (!r.ok) { $('msg').textContent = r.erro; return; }
     ultimoResultado = r;
@@ -277,25 +389,6 @@
     res.appendChild(el('li', {}, [el('strong', { text: 'Relação: ' }), document.createTextNode(Object.keys(rel).join(' · ') || '—')]));
     res.appendChild(el('li', {}, [el('strong', { text: descartadas + ' linha(s) descartada(s)' }), document.createTextNode(' (cabeçalho/soma) — detalhe em cada arquivo.')]));
     res.appendChild(el('li', { text: r.eotsNaoMapeadas && r.eotsNaoMapeadas.length ? r.eotsNaoMapeadas.length + ' EOT(s) fora do mapa: ' + r.eotsNaoMapeadas.slice(0, 15).join(', ') : 'Nenhuma EOT nova identificada.' }));
-
-    function fmt2(n) { return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-    function tabelaEots(titulo, lista) {
-      var tc = 0, tm = 0, tv = 0;
-      var corpo = el('tbody');
-      lista.forEach(function (e) {
-        tc += e.chamadas; tm += e.minutos; tv += e.valor;
-        var t = el('span', { class: 'tipo tipo-' + String(e.tipo || '').toLowerCase(), text: e.tipo || '—' });
-        var cel = el('td', {}, [t]);
-        if (!e.mapeada) cel.appendChild(el('span', { class: 'tipo alerta', text: 'fora do mapa' }));
-        corpo.appendChild(el('tr', {}, [el('td', { text: e.eot }), el('td', { text: e.operadora || '—' }), el('td', { text: e.uf || '—' }), cel,
-          el('td', { class: 'num', text: e.chamadas.toLocaleString('pt-BR') }), el('td', { class: 'num', text: e.minutos.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }),
-          el('td', { class: 'num', text: fmt2(e.valor) })]));
-      });
-      var rod = el('tfoot', {}, [el('tr', {}, [el('td', { text: 'Total', colspan: 4 }), el('td', { class: 'num', text: tc.toLocaleString('pt-BR') }),
-        el('td', { class: 'num', text: tm.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) }), el('td', { class: 'num', text: fmt2(tv) })])]);
-      var tab = el('table', {}, [el('thead', {}, [el('tr', {}, ['EOT', 'Operadora', 'UF', 'Tipo', 'Chamadas', 'Minutos', 'Valor total (R$)'].map(function (h, i) { return el('th', { class: i > 3 ? 'num' : '', text: h }); }))]), corpo, rod]);
-      return [el('h4', { text: titulo + ' (' + lista.length + ')' }), el('div', { class: 'rolagem' }, [tab])];
-    }
 
     var pj = $('projecoes'); pj.textContent = '';
     r.grupos.forEach(function (g) {
@@ -377,6 +470,316 @@
       .withFailureHandler(function (e) { $('msgEstorno').textContent = 'Falha: ' + e.message; })
       .api_estornar(lote, motivo);
   });
+  // ======================= abas =======================
+  var abas = { conferir: 'vConferir', dashboard: 'vDashboard', consulta: 'vConsulta' };
+  var carregou = { dashboard: false, consulta: false };
+  function irPara(nome) {
+    Object.keys(abas).forEach(function (k) {
+      $(abas[k]).hidden = k !== nome;
+      $('tab-' + k).setAttribute('aria-selected', k === nome ? 'true' : 'false');
+      $('tab-' + k).className = 'aba' + (k === nome ? ' ativa' : '');
+    });
+    fecharGaveta();
+    if (nome === 'dashboard' && !carregou.dashboard) carregarDashboard();
+    if (nome === 'consulta' && !carregou.consulta) carregarConsulta();
+  }
+  Object.keys(abas).forEach(function (k) { $('tab-' + k).addEventListener('click', function () { irPara(k); }); });
+
+  // ======================= utilitários de tela =======================
+  var NS = 'http://www.w3.org/2000/svg';
+  function svg(tag, attrs, filhos) {
+    var e = document.createElementNS(NS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { if (k === 'text') e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); });
+    (filhos || []).forEach(function (f) { e.appendChild(f); });
+    return e;
+  }
+  // Duas séries fixas: identidade nunca pelo rank. Validadas (ΔE normal 44,9; CVD 31,1) no validador de paleta.
+  var SERIES = [{ nome: 'A receber (emissão)', cor: '#FF5022' }, { nome: 'A pagar (recebimento)', cor: '#2242D4' }];
+  var nomeMes = function (m) { return m.substring(4, 6) + '/' + m.substring(0, 4); };
+  var dataBR = function (s) { var m = /^(\d{4})-(\d{2})-(\d{2}) (.*)$/.exec(s || ''); return m ? m[3] + '/' + m[2] + '/' + m[1] + ' ' + m[4] : (s || ''); };
+  function compacto(n) {
+    var a = Math.abs(n), f = function (x, c) { return x.toLocaleString('pt-BR', { maximumFractionDigits: c }); };
+    return a >= 1e6 ? f(n / 1e6, 2) + ' mi' : a >= 1e3 ? f(n / 1e3, 1) + ' mil' : f(n, 0);
+  }
+  function numeroBonito(max) {          // teto "redondo" do eixo
+    if (max <= 0) return 1;
+    var p = Math.pow(10, Math.floor(Math.log(max) / Math.LN10)), f = max / p;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p;
+  }
+  function legenda(alvo) {
+    alvo.textContent = '';
+    SERIES.forEach(function (s) { var e = el('span', { text: s.nome }); e.style.setProperty('--c', s.cor); alvo.appendChild(e); });
+  }
+  var tip = $('tip');
+  function mostrarTip(ev, titulo, linhas) {
+    tip.textContent = '';
+    tip.appendChild(el('b', { text: titulo }));
+    linhas.forEach(function (l) { tip.appendChild(el('div', { text: l })); });
+    tip.hidden = false;
+    var x = Math.min(ev.clientX + 14, window.innerWidth - 280), y = Math.min(ev.clientY + 14, window.innerHeight - 90);
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function esconderTip() { tip.hidden = true; }
+  function barraArredondada(x, y, w, h, cor) {   // 4px arredondado só na ponta, ancorada na base
+    var r = Math.min(4, w / 2, h);
+    return svg('path', { d: 'M' + x + ',' + (y + h) + ' L' + x + ',' + (y + r) + ' Q' + x + ',' + y + ' ' + (x + r) + ',' + y +
+      ' L' + (x + w - r) + ',' + y + ' Q' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + r) + ' L' + (x + w) + ',' + (y + h) + ' Z', fill: cor });
+  }
+
+  // Colunas agrupadas (uma categoria = duas barras: a receber e a pagar).
+  function graficoColunas(alvo, cats, rotulos, v1, v2) {
+    alvo.textContent = '';
+    var W = 720, H = 300, L = 62, R = 10, T = 14, B = 34, n = cats.length;
+    var teto = numeroBonito(Math.max.apply(null, v1.concat(v2, [0]))), ph = H - T - B, pw = W - L - R, gw = pw / n;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'grafico', role: 'img', 'aria-label': 'Evolução mensal: a receber e a pagar' });
+    for (var i = 0; i <= 4; i++) {
+      var v = teto * i / 4, y = T + ph - ph * i / 4;
+      s.appendChild(svg('line', { x1: L, x2: W - R, y1: y, y2: y, class: i ? 'grade' : 'eixo' }));
+      s.appendChild(svg('text', { x: L - 8, y: y + 4, 'text-anchor': 'end', text: compacto(v) }));
+    }
+    var bw = Math.min(34, gw * 0.34), passo = Math.ceil(n / 12);
+    cats.forEach(function (c, k) {
+      var cx = L + gw * k + gw / 2;
+      [v1[k], v2[k]].forEach(function (val, j) {
+        var h = ph * val / teto, x = cx + (j ? 1 : -bw - 1);
+        if (h > 0) s.appendChild(barraArredondada(x, T + ph - h, bw, h, SERIES[j].cor));
+      });
+      if (k % passo === 0) s.appendChild(svg('text', { x: cx, y: H - 12, 'text-anchor': 'middle', text: rotulos[k] }));
+      var hit = svg('rect', { x: L + gw * k, y: T, width: gw, height: ph, class: 'hit' });
+      hit.addEventListener('mousemove', function (ev) { mostrarTip(ev, rotulos[k], [SERIES[0].nome + ': ' + brl(v1[k]), SERIES[1].nome + ': ' + brl(v2[k]), 'Saldo: ' + brl(v1[k] - v2[k])]); });
+      hit.addEventListener('mouseleave', esconderTip);
+      s.appendChild(hit);
+    });
+    alvo.appendChild(s);
+  }
+
+  // Barras horizontais agrupadas, com rótulo de valor direto (poucas categorias).
+  function graficoBarras(alvo, nomes, v1, v2, rotuloAria) {
+    alvo.textContent = '';
+    if (!nomes.length) { alvo.appendChild(el('p', { text: 'Sem dados nos meses escolhidos.' })); return; }
+    var W = 360, L = 84, R = 70, linha = 44, T = 6, H = T + linha * nomes.length + 6;
+    var teto = Math.max.apply(null, v1.concat(v2, [0.01])), pw = W - L - R;
+    var s = svg('svg', { viewBox: '0 0 ' + W + ' ' + H, class: 'grafico', role: 'img', 'aria-label': rotuloAria });
+    s.appendChild(svg('line', { x1: L, x2: L, y1: T, y2: H - 6, class: 'eixo' }));
+    nomes.forEach(function (nome, k) {
+      var y0 = T + linha * k + 6;
+      s.appendChild(svg('text', { x: L - 8, y: y0 + 18, 'text-anchor': 'end', class: 'rotulo', text: nome }));
+      [v1[k], v2[k]].forEach(function (val, j) {
+        var w = Math.max(pw * val / teto, val > 0 ? 2 : 0), y = y0 + j * 15;
+        if (w > 0) s.appendChild(svg('rect', { x: L, y: y, width: w, height: 12, rx: 3, fill: SERIES[j].cor }));
+        s.appendChild(svg('text', { x: L + w + 5, y: y + 10, text: compacto(val) }));
+      });
+      var hit = svg('rect', { x: 0, y: T + linha * k, width: W, height: linha, class: 'hit' });
+      hit.addEventListener('mousemove', function (ev) { mostrarTip(ev, nome, [SERIES[0].nome + ': ' + brl(v1[k]), SERIES[1].nome + ': ' + brl(v2[k]), 'Saldo: ' + brl(v1[k] - v2[k])]); });
+      hit.addEventListener('mouseleave', esconderTip);
+      s.appendChild(hit);
+    });
+    alvo.appendChild(s);
+  }
+
+  // ======================= Dashboard =======================
+  var dash = null, mesesSel = {};
+  $('dashAtualizar').addEventListener('click', carregarDashboard);
+  $('dashTodos').addEventListener('click', function () { Object.keys(mesesSel).forEach(function (m) { mesesSel[m] = true; }); marcarChips(); desenharDashboard(); });
+  $('dashNenhum').addEventListener('click', function () { Object.keys(mesesSel).forEach(function (m) { mesesSel[m] = false; }); marcarChips(); desenharDashboard(); });
+
+  function carregarDashboard() {
+    $('dashMsg').textContent = 'Lendo o histórico…'; $('dashAtualizar').disabled = true;
+    google.script.run
+      .withSuccessHandler(function (r) {
+        $('dashAtualizar').disabled = false;
+        if (!r.ok) { $('dashMsg').textContent = 'Falha ao ler: ' + r.erro; return; }
+        carregou.dashboard = true; dash = r;
+        var meses = Object.keys(r.meses).sort();
+        if (!meses.length) { $('dashConteudo').hidden = true; $('dashMsg').textContent = 'Ainda não há lotes aprovados. Aprove um lote na aba Conferência.'; return; }
+        var antigas = mesesSel; mesesSel = {};
+        meses.forEach(function (m) { mesesSel[m] = antigas.hasOwnProperty(m) ? antigas[m] : true; });
+        $('dashMsg').textContent = 'Atualizado em ' + r.geradoEm;
+        desenharChips(meses); $('dashConteudo').hidden = false; desenharDashboard();
+      })
+      .withFailureHandler(function (e) { $('dashAtualizar').disabled = false; $('dashMsg').textContent = 'Falha ao ler: ' + e.message; })
+      .api_dashboard();
+  }
+  function desenharChips(meses) {
+    var box = $('dashMeses'); box.textContent = '';
+    meses.forEach(function (m) {
+      var cb = el('input', { type: 'checkbox', 'data-mes': m });
+      cb.checked = mesesSel[m];
+      cb.addEventListener('change', function () { mesesSel[m] = cb.checked; marcarChips(); desenharDashboard(); });
+      box.appendChild(el('label', { class: 'chip' + (cb.checked ? '' : ' off') }, [cb, document.createTextNode(nomeMes(m))]));
+    });
+  }
+  function marcarChips() {
+    Array.prototype.forEach.call($('dashMeses').querySelectorAll('input'), function (cb) {
+      cb.checked = !!mesesSel[cb.getAttribute('data-mes')]; cb.parentNode.className = 'chip' + (cb.checked ? '' : ' off');
+    });
+  }
+  function variacao(atual, anterior) {
+    if (anterior === undefined || anterior === null) return '—';
+    if (anterior === 0) return atual === 0 ? '0%' : 'novo';
+    var p = (atual - anterior) / anterior * 100;
+    return (p > 0 ? '▲ ' : p < 0 ? '▼ ' : '') + Math.abs(p).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + '%';
+  }
+
+  function desenharDashboard() {
+    if (!dash) return;
+    var meses = Object.keys(dash.meses).sort().filter(function (m) { return mesesSel[m]; });
+    var emi = 0, rec = 0, cham = 0, min = 0, ops = {}, tipos = {};
+    meses.forEach(function (m) {
+      var d = dash.meses[m]; emi += d.emissao; rec += d.recebimento; cham += d.chamadas; min += d.minutos;
+      [[ops, d.ops], [tipos, d.tipos]].forEach(function (par) {
+        Object.keys(par[1]).forEach(function (k) {
+          var a = par[0][k] || (par[0][k] = { emissao: 0, recebimento: 0 });
+          a.emissao += par[1][k].emissao; a.recebimento += par[1][k].recebimento;
+        });
+      });
+    });
+    var saldo = Math.round((emi - rec) * 100) / 100;
+    var kpi = function (rotulo, valor, sub, cor) {
+      var r = el('span', { class: 'rot' }); if (cor) r.appendChild(el('span', { class: 'pto', style: 'background:' + cor })); r.appendChild(document.createTextNode(rotulo));
+      return el('div', { class: 'kpi' }, [r, el('span', { class: 'val', text: valor }), el('small', { text: sub })]);
+    };
+    var k = $('dashKpis'); k.textContent = '';
+    k.appendChild(kpi('A receber (emissão)', brl(emi), 'brisanet credora', SERIES[0].cor));
+    k.appendChild(kpi('A pagar (recebimento)', brl(rec), 'brisanet devedora', SERIES[1].cor));
+    k.appendChild(kpi('Saldo', brl(saldo), saldo > 0 ? '▲ a favor da brisanet' : saldo < 0 ? '▼ a pagar pela brisanet' : 'zerado'));
+    k.appendChild(kpi('Chamadas · minutos', cham.toLocaleString('pt-BR'), min.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' minutos'));
+
+    legenda($('legMensal')); legenda($('legOp')); legenda($('legTipo'));
+    var rot = meses.map(nomeMes), v1 = meses.map(function (m) { return dash.meses[m].emissao; }), v2 = meses.map(function (m) { return dash.meses[m].recebimento; });
+    if (meses.length) graficoColunas($('gMensal'), meses, rot, v1, v2); else $('gMensal').textContent = 'Escolha ao menos um mês.';
+
+    var tb = el('tbody');
+    meses.forEach(function (m, i) {
+      var d = dash.meses[m];
+      tb.appendChild(el('tr', {}, [el('td', { text: nomeMes(m) }),
+        el('td', { class: 'num', text: brl(d.emissao) }), el('td', { class: 'num', text: variacao(d.emissao, i ? v1[i - 1] : null) }),
+        el('td', { class: 'num', text: brl(d.recebimento) }), el('td', { class: 'num', text: variacao(d.recebimento, i ? v2[i - 1] : null) }),
+        el('td', { class: 'num', text: brl(d.emissao - d.recebimento) }),
+        el('td', { class: 'num', text: d.chamadas.toLocaleString('pt-BR') }), el('td', { class: 'num', text: d.minutos.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) })]));
+    });
+    var cab = ['Mês', 'A receber', 'Var.', 'A pagar', 'Var.', 'Saldo', 'Chamadas', 'Minutos'].map(function (h, i) { return el('th', { class: i ? 'num' : '', text: h }); });
+    $('tMensal').textContent = '';
+    $('tMensal').appendChild(el('table', {}, [el('thead', {}, [el('tr', {}, cab)]), tb]));
+
+    var porValor = function (mapa) { return Object.keys(mapa).sort(function (a, b) { return (mapa[b].emissao + mapa[b].recebimento) - (mapa[a].emissao + mapa[a].recebimento); }); };
+    var no = porValor(ops), nt = porValor(tipos);
+    graficoBarras($('gOp'), no, no.map(function (x) { return ops[x].emissao; }), no.map(function (x) { return ops[x].recebimento; }), 'A receber e a pagar por operadora');
+    graficoBarras($('gTipo'), nt, nt.map(function (x) { return tipos[x].emissao; }), nt.map(function (x) { return tipos[x].recebimento; }), 'A receber e a pagar por tipo de serviço');
+  }
+
+  // ======================= Consulta =======================
+  var cons = [], filtradas = [], LIMITE_TELA = 500;
+  ['fPeriodo', 'fOperadora', 'fTipo', 'fDirecao', 'fStatus'].forEach(function (id) { $(id).addEventListener('change', filtrarConsulta); });
+  $('fBusca').addEventListener('input', filtrarConsulta);
+  $('consAtualizar').addEventListener('click', carregarConsulta);
+  $('consCsv').addEventListener('click', baixarCsv);
+
+  function carregarConsulta() {
+    $('consMsg').textContent = 'Lendo o histórico…'; $('consAtualizar').disabled = true;
+    google.script.run
+      .withSuccessHandler(function (r) {
+        $('consAtualizar').disabled = false;
+        if (!r.ok) { $('consMsg').textContent = 'Falha ao ler: ' + r.erro; return; }
+        carregou.consulta = true; cons = r.linhas;
+        var opcoes = function (id, rotuloTodos, valores) {
+          var sel = $(id), atual = sel.value; sel.textContent = '';
+          sel.appendChild(el('option', { value: '', text: rotuloTodos }));
+          valores.forEach(function (v) { sel.appendChild(el('option', { value: v, text: id === 'fPeriodo' ? nomeMes(v) : v })); });
+          sel.value = valores.indexOf(atual) !== -1 ? atual : '';
+        };
+        var unicos = function (campo) { var m = {}; cons.forEach(function (l) { m[l[campo]] = 1; }); return Object.keys(m).sort(); };
+        opcoes('fPeriodo', 'Todos', unicos('periodo').reverse()); opcoes('fOperadora', 'Todas', unicos('operadora')); opcoes('fTipo', 'Todos', unicos('tipoBrisa'));
+        filtrarConsulta();
+        if (r.cortado) $('consMsg').textContent += ' (o servidor devolveu só os ' + cons.length + ' mais recentes de ' + r.total + ')';
+      })
+      .withFailureHandler(function (e) { $('consAtualizar').disabled = false; $('consMsg').textContent = 'Falha ao ler: ' + e.message; })
+      .api_consulta();
+  }
+
+  function filtrarConsulta() {
+    var f = { periodo: $('fPeriodo').value, operadora: $('fOperadora').value, tipoBrisa: $('fTipo').value, direcao: $('fDirecao').value, status: $('fStatus').value };
+    var busca = $('fBusca').value.trim().toLowerCase();
+    filtradas = cons.filter(function (l) {
+      for (var k in f) if (f[k] && l[k] !== f[k]) return false;
+      return !busca || (l.lote + ' ' + l.arquivos + ' ' + l.usuario).toLowerCase().indexOf(busca) !== -1;
+    });
+    var tb = $('consLinhas'); tb.textContent = '';
+    filtradas.slice(0, LIMITE_TELA).forEach(function (l) {
+      var tr = el('tr', { tabindex: '0' }, [
+        el('td', { text: nomeMes(l.periodo) }), el('td', { text: l.operadora }),
+        el('td', { style: 'white-space:nowrap', text: l.tipoBrisa + ' → ' + l.tipoParceiro }), el('td', { text: l.direcao === 'EMISSAO' ? 'Emissão' : 'Recebimento' }),
+        el('td', { class: 'num', text: l.chamadas.toLocaleString('pt-BR') }), el('td', { class: 'num', text: l.minutos.toLocaleString('pt-BR', { maximumFractionDigits: 1 }) }),
+        el('td', { class: 'num', text: l.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }), el('td', { class: 'num', text: 'v' + l.versao }),
+        el('td', {}, [el('span', { class: 'st st-' + l.status.toLowerCase(), text: l.status })]), el('td', { text: l.lote }), el('td', { text: dataBR(l.data).split(' ')[0] })]);
+      var abrir = function () { abrirDetalhe(l.id); };
+      tr.addEventListener('click', abrir);
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') abrir(); });
+      tb.appendChild(tr);
+    });
+    $('consMsg').textContent = filtradas.length + ' de ' + cons.length + ' lançamento(s)' + (filtradas.length > LIMITE_TELA ? ' · mostrando os ' + LIMITE_TELA + ' mais recentes, refine os filtros' : '');
+    if (!filtradas.length) tb.appendChild(el('tr', {}, [el('td', { colspan: 11, text: cons.length ? 'Nada com esses filtros.' : 'Ainda não há lotes aprovados.' })]));
+  }
+
+  function baixarCsv() {
+    var cab = ['periodo', 'operadora', 'tipo_brisanet', 'tipo_parceiro', 'direcao', 'chamadas', 'minutos', 'valor', 'versao', 'situacao', 'lote', 'data', 'arquivos', 'usuario'];
+    var esc = function (v) { v = String(v); return /[";\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+    var linhas = [cab.join(';')].concat(filtradas.map(function (l) {
+      return [l.periodo, l.operadora, l.tipoBrisa, l.tipoParceiro, l.direcao, l.chamadas, String(l.minutos).replace('.', ','), l.valor.toFixed(2).replace('.', ','), l.versao, l.status, l.lote, l.data, l.arquivos, l.usuario].map(esc).join(';');
+    }));
+    var blob = new Blob(['﻿' + linhas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = el('a', { href: URL.createObjectURL(blob), download: 'detraf-lancamentos.csv' });
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }
+
+  // ---- gaveta de detalhe
+  function fecharGaveta() { $('gaveta').hidden = true; }
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') fecharGaveta(); });
+  function abrirDetalhe(id) {
+    var g = $('gaveta'); g.textContent = ''; g.hidden = false;
+    var fechar = el('button', { class: 'secundario fechar', type: 'button', text: 'Fechar' }); fechar.addEventListener('click', fecharGaveta);
+    g.appendChild(fechar); g.appendChild(el('p', { text: 'Carregando o detalhe…' }));
+    google.script.run
+      .withSuccessHandler(function (r) { g.textContent = ''; g.appendChild(fechar); if (!r.ok) { g.appendChild(el('p', { text: 'Falha: ' + r.erro })); return; } desenharDetalhe(g, r); })
+      .withFailureHandler(function (e) { g.textContent = ''; g.appendChild(fechar); g.appendChild(el('p', { text: 'Falha: ' + e.message })); })
+      .api_detalheLancamento(id);
+  }
+  function desenharDetalhe(g, r) {
+    var l = r.lancamento;
+    g.appendChild(el('h3', { text: r.bloco }));
+    g.appendChild(el('span', { class: 'st st-' + l.status.toLowerCase(), text: l.status + ' · versão ' + l.versao }));
+    var ficha = el('dl', { class: 'ficha' });
+    [['Período', nomeMes(l.periodo)], ['Valor', brl(l.valor)], ['Chamadas', l.chamadas.toLocaleString('pt-BR')],
+     ['Minutos', l.minutos.toLocaleString('pt-BR', { maximumFractionDigits: 1 })], ['Linhas', String(l.linhas)], ['Lote', l.lote],
+     ['Aprovado por', l.usuario + ' em ' + dataBR(l.data)], ['Arquivos', l.arquivos], ['Parser', l.parser], ['Observação', l.obs || '—']
+    ].forEach(function (p) { ficha.appendChild(el('dt', { text: p[0] })); ficha.appendChild(el('dd', { text: p[1] })); });
+    g.appendChild(ficha);
+
+    if (l.status === 'ATIVO') {
+      var est = el('button', { class: 'secundario', type: 'button', text: 'Estornar este lote' });
+      est.addEventListener('click', function () { fecharGaveta(); irPara('conferir'); $('loteEstorno').value = l.lote; $('motivoEstorno').focus(); $('loteEstorno').scrollIntoView(); });
+      g.appendChild(est);
+    }
+    g.appendChild(el('h4', { text: 'Arquivos originais' }));
+    if (r.originais.length) {
+      var ul = el('ul', { class: 'pontos' });
+      r.originais.forEach(function (o) { ul.appendChild(el('li', {}, [el('a', { href: o.url, target: '_blank', rel: 'noopener', text: o.nome })])); });
+      g.appendChild(ul);
+    } else g.appendChild(el('p', { text: 'Nenhum arquivo encontrado na pasta Originais deste período.' }));
+
+    g.appendChild(el('h4', { text: 'Versões desta projeção' }));
+    var tb = el('tbody');
+    r.historico.forEach(function (h) {
+      tb.appendChild(el('tr', {}, [el('td', { text: 'v' + h.versao }), el('td', {}, [el('span', { class: 'st st-' + h.status.toLowerCase(), text: h.status })]),
+        el('td', { class: 'num', text: h.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) }), el('td', { text: h.lote }), el('td', { text: dataBR(h.data) })]));
+    });
+    g.appendChild(el('div', { class: 'rolagem' }, [el('table', {}, [el('thead', {}, [el('tr', {}, ['Versão', 'Situação', 'Valor (R$)', 'Lote', 'Data'].map(function (h, i) { return el('th', { class: i === 2 ? 'num' : '', text: h }); }))]), tb])]));
+
+    if (r.eots.aviso) g.appendChild(el('p', { text: r.eots.aviso }));
+    else {
+      tabelaEots('EOT credora', r.eots.credoras).concat(tabelaEots('EOT devedora', r.eots.devedoras)).forEach(function (n) { g.appendChild(n); });
+    }
+  }
 })();
 </script>
 </body>

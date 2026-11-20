@@ -149,3 +149,38 @@ function api_estornar(loteId, motivo) {
     if (temLock) { try { lock.releaseLock(); } catch (x) { /* ignora */ } }
   }
 }
+
+// ---- Relatórios (somente leitura) ---------------------------------------------
+
+/** Dashboard: base mensal das versões ATIVAS. Filtros e totais são calculados na tela. */
+function api_dashboard() {
+  try {
+    Api_exigirAutorizado();
+    var base = Rel_baseDashboard(Rel_lerTodos());
+    return { ok: true, meses: base.meses, geradoEm: Utilities.formatDate(new Date(), 'America/Sao_Paulo', 'dd/MM/yyyy HH:mm') };
+  } catch (e) {
+    return { ok: false, erro: e.message };
+  }
+}
+
+/** Consulta: todos os lançamentos (ATIVO, SUBSTITUIDO, ESTORNADO), mais recentes primeiro. */
+function api_consulta() {
+  try {
+    Api_exigirAutorizado();
+    var l = Rel_listaConsulta(Rel_lerTodos());
+    return { ok: true, linhas: l.linhas, total: l.total, cortado: l.cortado };
+  } catch (e) {
+    return { ok: false, erro: e.message };
+  }
+}
+
+/** Detalhe de um lançamento: versões, soma por EOT e arquivos originais. */
+function api_detalheLancamento(id) {
+  try {
+    Api_exigirAutorizado();
+    var d = Rel_detalheLancamento(String(id));
+    return { ok: true, lancamento: d.lancamento, bloco: d.bloco, historico: d.historico, eots: d.eots, originais: d.originais };
+  } catch (e) {
+    return { ok: false, erro: e.message };
+  }
+}
